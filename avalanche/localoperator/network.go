@@ -13,14 +13,19 @@ import (
 
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 	"github.com/ava-labs/avalanche-testing/logging"
+	"github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanchego/config"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/palantir/stacktrace"
 )
 
 type Network struct {
-	procs   map[string]*exec.Cmd
-	clients map[string]*avalanchegoclient.Client
+	procs map[string]*exec.Cmd
+	nodes map[string]*Node
+}
+
+type Node struct {
+    client *networkrunner.NodeRunner
 }
 
 func createFile(fname string, contents []byte) error {
@@ -41,7 +46,7 @@ func createFile(fname string, contents []byte) error {
 func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, error) {
 	net := Network{}
 	net.procs = map[string]*exec.Cmd{}
-	net.clients = map[string]*avalanchegoclient.Client{}
+	net.nodes = map[string]*Node{}
 
 	var configFlags map[string]interface{}
 	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &configFlags); err != nil {
@@ -106,7 +111,15 @@ func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, e
 		nodeIP := configFlags["public-ip"].(string)
 		nodePort := uint(configFlags["http-port"].(float64))
 
-		net.clients[nodeConfig.NodeID] = avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second)
+        nodeClient, _ := networkrunner.NewNodeRunnerFromFields(
+            nodeConfig.NodeID,
+            nodeConfig.NodeID,
+            nodeIP,
+            nodePort,
+            avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
+        )
+
+		net.nodes[nodeConfig.NodeID] = &Node{nodeClient}
 	}
 
 	return &net, nil
@@ -138,8 +151,8 @@ func (net *Network) Ready() (chan struct{}, chan error) {
     readyCh := make(chan struct{})
     errorCh := make(chan error)
     go func() {
-        for k := range net.clients {
-            b := waitNode(net.clients[k])
+        for k := range net.nodes {
+            b := waitNode(net.nodes[k].client.GetClient())
             if !b {
                 errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", k))
             }
@@ -148,6 +161,14 @@ func (net *Network) Ready() (chan struct{}, chan error) {
         readyCh <- struct{}{}
     }()
     return readyCh, errorCh
+}
+
+func (net *Network) GetNode(nodeID string) (*Node, error) {
+    node, ok := net.nodes[nodeID]
+    if !ok {
+        return nil, errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+    }
+    return node, nil
 }
 
 func (net *Network) Stop() error {
