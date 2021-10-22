@@ -9,6 +9,7 @@ import (
 	"path"
 	"syscall"
 	"time"
+    "errors"
 
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 	"github.com/ava-labs/avalanche-testing/logging"
@@ -52,17 +53,30 @@ func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, e
 			return nil, err
 		}
 
-		configDir := configFlags["chain-config-dir"].(string)
-		createFile(configFlags["genesis"].(string), networkConfig.Genesis)
-		createFile(path.Join(configDir, "C", "config.json"), networkConfig.CChainConfig)
-		createFile(configFlags["staking-tls-cert-file"].(string), nodeConfig.Cert)
-		createFile(configFlags["staking-tls-key-file"].(string), nodeConfig.PrivateKey)
 		configBytes, err := json.Marshal(configFlags)
 		if err != nil {
 			return nil, err
 		}
+
+		configDir := configFlags["chain-config-dir"].(string)
 		configFilePath := path.Join(configDir, "config.json")
-		createFile(configFilePath, configBytes)
+		cConfigFilePath := path.Join(configDir, "C", "config.json")
+
+        if err := createFile(configFlags["genesis"].(string), networkConfig.Genesis); err != nil {
+			return nil, err
+        }
+		if err := createFile(cConfigFilePath, networkConfig.CChainConfig); err != nil {
+			return nil, err
+        }
+		if err := createFile(configFlags["staking-tls-cert-file"].(string), nodeConfig.Cert); err != nil {
+			return nil, err
+        }
+		if err := createFile(configFlags["staking-tls-key-file"].(string), nodeConfig.PrivateKey); err != nil {
+			return nil, err
+        }
+		if err := createFile(configFilePath, configBytes); err != nil {
+			return nil, err
+        }
 
 		ch := make(chan string, 1)
 		read, w, err := os.Pipe()
@@ -93,18 +107,47 @@ func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, e
 		nodePort := uint(configFlags["http-port"].(float64))
 
 		net.clients[nodeConfig.NodeID] = avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second)
-		waitNode(net.clients[nodeConfig.NodeID])
 	}
 
 	return &net, nil
 }
 
-func waitNode(client *avalanchegoclient.Client) error {
-	//info := client.InfoAPI()
-	//bootstrapped, err := info.IsBootstrapped("P")
-	//bootstrapped, err = info.IsBootstrapped("C")
-	//bootstrapped, err = info.IsBootstrapped("X")
-    return nil
+func waitNode(client *avalanchegoclient.Client) bool {
+	info := client.InfoAPI()
+    timeout := 1 * time.Minute
+    pollTime := 10 * time.Second
+    nodeIsUp := false
+    for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; time.Sleep(pollTime) {
+        nodeIsUp = true
+	    if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
+           nodeIsUp = false
+           continue
+        }
+	    if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
+           nodeIsUp = false
+           continue
+        }
+	    if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
+           nodeIsUp = false
+        }
+    }
+    return nodeIsUp
+}
+
+func (net *Network) Ready() (chan struct{}, chan error) {
+    readyCh := make(chan struct{})
+    errorCh := make(chan error)
+    go func() {
+        for k := range net.clients {
+            b := waitNode(net.clients[k])
+            if !b {
+                errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", k))
+            }
+            logging.Infof("node %s is up\n", k)
+        }
+        readyCh <- struct{}{}
+    }()
+    return readyCh, errorCh
 }
 
 func (net *Network) Stop() error {
