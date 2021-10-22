@@ -25,7 +25,7 @@ type Network struct {
 }
 
 type Node struct {
-    client *networkrunner.NodeRunner
+    Client *networkrunner.NodeRunner
 }
 
 func createFile(fname string, contents []byte) error {
@@ -152,7 +152,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
     errorCh := make(chan error)
     go func() {
         for k := range net.nodes {
-            b := waitNode(net.nodes[k].client.GetClient())
+            b := waitNode(net.nodes[k].Client.GetClient())
             if !b {
                 errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", k))
             }
