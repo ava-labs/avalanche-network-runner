@@ -28,11 +28,19 @@ type Network struct {
 }
 
 type Node struct {
-    Client *oldnetworkrunner.NodeRunner
+    client APIClient
 }
 
-func (node *Node) GetAPIClient() *oldnetworkrunner.NodeRunner {
-    return Client
+type APIClient struct {
+    runner *oldnetworkrunner.NodeRunner
+}
+
+func (apiClient APIClient) GetNodeRunner() *oldnetworkrunner.NodeRunner {
+    return apiClient.runner
+}
+
+func (node *Node) GetAPIClient() networkrunner.APIClient {
+    return node.client
 }
 
 func createFile(fname string, contents []byte) error {
@@ -50,17 +58,18 @@ func createFile(fname string, contents []byte) error {
 	return nil
 }
 
-func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, error) {
+func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string) (*Network, error) {
 	net := Network{}
-	net.procs = map[string]*exec.Cmd{}
-	net.nodes = map[string]*Node{}
+	net.procs = map[ids.ID]*exec.Cmd{}
+	net.nodes = map[ids.ID]*Node{}
+    net.nodeIDs = map[ids.ID]string{}
 
 	var configFlags map[string]interface{}
 	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &configFlags); err != nil {
 		return nil, err
 	}
 
-    n := 0
+    var n byte = 0
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if err := json.Unmarshal(nodeConfig.ConfigFlags, &configFlags); err != nil {
 			return nil, err
@@ -118,13 +127,13 @@ func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, e
         id[0] = n
         n += 1
 
-        nodeIDs[id] := nodeConfig.NodeID
+        net.nodeIDs[id] = nodeConfig.NodeID
 		net.procs[id] = cmd
 
 		nodeIP := configFlags["public-ip"].(string)
 		nodePort := uint(configFlags["http-port"].(float64))
 
-        nodeClient, _ := oldnetworkrunner.NewNodeRunnerFromFields(
+        nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
             nodeConfig.NodeID,
             nodeConfig.NodeID,
             nodeIP,
@@ -132,7 +141,7 @@ func NewNetwork(networkConfig NetworkConfig, binMap map[int]string) (*Network, e
             avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
         )
 
-		net.nodes[id] = &Node{nodeClient}
+		net.nodes[id] = &Node{APIClient{nodeRunner}}
 	}
 
 	return &net, nil
@@ -165,11 +174,11 @@ func (net *Network) Ready() (chan struct{}, chan error) {
     errorCh := make(chan error)
     go func() {
         for k := range net.nodes {
-            b := waitNode(net.nodes[k].Client.GetClient())
+            b := waitNode(net.nodes[k].client.runner.GetClient())
             if !b {
-                errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", k))
+                errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", net.nodeIDs[k]))
             }
-            logging.Infof("node %s is up\n", k)
+            logging.Infof("node %s is up\n", net.nodeIDs[k])
         }
         readyCh <- struct{}{}
     }()
