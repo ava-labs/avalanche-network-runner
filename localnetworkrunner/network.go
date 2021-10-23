@@ -204,7 +204,7 @@ func waitNode(client *avalanchegoclient.Client) bool {
 	timeout := 1 * time.Minute
 	pollTime := 10 * time.Second
 	nodeIsUp := false
-	for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; time.Sleep(pollTime) {
+	for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; {
 		nodeIsUp = true
 		if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
 			nodeIsUp = false
@@ -217,6 +217,9 @@ func waitNode(client *avalanchegoclient.Client) bool {
 		if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
 			nodeIsUp = false
 		}
+        if !nodeIsUp {
+            time.Sleep(pollTime)
+        }
 	}
 	return nodeIsUp
 }
