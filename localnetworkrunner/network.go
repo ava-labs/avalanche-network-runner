@@ -27,37 +27,6 @@ type Network struct {
     nodeIDs map[ids.ID]string
 }
 
-type Node struct {
-    client APIClient
-}
-
-type APIClient struct {
-    runner *oldnetworkrunner.NodeRunner
-}
-
-func (apiClient APIClient) GetNodeRunner() *oldnetworkrunner.NodeRunner {
-    return apiClient.runner
-}
-
-func (node *Node) GetAPIClient() networkrunner.APIClient {
-    return node.client
-}
-
-func createFile(fname string, contents []byte) error {
-	if err := os.MkdirAll(path.Dir(fname), 0o750); err != nil {
-		return err
-	}
-	file, err := os.Create(fname)
-	if err != nil {
-		return err
-	}
-    if _, err := file.Write(contents); err != nil {
-        return err
-    }
-	file.Close()
-	return nil
-}
-
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string) (*Network, error) {
 	net := Network{}
 	net.procs = map[ids.ID]*exec.Cmd{}
@@ -147,28 +116,6 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 	return &net, nil
 }
 
-func waitNode(client *avalanchegoclient.Client) bool {
-	info := client.InfoAPI()
-    timeout := 1 * time.Minute
-    pollTime := 10 * time.Second
-    nodeIsUp := false
-    for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; time.Sleep(pollTime) {
-        nodeIsUp = true
-	    if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
-           nodeIsUp = false
-           continue
-        }
-	    if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
-           nodeIsUp = false
-           continue
-        }
-	    if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
-           nodeIsUp = false
-        }
-    }
-    return nodeIsUp
-}
-
 func (net *Network) Ready() (chan struct{}, chan error) {
     readyCh := make(chan struct{})
     errorCh := make(chan error)
@@ -205,6 +152,43 @@ func (net *Network) Stop() error {
 		}
 	}
 	return nil
+}
+
+func createFile(fname string, contents []byte) error {
+	if err := os.MkdirAll(path.Dir(fname), 0o750); err != nil {
+		return err
+	}
+	file, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+    if _, err := file.Write(contents); err != nil {
+        return err
+    }
+	file.Close()
+	return nil
+}
+
+func waitNode(client *avalanchegoclient.Client) bool {
+	info := client.InfoAPI()
+    timeout := 1 * time.Minute
+    pollTime := 10 * time.Second
+    nodeIsUp := false
+    for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; time.Sleep(pollTime) {
+        nodeIsUp = true
+	    if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
+           nodeIsUp = false
+           continue
+        }
+	    if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
+           nodeIsUp = false
+           continue
+        }
+	    if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
+           nodeIsUp = false
+        }
+    }
+    return nodeIsUp
 }
 
 func killProcessAndDescendants(processID int, processes []ps.Process) error {
