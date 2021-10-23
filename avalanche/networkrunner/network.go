@@ -28,4 +28,3 @@ type NetworkConfig struct {
 	CoreConfigFlags []byte
 	NodeConfigs     []NodeConfig
 }
-
