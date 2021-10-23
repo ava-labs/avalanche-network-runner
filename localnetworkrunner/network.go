@@ -11,7 +11,7 @@ import (
 	"time"
     "errors"
 
-    "github.com/ava-labs/avalanchego/id"
+    "github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 	"github.com/ava-labs/avalanche-testing/logging"
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
