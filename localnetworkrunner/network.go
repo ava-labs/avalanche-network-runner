@@ -110,7 +110,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
 		)
 
-		net.nodes[id] = &Node{APIClient{nodeRunner}}
+		net.nodes[id] = &Node{id, APIClient{nodeRunner}}
 	}
 
 	return &net, nil
