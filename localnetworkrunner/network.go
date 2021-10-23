@@ -40,10 +40,10 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 	var n byte = 0
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-	    var configFlags map[string]interface{} = make(map[string]interface{})
-        for k, v := range coreConfigFlags {
-            configFlags[k] = v
-        }
+		var configFlags map[string]interface{} = make(map[string]interface{})
+		for k, v := range coreConfigFlags {
+			configFlags[k] = v
+		}
 		if err := json.Unmarshal(nodeConfig.ConfigFlags, &configFlags); err != nil {
 			return nil, err
 		}
@@ -54,16 +54,16 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		}
 
 		configDir, ok := configFlags[config.ChainConfigDirKey].(string)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.ChainConfigDirKey, nodeConfig.NodeID))
-        }
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.ChainConfigDirKey, nodeConfig.NodeID))
+		}
 		configFilePath := path.Join(configDir, "config.json")
 		cConfigFilePath := path.Join(configDir, "C", "config.json")
 
 		genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.GenesisConfigFileKey, nodeConfig.NodeID))
-        }
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.GenesisConfigFileKey, nodeConfig.NodeID))
+		}
 		if err := createFile(genesisFname, networkConfig.Genesis); err != nil {
 			return nil, err
 		}
@@ -73,17 +73,17 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		}
 
 		certFname, ok := configFlags[config.StakingCertPathKey].(string)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingCertPathKey, nodeConfig.NodeID))
-        }
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingCertPathKey, nodeConfig.NodeID))
+		}
 		if err := createFile(certFname, nodeConfig.Cert); err != nil {
 			return nil, err
 		}
 
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingKeyPathKey, nodeConfig.NodeID))
-        }
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingKeyPathKey, nodeConfig.NodeID))
+		}
 		if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
 			return nil, err
 		}
@@ -123,14 +123,14 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		net.procs[id] = cmd
 
 		nodeIP, ok := configFlags[config.PublicIPKey].(string)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.PublicIPKey, nodeConfig.NodeID))
-        }
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.PublicIPKey, nodeConfig.NodeID))
+		}
 		nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
-        if !ok {
-            return nil, errors.New(fmt.Sprintf("%s flag node %s", config.HTTPPortKey, nodeConfig.NodeID))
-        }
-        nodePort := uint(nodePortF)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.HTTPPortKey, nodeConfig.NodeID))
+		}
+		nodePort := uint(nodePortF)
 
 		nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
 			nodeConfig.NodeID,
