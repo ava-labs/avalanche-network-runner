@@ -1,4 +1,4 @@
-package localoperator
+package localnetworkrunner
 
 import (
 	"bufio"

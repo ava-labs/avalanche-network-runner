@@ -1,4 +1,4 @@
-package localoperator
+package localnetworkrunner
 
 type NetworkContext struct {
     network *Network
