@@ -1,13 +1,13 @@
 package localnetworkrunner
 
 import (
-    "github.com/ava-labs/avalanche-testing/avalanche/networkrunner"
+	"github.com/ava-labs/avalanche-testing/avalanche/networkrunner"
 )
 
 type Node struct {
-    client APIClient
+	client APIClient
 }
 
 func (node *Node) GetAPIClient() networkrunner.APIClient {
-    return node.client
+	return node.client
 }

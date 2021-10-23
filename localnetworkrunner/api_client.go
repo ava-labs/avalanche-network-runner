@@ -5,9 +5,9 @@ import (
 )
 
 type APIClient struct {
-    runner *oldnetworkrunner.NodeRunner
+	runner *oldnetworkrunner.NodeRunner
 }
 
 func (apiClient APIClient) GetNodeRunner() *oldnetworkrunner.NodeRunner {
-    return apiClient.runner
+	return apiClient.runner
 }
