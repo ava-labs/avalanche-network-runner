@@ -134,7 +134,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 		b := big.NewInt(0).SetUint64(intNodeID).Bytes()
 		nodeID := ids.ID{}
-		copy(nodeID[32-len(b):], b)
+		copy(nodeID[len(nodeID)-len(b):], b)
 
 		net.procs[nodeID] = cmd
 		net.nodes[nodeID] = &Node{id: nodeID, client: APIClient{nodeRunner}}
