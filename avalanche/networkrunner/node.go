@@ -21,7 +21,7 @@ type Node interface {
 	// have the same Avalanche node ID.
 	GetID() ids.ID
 	// Return this node's Avalanche node ID.
-	// GetNodeID() ids.ShortID
+	GetNodeID() (ids.ShortID, error)
 	// Return a client that can be used to
 	GetAPIClient() APIClient
 	// TODO add methods
