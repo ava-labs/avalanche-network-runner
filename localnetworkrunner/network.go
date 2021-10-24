@@ -116,9 +116,10 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			return nil, err
 		}
 
+        // incremental nodeID 
 		b := big.NewInt(0).SetUint64(nextNodeID).Bytes()
         nodeID := ids.ID{}
-        copy(nodeID[:len(b)], b)
+        copy(nodeID[32-len(b):], b)
         nextNodeID += 1
 
 		net.nodeIDs[nodeID] = nodeConfig.NodeID
