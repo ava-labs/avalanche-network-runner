@@ -10,6 +10,7 @@ import (
 	"path"
 	"syscall"
 	"time"
+    "math/big"
 
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
@@ -38,7 +39,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		return nil, err
 	}
 
-	var n byte = 0
+	var nextNodeID uint64 = 0
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		var configFlags map[string]interface{} = make(map[string]interface{})
 		for k, v := range coreConfigFlags {
@@ -115,12 +116,13 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			return nil, err
 		}
 
-		id := ids.ID{}
-		id[0] = n
-		n += 1
+		b := big.NewInt(0).SetUint64(nextNodeID).Bytes()
+        nodeID := ids.ID{}
+        copy(nodeID[:len(b)], b)
+        nextNodeID += 1
 
-		net.nodeIDs[id] = nodeConfig.NodeID
-		net.procs[id] = cmd
+		net.nodeIDs[nodeID] = nodeConfig.NodeID
+		net.procs[nodeID] = cmd
 
 		nodeIP, ok := configFlags[config.PublicIPKey].(string)
 		if !ok {
@@ -140,7 +142,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
 		)
 
-		net.nodes[id] = &Node{id, APIClient{nodeRunner}}
+		net.nodes[nodeID] = &Node{nodeID, APIClient{nodeRunner}}
 	}
 
 	return &net, nil
