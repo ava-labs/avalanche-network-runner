@@ -205,6 +205,8 @@ func (net *Network) RemoveNode(nodeID ids.ID) error {
 	if err := killProcessAndDescendants(procID, processes); err != nil {
 		return err
 	}
+	delete(net.nodes, nodeID)
+	delete(net.procs, nodeID)
 	return nil
 }
 
