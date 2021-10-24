@@ -15,11 +15,11 @@ type Node struct {
 	client APIClient
 }
 
-func (node *Node) GetID() ids.ID {
+func (node Node) GetID() ids.ID {
 	return node.id
 }
 
-func (node *Node) GetNodeID() (ids.ShortID, error) {
+func (node Node) GetNodeID() (ids.ShortID, error) {
 	if node.nodeID == nil {
 		info := node.client.GetNodeRunner().GetClient().InfoAPI()
 		strNodeID, err := info.GetNodeID()
@@ -35,6 +35,6 @@ func (node *Node) GetNodeID() (ids.ShortID, error) {
 	return *node.nodeID, nil
 }
 
-func (node *Node) GetAPIClient() networkrunner.APIClient {
+func (node Node) GetAPIClient() networkrunner.APIClient {
 	return node.client
 }

@@ -23,126 +23,139 @@ import (
 )
 
 type Network struct {
-	procs map[ids.ID]*exec.Cmd
-	nodes map[ids.ID]*Node
+	binMap          map[int]string
+	nextIntNodeID   uint64
+	nodes           map[ids.ID]*Node
+	procs           map[ids.ID]*exec.Cmd
+	coreConfigFlags map[string]interface{}
+	genesis         []byte
+	cChainConfig    []byte
 }
 
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string) (*Network, error) {
 	net := Network{}
-	net.procs = map[ids.ID]*exec.Cmd{}
 	net.nodes = map[ids.ID]*Node{}
+	net.procs = map[ids.ID]*exec.Cmd{}
 
-	var coreConfigFlags map[string]interface{}
-	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &coreConfigFlags); err != nil {
+	net.nextIntNodeID = 1
+	net.binMap = binMap
+	net.genesis = networkConfig.Genesis
+	net.cChainConfig = networkConfig.CChainConfig
+	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &net.coreConfigFlags); err != nil {
 		return nil, err
 	}
 
-	var intNodeID uint64 = 1
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		var configFlags map[string]interface{} = make(map[string]interface{})
-		for k, v := range coreConfigFlags {
-			configFlags[k] = v
-		}
-		if err := json.Unmarshal(nodeConfig.ConfigFlags, &configFlags); err != nil {
-			return nil, err
-		}
-
-		configBytes, err := json.Marshal(configFlags)
+		_, err := net.AddNode(nodeConfig)
 		if err != nil {
 			return nil, err
 		}
-
-		configDir, ok := configFlags[config.ChainConfigDirKey].(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.ChainConfigDirKey, intNodeID))
-		}
-		configFilePath := path.Join(configDir, "config.json")
-		cConfigFilePath := path.Join(configDir, "C", "config.json")
-
-		genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.GenesisConfigFileKey, intNodeID))
-		}
-		if err := createFile(genesisFname, networkConfig.Genesis); err != nil {
-			return nil, err
-		}
-
-		if err := createFile(cConfigFilePath, networkConfig.CChainConfig); err != nil {
-			return nil, err
-		}
-
-		certFname, ok := configFlags[config.StakingCertPathKey].(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, intNodeID))
-		}
-		if err := createFile(certFname, nodeConfig.Cert); err != nil {
-			return nil, err
-		}
-
-		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, intNodeID))
-		}
-		if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
-			return nil, err
-		}
-
-		if err := createFile(configFilePath, configBytes); err != nil {
-			return nil, err
-		}
-
-		ch := make(chan string, 1)
-		read, w, err := os.Pipe()
-		if err != nil {
-			return nil, err
-		}
-		go func() {
-			sc := bufio.NewScanner(read)
-			for sc.Scan() {
-				logging.Debugf("[%v] - %s\n", intNodeID, sc.Text())
-			}
-			close(ch)
-		}()
-
-		avalanchegoPath := binMap[nodeConfig.BinKind]
-		configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
-		cmd := exec.Command(avalanchegoPath, configFileFlag)
-
-		cmd.Stdout = w
-		cmd.Stderr = w
-		if err := cmd.Start(); err != nil {
-			return nil, err
-		}
-
-		nodeIP, ok := configFlags[config.PublicIPKey].(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.PublicIPKey, intNodeID))
-		}
-		nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, intNodeID))
-		}
-		nodePort := uint(nodePortF)
-
-		nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
-			string(intNodeID),
-			string(intNodeID),
-			nodeIP,
-			nodePort,
-			avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
-		)
-
-		b := big.NewInt(0).SetUint64(intNodeID).Bytes()
-		nodeID := ids.ID{}
-		copy(nodeID[len(nodeID)-len(b):], b)
-
-		net.procs[nodeID] = cmd
-		net.nodes[nodeID] = &Node{id: nodeID, client: APIClient{nodeRunner}}
-
-		intNodeID += 1
 	}
 
 	return &net, nil
+}
+
+func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
+	var configFlags map[string]interface{} = make(map[string]interface{})
+	for k, v := range net.coreConfigFlags {
+		configFlags[k] = v
+	}
+	if err := json.Unmarshal(nodeConfig.ConfigFlags, &configFlags); err != nil {
+		return nil, err
+	}
+
+	configDir, ok := configFlags[config.ChainConfigDirKey].(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.ChainConfigDirKey, net.nextIntNodeID))
+	}
+
+	configFilePath := path.Join(configDir, "config.json")
+	configBytes, err := json.Marshal(configFlags)
+	if err != nil {
+		return nil, err
+	}
+	if err := createFile(configFilePath, configBytes); err != nil {
+		return nil, err
+	}
+
+	cConfigFilePath := path.Join(configDir, "C", "config.json")
+	if err := createFile(cConfigFilePath, net.cChainConfig); err != nil {
+		return nil, err
+	}
+
+	genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.GenesisConfigFileKey, net.nextIntNodeID))
+	}
+	if err := createFile(genesisFname, net.genesis); err != nil {
+		return nil, err
+	}
+
+	certFname, ok := configFlags[config.StakingCertPathKey].(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
+	}
+	if err := createFile(certFname, nodeConfig.Cert); err != nil {
+		return nil, err
+	}
+
+	keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID))
+	}
+	if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
+		return nil, err
+	}
+
+	ch := make(chan string, 1)
+	read, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		sc := bufio.NewScanner(read)
+		for sc.Scan() {
+			logging.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
+		}
+		close(ch)
+	}()
+	avalanchegoPath := net.binMap[nodeConfig.BinKind]
+	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
+	cmd := exec.Command(avalanchegoPath, configFileFlag)
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	nodeIP, ok := configFlags[config.PublicIPKey].(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.PublicIPKey, net.nextIntNodeID))
+	}
+	nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
+	}
+	nodePort := uint(nodePortF)
+	nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
+		string(net.nextIntNodeID),
+		string(net.nextIntNodeID),
+		nodeIP,
+		nodePort,
+		avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
+	)
+
+	b := big.NewInt(0).SetUint64(net.nextIntNodeID).Bytes()
+	nodeID := ids.ID{}
+	copy(nodeID[len(nodeID)-len(b):], b)
+	net.nextIntNodeID += 1
+
+	node := Node{id: nodeID, client: APIClient{nodeRunner}}
+
+	net.nodes[nodeID] = &node
+	net.procs[nodeID] = cmd
+
+	return node, nil
 }
 
 func (net *Network) Ready() (chan struct{}, chan error) {
@@ -171,15 +184,26 @@ func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 }
 
 func (net *Network) Stop() error {
+	for nodeID := range net.nodes {
+		if err := net.RemoveNode(nodeID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (net *Network) RemoveNode(nodeID ids.ID) error {
+	proc, ok := net.procs[nodeID]
+	if !ok {
+		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+	}
 	processes, err := ps.Processes()
 	if err != nil {
 		return stacktrace.Propagate(err, "unable to list processes")
 	}
-	for _, proc := range net.procs {
-		procID := proc.Process.Pid
-		if err := killProcessAndDescendants(procID, processes); err != nil {
-			return err
-		}
+	procID := proc.Process.Pid
+	if err := killProcessAndDescendants(procID, processes); err != nil {
+		return err
 	}
 	return nil
 }
