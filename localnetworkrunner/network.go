@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path"
 	"syscall"
 	"time"
-    "math/big"
 
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
@@ -23,16 +23,14 @@ import (
 )
 
 type Network struct {
-	procs   map[ids.ID]*exec.Cmd
-	nodes   map[ids.ID]*Node
-	nodeIDs map[ids.ID]string
+	procs map[ids.ID]*exec.Cmd
+	nodes map[ids.ID]*Node
 }
 
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string) (*Network, error) {
 	net := Network{}
 	net.procs = map[ids.ID]*exec.Cmd{}
 	net.nodes = map[ids.ID]*Node{}
-	net.nodeIDs = map[ids.ID]string{}
 
 	var coreConfigFlags map[string]interface{}
 	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &coreConfigFlags); err != nil {
@@ -116,13 +114,12 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			return nil, err
 		}
 
-        // incremental nodeID 
+		// incremental nodeID
 		b := big.NewInt(0).SetUint64(nextNodeID).Bytes()
-        nodeID := ids.ID{}
-        copy(nodeID[32-len(b):], b)
-        nextNodeID += 1
+		nodeID := ids.ID{}
+		copy(nodeID[32-len(b):], b)
+		nextNodeID += 1
 
-		net.nodeIDs[nodeID] = nodeConfig.NodeID
 		net.procs[nodeID] = cmd
 
 		nodeIP, ok := configFlags[config.PublicIPKey].(string)
@@ -143,7 +140,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
 		)
 
-		net.nodes[nodeID] = &Node{nodeID, APIClient{nodeRunner}}
+		net.nodes[nodeID] = &Node{id: nodeID, client: APIClient{nodeRunner}}
 	}
 
 	return &net, nil
@@ -153,12 +150,13 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
-		for k := range net.nodes {
-			b := waitNode(net.nodes[k].client.runner.GetClient())
+		for id := range net.nodes {
+			idBig := big.NewInt(0).SetBytes(id[:])
+			b := waitNode(net.nodes[id].client.runner.GetClient())
 			if !b {
-				errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", net.nodeIDs[k]))
+				errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", idBig))
 			}
-			logging.Infof("node %s is up\n", net.nodeIDs[k])
+			logging.Infof("node %v is up", idBig)
 		}
 		readyCh <- struct{}{}
 	}()
