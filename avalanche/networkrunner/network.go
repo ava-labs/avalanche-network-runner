@@ -9,9 +9,9 @@ type Network interface {
 	// Stop all the nodes
 	Stop() error
 	// Start a new node with the config
-	// AddNode(NodeConfig) (Node, error)
+	AddNode(NodeConfig) (Node, error)
 	// Stop the node with this ID.
-	// RemoveNode(ids.ID) error
+	RemoveNode(ids.ID) error
 	// Return the node with this ID.
 	GetNode(ids.ID) (Node, error)
 	// TODO add methods
