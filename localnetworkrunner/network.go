@@ -37,7 +37,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		return nil, err
 	}
 
-	var nextNodeID uint64 = 0
+	var intNodeID uint64 = 1
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		var configFlags map[string]interface{} = make(map[string]interface{})
 		for k, v := range coreConfigFlags {
@@ -54,14 +54,14 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 		configDir, ok := configFlags[config.ChainConfigDirKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.ChainConfigDirKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.ChainConfigDirKey, intNodeID))
 		}
 		configFilePath := path.Join(configDir, "config.json")
 		cConfigFilePath := path.Join(configDir, "C", "config.json")
 
 		genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.GenesisConfigFileKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.GenesisConfigFileKey, intNodeID))
 		}
 		if err := createFile(genesisFname, networkConfig.Genesis); err != nil {
 			return nil, err
@@ -73,7 +73,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 		certFname, ok := configFlags[config.StakingCertPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingCertPathKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, intNodeID))
 		}
 		if err := createFile(certFname, nodeConfig.Cert); err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.StakingKeyPathKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, intNodeID))
 		}
 		if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
 			return nil, err
@@ -99,7 +99,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 		go func() {
 			sc := bufio.NewScanner(read)
 			for sc.Scan() {
-				logging.Debugf("[%s] - %s\n", nodeConfig.NodeID, sc.Text())
+				logging.Debugf("[%v] - %s\n", intNodeID, sc.Text())
 			}
 			close(ch)
 		}()
@@ -114,33 +114,32 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 			return nil, err
 		}
 
-		// incremental nodeID
-		b := big.NewInt(0).SetUint64(nextNodeID).Bytes()
-		nodeID := ids.ID{}
-		copy(nodeID[32-len(b):], b)
-		nextNodeID += 1
-
-		net.procs[nodeID] = cmd
-
 		nodeIP, ok := configFlags[config.PublicIPKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.PublicIPKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.PublicIPKey, intNodeID))
 		}
 		nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %s", config.HTTPPortKey, nodeConfig.NodeID))
+			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, intNodeID))
 		}
 		nodePort := uint(nodePortF)
 
 		nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
-			nodeConfig.NodeID,
-			nodeConfig.NodeID,
+			string(intNodeID),
+			string(intNodeID),
 			nodeIP,
 			nodePort,
 			avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
 		)
 
+		b := big.NewInt(0).SetUint64(intNodeID).Bytes()
+		nodeID := ids.ID{}
+		copy(nodeID[32-len(b):], b)
+
+		net.procs[nodeID] = cmd
 		net.nodes[nodeID] = &Node{id: nodeID, client: APIClient{nodeRunner}}
+
+		intNodeID += 1
 	}
 
 	return &net, nil
@@ -151,12 +150,12 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 	errorCh := make(chan error)
 	go func() {
 		for id := range net.nodes {
-			idBig := big.NewInt(0).SetBytes(id[:])
+			intID := big.NewInt(0).SetBytes(id[:])
 			b := waitNode(net.nodes[id].client.runner.GetClient())
 			if !b {
-				errorCh <- errors.New(fmt.Sprintf("timeout waiting for %v", idBig))
+				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
 			}
-			logging.Infof("node %v is up", idBig)
+			logging.Infof("node %v is up", intID)
 		}
 		readyCh <- struct{}{}
 	}()
