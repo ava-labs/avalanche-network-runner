@@ -25,8 +25,8 @@ func NewNetwork(NetworkConfig, map[int]string) (*Network, error) {
 }
 
 type NetworkConfig struct {
-	Genesis         []byte
-	CChainConfig    []byte
-	CoreConfigFlags []byte
+	Genesis         string
+	CChainConfig    string
+	CoreConfigFlags string
 	NodeConfigs     []NodeConfig
 }

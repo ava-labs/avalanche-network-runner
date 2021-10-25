@@ -30,7 +30,7 @@ type Node interface {
 type NodeConfig struct {
 	BinKind     int
 	NodeID      string
-	PrivateKey  []byte
-	Cert        []byte
-	ConfigFlags []byte
+	PrivateKey  string
+	Cert        string
+	ConfigFlags string
 }

@@ -41,9 +41,9 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 	net.nextIntNodeID = 1
 	net.binMap = binMap
 	net.log = log
-	net.genesis = networkConfig.Genesis
-	net.cChainConfig = networkConfig.CChainConfig
-	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &net.coreConfigFlags); err != nil {
+	net.genesis = []byte(networkConfig.Genesis)
+	net.cChainConfig = []byte(networkConfig.CChainConfig)
+	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	for k, v := range net.coreConfigFlags {
 		configFlags[k] = v
 	}
-	if err := json.Unmarshal(nodeConfig.ConfigFlags, &configFlags); err != nil {
+	if err := json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags); err != nil {
 		return nil, err
 	}
 
@@ -103,14 +103,14 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
 		}
-		if err := createFile(certFname, nodeConfig.Cert); err != nil {
+		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
 			return nil, err
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID))
 		}
-		if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
+		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
 			return nil, err
 		}
 	}
