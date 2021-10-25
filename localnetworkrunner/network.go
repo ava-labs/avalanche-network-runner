@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
-	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	"github.com/ava-labs/avalanche-testing/logging"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
