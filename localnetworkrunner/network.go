@@ -193,6 +193,11 @@ func (net *Network) Stop() error {
 }
 
 func (net *Network) RemoveNode(nodeID ids.ID) error {
+	node, ok := net.nodes[nodeID]
+	if !ok {
+		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+	}
+	node.client.GetNodeRunner().GetClient().CChainConcurrentEth().Close()
 	proc, ok := net.procs[nodeID]
 	if !ok {
 		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
