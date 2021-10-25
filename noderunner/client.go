@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanche-testing/avalanche/libs/constants"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
@@ -97,7 +96,7 @@ func (c *Client) CChainEthAPI() *ethclient.Client {
 	var err error
 	var cClient *ethclient.Client
 	if c.cChainEth == nil {
-		for startTime := time.Now(); time.Since(startTime) < constants.TimeoutDuration; time.Sleep(time.Second) {
+		for startTime := time.Now(); time.Since(startTime) < TimeoutDuration; time.Sleep(time.Second) {
 			cClient, err = ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", c.ipAddr, c.port))
 			if err == nil {
 				c.cChainEth = cClient

@@ -14,7 +14,6 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
-	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"
@@ -246,7 +245,7 @@ func createFile(fname string, contents []byte) error {
 	return nil
 }
 
-func waitNode(client *avalanchegoclient.Client) bool {
+func waitNode(client *noderunner.Client) bool {
 	info := client.InfoAPI()
 	timeout := 1 * time.Minute
 	pollTime := 10 * time.Second
