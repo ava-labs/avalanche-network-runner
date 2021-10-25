@@ -33,7 +33,7 @@ type Network struct {
     log             logrus.Logger
 }
 
-func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log logrus.Logger) (*Network, error) {
+func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
 	net := Network{}
 	net.nodes = map[ids.ID]*Node{}
 	net.procs = map[ids.ID]*exec.Cmd{}
