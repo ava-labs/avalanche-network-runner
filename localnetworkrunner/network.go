@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
-	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
-	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
+    "github.com/ava-labs/avalanche-network-runner-local/noderunner"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"
@@ -145,12 +144,12 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
 	}
 	nodePort := uint(nodePortF)
-	nodeRunner, _ := oldnetworkrunner.NewNodeRunnerFromFields(
+	nodeRunner, _ := noderunner.NewNodeRunner(
 		string(net.nextIntNodeID),
 		string(net.nextIntNodeID),
 		nodeIP,
 		nodePort,
-		avalanchegoclient.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
+		noderunner.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
 	)
 
 	b := big.NewInt(0).SetUint64(net.nextIntNodeID).Bytes()

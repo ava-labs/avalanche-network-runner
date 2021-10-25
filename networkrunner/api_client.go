@@ -1,11 +1,11 @@
 package networkrunner
 
 import (
-	oldrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
+	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
 )
 
 // Issues API calls to a node
 type APIClient interface {
 	// TODO add methods
-	GetNodeRunner() *oldrunner.NodeRunner
+	GetNodeRunner() *noderunner.NodeRunner
 }
