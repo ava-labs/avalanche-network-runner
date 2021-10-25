@@ -8,7 +8,7 @@ type APIClient struct {
 	runner *noderunner.NodeRunner
 }
 
-var _ networkrunner.APIClient = (*APIClient)(nil)
+var _ noderunner.APIClient = (*APIClient)(nil)
 
 func (apiClient APIClient) GetNodeRunner() *noderunner.NodeRunner {
 	return apiClient.runner
