@@ -14,6 +14,8 @@ type Network interface {
 	RemoveNode(ids.ID) error
 	// Return the node with this ID.
 	GetNode(ids.ID) (Node, error)
+	// Return ID for all the nodes
+	GetNodesIDs() []ids.ID
 	// TODO add methods
 }
 
