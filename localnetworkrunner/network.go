@@ -15,11 +15,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
-    "github.com/sirupsen/logrus"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 )
 
 type Network struct {
@@ -30,7 +30,7 @@ type Network struct {
 	coreConfigFlags map[string]interface{}
 	genesis         []byte
 	cChainConfig    []byte
-    log             *logrus.Logger
+	log             *logrus.Logger
 }
 
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
@@ -40,7 +40,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 
 	net.nextIntNodeID = 1
 	net.binMap = binMap
-    net.log = log
+	net.log = log
 	net.genesis = networkConfig.Genesis
 	net.cChainConfig = networkConfig.CChainConfig
 	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &net.coreConfigFlags); err != nil {
