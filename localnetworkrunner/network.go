@@ -30,7 +30,7 @@ type Network struct {
 	coreConfigFlags map[string]interface{}
 	genesis         []byte
 	cChainConfig    []byte
-    log             logrus.Logger
+    log             *logrus.Logger
 }
 
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
