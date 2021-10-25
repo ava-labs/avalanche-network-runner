@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ava-labs/avalanche-testing/avalanche/networkrunner"
+	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 )
