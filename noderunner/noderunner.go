@@ -11,7 +11,7 @@ type NodeRunner struct {
 	httpPort  uint
 }
 
-func NewNodeRunner(name string, nodeID string, ipAddress string, httpPort uint, client *avalanchegoclient.Client) (*NodeRunner, error) {
+func NewNodeRunner(name string, nodeID string, ipAddress string, httpPort uint, client *Client) (*NodeRunner, error) {
 	return &NodeRunner{
 		name:      name,
 		nodeID:    nodeID,
@@ -42,6 +42,6 @@ func (r *NodeRunner) GetHTTPPort() uint {
 }
 
 // GetClient returns the avalanchego client which allows to make calls to the node
-func (r *NodeRunner) GetClient() *avalanchegoclient.Client {
+func (r *NodeRunner) GetClient() *Client {
 	return r.client
 }
