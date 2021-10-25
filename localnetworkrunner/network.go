@@ -123,7 +123,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	go func() {
 		sc := bufio.NewScanner(read)
 		for sc.Scan() {
-			log.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
+			net.log.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
 		}
 		close(ch)
 	}()
@@ -176,7 +176,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			if !b {
 				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
 			}
-			log.Infof("node %v is up", intID)
+			net.log.Infof("node %v is up", intID)
 		}
 		readyCh <- struct{}{}
 	}()
