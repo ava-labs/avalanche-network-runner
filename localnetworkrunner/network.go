@@ -15,7 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	oldnetworkrunner "github.com/ava-labs/avalanche-testing/avalanche/builder/networkrunner"
 	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
-	"github.com/ava-labs/avalanche-testing/logging"
+    "github.com/sirupsen/logrus"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"
@@ -30,15 +30,17 @@ type Network struct {
 	coreConfigFlags map[string]interface{}
 	genesis         []byte
 	cChainConfig    []byte
+    log             logrus.Logger
 }
 
-func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string) (*Network, error) {
+func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log logrus.Logger) (*Network, error) {
 	net := Network{}
 	net.nodes = map[ids.ID]*Node{}
 	net.procs = map[ids.ID]*exec.Cmd{}
 
 	net.nextIntNodeID = 1
 	net.binMap = binMap
+    net.log = log
 	net.genesis = networkConfig.Genesis
 	net.cChainConfig = networkConfig.CChainConfig
 	if err := json.Unmarshal(networkConfig.CoreConfigFlags, &net.coreConfigFlags); err != nil {
@@ -121,7 +123,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	go func() {
 		sc := bufio.NewScanner(read)
 		for sc.Scan() {
-			logging.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
+			log.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
 		}
 		close(ch)
 	}()
@@ -174,7 +176,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			if !b {
 				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
 			}
-			logging.Infof("node %v is up", intID)
+			log.Infof("node %v is up", intID)
 		}
 		readyCh <- struct{}{}
 	}()
