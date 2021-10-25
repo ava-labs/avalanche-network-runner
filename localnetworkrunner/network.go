@@ -91,21 +91,27 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, err
 	}
 
-	certFname, ok := configFlags[config.StakingCertPathKey].(string)
+	usesEphemeralCert, ok := configFlags[config.StakingEphemeralCertEnabledKey].(bool)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
-	}
-	if err := createFile(certFname, nodeConfig.Cert); err != nil {
-		return nil, err
-	}
+        usesEphemeralCert = false
+    }
 
-	keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
-	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID))
-	}
-	if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
-		return nil, err
-	}
+    if !usesEphemeralCert {
+        certFname, ok := configFlags[config.StakingCertPathKey].(string)
+        if !ok {
+            return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
+        }
+        if err := createFile(certFname, nodeConfig.Cert); err != nil {
+            return nil, err
+        }
+        keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
+        if !ok {
+            return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID))
+        }
+        if err := createFile(keyFname, nodeConfig.PrivateKey); err != nil {
+            return nil, err
+        }
+    }
 
 	ch := make(chan string, 1)
 	read, w, err := os.Pipe()
