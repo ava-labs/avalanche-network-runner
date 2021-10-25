@@ -32,6 +32,8 @@ type Network struct {
 	log             *logrus.Logger
 }
 
+var _ networkrunner.Network = (*Network)(nil)
+
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
 	net := Network{}
 	net.nodes = map[ids.ID]*Node{}
