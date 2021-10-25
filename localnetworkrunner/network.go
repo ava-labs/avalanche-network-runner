@@ -183,6 +183,14 @@ func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	return node, nil
 }
 
+func (net *Network) GetNodesIDs() []ids.ID {
+	ks := make([]ids.ID, 0, len(net.nodes))
+	for k := range net.nodes {
+		ks = append(ks, k)
+	}
+	return ks
+}
+
 func (net *Network) Stop() error {
 	for nodeID := range net.nodes {
 		if err := net.RemoveNode(nodeID); err != nil {
