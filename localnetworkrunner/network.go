@@ -116,23 +116,9 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		}
 	}
 
-	ch := make(chan string, 1)
-	read, w, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	go func() {
-		sc := bufio.NewScanner(read)
-		for sc.Scan() {
-			net.log.Debugf("[%v] - %s\n", net.nextIntNodeID, sc.Text())
-		}
-		close(ch)
-	}()
 	avalanchegoPath := net.binMap[nodeConfig.BinKind]
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
-	cmd.Stdout = w
-	cmd.Stderr = w
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
