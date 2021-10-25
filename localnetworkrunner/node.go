@@ -15,6 +15,8 @@ type Node struct {
 	client APIClient
 }
 
+var _ networkrunner.Node = (*Node)(nil)
+
 func (node Node) GetID() ids.ID {
 	return node.id
 }
