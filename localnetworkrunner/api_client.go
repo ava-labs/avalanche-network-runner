@@ -1,8 +1,8 @@
 package localnetworkrunner
 
 import (
-	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
+	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
 )
 
 type APIClient struct {
