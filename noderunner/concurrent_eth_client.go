@@ -1,4 +1,4 @@
-package avalanchegoclient
+package noderunner
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-    "github.com/sirupsen/logrus"
 	"github.com/ava-labs/coreth/core/types"
 	"github.com/ava-labs/coreth/ethclient"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sirupsen/logrus"
 )
 
 const (

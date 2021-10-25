@@ -13,7 +13,8 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
-    "github.com/ava-labs/avalanche-network-runner-local/noderunner"
+	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
+	"github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"

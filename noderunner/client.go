@@ -1,10 +1,10 @@
-package avalanchegoclient
+package noderunner
 
 import (
 	"fmt"
 	"time"
 
-    "github.com/sirupsen/logrus"
+	"github.com/ava-labs/avalanche-testing/avalanche/libs/constants"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
@@ -15,12 +15,13 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/coreth/ethclient"
 	"github.com/ava-labs/coreth/plugin/evm"
+	"github.com/sirupsen/logrus"
 )
 
 // Chain names
 const (
-	xChainPrefix = "X"
-    TimeoutDuration = 30 * time.Second
+	xChainPrefix    = "X"
+	TimeoutDuration = 30 * time.Second
 )
 
 // Client is a general client for avalanche

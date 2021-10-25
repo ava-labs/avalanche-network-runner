@@ -1,4 +1,6 @@
-package networkrunner
+package noderunner
+
+import "github.com/ava-labs/avalanche-testing/avalanche/libs/avalanchegoclient"
 
 // NodeRunner encapsulates data for a running node in the test environment
 type NodeRunner struct {
