@@ -15,6 +15,14 @@ import (
 var networkConfigJSON []byte
 
 func TestNetworkStartStop(t *testing.T) {
+    binMap := getBinMap(t)
+    networkConfig := getNetworkConfig(t, networkConfigJSON)
+    net := startNetwork(t, binMap, networkConfig)
+    awaitNetwork(t, net)
+    stopNetwork(t, net)
+}
+
+func getBinMap(t *testing.T) map[int]string {
     envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
     if !ok {
@@ -29,16 +37,27 @@ func TestNetworkStartStop(t *testing.T) {
 		networkrunner.AVALANCHEGO: avalanchegoPath,
 		networkrunner.BYZANTINE:   byzantinePath,
 	}
+    return binMap
+}
+
+func getNetworkConfig(t *testing.T, networkConfigJSON []byte) networkrunner.NetworkConfig {
     networkConfig := networkrunner.NetworkConfig{}
     if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
         t.Fatalf("couldn't unmarshall network config json: %s", err)
     }
+    return networkConfig
+}
+func startNetwork(t* testing.T, binMap map[int]string, networkConfig networkrunner.NetworkConfig) networkrunner.Network {
     logger := logrus.New()
     var net networkrunner.Network
     net, err := NewNetwork(networkConfig, binMap, logger)
     if err != nil {
         t.Fatalf("couldn't create network: %s", err)
     }
+    return net
+}
+
+func awaitNetwork(t *testing.T, net networkrunner.Network) {
     timeoutCh := make(chan struct{})
     go func() {
         time.Sleep(5*time.Minute)
@@ -54,9 +73,11 @@ func TestNetworkStartStop(t *testing.T) {
     case <-timeoutCh:
         t.Fatal("network startup timeout")
     }
-    err = net.Stop()
+}
+
+func stopNetwork(t *testing.T, net networkrunner.Network) {
+    err := net.Stop()
     if err != nil {
         t.Fatalf("couldn't cleanly stop network: %s", err)
     }
 }
-
