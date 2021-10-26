@@ -5,7 +5,7 @@ import "github.com/ava-labs/avalanchego/ids"
 // Network is an abstraction of an Avalanche network
 type Network interface {
 	// Returns a chan that is closed when the network is ready to be used for the first time,
-    // and a chan that indicates if an error happened and the network will not be ready
+	// and a chan that indicates if an error happened and the network will not be ready
 	Ready() (chan struct{}, chan error)
 	// Stop all the nodes
 	Stop() error
@@ -27,8 +27,8 @@ func NewNetwork(NetworkConfig, map[int]string) (*Network, error) {
 }
 
 type NetworkConfig struct {
-	Genesis         string // Contents of genesis file for all nodes 
-	CChainConfig    string // Contents of cchain config file for all nodes
-	CoreConfigFlags string // Common cmdline flags for all nodes (unless overwritten with node config). JSON
+	Genesis         string       // Contents of genesis file for all nodes
+	CChainConfig    string       // Contents of cchain config file for all nodes
+	CoreConfigFlags string       // Common cmdline flags for all nodes (unless overwritten with node config). JSON
 	NodeConfigs     []NodeConfig // Node config for each node
 }

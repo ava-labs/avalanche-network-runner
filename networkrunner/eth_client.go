@@ -32,7 +32,7 @@ func NewEthClient(ipAddr string, port uint) *EthClient {
 	}
 }
 
-// connect attempt to connect with websocket ethclient API
+// connect attempts to connect with websocket ethclient API
 func (c *EthClient) connect() error {
 	if c.client == nil {
 		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", c.ipAddr, c.port))

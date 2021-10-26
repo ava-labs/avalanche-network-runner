@@ -16,6 +16,7 @@ import (
 	"github.com/ava-labs/coreth/plugin/evm"
 )
 
+// APIClient gives access to most avalanchego apis (or suitable wrappers)
 type APIClient struct {
 	platform     *platformvm.Client
 	xChain       *avm.Client
@@ -31,16 +32,18 @@ type APIClient struct {
 	cindex       *indexer.Client
 }
 
+// interface compliance
 var _ networkrunner.APIClient = (*APIClient)(nil)
 
-func NewAPIClient(ipAddr string, port uint, byzPort uint, requestTimeout time.Duration) *APIClient {
+// NewAPIClient initialize most of avalanchego apis
+func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APIClient {
 	uri := fmt.Sprintf("http://%s:%d", ipAddr, port)
 	return &APIClient{
 		platform:     platformvm.NewClient(uri, requestTimeout),
 		xChain:       avm.NewClient(uri, "X", requestTimeout),
 		xChainWallet: avm.NewWalletClient(uri, "X", requestTimeout),
 		cChain:       evm.NewCChainClient(uri, requestTimeout),
-		cChainEth:    networkrunner.NewEthClient(ipAddr, port),
+		cChainEth:    networkrunner.NewEthClient(ipAddr, port), // wrapper over ethclient.Client
 		info:         info.NewClient(uri, requestTimeout),
 		health:       health.NewClient(uri, requestTimeout),
 		ipcs:         ipcs.NewClient(uri, requestTimeout),

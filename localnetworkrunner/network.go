@@ -19,19 +19,22 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Network keeps information uses for network management, and accessing all the nodes
 type Network struct {
-	binMap          map[int]string
-	nextIntNodeID   uint64
-	nodes           map[ids.ID]*Node
-	procs           map[ids.ID]*exec.Cmd
-	coreConfigFlags map[string]interface{}
-	genesis         []byte
-	cChainConfig    []byte
-	log             *logrus.Logger
+	binMap          map[int]string         // map node kind to string used in node set up (binary path)
+	nextIntNodeID   uint64                 // next id to be used in internal node id generation
+	nodes           map[ids.ID]*Node       // access to nodes basic info and api
+	procs           map[ids.ID]*exec.Cmd   // access to the nodes OS processes
+	coreConfigFlags map[string]interface{} // cmdline flags common to all nodes
+	genesis         []byte                 // genesis file contents, common to all nodes
+	cChainConfig    []byte                 // cchain config file contents, common to all nodes
+	log             *logrus.Logger         // logger used by the library
 }
 
+// interface compliance
 var _ networkrunner.Network = (*Network)(nil)
 
+// NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
 	net := Network{}
 	net.nodes = map[ids.ID]*Node{}
@@ -56,8 +59,11 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 	return &net, nil
 }
 
+// AddNode prepares the files needed in filesystem by avalanchego, and executes it
 func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
+
+	// copy common config flags, and unmarshall specific node config flags
 	for k, v := range net.coreConfigFlags {
 		configFlags[k] = v
 	}
@@ -70,6 +76,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.ChainConfigDirKey, net.nextIntNodeID))
 	}
 
+	// create main config file by marshalling all config flags
 	configFilePath := path.Join(configDir, "config.json")
 	configBytes, err := json.Marshal(configFlags)
 	if err != nil {
@@ -92,12 +99,14 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, err
 	}
 
+	// tells if avalanchego is going to generate the cert/key for the node
 	usesEphemeralCert, ok := configFlags[config.StakingEphemeralCertEnabledKey].(bool)
 	if !ok {
 		usesEphemeralCert = false
 	}
 
 	if !usesEphemeralCert {
+		// cert/key is given in config
 		certFname, ok := configFlags[config.StakingCertPathKey].(string)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
@@ -114,6 +123,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		}
 	}
 
+	// get binary from bin map and node kind, and execute it
 	avalanchegoPath := net.binMap[nodeConfig.BinKind]
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
@@ -121,6 +131,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, err
 	}
 
+	// initialize node avalanchego apis
 	nodeIP, ok := configFlags[config.PublicIPKey].(string)
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.PublicIPKey, net.nextIntNodeID))
@@ -130,8 +141,10 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
 	}
 	nodePort := uint(nodePortF)
-	apiClient := NewAPIClient(nodeIP, nodePort, nodePort, 20*time.Second)
+	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 
+	// get internal node id from incremental uint
+	// done in this way so the id when printed or converted, is correctly interpreted
 	b := big.NewInt(0).SetUint64(net.nextIntNodeID).Bytes()
 	nodeID := ids.ID{}
 	copy(nodeID[len(nodeID)-len(b):], b)
@@ -145,6 +158,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	return node, nil
 }
 
+// Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
 func (net *Network) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
@@ -157,7 +171,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			}
 			net.log.Infof("node %v is up", intID)
 		}
-        close(readyCh)
+		close(readyCh)
 	}()
 	return readyCh, errorCh
 }
@@ -192,6 +206,8 @@ func (net *Network) RemoveNode(nodeID ids.ID) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
 	}
+	// cchain eth api uses a websocket connection and must be closed before stopping the node,
+	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	proc, ok := net.procs[nodeID]
 	if !ok {
@@ -210,6 +226,8 @@ func (net *Network) RemoveNode(nodeID ids.ID) error {
 	return nil
 }
 
+// createFile creates a file under the fiven fname, making all
+// intermediate dirs, and filling it with contents
 func createFile(fname string, contents []byte) error {
 	if err := os.MkdirAll(path.Dir(fname), 0o750); err != nil {
 		return err
@@ -225,6 +243,7 @@ func createFile(fname string, contents []byte) error {
 	return nil
 }
 
+// waitNode waits until the node initializes, or timeouts
 func waitNode(client APIClient) bool {
 	info := client.InfoAPI()
 	timeout := 1 * time.Minute
