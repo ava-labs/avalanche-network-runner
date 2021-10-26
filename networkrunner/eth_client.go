@@ -13,9 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// EthClient is a concurrency-safe implementation
-// of ethclient.Client that allows for multiple concurrent
-// requests to be made to a single *services.Client.
+// EthClient websocket ethclient.Client with lazy conn and mutexed api calls
 type EthClient struct {
 	ipAddr string
 	port   uint
@@ -41,7 +39,6 @@ func (c *EthClient) connect() error {
 	return nil
 }
 
-// Close terminates the client's connection.
 func (c *EthClient) Close() {
 	if c.client == nil {
 		return
@@ -51,10 +48,6 @@ func (c *EthClient) Close() {
 	c.client.Close()
 }
 
-// SendTransaction injects a signed transaction into the pending pool for execution.
-//
-// If the transaction was a contract creation use the TransactionReceipt method to get the
-// contract address after the transaction has been mined.
 func (c *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	if err := c.connect(); err != nil {
 		return err
@@ -64,8 +57,6 @@ func (c *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) 
 	return c.client.SendTransaction(ctx, tx)
 }
 
-// TransactionReceipt returns the receipt of a transaction by transaction hash.
-// Note that the receipt is not available for pending transactions.
 func (c *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
@@ -75,8 +66,6 @@ func (c *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) 
 	return c.client.TransactionReceipt(ctx, txHash)
 }
 
-// BalanceAt returns the wei balance of the given account.
-// The block number can be nil, in which case the balance is taken from the latest known block.
 func (c *EthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
@@ -86,11 +75,6 @@ func (c *EthClient) BalanceAt(ctx context.Context, account common.Address, block
 	return c.client.BalanceAt(ctx, account, blockNumber)
 }
 
-// BlockByNumber returns a block from the current canonical chain. If number is nil, the
-// latest known block is returned.
-//
-// Note that loading full blocks requires two requests. Use HeaderByNumber
-// if you don't need all transactions or uncle headers.
 func (c *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
@@ -100,7 +84,6 @@ func (c *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.
 	return c.client.BlockByNumber(ctx, number)
 }
 
-// BlockNumber returns the most recent block number
 func (c *EthClient) BlockNumber(ctx context.Context) (uint64, error) {
 	if err := c.connect(); err != nil {
 		return 0, err
