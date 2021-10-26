@@ -140,34 +140,3 @@ func (c *EthClient) AssetBalanceAt(ctx context.Context, account common.Address, 
 	defer c.lock.Unlock()
 	return c.client.AssetBalanceAt(ctx, account, assetID, blockNumber)
 }
-
-// ForceSendTransaction attempts to submit a transaction until it succeeds or
-// until a non-transient error is returned.
-func (c *EthClient) ForceSendTransaction(ctx context.Context, tx *types.Transaction) error {
-	if err := c.connect(); err != nil {
-		return err
-	}
-	maxSendRetries := 10
-	sendRetrySleep := 5 * time.Second
-	for i := 0; i < maxSendRetries; i++ {
-		err := c.SendTransaction(ctx, tx)
-		if err == nil {
-			return nil
-		}
-
-		if errors.Is(err, context.Canceled) {
-			return ctx.Err()
-		}
-
-		// errors.Is does not catch these for some reason
-		if strings.Contains(err.Error(), "already known") || strings.Contains(err.Error(), "nonce too low") {
-			logrus.Warnf("Not resubmitting %s, received error: %s", tx.Hash().Hex(), err.Error())
-			return nil
-		}
-
-		logrus.Warnf("Received transient error (%s), forcing send %s (retry %d)", err.Error(), tx.Hash().Hex(), i)
-		time.Sleep(sendRetrySleep)
-	}
-
-	return fmt.Errorf("could not force send of %s", tx.Hash().Hex())
-}
