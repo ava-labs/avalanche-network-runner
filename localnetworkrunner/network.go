@@ -157,7 +157,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			}
 			net.log.Infof("node %v is up", intID)
 		}
-		readyCh <- struct{}{}
+        close(readyCh)
 	}()
 	return readyCh, errorCh
 }
