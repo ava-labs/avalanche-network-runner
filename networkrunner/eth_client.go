@@ -13,7 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// EthClient websocket ethclient.Client with lazy conn and mutexed api calls
+// EthClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
+// All calls are wrapped in a mutex, and try to create a connection if it doesn't exist yet
 type EthClient struct {
 	ipAddr string
 	port   uint
@@ -21,6 +22,9 @@ type EthClient struct {
 	lock   sync.Mutex
 }
 
+// NewEthClient mainly takes ip/port info for usage in future calls
+// Connection can't be initialized in constructor because node is not ready when the constructor is called
+// It follows convention of most avalanchego api constructors that can be called without having a ready node
 func NewEthClient(ipAddr string, port uint) *EthClient {
 	return &EthClient{
 		ipAddr: ipAddr,
@@ -28,6 +32,7 @@ func NewEthClient(ipAddr string, port uint) *EthClient {
 	}
 }
 
+// connect attempt to connect with websocket ethclient API
 func (c *EthClient) connect() error {
 	if c.client == nil {
 		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", c.ipAddr, c.port))
@@ -39,6 +44,7 @@ func (c *EthClient) connect() error {
 	return nil
 }
 
+// Close closes opened connection (if any)
 func (c *EthClient) Close() {
 	if c.client == nil {
 		return
