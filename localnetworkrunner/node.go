@@ -23,7 +23,7 @@ func (node Node) GetID() ids.ID {
 
 func (node Node) GetNodeID() (ids.ShortID, error) {
 	if node.nodeID == nil {
-		info := node.client.GetNodeRunner().GetClient().InfoAPI()
+		info := node.client.InfoAPI()
 		strNodeID, err := info.GetNodeID()
 		if err != nil {
 			return ids.ShortID{}, errors.New(fmt.Sprintf("could not obtain id from info api: %s", err))

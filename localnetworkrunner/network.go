@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
-	"github.com/ava-labs/avalanche-network-runner-local/noderunner"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	ps "github.com/mitchellh/go-ps"
@@ -131,20 +130,14 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
 	}
 	nodePort := uint(nodePortF)
-	nodeRunner, _ := noderunner.NewNodeRunner(
-		string(net.nextIntNodeID),
-		string(net.nextIntNodeID),
-		nodeIP,
-		nodePort,
-		noderunner.NewClient(nodeIP, nodePort, nodePort, 20*time.Second),
-	)
+    apiClient := NewAPIClient(nodeIP, nodePort, nodePort, 20*time.Second)
 
 	b := big.NewInt(0).SetUint64(net.nextIntNodeID).Bytes()
 	nodeID := ids.ID{}
 	copy(nodeID[len(nodeID)-len(b):], b)
 	net.nextIntNodeID += 1
 
-	node := Node{id: nodeID, client: APIClient{nodeRunner}}
+	node := Node{id: nodeID, client: *apiClient}
 
 	net.nodes[nodeID] = &node
 	net.procs[nodeID] = cmd
@@ -158,7 +151,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 	go func() {
 		for id := range net.nodes {
 			intID := big.NewInt(0).SetBytes(id[:])
-			b := waitNode(net.nodes[id].client.runner.GetClient())
+			b := waitNode(net.nodes[id].client)
 			if !b {
 				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
 			}
@@ -199,7 +192,7 @@ func (net *Network) RemoveNode(nodeID ids.ID) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
 	}
-	node.client.GetNodeRunner().GetClient().CChainConcurrentEth().Close()
+	node.client.CChainEthAPI().Close()
 	proc, ok := net.procs[nodeID]
 	if !ok {
 		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
@@ -232,7 +225,7 @@ func createFile(fname string, contents []byte) error {
 	return nil
 }
 
-func waitNode(client *noderunner.Client) bool {
+func waitNode(client APIClient) bool {
 	info := client.InfoAPI()
 	timeout := 1 * time.Minute
 	pollTime := 10 * time.Second
