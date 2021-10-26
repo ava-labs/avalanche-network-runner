@@ -49,73 +49,73 @@ func (c *EthClient) Close() {
 }
 
 func (c *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.SendTransaction(ctx, tx)
 }
 
 func (c *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.TransactionReceipt(ctx, txHash)
 }
 
 func (c *EthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.BalanceAt(ctx, account, blockNumber)
 }
 
 func (c *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.BlockByNumber(ctx, number)
 }
 
 func (c *EthClient) BlockNumber(ctx context.Context) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return 0, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.BlockNumber(ctx)
 }
 
 func (c *EthClient) CallContract(ctx context.Context, msg interfaces.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.CallContract(ctx, msg, blockNumber)
 }
 
 func (c *EthClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return 0, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.NonceAt(ctx, account, blockNumber)
 }
 
 func (c *EthClient) AssetBalanceAt(ctx context.Context, account common.Address, assetID ids.ID, blockNumber *big.Int) (*big.Int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	return c.client.AssetBalanceAt(ctx, account, assetID, blockNumber)
 }
