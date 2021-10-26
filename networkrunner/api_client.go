@@ -14,17 +14,17 @@ import (
 
 // Issues API calls to a node
 type APIClient interface {
-    PChainAPI() *platformvm.Client
-    XChainAPI() *avm.Client
-    XChainWalletAPI() *avm.WalletClient
-    CChainAPI() *evm.Client
-    CChainEthAPI() *EthClient
-    InfoAPI() *info.Client
-    HealthAPI() *health.Client
-    IpcsAPI() *ipcs.Client
-    KeystoreAPI() *keystore.Client
-    AdminAPI() *admin.Client
-    PChainIndexAPI() *indexer.Client
-    CChainIndexAPI() *indexer.Client
+	PChainAPI() *platformvm.Client
+	XChainAPI() *avm.Client
+	XChainWalletAPI() *avm.WalletClient
+	CChainAPI() *evm.Client
+	CChainEthAPI() *EthClient
+	InfoAPI() *info.Client
+	HealthAPI() *health.Client
+	IpcsAPI() *ipcs.Client
+	KeystoreAPI() *keystore.Client
+	AdminAPI() *admin.Client
+	PChainIndexAPI() *indexer.Client
+	CChainIndexAPI() *indexer.Client
 	// TODO add methods
 }

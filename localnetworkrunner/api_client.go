@@ -17,18 +17,18 @@ import (
 )
 
 type APIClient struct {
-	platform            *platformvm.Client
-	xChain              *avm.Client
-	xChainWallet        *avm.WalletClient
-	cChain              *evm.Client
-	cChainEth           *networkrunner.EthClient
-	info                *info.Client
-	health              *health.Client
-	ipcs                *ipcs.Client
-	keystore            *keystore.Client
-	admin               *admin.Client
-	pindex              *indexer.Client
-	cindex              *indexer.Client
+	platform     *platformvm.Client
+	xChain       *avm.Client
+	xChainWallet *avm.WalletClient
+	cChain       *evm.Client
+	cChainEth    *networkrunner.EthClient
+	info         *info.Client
+	health       *health.Client
+	ipcs         *ipcs.Client
+	keystore     *keystore.Client
+	admin        *admin.Client
+	pindex       *indexer.Client
+	cindex       *indexer.Client
 }
 
 var _ networkrunner.APIClient = (*APIClient)(nil)
@@ -36,18 +36,18 @@ var _ networkrunner.APIClient = (*APIClient)(nil)
 func NewAPIClient(ipAddr string, port uint, byzPort uint, requestTimeout time.Duration) *APIClient {
 	uri := fmt.Sprintf("http://%s:%d", ipAddr, port)
 	return &APIClient{
-		platform:            platformvm.NewClient(uri, requestTimeout),
-		xChain:              avm.NewClient(uri, "X", requestTimeout),
-		xChainWallet:        avm.NewWalletClient(uri, "X", requestTimeout),
-		cChain:              evm.NewCChainClient(uri, requestTimeout),
-		cChainEth:           networkrunner.NewEthClient(ipAddr, port),
-		info:                info.NewClient(uri, requestTimeout),
-		health:              health.NewClient(uri, requestTimeout),
-		ipcs:                ipcs.NewClient(uri, requestTimeout),
-		keystore:            keystore.NewClient(uri, requestTimeout),
-		admin:               admin.NewClient(uri, requestTimeout),
-		pindex:              indexer.NewClient(uri, "/ext/index/P/block", requestTimeout),
-		cindex:              indexer.NewClient(uri, "/ext/index/C/block", requestTimeout),
+		platform:     platformvm.NewClient(uri, requestTimeout),
+		xChain:       avm.NewClient(uri, "X", requestTimeout),
+		xChainWallet: avm.NewWalletClient(uri, "X", requestTimeout),
+		cChain:       evm.NewCChainClient(uri, requestTimeout),
+		cChainEth:    networkrunner.NewEthClient(ipAddr, port),
+		info:         info.NewClient(uri, requestTimeout),
+		health:       health.NewClient(uri, requestTimeout),
+		ipcs:         ipcs.NewClient(uri, requestTimeout),
+		keystore:     keystore.NewClient(uri, requestTimeout),
+		admin:        admin.NewClient(uri, requestTimeout),
+		pindex:       indexer.NewClient(uri, "/ext/index/P/block", requestTimeout),
+		cindex:       indexer.NewClient(uri, "/ext/index/C/block", requestTimeout),
 	}
 }
 

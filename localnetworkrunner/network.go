@@ -130,7 +130,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
 	}
 	nodePort := uint(nodePortF)
-    apiClient := NewAPIClient(nodeIP, nodePort, nodePort, 20*time.Second)
+	apiClient := NewAPIClient(nodeIP, nodePort, nodePort, 20*time.Second)
 
 	b := big.NewInt(0).SetUint64(net.nextIntNodeID).Bytes()
 	nodeID := ids.ID{}
