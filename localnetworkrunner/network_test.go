@@ -12,9 +12,17 @@ import (
 )
 
 //go:embed "network_config.json"
-var networkConfigJSON []byte
+var networkConfigsJSON []byte
 
 func TestNetworkStartStop(t *testing.T) {
+    confs := map[string]interface{}{}
+    if err := json.Unmarshal(networkConfigsJSON, &confs); err != nil {
+        t.Fatalf("couldn't unmarshall network configs json: %s", err)
+    }
+    networkConfigJSON, err := json.Marshal(confs["2"])
+    if err != nil {
+        t.Fatalf("couldn't marshall network config json: %s", err)
+    }
     binMap := getBinMap(t)
     networkConfig := getNetworkConfig(t, networkConfigJSON)
     net := startNetwork(t, binMap, networkConfig)
@@ -47,6 +55,7 @@ func getNetworkConfig(t *testing.T, networkConfigJSON []byte) networkrunner.Netw
     }
     return networkConfig
 }
+
 func startNetwork(t* testing.T, binMap map[int]string, networkConfig networkrunner.NetworkConfig) networkrunner.Network {
     logger := logrus.New()
     var net networkrunner.Network

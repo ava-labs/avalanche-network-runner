@@ -34,6 +34,9 @@ type Network struct {
 // interface compliance
 var _ networkrunner.Network = (*Network)(nil)
 
+func ParseJSON() {
+}
+
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
 	net := Network{}
