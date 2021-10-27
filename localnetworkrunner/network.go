@@ -74,7 +74,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		configFlags[k] = v
 	}
 	if err := json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal config flags for node %v: %s", net.nextIntNodeID, err)
+		return nil, fmt.Errorf("couldn't unmarshal config flags for node %v: %w", net.nextIntNodeID, err)
 	}
 
 	configDir, ok := configFlags[config.ChainConfigDirKey].(string)
@@ -86,15 +86,15 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	configFilePath := path.Join(configDir, "config.json")
 	configBytes, err := json.Marshal(configFlags)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal full config flags for node %v: %s", net.nextIntNodeID, err)
+		return nil, fmt.Errorf("couldn't marshal full config flags for node %v: %w", net.nextIntNodeID, err)
 	}
 	if err := createFile(configFilePath, configBytes); err != nil {
-		return nil, fmt.Errorf("couldn't create config file %s for node %v: %s", configFilePath, net.nextIntNodeID, err)
+		return nil, fmt.Errorf("couldn't create config file %s for node %v: %w", configFilePath, net.nextIntNodeID, err)
 	}
 
 	cConfigFilePath := path.Join(configDir, "C", "config.json")
 	if err := createFile(cConfigFilePath, net.cChainConfig); err != nil {
-		return nil, fmt.Errorf("couldn't create cchain config file %s for node %v: %s", cConfigFilePath, net.nextIntNodeID, err)
+		return nil, fmt.Errorf("couldn't create cchain config file %s for node %v: %w", cConfigFilePath, net.nextIntNodeID, err)
 	}
 
 	genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
@@ -102,7 +102,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.GenesisConfigFileKey)
 	}
 	if err := createFile(genesisFname, net.genesis); err != nil {
-		return nil, fmt.Errorf("couldn't create genesis file %s for node %v: %s", genesisFname, net.nextIntNodeID, err)
+		return nil, fmt.Errorf("couldn't create genesis file %s for node %v: %w", genesisFname, net.nextIntNodeID, err)
 	}
 
 	// tells if avalanchego is going to generate the cert/key for the node
@@ -124,14 +124,14 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 			return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingCertPathKey)
 		}
 		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
-			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %s", certFname, net.nextIntNodeID, err)
+			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %w", certFname, net.nextIntNodeID, err)
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
 			return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingKeyPathKey)
 		}
 		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
-			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %s", keyFname, net.nextIntNodeID, err)
+			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %w", keyFname, net.nextIntNodeID, err)
 		}
 	}
 
@@ -155,7 +155,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\" for node %v: %s", avalanchegoPath, configFileFlag, net.nextIntNodeID, err)
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\" for node %v: %w", avalanchegoPath, configFileFlag, net.nextIntNodeID, err)
 	}
 
 	// get internal node id from incremental uint

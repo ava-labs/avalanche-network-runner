@@ -26,15 +26,15 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_1.json",
-			expectedError:     errors.New("incomplete network config: Genesis field is empty"),
+			expectedError:     errors.New("config failed validation: genesis field is empty"),
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_2.json",
-			expectedError:     errors.New("incomplete network config: CChainConfig field is empty"),
+			expectedError:     errors.New("config failed validation: cChainConfig field is empty"),
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_3.json",
-			expectedError:     errors.New("incomplete network config: CoreConfigFlags field is empty"),
+			expectedError:     errors.New("config failed validation: coreConfigFlags field is empty"),
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_4.json",
@@ -42,11 +42,11 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_5.json",
-			expectedError:     errors.New("incomplete network config: NodeConfigs field is empty"),
+			expectedError:     errors.New("config failed validation: nodeConfigs field is empty"),
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_6.json",
-			expectedError:     errors.New("incomplete network config: NodeConfigs field must have at least a node"),
+			expectedError:     errors.New("config failed validation: nodeConfigs field must have at least a node"),
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_1.json",
@@ -67,12 +67,11 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		givenErr := networkStartWaitStop(tt.networkConfigPath)
-		assert.Equal(t, tt.expectedError, givenErr, fmt.Sprintf("path: %s", tt.networkConfigPath))
+		assert.Equal(t, tt.expectedError.Error(), givenErr.Error(), fmt.Sprintf("path: %s", tt.networkConfigPath))
 	}
 }
 
 func TestBasicNetwork(t *testing.T) {
-	t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	if err := networkStartWaitStop(networkConfigPath); err != nil {
 		t.Fatal(err)
