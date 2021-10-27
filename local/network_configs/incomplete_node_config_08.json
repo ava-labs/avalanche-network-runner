@@ -2,5 +2,5 @@
  "Genesis": "nonempty",
  "CChainConfig": "nonempty",
  "CoreConfigFlags": "{}",
- "NodeConfigs": [{"BinKind": 0, "ConfigFlags": "{\"chain-config-dir\": \"/tmp\", \"genesis\": \"/tmp/genesis.tmp\", \"staking-tls-cert-file\":\"/tmp/cert.tmp\"}", "Cert": "nonempty"}]
+ "NodeConfigs": [{"Type": 0, "ConfigFlags": "{\"chain-config-dir\": \"/tmp\", \"genesis\": \"/tmp/genesis.tmp\", \"staking-tls-cert-file\":\"/tmp/cert.tmp\"}", "Cert": "nonempty"}]
 }

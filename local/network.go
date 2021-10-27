@@ -64,12 +64,9 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
-	/* TODO what is this?
-	if nodeConfig.BinKind == nil {
-		return nil, fmt.Errorf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID)
+	if nodeConfig.Type == nil {
+		return nil, fmt.Errorf("incomplete node config for node %v: Type field is empty", net.nextIntNodeID)
 	}
-	*/
-	fmt.Println(nodeConfig)
 
 	if nodeConfig.ConfigFlags == "" {
 		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID)

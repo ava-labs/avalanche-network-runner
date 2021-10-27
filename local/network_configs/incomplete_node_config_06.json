@@ -2,5 +2,5 @@
  "Genesis": "nonempty",
  "CChainConfig": "nonempty",
  "CoreConfigFlags": "{}",
- "NodeConfigs": [{"BinKind": 0, "ConfigFlags": "{\"chain-config-dir\": \"/tmp\", \"genesis\": \"/tmp/genesis.tmp\"}"}]
+ "NodeConfigs": [{"Type": 0, "ConfigFlags": "{\"chain-config-dir\": \"/tmp\", \"genesis\": \"/tmp/genesis.tmp\"}"}]
 }

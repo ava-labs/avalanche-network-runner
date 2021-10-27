@@ -2,5 +2,5 @@
  "Genesis": "nonempty",
  "CChainConfig": "nonempty",
  "CoreConfigFlags": "{}",
- "NodeConfigs": [{"BinKind": 0, "ConfigFlags": "{"}]
+ "NodeConfigs": [{"Type": 0, "ConfigFlags": "{"}]
 }
