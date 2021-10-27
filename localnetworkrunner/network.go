@@ -2,7 +2,6 @@ package localnetworkrunner
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -36,43 +35,27 @@ var _ networkrunner.Network = (*Network)(nil)
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
-	net := Network{}
-	net.nodes = map[ids.ID]*Node{}
-	net.procs = map[ids.ID]*exec.Cmd{}
-
-	if networkConfig.Genesis == "" {
-		return nil, errors.New("incomplete network config: Genesis field is empty")
+	if err := networkConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
-	if networkConfig.CChainConfig == "" {
-		return nil, errors.New("incomplete network config: CChainConfig field is empty")
+	net := &Network{
+		nodes:         map[ids.ID]*Node{},
+		procs:         map[ids.ID]*exec.Cmd{},
+		nextIntNodeID: 1,
+		binMap:        binMap,
+		log:           log,
+		genesis:       []byte(networkConfig.Genesis),
+		cChainConfig:  []byte(networkConfig.CChainConfig),
 	}
-	if networkConfig.CoreConfigFlags == "" {
-		return nil, errors.New("incomplete network config: CoreConfigFlags field is empty")
-	}
-	if networkConfig.NodeConfigs == nil {
-		return nil, errors.New("incomplete network config: NodeConfigs field is empty")
-	}
-	if len(networkConfig.NodeConfigs) == 0 {
-		return nil, errors.New("incomplete network config: NodeConfigs field must have at least a node")
-	}
-
-	net.nextIntNodeID = 1
-	net.binMap = binMap
-	net.log = log
-	net.genesis = []byte(networkConfig.Genesis)
-	net.cChainConfig = []byte(networkConfig.CChainConfig)
 	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal core config flags: %s", err)
+		return nil, fmt.Errorf("couldn't unmarshal core config flags: %w", err)
 	}
-
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		_, err := net.AddNode(nodeConfig)
-		if err != nil {
+		if _, err := net.AddNode(nodeConfig); err != nil {
 			return nil, err
 		}
 	}
-
-	return &net, nil
+	return net, nil
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
