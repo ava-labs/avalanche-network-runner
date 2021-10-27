@@ -19,40 +19,44 @@ import (
 func TestWrongNetworkConfigs(t *testing.T) {
 	tests := []struct {
 		networkConfigPath string
-		expectedError     error
+		shouldErr         bool
 	}{
 		{
 			networkConfigPath: "network_configs/empty_config.json",
-			expectedError:     errors.New("couldn't unmarshall network config json: unexpected end of JSON input"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_1.json",
-			expectedError:     errors.New("incomplete network config: Genesis field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_2.json",
-			expectedError:     errors.New("incomplete network config: CChainConfig field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_3.json",
-			expectedError:     errors.New("incomplete network config: CoreConfigFlags field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_4.json",
-			expectedError:     errors.New("couldn't unmarshal core config flags: unexpected end of JSON input"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_5.json",
-			expectedError:     errors.New("incomplete network config: NodeConfigs field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_6.json",
-			expectedError:     errors.New("incomplete network config: NodeConfigs field must have at least a node"),
+			shouldErr:         true,
 		},
 	}
 	for _, tt := range tests {
-		givenErr := networkStartWaitStop(tt.networkConfigPath)
-		assert.Equal(t, tt.expectedError, givenErr, fmt.Sprintf("path: %s", tt.networkConfigPath))
+		err := networkStartWaitStop(tt.networkConfigPath)
+		if tt.shouldErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 }
 
