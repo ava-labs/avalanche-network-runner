@@ -18,90 +18,68 @@ import (
 
 func TestWrongNetworkConfigs(t *testing.T) {
 	tests := []struct {
-		networkConfigPath string
-		shouldErr         bool
+		networkConfigJSON string
 	}{
 		{
-			networkConfigPath: "network_configs/empty_config.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/empty_config.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_1.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_1.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_2.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_2.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_3.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_3.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_4.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_4.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_5.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_5.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_network_config_6.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_network_config_6.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_1.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_node_config_1.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_2.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_node_config_2.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_3.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_node_config_3.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_4.json",
-			shouldErr:         true,
+			networkConfigJSON: "network_configs/incomplete_node_config_4.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_5.json",
-			expectedError:     errors.New("node 1 lacks config flag genesis"),
+			networkConfigJSON: "network_configs/incomplete_node_config_5.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_6.json",
-			expectedError:     errors.New("incomplete node config for node 1: Cert field is empty"),
+			networkConfigJSON: "network_configs/incomplete_node_config_6.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_7.json",
-			expectedError:     errors.New("node 1 lacks config flag staking-tls-cert-file"),
+			networkConfigJSON: "network_configs/incomplete_node_config_7.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_8.json",
-			expectedError:     errors.New("incomplete node config for node 1: PrivateKey field is empty"),
+			networkConfigJSON: "network_configs/incomplete_node_config_8.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_9.json",
-			expectedError:     errors.New("node 1 lacks config flag staking-tls-key-file"),
+			networkConfigJSON: "network_configs/incomplete_node_config_9.json",
 		},
 		{
-			networkConfigPath: "network_configs/incomplete_node_config_10.json",
-			expectedError:     errors.New("node 1 lacks config flag public-ip"),
+			networkConfigJSON: "network_configs/incomplete_node_config_10.json",
 		},
 	}
 	for _, tt := range tests {
-		err := networkStartWaitStop(tt.networkConfigPath)
-		if tt.shouldErr {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-		}
+		err := networkStartWaitStop(tt.networkConfigJSON)
+		assert.Error(t, err)
 	}
 }
 
 func TestBasicNetwork(t *testing.T) {
-    t.Skip()
+	//t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	if err := networkStartWaitStop(networkConfigPath); err != nil {
 		t.Fatal(err)
