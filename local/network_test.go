@@ -49,6 +49,22 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			networkConfigPath: "network_configs/incomplete_network_config_6.json",
 			shouldErr:         true,
 		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_1.json",
+			shouldErr:         true,
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_2.json",
+			shouldErr:         true,
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_3.json",
+			shouldErr:         true,
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_4.json",
+			shouldErr:         true,
+		},
 	}
 	for _, tt := range tests {
 		err := networkStartWaitStop(tt.networkConfigPath)
@@ -61,7 +77,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 }
 
 func TestBasicNetwork(t *testing.T) {
-	t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	if err := networkStartWaitStop(networkConfigPath); err != nil {
 		t.Fatal(err)
@@ -94,7 +109,7 @@ func networkStartWaitStop(networkConfigPath string) error {
 	return nil
 }
 
-func getBinMap() (map[int]string, error) {
+func getBinMap() (map[uint]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
@@ -105,7 +120,7 @@ func getBinMap() (map[int]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
-	binMap := map[int]string{
+	binMap := map[uint]string{
 		node.AVALANCHEGO: avalanchegoPath,
 		node.BYZANTINE:   byzantinePath,
 	}
@@ -128,7 +143,7 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[int]string, networkConfig *network.Config) (network.Network, error) {
+func startNetwork(binMap map[uint]string, networkConfig *network.Config) (network.Network, error) {
 	var net network.Network
 	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {
