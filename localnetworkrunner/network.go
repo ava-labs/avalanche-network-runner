@@ -128,7 +128,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
-			return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.StakingKeyPathKey)
+			return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingKeyPathKey)
 		}
 		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
 			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %s", keyFname, net.nextIntNodeID, err)
@@ -138,11 +138,11 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	// initialize node avalanchego apis
 	nodeIP, ok := configFlags[config.PublicIPKey].(string)
 	if !ok {
-		return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.PublicIPKey)
+		return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.PublicIPKey)
 	}
 	nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
 	if !ok {
-		return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.HTTPPortKey)
+		return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.HTTPPortKey)
 	}
 	nodePort := uint(nodePortF)
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
