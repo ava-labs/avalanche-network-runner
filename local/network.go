@@ -16,8 +16,6 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	ps "github.com/mitchellh/go-ps"
-	"github.com/palantir/stacktrace"
 )
 
 // interface compliance
@@ -29,7 +27,6 @@ type localNetwork struct {
 	binMap          map[nodeType]string    // map node kind to string used in node set up (binary path)
 	nextIntNodeID   uint64                 // next id to be used in internal node id generation
 	nodes           map[ids.ID]*localNode  // access to nodes basic info and api
-	procs           map[ids.ID]*exec.Cmd   // access to the nodes OS processes
 	coreConfigFlags map[string]interface{} // cmdline flags common to all nodes
 	genesis         []byte                 // genesis file contents, common to all nodes
 	cChainConfig    []byte                 // cchain config file contents, common to all nodes
@@ -42,7 +39,6 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 	}
 	net := &localNetwork{
 		nodes:         map[ids.ID]*localNode{},
-		procs:         map[ids.ID]*exec.Cmd{},
 		nextIntNodeID: 1,
 		binMap:        binMap,
 		log:           log,
@@ -169,12 +165,13 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	copy(nodeID[len(nodeID)-len(b):], b)
 	net.nextIntNodeID += 1
 
-	node := localNode{id: nodeID, client: *apiClient}
-
-	net.nodes[nodeID] = &node
-	net.procs[nodeID] = cmd
-
-	return &node, nil
+	node := &localNode{
+		id:     nodeID,
+		client: apiClient,
+		cmd:    cmd,
+	}
+	net.nodes[nodeID] = node
+	return node, nil
 }
 
 // Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
@@ -225,23 +222,13 @@ func (net *localNetwork) RemoveNode(nodeID ids.ID) error {
 	if !ok {
 		return fmt.Errorf("node %s not found in network", nodeID)
 	}
+	delete(net.nodes, nodeID)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
-	proc, ok := net.procs[nodeID]
-	if !ok {
-		return fmt.Errorf("node %s not found in network", nodeID)
+	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("error sending SIGTERM to %s: %w", node.nodeID, err)
 	}
-	processes, err := ps.Processes()
-	if err != nil {
-		return stacktrace.Propagate(err, "unable to list processes")
-	}
-	procID := proc.Process.Pid
-	if err := killProcessAndDescendants(procID, processes); err != nil {
-		return err
-	}
-	delete(net.nodes, nodeID)
-	delete(net.procs, nodeID)
 	return nil
 }
 
@@ -286,18 +273,4 @@ func waitNode(client api.Client) bool {
 		}
 	}
 	return nodeIsUp
-}
-
-func killProcessAndDescendants(processID int, processes []ps.Process) error {
-	// Kill descendants of [processID] in [processes]
-	for _, process := range processes {
-		if process.PPid() != processID {
-			continue
-		}
-		if err := killProcessAndDescendants(process.Pid(), processes); err != nil {
-			return stacktrace.Propagate(err, "unable to kill process and descendants")
-		}
-	}
-	// Kill [processID]
-	return syscall.Kill(processID, syscall.SIGTERM)
 }
