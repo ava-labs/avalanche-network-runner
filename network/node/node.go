@@ -1,6 +1,7 @@
-package networkrunner
+package node
 
 import (
+	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -10,6 +11,14 @@ const (
 	AVALANCHEGO = iota
 	BYZANTINE   = iota
 )
+
+type Config struct {
+	BinKind     int    // Kind of node to set up (avalanchego/byzantine/...)
+	NodeID      string // Avalanchego id for the node, when is known beforehand
+	PrivateKey  string
+	Cert        string
+	ConfigFlags string // Cmdline flags that are specific for the node. JSON
+}
 
 // An AvalancheGo node
 type Node interface {
@@ -25,14 +34,6 @@ type Node interface {
 	// Return this node's Avalanche node ID.
 	GetNodeID() (ids.ShortID, error)
 	// Return a client that can be used to
-	GetAPIClient() APIClient
+	GetAPIClient() api.Client
 	// TODO add methods
-}
-
-type NodeConfig struct {
-	BinKind     int    // Kind of node to set up (avalanchego/byzantine/...)
-	NodeID      string // Avalanchego id for the node, when is known beforehand
-	PrivateKey  string
-	Cert        string
-	ConfigFlags string // Cmdline flags that are specific for the node. JSON
 }

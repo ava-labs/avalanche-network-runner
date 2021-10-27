@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
-	"github.com/sirupsen/logrus"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,8 +102,8 @@ func getBinMap() (map[int]string, error) {
 		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
 	binMap := map[int]string{
-		networkrunner.AVALANCHEGO: avalanchegoPath,
-		networkrunner.BYZANTINE:   byzantinePath,
+		node.AVALANCHEGO: avalanchegoPath,
+		node.BYZANTINE:   byzantinePath,
 	}
 	return binMap, nil
 }
@@ -115,25 +116,24 @@ func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
 	return networkConfigJSON, nil
 }
 
-func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, error) {
-	networkConfig := networkrunner.NetworkConfig{}
+func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
+	networkConfig := network.Config{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[int]string, networkConfig *networkrunner.NetworkConfig) (networkrunner.Network, error) {
-	logger := logrus.New()
-	var net networkrunner.Network
-	net, err := NewNetwork(*networkConfig, binMap, logger)
+func startNetwork(binMap map[int]string, networkConfig *network.Config) (network.Network, error) {
+	var net network.Network
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {
 		return nil, err
 	}
 	return net, nil
 }
 
-func awaitNetwork(net networkrunner.Network) error {
+func awaitNetwork(net network.Network) error {
 	timeoutCh := make(chan struct{})
 	go func() {
 		time.Sleep(5 * time.Minute)
@@ -151,10 +151,6 @@ func awaitNetwork(net networkrunner.Network) error {
 	return nil
 }
 
-func stopNetwork(net networkrunner.Network) error {
-	err := net.Stop()
-	if err != nil {
-		return fmt.Errorf("couldn't cleanly stop network: %s", err)
-	}
-	return nil
+func stopNetwork(net network.Network) error {
+	return net.Stop()
 }

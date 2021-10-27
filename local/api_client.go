@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
@@ -22,7 +22,7 @@ type APIClient struct {
 	xChain       *avm.Client
 	xChainWallet *avm.WalletClient
 	cChain       *evm.Client
-	cChainEth    *networkrunner.EthClient
+	cChainEth    *api.EthClient
 	info         *info.Client
 	health       *health.Client
 	ipcs         *ipcs.Client
@@ -33,7 +33,7 @@ type APIClient struct {
 }
 
 // interface compliance
-var _ networkrunner.APIClient = (*APIClient)(nil)
+var _ api.Client = (*APIClient)(nil)
 
 // NewAPIClient initialize most of avalanchego apis
 func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APIClient {
@@ -43,7 +43,7 @@ func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APICl
 		xChain:       avm.NewClient(uri, "X", requestTimeout),
 		xChainWallet: avm.NewWalletClient(uri, "X", requestTimeout),
 		cChain:       evm.NewCChainClient(uri, requestTimeout),
-		cChainEth:    networkrunner.NewEthClient(ipAddr, port), // wrapper over ethclient.Client
+		cChainEth:    api.NewEthClient(ipAddr, port), // wrapper over ethclient.Client
 		info:         info.NewClient(uri, requestTimeout),
 		health:       health.NewClient(uri, requestTimeout),
 		ipcs:         ipcs.NewClient(uri, requestTimeout),
@@ -70,7 +70,7 @@ func (c APIClient) CChainAPI() *evm.Client {
 	return c.cChain
 }
 
-func (c APIClient) CChainEthAPI() *networkrunner.EthClient {
+func (c APIClient) CChainEthAPI() *api.EthClient {
 	return c.cChainEth
 }
 

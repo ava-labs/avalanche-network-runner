@@ -1,8 +1,9 @@
-package networkrunner
+package network
 
 import (
 	"errors"
 
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -14,11 +15,11 @@ type Network interface {
 	// Stop all the nodes
 	Stop() error
 	// Start a new node with the config
-	AddNode(NodeConfig) (Node, error)
+	AddNode(node.Config) (node.Node, error)
 	// Stop the node with this ID.
 	RemoveNode(ids.ID) error
 	// Return the node with this ID.
-	GetNode(ids.ID) (Node, error)
+	GetNode(ids.ID) (node.Node, error)
 	// Return ID for all the nodes
 	GetNodesIDs() []ids.ID
 	// TODO add methods
@@ -26,18 +27,18 @@ type Network interface {
 
 // Returns a new network whose initial state is specified in the config,
 // using a map to set up proper node kind from integer kinds in config
-func NewNetwork(NetworkConfig, map[int]string) (*Network, error) {
+func NewNetwork(Config, map[int]string) (*Network, error) {
 	return nil, nil
 }
 
-type NetworkConfig struct {
-	Genesis         string       // Contents of genesis file for all nodes
-	CChainConfig    string       // Contents of cchain config file for all nodes
-	CoreConfigFlags string       // Common cmdline flags for all nodes (unless overwritten with node config). JSON
-	NodeConfigs     []NodeConfig // Node config for each node
+type Config struct {
+	Genesis         string        // Contents of genesis file for all nodes
+	CChainConfig    string        // Contents of cchain config file for all nodes
+	CoreConfigFlags string        // Common cmdline flags for all nodes (unless overwritten with node config). JSON
+	NodeConfigs     []node.Config // Node config for each node
 }
 
-func (c *NetworkConfig) Validate() error {
+func (c *Config) Validate() error {
 	switch {
 	case c.Genesis == "":
 		return errors.New("genesis field is empty")
