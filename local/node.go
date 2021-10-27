@@ -27,7 +27,7 @@ const (
 type localNode struct {
 	// This ID is internal to the network runner.
 	// It isn't an Avalanche Node ID.
-	id ids.ID
+	id string
 	// [nodeID] is this node's Avalannche Node ID.
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
@@ -40,7 +40,7 @@ type localNode struct {
 // Returs internal id used by the network runner
 // Incremental from 1..
 // 1:1 mapping to network config node positions
-func (node *localNode) GetID() ids.ID {
+func (node *localNode) GetID() string {
 	return node.id
 }
 

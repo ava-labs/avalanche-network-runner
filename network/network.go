@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanchego/ids"
 )
 
 // Network is an abstraction of an Avalanche network
@@ -17,11 +16,11 @@ type Network interface {
 	// Start a new node with the config
 	AddNode(node.Config) (node.Node, error)
 	// Stop the node with this ID.
-	RemoveNode(ids.ID) error
+	RemoveNode(string) error
 	// Return the node with this ID.
-	GetNode(ids.ID) (node.Node, error)
+	GetNode(string) (node.Node, error)
 	// Return ID for all the nodes
-	GetNodesIDs() []ids.ID
+	GetNodesIDs() []string
 	// TODO add methods
 }
 

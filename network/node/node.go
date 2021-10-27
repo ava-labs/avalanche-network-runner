@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Type        interface{} // Kind of node to set up (avalanchego/byzantine/...)
 	NodeID      string      // Avalanchego id for the node, when is known beforehand
+	Name        string      // Network runner node id for the node, when specified
 	PrivateKey  string
 	Cert        string
 	ConfigFlags string // Cmdline flags that are specific for the node. JSON
@@ -23,7 +24,7 @@ type Node interface {
 	// We don't use the Avalanche node ID to reference nodes
 	// because we may want to start a network where multiple nodes
 	// have the same Avalanche node ID.
-	GetID() ids.ID
+	GetID() string
 	// Return this node's Avalanche node ID.
 	GetNodeID() (ids.ShortID, error)
 	// Return a client that can be used to
