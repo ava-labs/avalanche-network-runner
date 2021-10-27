@@ -43,9 +43,8 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 		genesis:       []byte(networkConfig.Genesis),
 		cChainConfig:  []byte(networkConfig.CChainConfig),
 	}
-	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal core config flags: %w", err)
-	}
+	// Validate does check errors at the unmarshals
+	json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.AddNode(nodeConfig); err != nil {
 			return nil, err
@@ -77,26 +76,21 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		nodeID = nodeConfig.Name
 	}
 
-	if nodeConfig.Type == nil {
-		return nil, fmt.Errorf("incomplete node config for node %v: Type field is empty", nodeID)
-	}
-
-	if nodeConfig.ConfigFlags == "" {
-		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", nodeID)
+	// validation at this stage is needed for nodes added after network creation
+	// TODO: at network creation time, node validation is done twice
+	if err := nodeConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("config for node %v failed validation: %w", nodeID, err)
 	}
 
 	// copy common config flags, and unmarshall specific node config flags
 	for k, v := range net.coreConfigFlags {
 		configFlags[k] = v
 	}
-	if err := json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal config flags for node %v: %w", nodeID, err)
-	}
+	// Validate does check errors at the unmarshals
+	json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags)
 
-	configDir, ok := configFlags[config.ChainConfigDirKey].(string)
-	if !ok {
-		return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.ChainConfigDirKey)
-	}
+	// Validate does check map keys and value casts
+	configDir := configFlags[config.ChainConfigDirKey].(string)
 
 	// create main config file by marshalling all config flags
 	configFilePath := path.Join(configDir, "config.json")
@@ -113,10 +107,7 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't create cchain config file %s for node %v: %w", cConfigFilePath, nodeID, err)
 	}
 
-	genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
-	if !ok {
-		return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.GenesisConfigFileKey)
-	}
+	genesisFname := configFlags[config.GenesisConfigFileKey].(string)
 	if err := createFile(genesisFname, net.genesis); err != nil {
 		return nil, fmt.Errorf("couldn't create genesis file %s for node %v: %w", genesisFname, nodeID, err)
 	}
@@ -129,37 +120,19 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 
 	if !usesEphemeralCert {
 		// cert/key is given in config
-		if nodeConfig.Cert == "" {
-			return nil, fmt.Errorf("incomplete node config for node %v: Cert field is empty", nodeID)
-		}
-		certFname, ok := configFlags[config.StakingCertPathKey].(string)
-		if !ok {
-			return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.StakingCertPathKey)
-		}
+		certFname := configFlags[config.StakingCertPathKey].(string)
 		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
 			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %w", certFname, nodeID, err)
 		}
-		if nodeConfig.PrivateKey == "" {
-			return nil, fmt.Errorf("incomplete node config for node %v: PrivateKey field is empty", nodeID)
-		}
-		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
-		if !ok {
-			return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.StakingKeyPathKey)
-		}
+		keyFname := configFlags[config.StakingKeyPathKey].(string)
 		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
 			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %w", keyFname, nodeID, err)
 		}
 	}
 
 	// initialize node avalanchego apis
-	nodeIP, ok := configFlags[config.PublicIPKey].(string)
-	if !ok {
-		return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.PublicIPKey)
-	}
-	nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
-	if !ok {
-		return nil, fmt.Errorf("node %v lacks config flag %s", nodeID, config.HTTPPortKey)
-	}
+	nodeIP := configFlags[config.PublicIPKey].(string)
+	nodePortF := configFlags[config.HTTPPortKey].(float64)
 	nodePort := uint(nodePortF)
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 

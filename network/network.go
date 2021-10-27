@@ -1,9 +1,12 @@
 package network
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanchego/config"
 )
 
 // Network is an abstraction of an Avalanche network
@@ -38,18 +41,31 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
+	var coreConfigFlags map[string]interface{}
 	switch {
 	case c.Genesis == "":
-		return errors.New("genesis field is empty")
+		return errors.New("Genesis field is empty")
 	case c.CChainConfig == "":
-		return errors.New("cChainConfig field is empty")
+		return errors.New("CChainConfig field is empty")
 	case c.CoreConfigFlags == "":
-		return errors.New("coreConfigFlags field is empty")
+		return errors.New("CoreConfigFlags field is empty")
 	case c.NodeConfigs == nil:
-		return errors.New("nodeConfigs field is empty")
+		return errors.New("NodeConfigs field is empty")
 	case len(c.NodeConfigs) == 0:
-		return errors.New("nodeConfigs field must have at least a node")
+		return errors.New("NodeConfigs field must have at least a node")
 	default:
+		if err := json.Unmarshal([]byte(c.CoreConfigFlags), &coreConfigFlags); err != nil {
+			return fmt.Errorf("couldn't unmarshal core config flags: %w", err)
+		}
+		_, ok := coreConfigFlags[config.PublicIPKey].(string)
+		if !ok {
+			return fmt.Errorf("no config flag %s", config.PublicIPKey)
+		}
+		for idx, nodeConfig := range c.NodeConfigs {
+			if err := nodeConfig.Validate(); err != nil {
+				return fmt.Errorf("config for node %v failed validation: %w", idx, err)
+			}
+		}
 		return nil
 	}
 }
