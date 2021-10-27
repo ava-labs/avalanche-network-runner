@@ -2,6 +2,7 @@ package localnetworkrunner
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
@@ -31,6 +32,9 @@ type localNode struct {
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
 	client api.Client
+	// The command that started this node.
+	// Send a SIGTERM to [cmd.Process] to stop this node.
+	cmd *exec.Cmd
 }
 
 // Returs internal id used by the network runner
