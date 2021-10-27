@@ -13,7 +13,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -60,7 +59,7 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
 	// get internal node id from incremental uint or from used specification
-	nodeID := fmt.Sprintf("%s%025d", constants.NodeIDPrefix, net.nextIntNodeID)
+	nodeID := fmt.Sprint(net.nextIntNodeID)
 	net.nextIntNodeID += 1
 
 	if nodeConfig.Name != "" {
