@@ -93,12 +93,12 @@ func getBinMap() (map[int]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("must define env var %s", envVarName))
+		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
 	envVarName = "BYZANTINE_PATH"
 	byzantinePath, ok := os.LookupEnv(envVarName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("must define env var %s", envVarName))
+		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
 	binMap := map[int]string{
 		networkrunner.AVALANCHEGO: avalanchegoPath,
@@ -110,7 +110,7 @@ func getBinMap() (map[int]string, error) {
 func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
 	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't read network config file %s: %s", networkConfigPath, err))
+		return nil, fmt.Errorf("couldn't read network config file %s: %s", networkConfigPath, err)
 	}
 	return networkConfigJSON, nil
 }
@@ -118,7 +118,7 @@ func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
 func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, error) {
 	networkConfig := networkrunner.NetworkConfig{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't unmarshall network config json: %s", err))
+		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
 	return &networkConfig, nil
 }
@@ -154,7 +154,7 @@ func awaitNetwork(net networkrunner.Network) error {
 func stopNetwork(net networkrunner.Network) error {
 	err := net.Stop()
 	if err != nil {
-		return errors.New(fmt.Sprintf("couldn't cleanly stop network: %s", err))
+		return fmt.Errorf("couldn't cleanly stop network: %s", err)
 	}
 	return nil
 }

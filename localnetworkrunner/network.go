@@ -65,7 +65,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 	net.genesis = []byte(networkConfig.Genesis)
 	net.cChainConfig = []byte(networkConfig.CChainConfig)
 	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't unmarshal core config flags: %s", err))
+		return nil, fmt.Errorf("couldn't unmarshal core config flags: %s", err)
 	}
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -87,12 +87,12 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		configFlags[k] = v
 	}
 	if err := json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't unmarshal node config flags: %s", err))
+		return nil, fmt.Errorf("couldn't unmarshal node config flags: %s", err)
 	}
 
 	configDir, ok := configFlags[config.ChainConfigDirKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.ChainConfigDirKey, net.nextIntNodeID))
+		return nil, fmt.Errorf("%s flag node %v", config.ChainConfigDirKey, net.nextIntNodeID)
 	}
 
 	// create main config file by marshalling all config flags
@@ -112,7 +112,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 
 	genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.GenesisConfigFileKey, net.nextIntNodeID))
+		return nil, fmt.Errorf("%s flag node %v", config.GenesisConfigFileKey, net.nextIntNodeID)
 	}
 	if err := createFile(genesisFname, net.genesis); err != nil {
 		return nil, err
@@ -128,14 +128,14 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		// cert/key is given in config
 		certFname, ok := configFlags[config.StakingCertPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID))
+			return nil, fmt.Errorf("%s flag node %v", config.StakingCertPathKey, net.nextIntNodeID)
 		}
 		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
 			return nil, err
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID))
+			return nil, fmt.Errorf("%s flag node %v", config.StakingKeyPathKey, net.nextIntNodeID)
 		}
 		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
 			return nil, err
@@ -153,11 +153,11 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	// initialize node avalanchego apis
 	nodeIP, ok := configFlags[config.PublicIPKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.PublicIPKey, net.nextIntNodeID))
+		return nil, fmt.Errorf("%s flag node %v", config.PublicIPKey, net.nextIntNodeID)
 	}
 	nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID))
+		return nil, fmt.Errorf("%s flag node %v", config.HTTPPortKey, net.nextIntNodeID)
 	}
 	nodePort := uint(nodePortF)
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
@@ -186,7 +186,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			intID := big.NewInt(0).SetBytes(id[:])
 			b := waitNode(net.nodes[id].client)
 			if !b {
-				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
+				errorCh <- fmt.Errorf("timeout waiting for node %v", intID)
 			}
 			net.log.Infof("node %v is up", intID)
 		}
@@ -198,7 +198,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	node, ok := net.nodes[nodeID]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return nil, fmt.Errorf("node %s not found in network", nodeID)
 	}
 	return node, nil
 }
@@ -223,14 +223,14 @@ func (net *Network) Stop() error {
 func (net *Network) RemoveNode(nodeID ids.ID) error {
 	node, ok := net.nodes[nodeID]
 	if !ok {
-		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return fmt.Errorf("node %s not found in network", nodeID)
 	}
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	proc, ok := net.procs[nodeID]
 	if !ok {
-		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return fmt.Errorf("node %s not found in network", nodeID)
 	}
 	processes, err := ps.Processes()
 	if err != nil {
