@@ -18,8 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Network keeps information uses for network management, and accessing all the nodes
-type Network struct {
+// network keeps information uses for network management, and accessing all the nodes
+type network struct {
 	binMap          map[int]string         // map node kind to string used in node set up (binary path)
 	nextIntNodeID   uint64                 // next id to be used in internal node id generation
 	nodes           map[ids.ID]*Node       // access to nodes basic info and api
@@ -31,14 +31,14 @@ type Network struct {
 }
 
 // interface compliance
-var _ networkrunner.Network = (*Network)(nil)
+var _ networkrunner.Network = (*network)(nil)
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (*Network, error) {
+func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string, log *logrus.Logger) (networkrunner.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
-	net := &Network{
+	net := &network{
 		nodes:         map[ids.ID]*Node{},
 		procs:         map[ids.ID]*exec.Cmd{},
 		nextIntNodeID: 1,
@@ -59,7 +59,7 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[int]string
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
+func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
 	// copy common config flags, and unmarshall specific node config flags
@@ -158,7 +158,7 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 }
 
 // Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (net *Network) Ready() (chan struct{}, chan error) {
+func (net *network) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
@@ -175,7 +175,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 	return readyCh, errorCh
 }
 
-func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
+func (net *network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	node, ok := net.nodes[nodeID]
 	if !ok {
 		return nil, fmt.Errorf("node %s not found in network", nodeID)
@@ -183,7 +183,7 @@ func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	return node, nil
 }
 
-func (net *Network) GetNodesIDs() []ids.ID {
+func (net *network) GetNodesIDs() []ids.ID {
 	ks := make([]ids.ID, 0, len(net.nodes))
 	for k := range net.nodes {
 		ks = append(ks, k)
@@ -191,7 +191,7 @@ func (net *Network) GetNodesIDs() []ids.ID {
 	return ks
 }
 
-func (net *Network) Stop() error {
+func (net *network) Stop() error {
 	for nodeID := range net.nodes {
 		if err := net.RemoveNode(nodeID); err != nil {
 			return err
@@ -200,7 +200,7 @@ func (net *Network) Stop() error {
 	return nil
 }
 
-func (net *Network) RemoveNode(nodeID ids.ID) error {
+func (net *network) RemoveNode(nodeID ids.ID) error {
 	node, ok := net.nodes[nodeID]
 	if !ok {
 		return fmt.Errorf("node %s not found in network", nodeID)
