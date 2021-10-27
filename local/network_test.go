@@ -79,7 +79,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 }
 
 func TestBasicNetwork(t *testing.T) {
-	//t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	if err := networkStartWaitStop(networkConfigPath); err != nil {
 		t.Fatal(err)
