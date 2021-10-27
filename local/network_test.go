@@ -42,55 +42,60 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			networkConfigJSON: "network_configs/incomplete_network_config_6.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_1.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_01.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_2.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_02.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_3.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_03.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_4.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_04.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_5.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_05.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_6.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_06.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_7.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_07.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_8.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_08.json",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_node_config_9.json",
+			networkConfigJSON: "network_configs/incomplete_node_config_09.json",
 		},
 		{
 			networkConfigJSON: "network_configs/incomplete_node_config_10.json",
 		},
 	}
 	for _, tt := range tests {
-		err := networkStartWaitStop(tt.networkConfigJSON)
+        networkConfigJSON, err := readNetworkConfigJSON(tt.networkConfigJSON)
+        if err != nil {
+            t.Fatal(err)
+        }
+		err = networkStartWaitStop(networkConfigJSON)
 		assert.Error(t, err)
 	}
 }
 
 func TestBasicNetwork(t *testing.T) {
+    t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
-	if err := networkStartWaitStop(networkConfigPath); err != nil {
+    networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+    if err != nil {
+		t.Fatal(err)
+    }
+	if err := networkStartWaitStop(networkConfigJSON); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func networkStartWaitStop(networkConfigPath string) error {
+func networkStartWaitStop(networkConfigJSON []byte) error {
 	binMap, err := getBinMap()
-	if err != nil {
-		return err
-	}
-	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
 	if err != nil {
 		return err
 	}
