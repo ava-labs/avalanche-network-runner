@@ -16,39 +16,34 @@ import (
 )
 
 func TestWrongNetworkConfigs(t *testing.T) {
-	tests := []struct {
-		networkConfigJSON string
-	}{
-		{
-			networkConfigJSON: "",
-		},
-		{
-			networkConfigJSON: `{"CChainConfig":"","CoreConfigFlags":"","NodeConfigs":[]}`,
-		},
-		{
-			networkConfigJSON: `{"Genesis":"nonempty","CoreConfigFlags":"","NodeConfigs":[]}`,
-		},
-		{
-			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","NodeConfigs":[]}`,
-		},
-		{
-			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{","NodeConfigs":[{}]}`,
-		},
-		{
-			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}"}`,
-		},
-		{
-			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[]}`,
-		},
+	networkConfigsJSON := []string{
+		"",
+		`{"CChainConfig":"","CoreConfigFlags":"","NodeConfigs":[]}`,
+		`{"Genesis":"nonempty","CoreConfigFlags":"","NodeConfigs":[]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","NodeConfigs":[]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{","NodeConfigs":[{}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}"}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{}"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\"}"}] }`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\"}"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\"}","Cert":"nonempty"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\"}","Cert":"nonempty"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\"}","Cert":"nonempty","PrivateKey":"nonempty"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\"}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"public-ip\":\"nonempty\"}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
+		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"public-ip\":\"nonempty\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
 	}
-	for _, tt := range tests {
-		err := networkStartWaitStop([]byte(tt.networkConfigJSON))
+	for _, networkConfigJSON := range networkConfigsJSON {
+		err := networkStartWaitStop([]byte(networkConfigJSON))
 		assert.Error(t, err)
 	}
 }
 
 func TestBasicNetwork(t *testing.T) {
-	t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
 	if err != nil {

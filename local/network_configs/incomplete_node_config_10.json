@@ -1,6 +1,0 @@
-{
- "Genesis": "nonempty",
- "CChainConfig": "nonempty",
- "CoreConfigFlags": "{}",
- "NodeConfigs": [{"Type": 0, "ConfigFlags": "{\"chain-config-dir\": \"/tmp\", \"genesis\": \"/tmp/genesis.tmp\", \"staking-tls-cert-file\":\"/tmp/cert.tmp\", \"staking-tls-key-file\": \"/tmp/key.tmp\"}", "Cert": "nonempty", "PrivateKey": "nonempty"}]
-}
