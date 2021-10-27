@@ -3,65 +3,65 @@ package localnetworkrunner
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
-    "io/ioutil"
-    "errors"
-    "fmt"
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	"github.com/sirupsen/logrus"
-    "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWrongNetworkConfigs(t *testing.T) {
-    tests := []struct{
-        networkConfigPath string
-        expectedError error
-    } {
-        {
-            networkConfigPath: "network_configs/empty_config.json",
-            expectedError: errors.New("couldn't unmarshall network config json: unexpected end of JSON input"),
-        },
-    }
-    for _, tt := range tests {
-        givenErr := networkStartWaitStop(tt.networkConfigPath)
-        assert.Equal(t, givenErr, tt.expectedError)
-    }
+	tests := []struct {
+		networkConfigPath string
+		expectedError     error
+	}{
+		{
+			networkConfigPath: "network_configs/empty_config.json",
+			expectedError:     errors.New("couldn't unmarshall network config json: unexpected end of JSON input"),
+		},
+	}
+	for _, tt := range tests {
+		givenErr := networkStartWaitStop(tt.networkConfigPath)
+		assert.Equal(t, givenErr, tt.expectedError)
+	}
 }
 
 func TestBasicNetwork(t *testing.T) {
-    networkConfigPath := "network_configs/basic_network.json"
-    if err := networkStartWaitStop(networkConfigPath); err != nil {
-        t.Fatal(err)
-    }
+	networkConfigPath := "network_configs/basic_network.json"
+	if err := networkStartWaitStop(networkConfigPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func networkStartWaitStop(networkConfigPath string) error {
 	binMap, err := getBinMap()
-    if err != nil {
-        return err
-    }
-    networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
 	if err != nil {
-        return err
+		return err
+	}
+	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+	if err != nil {
+		return err
 	}
 	networkConfig, err := getNetworkConfig(networkConfigJSON)
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 	net, err := startNetwork(binMap, networkConfig)
-    if err != nil {
-        return err
-    }
-    if err := awaitNetwork(net); err != nil {
-        return err
-    }
-    if err := stopNetwork(net); err != nil {
-        return err
-    }
-    return nil
+	if err != nil {
+		return err
+	}
+	if err := awaitNetwork(net); err != nil {
+		return err
+	}
+	if err := stopNetwork(net); err != nil {
+		return err
+	}
+	return nil
 }
 
 func getBinMap() (map[int]string, error) {
@@ -83,11 +83,11 @@ func getBinMap() (map[int]string, error) {
 }
 
 func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
-    networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
-        return nil, errors.New(fmt.Sprintf("couldn't read network config file %s: %s", networkConfigPath, err))
+		return nil, errors.New(fmt.Sprintf("couldn't read network config file %s: %s", networkConfigPath, err))
 	}
-    return networkConfigJSON, nil
+	return networkConfigJSON, nil
 }
 
 func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, error) {
@@ -123,7 +123,7 @@ func awaitNetwork(net networkrunner.Network) error {
 	case <-timeoutCh:
 		return errors.New("network startup timeout")
 	}
-    return nil
+	return nil
 }
 
 func stopNetwork(net networkrunner.Network) error {
@@ -131,5 +131,5 @@ func stopNetwork(net networkrunner.Network) error {
 	if err != nil {
 		return errors.New(fmt.Sprintf("couldn't cleanly stop network: %s", err))
 	}
-    return nil
+	return nil
 }
