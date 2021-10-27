@@ -69,7 +69,7 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID)
 	}
 	*/
-    fmt.Println(nodeConfig)
+	fmt.Println(nodeConfig)
 
 	if nodeConfig.ConfigFlags == "" {
 		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID)

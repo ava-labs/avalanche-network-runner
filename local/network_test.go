@@ -72,22 +72,22 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-        networkConfigJSON, err := readNetworkConfigJSON(tt.networkConfigJSON)
-        if err != nil {
-            t.Fatal(err)
-        }
+		networkConfigJSON, err := readNetworkConfigJSON(tt.networkConfigJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
 		err = networkStartWaitStop(networkConfigJSON)
 		assert.Error(t, err)
 	}
 }
 
 func TestBasicNetwork(t *testing.T) {
-    //t.Skip()
+	//t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
-    networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
-    if err != nil {
+	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+	if err != nil {
 		t.Fatal(err)
-    }
+	}
 	if err := networkStartWaitStop(networkConfigJSON); err != nil {
 		t.Fatal(err)
 	}
