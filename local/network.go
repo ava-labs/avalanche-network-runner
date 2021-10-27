@@ -58,10 +58,18 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
-	// get internal node id from incremental uint or from used specification
+	// get internal node id from incremental uint.
 	nodeID := fmt.Sprint(net.nextIntNodeID)
+	_, ok := net.nodes[nodeID]
+	for ok {
+		// avoid conflict with user specified names.
+		net.nextIntNodeID += 1
+		nodeID = fmt.Sprint(net.nextIntNodeID)
+		_, ok = net.nodes[nodeID]
+	}
 	net.nextIntNodeID += 1
 
+	// internal node id from user specification
 	if nodeConfig.Name != "" {
 		if _, ok := net.nodes[nodeConfig.Name]; ok {
 			return nil, fmt.Errorf("repeated node name %s for node %s", nodeConfig.Name, nodeID)
