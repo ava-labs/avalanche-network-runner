@@ -38,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 	nodeIDs := nw.GetNodesIDs()
-	time.Sleep(5 * time.Second) // Wait for node to set up
+	time.Sleep(10 * time.Second) // Wait for node to set up
 	node, err := nw.GetNode(nodeIDs[0])
 	if err != nil {
 		fmt.Println(err)

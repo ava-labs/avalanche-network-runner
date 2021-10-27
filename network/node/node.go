@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	Type             interface{} // Kind of node to set up (avalanchego/byzantine/...)
+	Name             string      // Must be unique across all nodes
 	StakingKey       []byte
 	StakingCert      []byte
 	ConfigFile       []byte
@@ -17,18 +18,12 @@ type Config struct {
 
 // An AvalancheGo node
 type Node interface {
-	// Each node has a unique ID that distinguishes it from
-	// other nodes in this network.
-	// This is distinct from the Avalanche notion of a node ID.
-	// This ID is assigned by the Network; it is not the hash
-	// of a staking certificate.
-	// We don't use the Avalanche node ID to reference nodes
-	// because we may want to start a network where multiple nodes
-	// have the same Avalanche node ID.
-	GetID() ids.ID
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
 	// Return this node's Avalanche node ID.
 	GetNodeID() (ids.ShortID, error)
-	// Return a client that can be used to
+	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
 	// TODO add methods
 }
