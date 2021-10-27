@@ -82,7 +82,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 }
 
 func TestBasicNetwork(t *testing.T) {
-    t.Skip()
+    //t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
     networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
     if err != nil {
