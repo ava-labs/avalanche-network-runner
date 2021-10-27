@@ -10,36 +10,38 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/palantir/stacktrace"
-	"github.com/sirupsen/logrus"
 )
 
+// interface compliance
+var _ network.Network = (*localNetwork)(nil)
+
 // network keeps information uses for network management, and accessing all the nodes
-type network struct {
+type localNetwork struct {
+	log             logging.Logger         // logger used by the library
 	binMap          map[uint]string        // map node kind to string used in node set up (binary path)
 	nextIntNodeID   uint64                 // next id to be used in internal node id generation
-	nodes           map[ids.ID]*Node       // access to nodes basic info and api
+	nodes           map[ids.ID]*localNode  // access to nodes basic info and api
 	procs           map[ids.ID]*exec.Cmd   // access to the nodes OS processes
 	coreConfigFlags map[string]interface{} // cmdline flags common to all nodes
 	genesis         []byte                 // genesis file contents, common to all nodes
 	cChainConfig    []byte                 // cchain config file contents, common to all nodes
-	log             *logrus.Logger         // logger used by the library
 }
 
-// interface compliance
-var _ networkrunner.Network = (*network)(nil)
-
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[uint]string, log *logrus.Logger) (networkrunner.Network, error) {
+func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[uint]string) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
-	net := &network{
-		nodes:         map[ids.ID]*Node{},
+	net := &localNetwork{
+		nodes:         map[ids.ID]*localNode{},
 		procs:         map[ids.ID]*exec.Cmd{},
 		nextIntNodeID: 1,
 		binMap:        binMap,
@@ -59,12 +61,14 @@ func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[uint]strin
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
+func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
+	/* TODO what is this?
 	if nodeConfig.BinKind == nil {
 		return nil, fmt.Errorf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID)
 	}
+	*/
 	if nodeConfig.ConfigFlags == "" {
 		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID)
 	}
@@ -148,9 +152,9 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 
 	// get binary from bin map and node kind, and execute it
-	avalanchegoPath, ok := net.binMap[*nodeConfig.BinKind]
+	avalanchegoPath, ok := net.binMap[nodeConfig.BinKind]
 	if !ok {
-		return nil, fmt.Errorf("could not found key %v in binMap for node %v", *nodeConfig.BinKind, net.nextIntNodeID)
+		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.BinKind, net.nextIntNodeID)
 	}
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
@@ -165,7 +169,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	copy(nodeID[len(nodeID)-len(b):], b)
 	net.nextIntNodeID += 1
 
-	node := Node{id: nodeID, client: *apiClient}
+	node := localNode{id: nodeID, client: *apiClient}
 
 	net.nodes[nodeID] = &node
 	net.procs[nodeID] = cmd
@@ -174,7 +178,7 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 }
 
 // Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (net *network) Ready() (chan struct{}, chan error) {
+func (net *localNetwork) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
@@ -184,14 +188,14 @@ func (net *network) Ready() (chan struct{}, chan error) {
 			if !b {
 				errorCh <- fmt.Errorf("timeout waiting for node %v", intID)
 			}
-			net.log.Infof("node %v is up", intID)
+			net.log.Info("node %v is up", intID)
 		}
 		close(readyCh)
 	}()
 	return readyCh, errorCh
 }
 
-func (net *network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
+func (net *localNetwork) GetNode(nodeID ids.ID) (node.Node, error) {
 	node, ok := net.nodes[nodeID]
 	if !ok {
 		return nil, fmt.Errorf("node %s not found in network", nodeID)
@@ -199,7 +203,7 @@ func (net *network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	return node, nil
 }
 
-func (net *network) GetNodesIDs() []ids.ID {
+func (net *localNetwork) GetNodesIDs() []ids.ID {
 	ks := make([]ids.ID, 0, len(net.nodes))
 	for k := range net.nodes {
 		ks = append(ks, k)
@@ -207,7 +211,7 @@ func (net *network) GetNodesIDs() []ids.ID {
 	return ks
 }
 
-func (net *network) Stop() error {
+func (net *localNetwork) Stop() error {
 	for nodeID := range net.nodes {
 		if err := net.RemoveNode(nodeID); err != nil {
 			return err
@@ -216,7 +220,7 @@ func (net *network) Stop() error {
 	return nil
 }
 
-func (net *network) RemoveNode(nodeID ids.ID) error {
+func (net *localNetwork) RemoveNode(nodeID ids.ID) error {
 	node, ok := net.nodes[nodeID]
 	if !ok {
 		return fmt.Errorf("node %s not found in network", nodeID)
@@ -259,7 +263,7 @@ func createFile(fname string, contents []byte) error {
 }
 
 // waitNode waits until the node initializes, or timeouts
-func waitNode(client APIClient) bool {
+func waitNode(client api.Client) bool {
 	info := client.InfoAPI()
 	timeout := 1 * time.Minute
 	pollTime := 10 * time.Second

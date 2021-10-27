@@ -1,4 +1,4 @@
-package networkrunner
+package api
 
 import (
 	"context"

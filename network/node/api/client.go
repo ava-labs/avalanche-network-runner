@@ -1,4 +1,4 @@
-package networkrunner
+package api
 
 import (
 	"github.com/ava-labs/avalanchego/api/admin"
@@ -14,7 +14,7 @@ import (
 
 // Issues API calls to a node
 // TODO: byzantine api. check if appropiate. improve implementation.
-type APIClient interface {
+type Client interface {
 	PChainAPI() *platformvm.Client
 	XChainAPI() *avm.Client
 	XChainWalletAPI() *avm.WalletClient

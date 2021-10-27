@@ -10,59 +10,60 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
-	"github.com/sirupsen/logrus"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWrongNetworkConfigs(t *testing.T) {
 	tests := []struct {
 		networkConfigPath string
-		expectedError     error
+		shouldErr         bool
 	}{
 		{
 			networkConfigPath: "network_configs/empty_config.json",
-			expectedError:     errors.New("couldn't unmarshall network config json: unexpected end of JSON input"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_1.json",
-			expectedError:     errors.New("config failed validation: genesis field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_2.json",
-			expectedError:     errors.New("config failed validation: cChainConfig field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_3.json",
-			expectedError:     errors.New("config failed validation: coreConfigFlags field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_4.json",
-			expectedError:     errors.New("couldn't unmarshal core config flags: unexpected end of JSON input"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_5.json",
-			expectedError:     errors.New("config failed validation: nodeConfigs field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_network_config_6.json",
-			expectedError:     errors.New("config failed validation: nodeConfigs field must have at least a node"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_1.json",
-			expectedError:     errors.New("incomplete node config for node 1: BinKind field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_2.json",
-			expectedError:     errors.New("incomplete node config for node 1: ConfigFlags field is empty"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_3.json",
-			expectedError:     errors.New("couldn't unmarshal config flags for node 1: unexpected end of JSON input"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_4.json",
-			expectedError:     errors.New("node 1 lacks config flag chain-config-dir"),
+			shouldErr:         true,
 		},
 		{
 			networkConfigPath: "network_configs/incomplete_node_config_5.json",
@@ -90,8 +91,12 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		givenErr := networkStartWaitStop(tt.networkConfigPath)
-		assert.Equal(t, tt.expectedError.Error(), givenErr.Error(), fmt.Sprintf("path: %s", tt.networkConfigPath))
+		err := networkStartWaitStop(tt.networkConfigPath)
+		if tt.shouldErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 }
 
@@ -141,8 +146,8 @@ func getBinMap() (map[uint]string, error) {
 		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
 	binMap := map[uint]string{
-		networkrunner.AVALANCHEGO: avalanchegoPath,
-		networkrunner.BYZANTINE:   byzantinePath,
+		node.AVALANCHEGO: avalanchegoPath,
+		node.BYZANTINE:   byzantinePath,
 	}
 	return binMap, nil
 }
@@ -155,25 +160,24 @@ func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
 	return networkConfigJSON, nil
 }
 
-func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, error) {
-	networkConfig := networkrunner.NetworkConfig{}
+func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
+	networkConfig := network.Config{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[uint]string, networkConfig *networkrunner.NetworkConfig) (networkrunner.Network, error) {
-	logger := logrus.New()
-	var net networkrunner.Network
-	net, err := NewNetwork(*networkConfig, binMap, logger)
+func startNetwork(binMap map[uint]string, networkConfig *network.Config) (network.Network, error) {
+	var net network.Network
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {
 		return nil, err
 	}
 	return net, nil
 }
 
-func awaitNetwork(net networkrunner.Network) error {
+func awaitNetwork(net network.Network) error {
 	timeoutCh := make(chan struct{})
 	go func() {
 		time.Sleep(5 * time.Minute)
@@ -191,10 +195,6 @@ func awaitNetwork(net networkrunner.Network) error {
 	return nil
 }
 
-func stopNetwork(net networkrunner.Network) error {
-	err := net.Stop()
-	if err != nil {
-		return fmt.Errorf("couldn't cleanly stop network: %s", err)
-	}
-	return nil
+func stopNetwork(net network.Network) error {
+	return net.Stop()
 }
