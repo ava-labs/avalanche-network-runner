@@ -30,7 +30,7 @@ type Node interface {
 }
 
 type NodeConfig struct {
-	BinKind     int    // Kind of node to set up (avalanchego/byzantine/...)
+	BinKind     *uint  // Kind of node to set up (avalanchego/byzantine/...)
 	NodeID      string // Avalanchego id for the node, when is known beforehand
 	PrivateKey  string
 	Cert        string

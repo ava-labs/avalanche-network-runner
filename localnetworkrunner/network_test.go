@@ -48,6 +48,22 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			networkConfigPath: "network_configs/incomplete_network_config_6.json",
 			expectedError:     errors.New("incomplete network config: NodeConfigs field must have at least a node"),
 		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_1.json",
+			expectedError:     errors.New("incomplete node config for node 1: BinKind field is empty"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_2.json",
+			expectedError:     errors.New("incomplete node config for node 1: ConfigFlags field is empty"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_3.json",
+			expectedError:     errors.New("couldn't unmarshal config flags for node 1: unexpected end of JSON input"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_4.json",
+			expectedError:     errors.New("node 1 lacks config flag chain-config-dir"),
+		},
 	}
 	for _, tt := range tests {
 		givenErr := networkStartWaitStop(tt.networkConfigPath)
@@ -89,7 +105,7 @@ func networkStartWaitStop(networkConfigPath string) error {
 	return nil
 }
 
-func getBinMap() (map[int]string, error) {
+func getBinMap() (map[uint]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
@@ -100,7 +116,7 @@ func getBinMap() (map[int]string, error) {
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("must define env var %s", envVarName))
 	}
-	binMap := map[int]string{
+	binMap := map[uint]string{
 		networkrunner.AVALANCHEGO: avalanchegoPath,
 		networkrunner.BYZANTINE:   byzantinePath,
 	}
@@ -123,7 +139,7 @@ func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, e
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[int]string, networkConfig *networkrunner.NetworkConfig) (networkrunner.Network, error) {
+func startNetwork(binMap map[uint]string, networkConfig *networkrunner.NetworkConfig) (networkrunner.Network, error) {
 	logger := logrus.New()
 	var net networkrunner.Network
 	net, err := NewNetwork(*networkConfig, binMap, logger)
