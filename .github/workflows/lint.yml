@@ -1,0 +1,17 @@
+# This workflow lints this package.
+# It runs when a change is pushed.
+name: Lint
+on:
+  [push]
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: 'v1.42'
+          working-directory: .
+          args: --timeout 3m

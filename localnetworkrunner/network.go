@@ -2,7 +2,6 @@ package localnetworkrunner
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -19,8 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Network keeps information uses for network management, and accessing all the nodes
-type Network struct {
+// network keeps information uses for network management, and accessing all the nodes
+type network struct {
 	binMap          map[uint]string        // map node kind to string used in node set up (binary path)
 	nextIntNodeID   uint64                 // next id to be used in internal node id generation
 	nodes           map[ids.ID]*Node       // access to nodes basic info and api
@@ -32,61 +31,42 @@ type Network struct {
 }
 
 // interface compliance
-var _ networkrunner.Network = (*Network)(nil)
-
-func ParseJSON() {
-}
+var _ networkrunner.Network = (*network)(nil)
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[uint]string, log *logrus.Logger) (*Network, error) {
-	net := Network{}
-	net.nodes = map[ids.ID]*Node{}
-	net.procs = map[ids.ID]*exec.Cmd{}
-
-	if networkConfig.Genesis == "" {
-		return nil, errors.New("incomplete network config: Genesis field is empty")
+func NewNetwork(networkConfig networkrunner.NetworkConfig, binMap map[uint]string, log *logrus.Logger) (networkrunner.Network, error) {
+	if err := networkConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
-	if networkConfig.CChainConfig == "" {
-		return nil, errors.New("incomplete network config: CChainConfig field is empty")
+	net := &network{
+		nodes:         map[ids.ID]*Node{},
+		procs:         map[ids.ID]*exec.Cmd{},
+		nextIntNodeID: 1,
+		binMap:        binMap,
+		log:           log,
+		genesis:       []byte(networkConfig.Genesis),
+		cChainConfig:  []byte(networkConfig.CChainConfig),
 	}
-	if networkConfig.CoreConfigFlags == "" {
-		return nil, errors.New("incomplete network config: CoreConfigFlags field is empty")
-	}
-	if networkConfig.NodeConfigs == nil {
-		return nil, errors.New("incomplete network config: NodeConfigs field is empty")
-	}
-	if len(networkConfig.NodeConfigs) == 0 {
-		return nil, errors.New("incomplete network config: NodeConfigs field must have at least a node")
-	}
-
-	net.nextIntNodeID = 1
-	net.binMap = binMap
-	net.log = log
-	net.genesis = []byte(networkConfig.Genesis)
-	net.cChainConfig = []byte(networkConfig.CChainConfig)
 	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't unmarshal core config flags: %s", err))
+		return nil, fmt.Errorf("couldn't unmarshal core config flags: %w", err)
 	}
-
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		_, err := net.AddNode(nodeConfig)
-		if err != nil {
+		if _, err := net.AddNode(nodeConfig); err != nil {
 			return nil, err
 		}
 	}
-
-	return &net, nil
+	return net, nil
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
+func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
 	if nodeConfig.BinKind == nil {
-		return nil, errors.New(fmt.Sprintf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID))
+		return nil, fmt.Errorf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID)
 	}
 	if nodeConfig.ConfigFlags == "" {
-		return nil, errors.New(fmt.Sprintf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID))
+		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID)
 	}
 
 	// copy common config flags, and unmarshall specific node config flags
@@ -94,35 +74,35 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		configFlags[k] = v
 	}
 	if err := json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't unmarshal config flags for node %v: %s", net.nextIntNodeID, err))
+		return nil, fmt.Errorf("couldn't unmarshal config flags for node %v: %s", net.nextIntNodeID, err)
 	}
 
 	configDir, ok := configFlags[config.ChainConfigDirKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.ChainConfigDirKey))
+		return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.ChainConfigDirKey)
 	}
 
 	// create main config file by marshalling all config flags
 	configFilePath := path.Join(configDir, "config.json")
 	configBytes, err := json.Marshal(configFlags)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't marshal full config flags for node %v: %s", net.nextIntNodeID, err))
+		return nil, fmt.Errorf("couldn't marshal full config flags for node %v: %s", net.nextIntNodeID, err)
 	}
 	if err := createFile(configFilePath, configBytes); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't create config file %s for node %v: %s", configFilePath, net.nextIntNodeID, err))
+		return nil, fmt.Errorf("couldn't create config file %s for node %v: %s", configFilePath, net.nextIntNodeID, err)
 	}
 
 	cConfigFilePath := path.Join(configDir, "C", "config.json")
 	if err := createFile(cConfigFilePath, net.cChainConfig); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't create cchain config file %s for node %v: %s", cConfigFilePath, net.nextIntNodeID, err))
+		return nil, fmt.Errorf("couldn't create cchain config file %s for node %v: %s", cConfigFilePath, net.nextIntNodeID, err)
 	}
 
 	genesisFname, ok := configFlags[config.GenesisConfigFileKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.GenesisConfigFileKey))
+		return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.GenesisConfigFileKey)
 	}
 	if err := createFile(genesisFname, net.genesis); err != nil {
-		return nil, errors.New(fmt.Sprintf("couldn't create genesis file %s for node %v: %s", genesisFname, net.nextIntNodeID, err))
+		return nil, fmt.Errorf("couldn't create genesis file %s for node %v: %s", genesisFname, net.nextIntNodeID, err)
 	}
 
 	// tells if avalanchego is going to generate the cert/key for the node
@@ -134,35 +114,35 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	if !usesEphemeralCert {
 		// cert/key is given in config
 		if nodeConfig.PrivateKey == "" {
-			return nil, errors.New(fmt.Sprintf("incomplete node config for node %v: PrivateKey field is empty", net.nextIntNodeID))
+			return nil, fmt.Errorf("incomplete node config for node %v: PrivateKey field is empty", net.nextIntNodeID)
 		}
 		if nodeConfig.Cert == "" {
-			return nil, errors.New(fmt.Sprintf("incomplete node config for node %v: Cert field is empty", net.nextIntNodeID))
+			return nil, fmt.Errorf("incomplete node config for node %v: Cert field is empty", net.nextIntNodeID)
 		}
 		certFname, ok := configFlags[config.StakingCertPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingCertPathKey))
+			return nil, fmt.Errorf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingCertPathKey)
 		}
 		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
-			return nil, errors.New(fmt.Sprintf("couldn't create cert file %s for node %v: %s", certFname, net.nextIntNodeID, err))
+			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %s", certFname, net.nextIntNodeID, err)
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.StakingKeyPathKey))
+			return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.StakingKeyPathKey)
 		}
 		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
-			return nil, errors.New(fmt.Sprintf("couldn't create private key file %s for node %v: %s", keyFname, net.nextIntNodeID, err))
+			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %s", keyFname, net.nextIntNodeID, err)
 		}
 	}
 
 	// initialize node avalanchego apis
 	nodeIP, ok := configFlags[config.PublicIPKey].(string)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.PublicIPKey))
+		return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.PublicIPKey)
 	}
 	nodePortF, ok := configFlags[config.HTTPPortKey].(float64)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %v lacks config flag %s", net.nextIntNodeID, config.HTTPPortKey))
+		return nil, fmt.Errof("node %v lacks config flag %s", net.nextIntNodeID, config.HTTPPortKey)
 	}
 	nodePort := uint(nodePortF)
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
@@ -170,12 +150,12 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	// get binary from bin map and node kind, and execute it
 	avalanchegoPath, ok := net.binMap[*nodeConfig.BinKind]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("could not found key %v in binMap for node %v", *nodeConfig.BinKind, net.nextIntNodeID))
+		return nil, fmt.Errorf("could not found key %v in binMap for node %v", *nodeConfig.BinKind, net.nextIntNodeID)
 	}
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
 	if err := cmd.Start(); err != nil {
-		return nil, errors.New(fmt.Sprintf("could not execute cmd \"%s %s\" for node %v: %s", avalanchegoPath, configFileFlag, net.nextIntNodeID, err))
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\" for node %v: %s", avalanchegoPath, configFileFlag, net.nextIntNodeID, err)
 	}
 
 	// get internal node id from incremental uint
@@ -190,11 +170,11 @@ func (net *Network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 	net.nodes[nodeID] = &node
 	net.procs[nodeID] = cmd
 
-	return node, nil
+	return &node, nil
 }
 
 // Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (net *Network) Ready() (chan struct{}, chan error) {
+func (net *network) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
@@ -202,7 +182,7 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 			intID := big.NewInt(0).SetBytes(id[:])
 			b := waitNode(net.nodes[id].client)
 			if !b {
-				errorCh <- errors.New(fmt.Sprintf("timeout waiting for node %v", intID))
+				errorCh <- fmt.Errorf("timeout waiting for node %v", intID)
 			}
 			net.log.Infof("node %v is up", intID)
 		}
@@ -211,15 +191,15 @@ func (net *Network) Ready() (chan struct{}, chan error) {
 	return readyCh, errorCh
 }
 
-func (net *Network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
+func (net *network) GetNode(nodeID ids.ID) (networkrunner.Node, error) {
 	node, ok := net.nodes[nodeID]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return nil, fmt.Errorf("node %s not found in network", nodeID)
 	}
 	return node, nil
 }
 
-func (net *Network) GetNodesIDs() []ids.ID {
+func (net *network) GetNodesIDs() []ids.ID {
 	ks := make([]ids.ID, 0, len(net.nodes))
 	for k := range net.nodes {
 		ks = append(ks, k)
@@ -227,7 +207,7 @@ func (net *Network) GetNodesIDs() []ids.ID {
 	return ks
 }
 
-func (net *Network) Stop() error {
+func (net *network) Stop() error {
 	for nodeID := range net.nodes {
 		if err := net.RemoveNode(nodeID); err != nil {
 			return err
@@ -236,17 +216,17 @@ func (net *Network) Stop() error {
 	return nil
 }
 
-func (net *Network) RemoveNode(nodeID ids.ID) error {
+func (net *network) RemoveNode(nodeID ids.ID) error {
 	node, ok := net.nodes[nodeID]
 	if !ok {
-		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return fmt.Errorf("node %s not found in network", nodeID)
 	}
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	proc, ok := net.procs[nodeID]
 	if !ok {
-		return errors.New(fmt.Sprintf("node %s not found in network", nodeID))
+		return fmt.Errorf("node %s not found in network", nodeID)
 	}
 	processes, err := ps.Processes()
 	if err != nil {

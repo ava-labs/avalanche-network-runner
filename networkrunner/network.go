@@ -1,6 +1,10 @@
 package networkrunner
 
-import "github.com/ava-labs/avalanchego/ids"
+import (
+	"errors"
+
+	"github.com/ava-labs/avalanchego/ids"
+)
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
@@ -31,4 +35,21 @@ type NetworkConfig struct {
 	CChainConfig    string       // Contents of cchain config file for all nodes
 	CoreConfigFlags string       // Common cmdline flags for all nodes (unless overwritten with node config). JSON
 	NodeConfigs     []NodeConfig // Node config for each node
+}
+
+func (c *NetworkConfig) Validate() error {
+	switch {
+	case c.Genesis == "":
+		return errors.New("genesis field is empty")
+	case c.CChainConfig == "":
+		return errors.New("cChainConfig field is empty")
+	case c.CoreConfigFlags == "":
+		return errors.New("coreConfigFlags field is empty")
+	case c.NodeConfigs == nil:
+		return errors.New("nodeConfigs field is empty")
+	case len(c.NodeConfigs) == 0:
+		return errors.New("nodeConfigs field must have at least a node")
+	default:
+		return nil
+	}
 }
