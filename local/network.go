@@ -54,16 +54,6 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-// func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
-// 	var configFlags map[string]interface{} = make(map[string]interface{})
-
-// 	net.nodes[nodeID] = &node
-// 	net.procs[nodeID] = cmd
-
-// 	return &node, nil
-// }
-
-// AddNode prepares the files needed in filesystem by avalanchego, and executes it
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
