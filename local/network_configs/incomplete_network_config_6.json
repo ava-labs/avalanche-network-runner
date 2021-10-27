@@ -1,6 +1,0 @@
-{
- "Genesis": "nonempty",
- "CChainConfig": "nonempty",
- "CoreConfigFlags": "{}",
- "NodeConfigs": []
-}

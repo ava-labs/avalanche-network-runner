@@ -20,63 +20,29 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		networkConfigJSON string
 	}{
 		{
-			networkConfigJSON: "network_configs/empty_config.json",
+			networkConfigJSON: "",
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_1.json",
+			networkConfigJSON: `{"CChainConfig":"","CoreConfigFlags":"","NodeConfigs":[]}`,
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_2.json",
+			networkConfigJSON: `{"Genesis":"nonempty","CoreConfigFlags":"","NodeConfigs":[]}`,
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_3.json",
+			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","NodeConfigs":[]}`,
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_4.json",
+			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{","NodeConfigs":[{}]}`,
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_5.json",
+			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}"}`,
 		},
 		{
-			networkConfigJSON: "network_configs/incomplete_network_config_6.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_01.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_02.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_03.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_04.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_05.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_06.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_07.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_08.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_09.json",
-		},
-		{
-			networkConfigJSON: "network_configs/incomplete_node_config_10.json",
+			networkConfigJSON: `{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[]}`,
 		},
 	}
 	for _, tt := range tests {
-		networkConfigJSON, err := readNetworkConfigJSON(tt.networkConfigJSON)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = networkStartWaitStop(networkConfigJSON)
+		err := networkStartWaitStop([]byte(tt.networkConfigJSON))
 		assert.Error(t, err)
 	}
 }
