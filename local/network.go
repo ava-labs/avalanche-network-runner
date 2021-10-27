@@ -46,17 +46,19 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 	// Validate does check errors at the unmarshals
 	json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if _, err := net.AddNode(nodeConfig); err != nil {
+		nodeID, err := net.getNewNodeID(nodeConfig)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := net.addNode(nodeConfig, nodeID); err != nil {
 			return nil, err
 		}
 	}
 	return net, nil
 }
 
-// AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
-	var configFlags map[string]interface{} = make(map[string]interface{})
-
+// getNewNodeID gets a new internal node id
+func (net *localNetwork) getNewNodeID(nodeConfig node.Config) (string, error) {
 	// get internal node id from incremental uint.
 	nodeID := fmt.Sprint(net.nextIntNodeID)
 	_, ok := net.nodes[nodeID]
@@ -67,20 +69,32 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		_, ok = net.nodes[nodeID]
 	}
 	net.nextIntNodeID += 1
-
 	// internal node id from user specification
 	if nodeConfig.Name != "" {
 		if _, ok := net.nodes[nodeConfig.Name]; ok {
-			return nil, fmt.Errorf("repeated node name %s for node %s", nodeConfig.Name, nodeID)
+			return "", fmt.Errorf("repeated node name %s for node %s", nodeConfig.Name, nodeID)
 		}
 		nodeID = nodeConfig.Name
 	}
+	return nodeID, nil
+}
 
-	// validation at this stage is needed for nodes added after network creation
-	// TODO: at network creation time, node validation is done twice
+// AddNode prepares the files needed in filesystem by avalanchego, and executes it
+// Called to add nodes after network creation. Validates node conf.
+func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+	nodeID, err := net.getNewNodeID(nodeConfig)
+	if err != nil {
+		return nil, err
+	}
 	if err := nodeConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config for node %v failed validation: %w", nodeID, err)
 	}
+	return net.addNode(nodeConfig, nodeID)
+}
+
+// addNode prepares the files needed in filesystem by avalanchego, and executes it
+func (net *localNetwork) addNode(nodeConfig node.Config, nodeID string) (node.Node, error) {
+	var configFlags map[string]interface{} = make(map[string]interface{})
 
 	// copy common config flags, and unmarshall specific node config flags
 	for k, v := range net.coreConfigFlags {
