@@ -16,6 +16,9 @@ import (
 	"github.com/ava-labs/coreth/plugin/evm"
 )
 
+// interface compliance
+var _ api.Client = (*APIClient)(nil)
+
 // APIClient gives access to most avalanchego apis (or suitable wrappers)
 type APIClient struct {
 	platform     *platformvm.Client
@@ -31,9 +34,6 @@ type APIClient struct {
 	pindex       *indexer.Client
 	cindex       *indexer.Client
 }
-
-// interface compliance
-var _ api.Client = (*APIClient)(nil)
 
 // NewAPIClient initialize most of avalanchego apis
 func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APIClient {

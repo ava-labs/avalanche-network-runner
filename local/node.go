@@ -12,6 +12,16 @@ import (
 // interface compliance
 var _ node.Node = (*localNode)(nil)
 
+// The type of this node (e.g. normal, byzantine, etc.)
+// TODO Generalize this to allow user to specify a specific
+// branch, etc. Or just have user provide path to binaries.
+type nodeType int
+
+const (
+	AVALANCHEGO nodeType = iota + 1
+	BYZANTINE
+)
+
 // Gives access to basic nodes info, and to most avalanchego apis
 type localNode struct {
 	// This ID is internal to the network runner.

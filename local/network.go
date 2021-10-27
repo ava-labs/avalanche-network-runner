@@ -26,7 +26,7 @@ var _ network.Network = (*localNetwork)(nil)
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
 	log             logging.Logger         // logger used by the library
-	binMap          map[uint]string        // map node kind to string used in node set up (binary path)
+	binMap          map[nodeType]string    // map node kind to string used in node set up (binary path)
 	nextIntNodeID   uint64                 // next id to be used in internal node id generation
 	nodes           map[ids.ID]*localNode  // access to nodes basic info and api
 	procs           map[ids.ID]*exec.Cmd   // access to the nodes OS processes
@@ -36,7 +36,7 @@ type localNetwork struct {
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[uint]string) (network.Network, error) {
+func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nodeType]string) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
@@ -152,9 +152,9 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 
 	// get binary from bin map and node kind, and execute it
-	avalanchegoPath, ok := net.binMap[nodeConfig.BinKind]
+	avalanchegoPath, ok := net.binMap[nodeConfig.Type.(nodeType)]
 	if !ok {
-		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.BinKind, net.nextIntNodeID)
+		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.Type.(nodeType), net.nextIntNodeID)
 	}
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
