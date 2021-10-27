@@ -64,9 +64,11 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[uin
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	var configFlags map[string]interface{} = make(map[string]interface{})
 
+	/* TODO what is this?
 	if nodeConfig.BinKind == nil {
 		return nil, fmt.Errorf("incomplete node config for node %v: BinKind field is empty", net.nextIntNodeID)
 	}
+	*/
 	if nodeConfig.ConfigFlags == "" {
 		return nil, fmt.Errorf("incomplete node config for node %v: ConfigFlags field is empty", net.nextIntNodeID)
 	}
@@ -150,9 +152,9 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 
 	// get binary from bin map and node kind, and execute it
-	avalanchegoPath, ok := net.binMap[*nodeConfig.BinKind]
+	avalanchegoPath, ok := net.binMap[nodeConfig.BinKind]
 	if !ok {
-		return nil, fmt.Errorf("could not found key %v in binMap for node %v", *nodeConfig.BinKind, net.nextIntNodeID)
+		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.BinKind, net.nextIntNodeID)
 	}
 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 	cmd := exec.Command(avalanchegoPath, configFileFlag)
