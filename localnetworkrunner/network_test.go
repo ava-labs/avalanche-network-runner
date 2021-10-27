@@ -64,6 +64,30 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			networkConfigPath: "network_configs/incomplete_node_config_4.json",
 			expectedError:     errors.New("node 1 lacks config flag chain-config-dir"),
 		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_5.json",
+			expectedError:     errors.New("node 1 lacks config flag genesis"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_6.json",
+			expectedError:     errors.New("incomplete node config for node 1: Cert field is empty"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_7.json",
+			expectedError:     errors.New("node 1 lacks config flag staking-tls-cert-file"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_8.json",
+			expectedError:     errors.New("incomplete node config for node 1: PrivateKey field is empty"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_9.json",
+			expectedError:     errors.New("node 1 lacks config flag staking-tls-key-file"),
+		},
+		{
+			networkConfigPath: "network_configs/incomplete_node_config_10.json",
+			expectedError:     errors.New("node 1 lacks config flag public-ip"),
+		},
 	}
 	for _, tt := range tests {
 		givenErr := networkStartWaitStop(tt.networkConfigPath)
@@ -72,6 +96,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 }
 
 func TestBasicNetwork(t *testing.T) {
+    t.Skip()
 	networkConfigPath := "network_configs/basic_network.json"
 	if err := networkStartWaitStop(networkConfigPath); err != nil {
 		t.Fatal(err)

@@ -113,9 +113,6 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 
 	if !usesEphemeralCert {
 		// cert/key is given in config
-		if nodeConfig.PrivateKey == "" {
-			return nil, fmt.Errorf("incomplete node config for node %v: PrivateKey field is empty", net.nextIntNodeID)
-		}
 		if nodeConfig.Cert == "" {
 			return nil, fmt.Errorf("incomplete node config for node %v: Cert field is empty", net.nextIntNodeID)
 		}
@@ -125,6 +122,9 @@ func (net *network) AddNode(nodeConfig networkrunner.NodeConfig) (networkrunner.
 		}
 		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
 			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %w", certFname, net.nextIntNodeID, err)
+		}
+		if nodeConfig.PrivateKey == "" {
+			return nil, fmt.Errorf("incomplete node config for node %v: PrivateKey field is empty", net.nextIntNodeID)
 		}
 		keyFname, ok := configFlags[config.StakingKeyPathKey].(string)
 		if !ok {
