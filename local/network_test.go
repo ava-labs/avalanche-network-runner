@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -116,7 +115,7 @@ func networkStartWaitStop(networkConfigJSON []byte) error {
 	return nil
 }
 
-func getBinMap() (map[uint]string, error) {
+func getBinMap() (map[nodeType]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
@@ -127,9 +126,9 @@ func getBinMap() (map[uint]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
-	binMap := map[uint]string{
-		node.AVALANCHEGO: avalanchegoPath,
-		node.BYZANTINE:   byzantinePath,
+	binMap := map[nodeType]string{
+		AVALANCHEGO: avalanchegoPath,
+		BYZANTINE:   byzantinePath,
 	}
 	return binMap, nil
 }
@@ -150,7 +149,7 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[uint]string, networkConfig *network.Config) (network.Network, error) {
+func startNetwork(binMap map[nodeType]string, networkConfig *network.Config) (network.Network, error) {
 	var net network.Network
 	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {

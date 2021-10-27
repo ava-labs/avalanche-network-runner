@@ -5,16 +5,9 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-// kind of node to set up
-// depending on node kind, proper binary/container will be executed
-const (
-	AVALANCHEGO = iota
-	BYZANTINE   = iota
-)
-
 type Config struct {
-	BinKind     uint   // Kind of node to set up (avalanchego/byzantine/...)
-	NodeID      string // Avalanchego id for the node, when is known beforehand
+	Type        interface{} // Kind of node to set up (avalanchego/byzantine/...)
+	NodeID      string      // Avalanchego id for the node, when is known beforehand
 	PrivateKey  string
 	Cert        string
 	ConfigFlags string // Cmdline flags that are specific for the node. JSON
