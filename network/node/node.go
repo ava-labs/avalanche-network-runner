@@ -6,11 +6,14 @@ import (
 )
 
 type Config struct {
-	Type        interface{} // Kind of node to set up (avalanchego/byzantine/...)
-	NodeID      string      // Avalanchego id for the node, when is known beforehand
-	PrivateKey  string
-	Cert        string
-	ConfigFlags string // Cmdline flags that are specific for the node. JSON
+	Type             interface{} // Kind of node to set up (avalanchego/byzantine/...)
+	NodeID           string      // Avalanchego id for the node, when is known beforehand
+	StakingKey       []byte
+	StakingCert      []byte
+	ConfigFile       []byte
+	CChainConfigFile []byte
+	GenesisFile      []byte
+	APIPort          uint // Must be the the same as one given in config file
 }
 
 // An AvalancheGo node
