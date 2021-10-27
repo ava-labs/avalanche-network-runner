@@ -1,4 +1,4 @@
-package localnetworkrunner
+package local
 
 import (
 	"fmt"

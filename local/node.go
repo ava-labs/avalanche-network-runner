@@ -1,4 +1,4 @@
-package localnetworkrunner
+package local
 
 import (
 	"fmt"
@@ -16,10 +16,10 @@ var _ node.Node = (*localNode)(nil)
 // The type of this node (e.g. normal, byzantine, etc.)
 // TODO Generalize this to allow user to specify a specific
 // branch, etc. Or just have user provide path to binaries.
-type nodeType int
+type NodeType int
 
 const (
-	AVALANCHEGO nodeType = iota + 1
+	AVALANCHEGO NodeType = iota + 1
 	BYZANTINE
 )
 

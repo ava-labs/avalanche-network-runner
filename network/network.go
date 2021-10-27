@@ -32,20 +32,11 @@ func NewNetwork(Config, map[int]string) (*Network, error) {
 }
 
 type Config struct {
-	Genesis         string        // Contents of genesis file for all nodes
-	CChainConfig    string        // Contents of cchain config file for all nodes
-	CoreConfigFlags string        // Common cmdline flags for all nodes (unless overwritten with node config). JSON
-	NodeConfigs     []node.Config // Node config for each node
+	NodeConfigs []node.Config // Node config for each node
 }
 
 func (c *Config) Validate() error {
 	switch {
-	case c.Genesis == "":
-		return errors.New("genesis field is empty")
-	case c.CChainConfig == "":
-		return errors.New("cChainConfig field is empty")
-	case c.CoreConfigFlags == "":
-		return errors.New("coreConfigFlags field is empty")
 	case c.NodeConfigs == nil:
 		return errors.New("nodeConfigs field is empty")
 	case len(c.NodeConfigs) == 0:

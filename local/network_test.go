@@ -1,4 +1,4 @@
-package localnetworkrunner
+package local
 
 import (
 	_ "embed"
@@ -76,7 +76,7 @@ func networkStartWaitStop(networkConfigJSON []byte) error {
 	return nil
 }
 
-func getBinMap() (map[nodeType]string, error) {
+func getBinMap() (map[NodeType]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
@@ -87,7 +87,7 @@ func getBinMap() (map[nodeType]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("must define env var %s", envVarName)
 	}
-	binMap := map[nodeType]string{
+	binMap := map[NodeType]string{
 		AVALANCHEGO: avalanchegoPath,
 		BYZANTINE:   byzantinePath,
 	}
@@ -110,7 +110,7 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	return &networkConfig, nil
 }
 
-func startNetwork(binMap map[nodeType]string, networkConfig *network.Config) (network.Network, error) {
+func startNetwork(binMap map[NodeType]string, networkConfig *network.Config) (network.Network, error) {
 	var net network.Network
 	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {

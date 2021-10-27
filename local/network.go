@@ -1,7 +1,6 @@
-package localnetworkrunner
+package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -31,30 +30,22 @@ var _ network.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
-	log             logging.Logger         // logger used by the library
-	binMap          map[nodeType]string    // map node kind to string used in node set up (binary path)
-	nextID          uint64                 // next id to be used in internal node id generation
-	nodes           map[ids.ID]*localNode  // access to nodes basic info and api
-	coreConfigFlags map[string]interface{} // cmdline flags common to all nodes
-	genesis         []byte                 // genesis file contents, common to all nodes
-	cChainConfig    []byte                 // cchain config file contents
+	log    logging.Logger        // logger used by the library
+	binMap map[NodeType]string   // map node kind to string used in node set up (binary path)
+	nextID uint64                // next id to be used in internal node id generation
+	nodes  map[ids.ID]*localNode // access to nodes basic info and api
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nodeType]string) (network.Network, error) {
+func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[NodeType]string) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
 	net := &localNetwork{
-		nodes:        map[ids.ID]*localNode{},
-		nextID:       1,
-		binMap:       binMap,
-		log:          log,
-		genesis:      []byte(networkConfig.Genesis),
-		cChainConfig: []byte(networkConfig.CChainConfig),
-	}
-	if err := json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal core config flags: %w", err)
+		nodes:  map[ids.ID]*localNode{},
+		nextID: 1,
+		binMap: binMap,
+		log:    log,
 	}
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.AddNode(nodeConfig); err != nil {
@@ -120,9 +111,9 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 // 	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
 
 // 	// get binary from bin map and node kind, and execute it
-// 	avalanchegoPath, ok := net.binMap[nodeConfig.Type.(nodeType)]
+// 	avalanchegoPath, ok := net.binMap[nodeConfig.Type.(NodeType)]
 // 	if !ok {
-// 		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.Type.(nodeType), net.nextID)
+// 		return nil, fmt.Errorf("could not found key %v in binMap for node %v", nodeConfig.Type.(NodeType), net.nextID)
 // 	}
 // 	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
 // 	cmd := exec.Command(avalanchegoPath, configFileFlag)
@@ -150,48 +141,57 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
-	// TODO should we
+	// TODO should we do this for other directories? Logs? Profiles?
 	tmpDir := os.TempDir()
-	// Write this node's config file
+
+	// Flags for AvalancheGo that point to the files
+	// we're about to create.
+	flags := []string{}
 	configFilePath := filepath.Join(tmpDir, configFileName)
-	if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
-		return nil, fmt.Errorf("error creating/writing config file: %w", err)
+
+	// Write this node's config file if one is given
+	if len(nodeConfig.ConfigFile) != 0 {
+		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing config file: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
-	// Write this node's staking key file
-	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
-	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
-		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
+	// Write this node's staking key file if one is given
+	if len(nodeConfig.StakingKey) != 0 {
+		stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
+		if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
+			return nil, fmt.Errorf("error creating/writing staking key: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
 	}
-	// Write this node's staking cert file
-	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
-	if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
-		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
+	// Write this node's staking cert file if one is given
+	if len(nodeConfig.StakingCert) != 0 {
+		stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
+		if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
+			return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 	}
-	// Write this node's genesis file
-	genesisFilePath := filepath.Join(tmpDir, genesisFileName)
-	if err := createFileAndWrite(genesisFilePath, nodeConfig.GenesisFile); err != nil {
-		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
+	// Write this node's genesis file if one is given
+	if len(nodeConfig.GenesisFile) != 0 {
+		genesisFilePath := filepath.Join(tmpDir, genesisFileName)
+		if err := createFileAndWrite(genesisFilePath, nodeConfig.GenesisFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
 	}
-	// Write this node's C-Chain file
-	cChainConfigFilePath := filepath.Join(tmpDir, "C", configFilePath)
-	if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
-		return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
+	// Write this node's C-Chain file if one is given
+	if len(nodeConfig.CChainConfigFile) != 0 {
+		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFilePath)
+		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 	// Path to AvalancheGo binary
-	avalancheGoBinaryPath, ok := net.binMap[nodeConfig.Type.(nodeType)]
+	avalancheGoBinaryPath, ok := net.binMap[nodeConfig.Type.(NodeType)]
 	if !ok {
-		return nil, fmt.Errorf("got unexpected node type %v", nodeConfig.Type.(nodeType))
-	}
-	// Flags for AvalancheGo that point to the various files we created.
-	flags := []string{}
-	for _, keyVal := range [][2]string{
-		{config.ConfigFileKey, configFilePath},
-		{config.StakingKeyPathKey, stakingKeyFilePath},
-		{config.StakingCertPathKey, stakingCertFilePath},
-		{config.GenesisConfigFileKey, genesisFilePath},
-		{config.ChainConfigDirKey, tmpDir},
-	} {
-		flags = append(flags, fmt.Sprintf("--%s=%s", keyVal[0], keyVal[1]))
+		return nil, fmt.Errorf("got unexpected node type %v", nodeConfig.Type.(NodeType))
 	}
 	// Start the AvalancheGo node and pass it the flags
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)

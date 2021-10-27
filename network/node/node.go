@@ -7,7 +7,6 @@ import (
 
 type Config struct {
 	Type             interface{} // Kind of node to set up (avalanchego/byzantine/...)
-	NodeID           string      // Avalanchego id for the node, when is known beforehand
 	StakingKey       []byte
 	StakingCert      []byte
 	ConfigFile       []byte
