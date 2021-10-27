@@ -44,7 +44,7 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 		cChainConfig:  []byte(networkConfig.CChainConfig),
 	}
 	// Validate does check errors at the unmarshals
-	json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags)
+    json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags) // nolint:errcheck
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		nodeID, err := net.getNewNodeID(nodeConfig)
 		if err != nil {
@@ -101,7 +101,7 @@ func (net *localNetwork) addNode(nodeConfig node.Config, nodeID string) (node.No
 		configFlags[k] = v
 	}
 	// Validate does check errors at the unmarshals
-	json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags)
+    json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags) // nolint:errcheck
 
 	// Validate does check map keys and value casts
 	configDir := configFlags[config.ChainConfigDirKey].(string)
