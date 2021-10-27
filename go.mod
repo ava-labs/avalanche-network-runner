@@ -22,6 +22,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/afero v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/stretchr/testify v1.7.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect

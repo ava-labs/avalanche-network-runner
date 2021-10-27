@@ -6,87 +6,130 @@ import (
 	"os"
 	"testing"
 	"time"
+    "io/ioutil"
+    "errors"
+    "fmt"
 
 	"github.com/ava-labs/avalanche-network-runner-local/networkrunner"
 	"github.com/sirupsen/logrus"
+    "github.com/stretchr/testify/assert"
 )
 
-//go:embed "network_config.json"
-var networkConfigsJSON []byte
-
-func TestNetworkStartStop(t *testing.T) {
-	confs := map[string]interface{}{}
-	if err := json.Unmarshal(networkConfigsJSON, &confs); err != nil {
-		t.Fatalf("couldn't unmarshall network configs json: %s", err)
-	}
-	networkConfigJSON, err := json.Marshal(confs["2"])
-	if err != nil {
-		t.Fatalf("couldn't marshall network config json: %s", err)
-	}
-	binMap := getBinMap(t)
-	networkConfig := getNetworkConfig(t, networkConfigJSON)
-	net := startNetwork(t, binMap, networkConfig)
-	awaitNetwork(t, net)
-	stopNetwork(t, net)
+func TestWrongNetworkConfigs(t *testing.T) {
+    tests := []struct{
+        networkConfigPath string
+        expectedError error
+    } {
+        {
+            networkConfigPath: "network_configs/empty_config.json",
+            expectedError: errors.New("couldn't unmarshall network config json: unexpected end of JSON input"),
+        },
+    }
+    for _, tt := range tests {
+        givenErr := networkStartWaitStop(tt.networkConfigPath)
+        assert.Equal(t, givenErr, tt.expectedError)
+    }
 }
 
-func getBinMap(t *testing.T) map[int]string {
+func TestBasicNetwork(t *testing.T) {
+    networkConfigPath := "network_configs/basic_network.json"
+    if err := networkStartWaitStop(networkConfigPath); err != nil {
+        t.Fatal(err)
+    }
+}
+
+func networkStartWaitStop(networkConfigPath string) error {
+	binMap, err := getBinMap()
+    if err != nil {
+        return err
+    }
+    networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+	if err != nil {
+        return err
+	}
+	networkConfig, err := getNetworkConfig(networkConfigJSON)
+    if err != nil {
+        return err
+    }
+	net, err := startNetwork(binMap, networkConfig)
+    if err != nil {
+        return err
+    }
+    if err := awaitNetwork(net); err != nil {
+        return err
+    }
+    if err := stopNetwork(net); err != nil {
+        return err
+    }
+    return nil
+}
+
+func getBinMap() (map[int]string, error) {
 	envVarName := "AVALANCHEGO_PATH"
 	avalanchegoPath, ok := os.LookupEnv(envVarName)
 	if !ok {
-		t.Fatalf("must define env var %s", envVarName)
+		return nil, errors.New(fmt.Sprintf("must define env var %s", envVarName))
 	}
 	envVarName = "BYZANTINE_PATH"
 	byzantinePath, ok := os.LookupEnv(envVarName)
 	if !ok {
-		t.Fatalf("must define env var %s", envVarName)
+		return nil, errors.New(fmt.Sprintf("must define env var %s", envVarName))
 	}
 	binMap := map[int]string{
 		networkrunner.AVALANCHEGO: avalanchegoPath,
 		networkrunner.BYZANTINE:   byzantinePath,
 	}
-	return binMap
+	return binMap, nil
 }
 
-func getNetworkConfig(t *testing.T, networkConfigJSON []byte) networkrunner.NetworkConfig {
+func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
+    networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+	if err != nil {
+        return nil, errors.New(fmt.Sprintf("couldn't read network config file %s: %s", networkConfigPath, err))
+	}
+    return networkConfigJSON, nil
+}
+
+func getNetworkConfig(networkConfigJSON []byte) (*networkrunner.NetworkConfig, error) {
 	networkConfig := networkrunner.NetworkConfig{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
-		t.Fatalf("couldn't unmarshall network config json: %s", err)
+		return nil, errors.New(fmt.Sprintf("couldn't unmarshall network config json: %s", err))
 	}
-	return networkConfig
+	return &networkConfig, nil
 }
 
-func startNetwork(t *testing.T, binMap map[int]string, networkConfig networkrunner.NetworkConfig) networkrunner.Network {
+func startNetwork(binMap map[int]string, networkConfig *networkrunner.NetworkConfig) (networkrunner.Network, error) {
 	logger := logrus.New()
 	var net networkrunner.Network
-	net, err := NewNetwork(networkConfig, binMap, logger)
+	net, err := NewNetwork(*networkConfig, binMap, logger)
 	if err != nil {
-		t.Fatalf("couldn't create network: %s", err)
+		return nil, errors.New(fmt.Sprintf("couldn't create network: %s", err))
 	}
-	return net
+	return net, nil
 }
 
-func awaitNetwork(t *testing.T, net networkrunner.Network) {
+func awaitNetwork(net networkrunner.Network) error {
 	timeoutCh := make(chan struct{})
 	go func() {
 		time.Sleep(5 * time.Minute)
 		timeoutCh <- struct{}{}
 	}()
 	readyCh, errorCh := net.Ready()
-	t.Log("waiting for network startup")
 	select {
 	case <-readyCh:
 		break
 	case err := <-errorCh:
-		t.Fatal(err)
+		return err
 	case <-timeoutCh:
-		t.Fatal("network startup timeout")
+		return errors.New("network startup timeout")
 	}
+    return nil
 }
 
-func stopNetwork(t *testing.T, net networkrunner.Network) {
+func stopNetwork(net networkrunner.Network) error {
 	err := net.Stop()
 	if err != nil {
-		t.Fatalf("couldn't cleanly stop network: %s", err)
+		return errors.New(fmt.Sprintf("couldn't cleanly stop network: %s", err))
 	}
+    return nil
 }
