@@ -8,11 +8,11 @@ import (
 type Config struct {
 	Type             interface{} // Kind of node to set up (avalanchego/byzantine/...)
 	Name             string      // Must be unique across all nodes
-	StakingKey       string
-	StakingCert      string
-	ConfigFile       string
-	CChainConfigFile string
-	GenesisFile      string
+	StakingKey       []byte
+	StakingCert      []byte
+	ConfigFile       []byte
+	CChainConfigFile []byte
+	GenesisFile      []byte
 	LogsToStdout     bool
 }
 

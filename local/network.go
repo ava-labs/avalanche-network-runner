@@ -238,7 +238,7 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 
 // createFile creates a file with the given path and
 // writes the given contents
-func createFileAndWrite(path string, contents string) error {
+func createFileAndWrite(path string, contents []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func createFileAndWrite(path string, contents string) error {
 		return err
 	}
 	defer file.Close()
-	if _, err := file.Write([]byte(contents)); err != nil {
+	if _, err := file.Write(contents); err != nil {
 		return err
 	}
 	return nil
