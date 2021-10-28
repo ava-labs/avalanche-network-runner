@@ -12,7 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
-var homeDir = os.ExpandEnv("$HOME")
+var goPath = os.ExpandEnv("$GOPATH")
 
 // Start a network with 1 node which connects to mainnet.
 // Uses default configs.
@@ -30,15 +30,15 @@ func main() {
 		logging.NoLog{},
 		networkConfig,
 		map[local.NodeType]string{
-			local.AVALANCHEGO: fmt.Sprintf("%s%s", homeDir, "/go/src/github.com/ava-labs/avalanchego/build/avalanchego"),
+			local.AVALANCHEGO: fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego"),
 		},
 	)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	nodeNames := nw.GetNodesIDs()
-	time.Sleep(10 * time.Second) // Wait for node to set up
+	nodeNames := nw.GetNodesNames()
+	time.Sleep(20 * time.Second) // Wait for node to set up
 	node, err := nw.GetNode(nodeNames[0])
 	if err != nil {
 		fmt.Println(err)
