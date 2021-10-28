@@ -15,12 +15,12 @@ type Network interface {
 	Stop() error
 	// Start a new node with the config
 	AddNode(node.Config) (node.Node, error)
-	// Stop the node with this ID.
-	RemoveNode(string) error
-	// Return the node with this ID.
-	GetNode(string) (node.Node, error)
-	// Return ID for all the nodes
-	GetNodesIDs() []string
+	// Stop the node with this name.
+	RemoveNode(name string) error
+	// Return the node with this name.
+	GetNode(name string) (node.Node, error)
+	// Returns the names of all nodes in this network.
+	GetNodesNames() []string
 	// TODO add methods
 }
 

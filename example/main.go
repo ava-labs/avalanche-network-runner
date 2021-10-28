@@ -37,9 +37,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	nodeIDs := nw.GetNodesIDs()
+	nodeNames := nw.GetNodesIDs()
 	time.Sleep(10 * time.Second) // Wait for node to set up
-	node, err := nw.GetNode(nodeIDs[0])
+	node, err := nw.GetNode(nodeNames[0])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -49,7 +49,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Printf("this network has %d node and the first node's ID is %s\n", len(nodeIDs), nodeID.PrefixedString(constants.NodeIDPrefix))
+	fmt.Printf("this network has %d node and the first node's ID is %s\n", len(nodeNames), nodeID.PrefixedString(constants.NodeIDPrefix))
 	if err := nw.Stop(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
