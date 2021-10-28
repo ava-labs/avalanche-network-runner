@@ -215,9 +215,6 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
 	}
-	if err := os.RemoveAll(node.tmpDir); err != nil {
-		return fmt.Errorf("couldn't remove tmp dir %s for node %s: %w", node.tmpDir, nodeName, err)
-	}
 	return nil
 }
 
