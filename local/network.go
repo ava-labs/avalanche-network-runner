@@ -258,23 +258,17 @@ func waitNode(client api.Client) bool {
 	info := client.InfoAPI()
 	timeout := 1 * time.Minute
 	pollTime := 10 * time.Second
-	nodeIsUp := false
-	for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; {
-		nodeIsUp = true
+	for t0 := time.Now(); time.Since(t0) <= timeout; time.Sleep(pollTime) {
 		if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
-			nodeIsUp = false
 			continue
 		}
 		if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
-			nodeIsUp = false
 			continue
 		}
 		if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
-			nodeIsUp = false
+			continue
 		}
-		if !nodeIsUp {
-			time.Sleep(pollTime)
-		}
+		return true
 	}
-	return nodeIsUp
+	return false
 }
