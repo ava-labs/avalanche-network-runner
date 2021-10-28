@@ -153,6 +153,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		name:   nodeConfig.Name,
 		client: NewAPIClient("localhost", uint(httpPort), apiTimeout),
 		cmd:    cmd,
+		tmpDir: tmpDir,
 	}
 	network.nodes[node.name] = node
 	return node, nil
@@ -213,6 +214,9 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 	node.client.CChainEthAPI().Close()
 	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
+	}
+	if err := os.RemoveAll(node.tmpDir); err != nil {
+		return fmt.Errorf("couldn't remove tmp dir %s for node %s: %w", node.tmpDir, nodeName, err)
 	}
 	return nil
 }
