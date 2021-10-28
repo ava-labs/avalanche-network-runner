@@ -13,6 +13,7 @@ type Config struct {
 	ConfigFile       string
 	CChainConfigFile string
 	GenesisFile      string
+	LogsToStdout     bool
 }
 
 // An AvalancheGo node

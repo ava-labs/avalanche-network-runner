@@ -1,6 +1,7 @@
 package local
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -145,6 +146,23 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	}
 	// Start the AvalancheGo node and pass it the flags
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
+	if nodeConfig.LogsToStdout {
+		ch := make(chan string, 1)
+		read, w, err := os.Pipe()
+		if err != nil {
+			return nil, fmt.Errorf("could not get pipe for node stdout redirect: %w", err)
+		}
+		go func() {
+			sc := bufio.NewScanner(read)
+			for sc.Scan() {
+				network.log.Info(fmt.Sprintf("[%s] %s", nodeConfig.Name, sc.Text()))
+				fmt.Printf("[%s] %s\n", nodeConfig.Name, sc.Text())
+			}
+			close(ch)
+		}()
+		cmd.Stdout = w
+		cmd.Stderr = w
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
