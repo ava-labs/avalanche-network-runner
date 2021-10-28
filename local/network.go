@@ -74,14 +74,19 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Logs? Profiles?
-	tmpDir := os.TempDir()
+	tmpDir := filepath.Join(os.TempDir(), "networkrunner-", os.Getpid())
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return nil, fmt.Errorf("couldn't create tmp dir %s", tmpDir)
+    }
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
 	flags := []string{}
-	configFilePath := filepath.Join(tmpDir, configFileName)
 
+    // Logs
+    flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")))
 	// Write this node's config file if one is given
+	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
 			return nil, fmt.Errorf("error creating/writing config file: %w", err)

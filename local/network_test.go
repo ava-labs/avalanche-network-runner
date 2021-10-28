@@ -51,12 +51,9 @@ func networkStartWaitStop(networkConfigJSON []byte) error {
 	if err != nil {
 		return err
 	}
-	/*
-		if err := awaitNetwork(net); err != nil {
-			return err
-		}
-	*/
-	time.Sleep(10 * time.Second)
+    if err := awaitNetwork(net); err != nil {
+        return err
+    }
 	if err := stopNetwork(net); err != nil {
 		return err
 	}
