@@ -18,24 +18,8 @@ import (
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
 		"",
-		`{"CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}"}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\"}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","PrivateKey":"nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":1,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty"}]}`,
-		`{"Genesis":"nonempty","CChainConfig":"nonempty","CoreConfigFlags":"{\"public-ip\":\"nonempty\"}","NodeConfigs":[{"Type":0,"ConfigFlags":"{\"chain-config-dir\":\"/tmp\",\"genesis\":\"/tmp/genesis.tmp\",\"staking-tls-cert-file\":\"/tmp/cert.tmp\",\"staking-tls-key-file\":\"/tmp/key.tmp\",\"http-port\":0}","Cert": "nonempty","PrivateKey":"nonempty"}]}`,
+		`{}`,
+		`{"NodeConfigs":[]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		err := networkStartWaitStop([]byte(networkConfigJSON))
@@ -107,6 +91,11 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
+    for i, nodeConfig := range networkConfig.NodeConfigs {
+        if nodeConfig.Type != nil {
+            networkConfig.NodeConfigs[i].Type = NodeType(nodeConfig.Type.(float64))
+        }
+    }
 	return &networkConfig, nil
 }
 

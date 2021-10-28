@@ -1,12 +1,9 @@
 package network
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanchego/config"
 )
 
 // Network is an abstraction of an Avalanche network
@@ -38,7 +35,6 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
-	var coreConfigFlags map[string]interface{}
 	switch {
 	case c.NodeConfigs == nil:
 		return errors.New("NodeConfigs field is empty")
