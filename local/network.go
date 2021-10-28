@@ -77,14 +77,14 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	tmpDir := filepath.Join(os.TempDir(), "networkrunner", nodeConfig.Name)
 	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
 		return nil, fmt.Errorf("couldn't create tmp dir %s", tmpDir)
-    }
+	}
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
 	flags := []string{}
 
-    // Logs
-    flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")))
+	// Logs
+	flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")))
 	// Write this node's config file if one is given
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
