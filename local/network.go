@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+    "bufio"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -74,8 +75,8 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Logs? Profiles?
-	tmpDir := filepath.Join(os.TempDir(), "networkrunner-", os.Getpid())
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+	tmpDir := filepath.Join(os.TempDir(), "networkrunner", nodeConfig.Name)
+	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
 		return nil, fmt.Errorf("couldn't create tmp dir %s", tmpDir)
     }
 
@@ -144,7 +145,23 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
 	// Start the AvalancheGo node and pass it the flags
+    ch := make(chan string, 1)
+    read, w, err := os.Pipe()
+    if err != nil {
+    return nil, err
+  }
+     go func() {
+        sc := bufio.NewScanner(read)
+        for sc.Scan() {
+            fmt.Println(sc.Text())
+        }
+        close(ch)
+    }()
+
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
+    fmt.Println(flags)
+    cmd.Stdout = w
+    cmd.Stderr = w
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
@@ -219,7 +236,7 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 
 // createFile creates a file with the given path and
 // writes the given contents
-func createFileAndWrite(path string, contents []byte) error {
+func createFileAndWrite(path string, contents string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
@@ -228,7 +245,7 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	defer file.Close()
-	if _, err := file.Write(contents); err != nil {
+	if _, err := file.Write([]byte(contents)); err != nil {
 		return err
 	}
 	return nil
