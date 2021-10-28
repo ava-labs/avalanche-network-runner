@@ -50,9 +50,9 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 		binMap: binMap,
 		log:    log,
 	}
-	for _, nodeConfig := range networkConfig.NodeConfigs {
+	for i, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := network.AddNode(nodeConfig); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("couldn't add node %d: %w", i, err)
 		}
 	}
 	return network, nil
