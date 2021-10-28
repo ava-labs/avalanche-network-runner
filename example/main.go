@@ -18,8 +18,7 @@ var goPath = os.ExpandEnv("$GOPATH")
 // Uses default configs.
 func main() {
 	nodeConfig := node.Config{
-		Type:    local.AVALANCHEGO,
-		APIPort: 9650,
+		Type: local.AVALANCHEGO,
 	}
 	networkConfig := network.Config{
 		NodeConfigs: []node.Config{

@@ -2,6 +2,7 @@ package local
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,29 +44,29 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
-	net := &localNetwork{
+	network := &localNetwork{
 		nodes:  map[string]*localNode{},
 		nextID: 1,
 		binMap: binMap,
 		log:    log,
 	}
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if _, err := net.AddNode(nodeConfig); err != nil {
+		if _, err := network.AddNode(nodeConfig); err != nil {
 			return nil, err
 		}
 	}
-	return net, nil
+	return network, nil
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, net.nextID)
-		net.nextID++
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, network.nextID)
+		network.nextID++
 	}
 	// Enforce name uniqueness
-	if _, ok := net.nodes[nodeConfig.Name]; ok {
+	if _, ok := network.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
@@ -119,12 +120,21 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
+	// Get free http port
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, fmt.Errorf("could not get free api port: %w", err)
+	}
+	httpPort := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, httpPort))
+	network.log.Info(fmt.Sprintf("assigning api port %d to nohe %s\n", httpPort, nodeConfig.Name))
 	// Path to AvalancheGo binary
 	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
 	}
-	avalancheGoBinaryPath, ok := net.binMap[nodeType]
+	avalancheGoBinaryPath, ok := network.binMap[nodeType]
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
@@ -136,50 +146,50 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
-		client: NewAPIClient("localhost", nodeConfig.APIPort, apiTimeout),
+		client: NewAPIClient("localhost", uint(httpPort), apiTimeout),
 		cmd:    cmd,
 	}
-	net.nodes[node.name] = node
+	network.nodes[node.name] = node
 	return node, nil
 }
 
 // Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (net *localNetwork) Ready() (chan struct{}, chan error) {
+func (network *localNetwork) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
-		for nodeName := range net.nodes {
-			b := waitNode(net.nodes[nodeName].client)
+		for nodeName := range network.nodes {
+			b := waitNode(network.nodes[nodeName].client)
 			if !b {
 				errorCh <- fmt.Errorf("timeout waiting for node %v", nodeName)
 			}
-			net.log.Info("node %q is up", nodeName)
+			network.log.Info("node %q is up", nodeName)
 		}
 		close(readyCh)
 	}()
 	return readyCh, errorCh
 }
 
-func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
-	node, ok := net.nodes[nodeName]
+func (network *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	node, ok := network.nodes[nodeName]
 	if !ok {
 		return nil, fmt.Errorf("node %q not found in network", nodeName)
 	}
 	return node, nil
 }
 
-func (net *localNetwork) GetNodesNames() []string {
+func (network *localNetwork) GetNodesNames() []string {
 	// TODO cache this
-	names := make([]string, 0, len(net.nodes))
-	for name := range net.nodes {
+	names := make([]string, 0, len(network.nodes))
+	for name := range network.nodes {
 		names = append(names, name)
 	}
 	return names
 }
 
-func (net *localNetwork) Stop() error {
-	for nodeName := range net.nodes {
-		if err := net.RemoveNode(nodeName); err != nil {
+func (network *localNetwork) Stop() error {
+	for nodeName := range network.nodes {
+		if err := network.RemoveNode(nodeName); err != nil {
 			// TODO log error but continue
 			return err
 		}
@@ -187,12 +197,12 @@ func (net *localNetwork) Stop() error {
 	return nil
 }
 
-func (net *localNetwork) RemoveNode(nodeName string) error {
-	node, ok := net.nodes[nodeName]
+func (network *localNetwork) RemoveNode(nodeName string) error {
+	node, ok := network.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
-	delete(net.nodes, nodeName)
+	delete(network.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
