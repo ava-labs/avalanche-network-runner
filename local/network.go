@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-    "bufio"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -145,23 +144,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
 	// Start the AvalancheGo node and pass it the flags
-    ch := make(chan string, 1)
-    read, w, err := os.Pipe()
-    if err != nil {
-    return nil, err
-  }
-     go func() {
-        sc := bufio.NewScanner(read)
-        for sc.Scan() {
-            fmt.Println(sc.Text())
-        }
-        close(ch)
-    }()
-
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
-    fmt.Println(flags)
-    cmd.Stdout = w
-    cmd.Stderr = w
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
