@@ -1,4 +1,4 @@
-package localnetworkrunner
+package local
 
 import (
 	"fmt"
@@ -16,18 +16,17 @@ var _ node.Node = (*localNode)(nil)
 // The type of this node (e.g. normal, byzantine, etc.)
 // TODO Generalize this to allow user to specify a specific
 // branch, etc. Or just have user provide path to binaries.
-type nodeType int
+type NodeType int
 
 const (
-	AVALANCHEGO nodeType = iota + 1
+	AVALANCHEGO NodeType = iota + 1
 	BYZANTINE
 )
 
 // Gives access to basic nodes info, and to most avalanchego apis
 type localNode struct {
-	// This ID is internal to the network runner.
-	// It isn't an Avalanche Node ID.
-	id string
+	// Must be unique across all nodes in this network.
+	name string
 	// [nodeID] is this node's Avalannche Node ID.
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
@@ -37,11 +36,9 @@ type localNode struct {
 	cmd *exec.Cmd
 }
 
-// Returs internal id used by the network runner
-// Incremental from 1..
-// 1:1 mapping to network config node positions
-func (node *localNode) GetID() string {
-	return node.id
+// Return this node's unique name
+func (node *localNode) GetName() string {
+	return node.name
 }
 
 // Returns this node's avalanchego node ID

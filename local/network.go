@@ -1,11 +1,10 @@
-package localnetworkrunner
+package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,35 +15,40 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
+const (
+	defaultNodeNamePrefix = "node-"
+	configFileName        = "config.json"
+	stakingKeyFileName    = "staking.key"
+	stakingCertFileName   = "staking.crt"
+	genesisFileName       = "genesis.json"
+	apiTimeout            = 5 * time.Second
+)
+
 // interface compliance
 var _ network.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
-	log             logging.Logger         // logger used by the library
-	binMap          map[nodeType]string    // map node kind to string used in node set up (binary path)
-	nextIntNodeID   uint64                 // next id to be used in internal node id generation
-	nodes           map[string]*localNode  // access to nodes basic info and api
-	coreConfigFlags map[string]interface{} // cmdline flags common to all nodes
-	genesis         []byte                 // genesis file contents, common to all nodes
-	cChainConfig    []byte                 // cchain config file contents, common to all nodes
+	log logging.Logger
+	// Node type --> Path to binary
+	binMap map[NodeType]string
+	// For node name generation
+	nextID uint64
+	// Node Name --> Node
+	nodes map[string]*localNode
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nodeType]string) (network.Network, error) {
+func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[NodeType]string) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
 	net := &localNetwork{
-		nodes:         map[string]*localNode{},
-		nextIntNodeID: 1,
-		binMap:        binMap,
-		log:           log,
-		genesis:       []byte(networkConfig.Genesis),
-		cChainConfig:  []byte(networkConfig.CChainConfig),
+		nodes:  map[string]*localNode{},
+		nextID: 1,
+		binMap: binMap,
+		log:    log,
 	}
-	// Validate does check errors at the unmarshals
-	json.Unmarshal([]byte(networkConfig.CoreConfigFlags), &net.coreConfigFlags) // nolint:errcheck
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		nodeID, err := net.getNewNodeID(nodeConfig)
 		if err != nil {
@@ -57,117 +61,89 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[nod
 	return net, nil
 }
 
-// getNewNodeID gets a new internal node id
-func (net *localNetwork) getNewNodeID(nodeConfig node.Config) (string, error) {
-	// get internal node id from incremental uint.
-	nodeID := fmt.Sprint(net.nextIntNodeID)
-	_, ok := net.nodes[nodeID]
-	for ok {
-		// avoid conflict with user specified names.
-		net.nextIntNodeID += 1
-		nodeID = fmt.Sprint(net.nextIntNodeID)
-		_, ok = net.nodes[nodeID]
-	}
-	net.nextIntNodeID += 1
-	// internal node id from user specification
-	if nodeConfig.Name != "" {
-		if _, ok := net.nodes[nodeConfig.Name]; ok {
-			return "", fmt.Errorf("repeated node name %s for node %s", nodeConfig.Name, nodeID)
-		}
-		nodeID = nodeConfig.Name
-	}
-	return nodeID, nil
-}
-
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-// Called to add nodes after network creation. Validates node conf.
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
-	nodeID, err := net.getNewNodeID(nodeConfig)
-	if err != nil {
-		return nil, err
+	// If no name was given, use default name pattern
+	if len(nodeConfig.Name) == 0 {
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, net.nextID)
+		net.nextID++
 	}
-	if err := nodeConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("config for node %v failed validation: %w", nodeID, err)
-	}
-	return net.addNode(nodeConfig, nodeID)
-}
-
-// addNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *localNetwork) addNode(nodeConfig node.Config, nodeID string) (node.Node, error) {
-	var configFlags map[string]interface{} = make(map[string]interface{})
-
-	// copy common config flags, and unmarshall specific node config flags
-	for k, v := range net.coreConfigFlags {
-		configFlags[k] = v
-	}
-	// Validate does check errors at the unmarshals
-	json.Unmarshal([]byte(nodeConfig.ConfigFlags), &configFlags) // nolint:errcheck
-
-	// Validate does check map keys and value casts
-	configDir := configFlags[config.ChainConfigDirKey].(string)
-
-	// create main config file by marshalling all config flags
-	configFilePath := path.Join(configDir, "config.json")
-	configBytes, err := json.Marshal(configFlags)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal full config flags for node %v: %w", nodeID, err)
-	}
-	if err := createFile(configFilePath, configBytes); err != nil {
-		return nil, fmt.Errorf("couldn't create config file %s for node %v: %w", configFilePath, nodeID, err)
+	// Enforce name uniqueness
+	if _, ok := net.nodes[nodeConfig.Name]; ok {
+		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
-	cConfigFilePath := path.Join(configDir, "C", "config.json")
-	if err := createFile(cConfigFilePath, net.cChainConfig); err != nil {
-		return nil, fmt.Errorf("couldn't create cchain config file %s for node %v: %w", cConfigFilePath, nodeID, err)
-	}
+	// [tmpDir] is where this node's config file, C-Chain config file,
+	// staking key, staking certificate and genesis file will be written.
+	// (Other file locations are given in the node's config file.)
+	// TODO should we do this for other directories? Logs? Profiles?
+	tmpDir := os.TempDir()
 
-	genesisFname := configFlags[config.GenesisConfigFileKey].(string)
-	if err := createFile(genesisFname, net.genesis); err != nil {
-		return nil, fmt.Errorf("couldn't create genesis file %s for node %v: %w", genesisFname, nodeID, err)
-	}
+	// Flags for AvalancheGo that point to the files
+	// we're about to create.
+	flags := []string{}
+	configFilePath := filepath.Join(tmpDir, configFileName)
 
-	// tells if avalanchego is going to generate the cert/key for the node
-	usesEphemeralCert, ok := configFlags[config.StakingEphemeralCertEnabledKey].(bool)
-	if !ok {
-		usesEphemeralCert = false
-	}
-
-	if !usesEphemeralCert {
-		// cert/key is given in config
-		certFname := configFlags[config.StakingCertPathKey].(string)
-		if err := createFile(certFname, []byte(nodeConfig.Cert)); err != nil {
-			return nil, fmt.Errorf("couldn't create cert file %s for node %v: %w", certFname, nodeID, err)
+	// Write this node's config file if one is given
+	if len(nodeConfig.ConfigFile) != 0 {
+		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing config file: %w", err)
 		}
-		keyFname := configFlags[config.StakingKeyPathKey].(string)
-		if err := createFile(keyFname, []byte(nodeConfig.PrivateKey)); err != nil {
-			return nil, fmt.Errorf("couldn't create private key file %s for node %v: %w", keyFname, nodeID, err)
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
+	}
+	// Write this node's staking key file if one is given
+	if len(nodeConfig.StakingKey) != 0 {
+		stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
+		if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
+			return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
 	}
-
-	// initialize node avalanchego apis
-	nodeIP := configFlags[config.PublicIPKey].(string)
-	nodePortF := configFlags[config.HTTPPortKey].(float64)
-	nodePort := uint(nodePortF)
-	apiClient := NewAPIClient(nodeIP, nodePort, 20*time.Second)
-
-	// get binary from bin map and node kind, and execute it
-	binMapKey := nodeType(nodeConfig.Type.(float64))
-	avalanchegoPath, ok := net.binMap[binMapKey]
+	// Write this node's staking cert file if one is given
+	if len(nodeConfig.StakingCert) != 0 {
+		stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
+		if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
+			return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
+	}
+	// Write this node's genesis file if one is given
+	if len(nodeConfig.GenesisFile) != 0 {
+		genesisFilePath := filepath.Join(tmpDir, genesisFileName)
+		if err := createFileAndWrite(genesisFilePath, nodeConfig.GenesisFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
+	}
+	// Write this node's C-Chain file if one is given
+	if len(nodeConfig.CChainConfigFile) != 0 {
+		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFilePath)
+		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
+			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
+	}
+	// Path to AvalancheGo binary
+	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
-		return nil, fmt.Errorf("could not found key %v in binMap for node %v", binMapKey, nodeID)
+		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
 	}
-	configFileFlag := fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath)
-	cmd := exec.Command(avalanchegoPath, configFileFlag)
+	avalancheGoBinaryPath, ok := net.binMap[nodeType]
+	if !ok {
+		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
+	}
+	// Start the AvalancheGo node and pass it the flags
+	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\" for node %v: %w", avalanchegoPath, configFileFlag, nodeID, err)
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
-
+	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		id:     nodeID,
-		client: apiClient,
+		name:   nodeConfig.Name,
+		client: NewAPIClient("localhost", nodeConfig.APIPort, apiTimeout),
 		cmd:    cmd,
 	}
-	net.nodes[nodeID] = node
+	net.nodes[node.name] = node
 	return node, nil
 }
 
@@ -176,72 +152,74 @@ func (net *localNetwork) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
-		for id := range net.nodes {
-			b := waitNode(net.nodes[id].client)
+		for nodeName := range net.nodes {
+			b := waitNode(net.nodes[nodeName].client)
 			if !b {
-				errorCh <- fmt.Errorf("timeout waiting for node %v", id)
+				errorCh <- fmt.Errorf("timeout waiting for node %v", nodeName)
 			}
-			net.log.Info("node %v is up", id)
+			net.log.Info("node %q is up", nodeName)
 		}
 		close(readyCh)
 	}()
 	return readyCh, errorCh
 }
 
-func (net *localNetwork) GetNode(nodeID string) (node.Node, error) {
-	node, ok := net.nodes[nodeID]
+func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	node, ok := net.nodes[nodeName]
 	if !ok {
-		return nil, fmt.Errorf("node %s not found in network", nodeID)
+		return nil, fmt.Errorf("node %q not found in network", nodeName)
 	}
 	return node, nil
 }
 
-func (net *localNetwork) GetNodesIDs() []string {
-	ks := make([]string, 0, len(net.nodes))
-	for k := range net.nodes {
-		ks = append(ks, k)
+func (net *localNetwork) GetNodesNames() []string {
+	// TODO cache this
+	names := make([]string, 0, len(net.nodes))
+	for name := range net.nodes {
+		names = append(names, name)
 	}
-	return ks
+	return names
 }
 
 func (net *localNetwork) Stop() error {
-	for nodeID := range net.nodes {
-		if err := net.RemoveNode(nodeID); err != nil {
+	for nodeName := range net.nodes {
+		if err := net.RemoveNode(nodeName); err != nil {
+			// TODO log error but continue
 			return err
 		}
 	}
 	return nil
 }
 
-func (net *localNetwork) RemoveNode(nodeID string) error {
-	node, ok := net.nodes[nodeID]
+func (net *localNetwork) RemoveNode(nodeName string) error {
+	node, ok := net.nodes[nodeName]
 	if !ok {
-		return fmt.Errorf("node %s not found in network", nodeID)
+		return fmt.Errorf("node %q not found", nodeName)
 	}
-	delete(net.nodes, nodeID)
+	delete(net.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("error sending SIGTERM to %s: %w", node.nodeID, err)
+		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
 	}
 	return nil
 }
 
-// createFile creates a file under the fiven fname, making all
-// intermediate dirs, and filling it with contents
-func createFile(fname string, contents []byte) error {
-	if err := os.MkdirAll(path.Dir(fname), 0o750); err != nil {
+// createFile creates a file with the given path and
+// writes the given contents
+func createFileAndWrite(path string, contents []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
-	file, err := os.Create(fname)
+	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	if _, err := file.Write(contents); err != nil {
 		return err
 	}
-	file.Close()
 	return nil
 }
 
