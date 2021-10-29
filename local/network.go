@@ -3,6 +3,7 @@ package local
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -76,7 +77,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
-	// TODO should we do this for other directories? Logs? Profiles?
+	// TODO should we do this for other directories? Profiles?
 	tmpDir := filepath.Join(os.TempDir(), "networkrunner", nodeConfig.Name)
 	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
 		return nil, fmt.Errorf("couldn't create tmp dir %s", tmpDir)
@@ -210,13 +211,13 @@ func (network *localNetwork) GetNodesNames() []string {
 }
 
 func (network *localNetwork) Stop() error {
+	var cumErrMsg string
 	for nodeName := range network.nodes {
 		if err := network.RemoveNode(nodeName); err != nil {
-			// TODO log error but continue
-			return err
+			cumErrMsg = fmt.Sprintf("couldn't remove node %s: %s. %s", nodeName, err, cumErrMsg)
 		}
 	}
-	return nil
+	return errors.New(cumErrMsg)
 }
 
 func (network *localNetwork) RemoveNode(nodeName string) error {
