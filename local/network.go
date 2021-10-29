@@ -280,10 +280,20 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
 	networkConfig := network.Config{}
+	var networkGenesisFile []byte
+	var networkCChainConfigFile []byte
+	if networkConfigMap["GenesisFile"] != nil {
+		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
+	}
+	if networkConfigMap["CChainConfigFile"] != nil {
+		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
+	}
 	if networkConfigMap["NodeConfigs"] != nil {
 		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
 			nodeConfigMap := nodeConfigMap.(map[string]interface{})
 			nodeConfig := node.Config{}
+			nodeConfig.GenesisFile = networkGenesisFile
+			nodeConfig.CChainConfigFile = networkCChainConfigFile
 			if nodeConfigMap["Type"] != nil {
 				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
 			}
