@@ -45,7 +45,7 @@ func TestNetworkFromConfig(t *testing.T) {
 }
 
 func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
-    var err error
+	var err error
 	binMap, err := getBinMap()
 	if err != nil {
 		return err
@@ -55,8 +55,8 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 		return err
 	}
 	defer func() {
-        err = net.Stop()
-    }()
+		err = net.Stop()
+	}()
 	if err := awaitNetwork(net); err != nil {
 		return err
 	}
