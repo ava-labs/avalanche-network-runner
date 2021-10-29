@@ -17,8 +17,6 @@ import (
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
 		"",
-		`{}`,
-		`{"NodeConfigs":[]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))

@@ -1,10 +1,6 @@
 package network
 
-import (
-	"errors"
-
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-)
+import "github.com/ava-labs/avalanche-network-runner-local/network/node"
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
@@ -32,15 +28,4 @@ func NewNetwork(Config, map[int]string) (*Network, error) {
 
 type Config struct {
 	NodeConfigs []node.Config // Node config for each node
-}
-
-func (c *Config) Validate() error {
-	switch {
-	case c.NodeConfigs == nil:
-		return errors.New("NodeConfigs field is empty")
-	case len(c.NodeConfigs) == 0:
-		return errors.New("NodeConfigs field must have at least a node")
-	default:
-		return nil
-	}
 }

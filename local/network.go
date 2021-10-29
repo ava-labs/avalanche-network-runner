@@ -45,9 +45,6 @@ type localNetwork struct {
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[NodeType]string) (network.Network, error) {
-	if err := networkConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("config failed validation: %w", err)
-	}
 	network := &localNetwork{
 		nodes:  map[string]*localNode{},
 		nextID: 1,
