@@ -23,7 +23,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
-			err := networkStartWaitStop(networkConfig)
+			err := networkStartWaitStop(t, networkConfig)
 			assert.Error(t, err)
 		}
 	}
@@ -39,12 +39,12 @@ func TestNetworkFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := networkStartWaitStop(networkConfig); err != nil {
+	if err := networkStartWaitStop(t, networkConfig); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func networkStartWaitStop(networkConfig *network.Config) error {
+func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 	binMap, err := getBinMap()
 	if err != nil {
 		return err
@@ -53,10 +53,24 @@ func networkStartWaitStop(networkConfig *network.Config) error {
 	if err != nil {
 		return err
 	}
+	defer net.Stop()
 	if err := awaitNetwork(net); err != nil {
-		net.Stop()
 		return err
 	}
+	nodeIDs := make(map[string]bool)
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		node, err := net.GetNode(nodeConfig.Name)
+		if err != nil {
+			return err
+		}
+		client := node.GetAPIClient()
+		nodeID, err := client.InfoAPI().GetNodeID()
+		if err != nil {
+			return err
+		}
+		nodeIDs[nodeID] = true
+	}
+	assert.Equal(t, len(nodeIDs), len(networkConfig.NodeConfigs), "unique node ids count should be number of nodes in config")
 	if err := net.Stop(); err != nil {
 		return err
 	}
