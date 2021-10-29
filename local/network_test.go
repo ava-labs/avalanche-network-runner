@@ -45,6 +45,7 @@ func TestNetworkFromConfig(t *testing.T) {
 }
 
 func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
+    var err error
 	binMap, err := getBinMap()
 	if err != nil {
 		return err
@@ -53,7 +54,9 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 	if err != nil {
 		return err
 	}
-	defer net.Stop()
+	defer func() {
+        err = net.Stop()
+    }()
 	if err := awaitNetwork(net); err != nil {
 		return err
 	}
@@ -71,10 +74,7 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 		nodeIDs[nodeID] = true
 	}
 	assert.Equal(t, len(nodeIDs), len(networkConfig.NodeConfigs), "unique node ids count should be number of nodes in config")
-	if err := net.Stop(); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func getBinMap() (map[NodeType]string, error) {
