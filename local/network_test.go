@@ -94,8 +94,8 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	}
 	networkConfig := network.Config{}
 	if networkConfigMap["NodeConfigs"] != nil {
-		for _, nodeConfigMapI := range networkConfigMap["NodeConfigs"].([]interface{}) {
-			nodeConfigMap := nodeConfigMapI.(map[string]interface{})
+		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
+			nodeConfigMap := nodeConfigMap.(map[string]interface{})
 			nodeConfig := node.Config{}
 			if nodeConfigMap["Type"] != nil {
 				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
