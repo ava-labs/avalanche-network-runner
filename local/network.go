@@ -2,6 +2,7 @@ package local
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-    "encoding/json"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"

@@ -4,10 +4,10 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
-    "io/ioutil"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -21,21 +21,21 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		`{"NodeConfigs":[]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
-        networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
-	    if err == nil {
-            err := networkStartWaitStop(networkConfig)
-            assert.Error(t, err)
-        }
-    }
+		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
+		if err == nil {
+			err := networkStartWaitStop(networkConfig)
+			assert.Error(t, err)
+		}
+	}
 }
 
 func TestNetworkFromConfig(t *testing.T) {
 	networkConfigPath := "network_config.json"
-    networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-    if err != nil {
-        t.Fatal(err)
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+	if err != nil {
+		t.Fatal(err)
 	}
-    networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
