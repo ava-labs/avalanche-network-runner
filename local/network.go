@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+    "encoding/json"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -120,7 +121,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	}
 	// Write this node's C-Chain file if one is given
 	if len(nodeConfig.CChainConfigFile) != 0 {
-		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFilePath)
+		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
 			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
 		}
@@ -271,4 +272,44 @@ func waitNode(client api.Client) bool {
 		return true
 	}
 	return false
+}
+
+func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
+	var networkConfigMap map[string]interface{}
+	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
+	}
+	networkConfig := network.Config{}
+	if networkConfigMap["NodeConfigs"] != nil {
+		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
+			nodeConfigMap := nodeConfigMap.(map[string]interface{})
+			nodeConfig := node.Config{}
+			if nodeConfigMap["Type"] != nil {
+				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
+			}
+			if nodeConfigMap["Name"] != nil {
+				nodeConfig.Name = nodeConfigMap["Name"].(string)
+			}
+			if nodeConfigMap["StakingKey"] != nil {
+				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
+			}
+			if nodeConfigMap["StakingCert"] != nil {
+				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
+			}
+			if nodeConfigMap["ConfigFile"] != nil {
+				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
+			}
+			if nodeConfigMap["CChainConfigFile"] != nil {
+				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
+			}
+			if nodeConfigMap["GenesisFile"] != nil {
+				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
+			}
+			if nodeConfigMap["LogsToStdout"] != nil {
+				nodeConfig.LogsToStdout = nodeConfigMap["LogsToStdout"].(bool)
+			}
+			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		}
+	}
+	return &networkConfig, nil
 }

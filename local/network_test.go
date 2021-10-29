@@ -2,16 +2,14 @@ package local
 
 import (
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
+    "io/ioutil"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,28 +21,31 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		`{"NodeConfigs":[]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
-		err := networkStartWaitStop([]byte(networkConfigJSON))
-		assert.Error(t, err)
-	}
+        networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
+	    if err == nil {
+            err := networkStartWaitStop(networkConfig)
+            assert.Error(t, err)
+        }
+    }
 }
 
-func TestBasicNetwork(t *testing.T) {
-	networkConfigPath := "network_configs/basic_network.json"
-	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+func TestNetworkFromConfig(t *testing.T) {
+	networkConfigPath := "network_config.json"
+    networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+    if err != nil {
+        t.Fatal(err)
+	}
+    networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := networkStartWaitStop(networkConfigJSON); err != nil {
+	if err := networkStartWaitStop(networkConfig); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func networkStartWaitStop(networkConfigJSON []byte) error {
+func networkStartWaitStop(networkConfig *network.Config) error {
 	binMap, err := getBinMap()
-	if err != nil {
-		return err
-	}
-	networkConfig, err := getNetworkConfig(networkConfigJSON)
 	if err != nil {
 		return err
 	}
@@ -77,54 +78,6 @@ func getBinMap() (map[NodeType]string, error) {
 		BYZANTINE:   byzantinePath,
 	}
 	return binMap, nil
-}
-
-func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't read network config file %s: %s", networkConfigPath, err)
-	}
-	return networkConfigJSON, nil
-}
-
-func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
-	var networkConfigMap map[string]interface{}
-	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
-	}
-	networkConfig := network.Config{}
-	if networkConfigMap["NodeConfigs"] != nil {
-		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
-			nodeConfigMap := nodeConfigMap.(map[string]interface{})
-			nodeConfig := node.Config{}
-			if nodeConfigMap["Type"] != nil {
-				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
-			}
-			if nodeConfigMap["Name"] != nil {
-				nodeConfig.Name = nodeConfigMap["Name"].(string)
-			}
-			if nodeConfigMap["StakingKey"] != nil {
-				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
-			}
-			if nodeConfigMap["StakingCert"] != nil {
-				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
-			}
-			if nodeConfigMap["ConfigFile"] != nil {
-				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
-			}
-			if nodeConfigMap["CChainConfigFile"] != nil {
-				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
-			}
-			if nodeConfigMap["GenesisFile"] != nil {
-				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
-			}
-			if nodeConfigMap["LogsToStdout"] != nil {
-				nodeConfig.LogsToStdout = nodeConfigMap["LogsToStdout"].(bool)
-			}
-			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
-		}
-	}
-	return &networkConfig, nil
 }
 
 func startNetwork(binMap map[NodeType]string, networkConfig *network.Config) (network.Network, error) {
