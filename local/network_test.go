@@ -23,7 +23,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
-			err := networkStartWaitStop(t, networkConfig)
+			_, err := networkStartWait(t, networkConfig)
 			assert.Error(t, err)
 		}
 	}
@@ -39,31 +39,32 @@ func TestNetworkFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := networkStartWaitStop(t, networkConfig); err != nil {
+	net, err := networkStartWait(t, networkConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = net.Stop()
+	}()
+	if err := checkNetwork(t, net, networkConfig); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
-	var err error
+func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Network, error) {
 	binMap, err := getBinMap()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() {
-		err = net.Stop()
-	}()
 	if err := awaitNetwork(net); err != nil {
-		return err
+		_ = net.Stop()
+		return nil, err
 	}
-	if err := checkNetwork(t, net, networkConfig); err != nil {
-		return err
-	}
-	return err
+	return net, nil
 }
 
 func checkNetwork(t *testing.T, net network.Network, networkConfig *network.Config) error {
