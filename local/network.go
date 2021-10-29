@@ -238,6 +238,9 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
 	}
+	if err := node.cmd.Wait(); err != nil {
+		return fmt.Errorf("error waiting node %s to finish: %w", nodeName, err)
+	}
 	return nil
 }
 
