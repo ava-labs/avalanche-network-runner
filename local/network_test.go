@@ -50,7 +50,7 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 	if err != nil {
 		return err
 	}
-	net, err := startNetwork(binMap, networkConfig)
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 	if err != nil {
 		return err
 	}
@@ -60,6 +60,13 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 	if err := awaitNetwork(net); err != nil {
 		return err
 	}
+	if err := checkNetwork(t, net, networkConfig); err != nil {
+		return err
+	}
+	return err
+}
+
+func checkNetwork(t *testing.T, net network.Network, networkConfig *network.Config) error {
 	nodeIDs := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		node, err := net.GetNode(nodeConfig.Name)
@@ -73,8 +80,10 @@ func networkStartWaitStop(t *testing.T, networkConfig *network.Config) error {
 		}
 		nodeIDs[nodeID] = true
 	}
-	assert.Equal(t, len(nodeIDs), len(networkConfig.NodeConfigs), "unique node ids count should be number of nodes in config")
-	return err
+	if len(nodeIDs) != len(networkConfig.NodeConfigs) {
+		return fmt.Errorf("unique node ids count %v should equal number of nodes in config %v", len(nodeIDs), len(networkConfig.NodeConfigs))
+	}
+	return nil
 }
 
 func getBinMap() (map[NodeType]string, error) {
@@ -93,15 +102,6 @@ func getBinMap() (map[NodeType]string, error) {
 		BYZANTINE:   byzantinePath,
 	}
 	return binMap, nil
-}
-
-func startNetwork(binMap map[NodeType]string, networkConfig *network.Config) (network.Network, error) {
-	var net network.Network
-	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
-	if err != nil {
-		return nil, err
-	}
-	return net, nil
 }
 
 func awaitNetwork(net network.Network) error {
