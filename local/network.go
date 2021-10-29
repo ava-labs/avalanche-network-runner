@@ -68,19 +68,18 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 		}
 	}
 	// register signals to kill the network
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT)
-	signal.Notify(signals, syscall.SIGTERM)
+	signalsCh := make(chan os.Signal, 1)
+	signal.Notify(signalsCh, syscall.SIGINT)
+	signal.Notify(signalsCh, syscall.SIGTERM)
 
 	// start up a new go routine to handle attempts to kill the application
 	go func() {
-		for range signals {
-			err := net.Stop()
-			if err != nil {
-				log.Error("error while stopping network: %s", err)
-			}
-			close(signals)
+		sig := <-signalsCh
+		log.Info("got OS signal %s", sig)
+		if err := net.Stop(); err != nil {
+			log.Error("error while stopping network: %s", err)
 		}
+		signal.Stop(signalsCh)
 	}()
 	return net, nil
 }
