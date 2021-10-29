@@ -27,7 +27,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 }
 
-func TestNetworkFromConfig(t *testing.T) {
+func NoTestNetworkFromConfig(t *testing.T) {
 	networkConfigPath := "network_config.json"
 	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
@@ -45,6 +45,40 @@ func TestNetworkFromConfig(t *testing.T) {
 		_ = net.Stop()
 	}()
 	if err := checkNetwork(t, net, networkConfig); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNetworkFromAddNode(t *testing.T) {
+	refNetworkConfigPath := "network_config.json"
+	refNetworkConfigJSON, err := ioutil.ReadFile(refNetworkConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refNetworkConfig, err := ParseNetworkConfigJSON(refNetworkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkConfig := &network.Config{}
+	net, err := networkStartWait(t, networkConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = net.Stop()
+	}()
+	for i := range refNetworkConfig.NodeConfigs {
+		_, err = net.AddNode(refNetworkConfig.NodeConfigs[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, refNetworkConfig.NodeConfigs[i])
+		if err := checkNetwork(t, net, networkConfig); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := awaitNetwork(net); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -67,6 +101,10 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 
 func checkNetwork(t *testing.T, net network.Network, networkConfig *network.Config) error {
 	nodeIDs := make(map[string]bool)
+	nodeNames := net.GetNodesNames()
+	if len(nodeNames) != len(networkConfig.NodeConfigs) {
+		return fmt.Errorf("GetNodesNames() len %v should equal number of nodes in config %v", len(nodeNames), len(networkConfig.NodeConfigs))
+	}
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		node, err := net.GetNode(nodeConfig.Name)
 		if err != nil {

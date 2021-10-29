@@ -206,12 +206,7 @@ func (network *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 func (network *localNetwork) GetNodesNames() []string {
-	// TODO cache this
-	names := make([]string, 0, len(network.nodes))
-	for name := range network.nodes {
-		names = append(names, name)
-	}
-	return names
+	return network.nodeNames
 }
 
 func (network *localNetwork) Stop() error {
