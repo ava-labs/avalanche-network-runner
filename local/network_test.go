@@ -27,7 +27,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 }
 
-func NoTestNetworkFromConfig(t *testing.T) {
+func TestNetworkFromConfig(t *testing.T) {
 	networkConfigPath := "network_config.json"
 	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
