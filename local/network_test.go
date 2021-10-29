@@ -132,7 +132,7 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]boo
 			return err
 		}
 		client := node.GetAPIClient()
-		nodeID, err := client.InfoAPI().GetNodeID()
+		_, err = client.InfoAPI().GetNodeID()
 		if err != nil {
 			return err
 		}
