@@ -122,7 +122,6 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 }
 
 func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedClients []api.Client) error {
-	nodeIDs := make(map[string]bool)
 	nodeNames := net.GetNodesNames()
 	if len(nodeNames) != len(runningNodes) {
 		return fmt.Errorf("GetNodesNames() len %v should equal number of running nodes %v", len(nodeNames), len(runningNodes))
@@ -137,7 +136,6 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]boo
 		if err != nil {
 			return err
 		}
-		nodeIDs[nodeID] = true
 	}
 	for _, client := range removedClients {
 		nodeID, err := client.InfoAPI().GetNodeID()
