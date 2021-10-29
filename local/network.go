@@ -39,6 +39,8 @@ type localNetwork struct {
 	nextID uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
+	// Keep insertion order
+	nodeNames []string
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
@@ -176,6 +178,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		cmd:    cmd,
 		tmpDir: tmpDir,
 	}
+	network.nodeNames = append(network.nodeNames, node.name)
 	network.nodes[node.name] = node
 	return node, nil
 }
@@ -185,7 +188,7 @@ func (network *localNetwork) Ready() (chan struct{}, chan error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 	go func() {
-		for nodeName := range network.nodes {
+		for _, nodeName := range network.nodeNames {
 			b := waitNode(network.nodes[nodeName].client)
 			if !b {
 				errorCh <- fmt.Errorf("timeout waiting for node %v", nodeName)
@@ -230,6 +233,13 @@ func (network *localNetwork) RemoveNode(nodeName string) error {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
 	delete(network.nodes, nodeName)
+	var nodeNames []string
+	for _, networkNodeName := range network.nodeNames {
+		if networkNodeName != nodeName {
+			nodeNames = append(nodeNames, networkNodeName)
+		}
+	}
+	network.nodeNames = nodeNames
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
