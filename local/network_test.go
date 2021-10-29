@@ -54,9 +54,10 @@ func networkStartWaitStop(networkConfig *network.Config) error {
 		return err
 	}
 	if err := awaitNetwork(net); err != nil {
+		net.Stop()
 		return err
 	}
-	if err := stopNetwork(net); err != nil {
+	if err := net.Stop(); err != nil {
 		return err
 	}
 	return nil
@@ -105,8 +106,4 @@ func awaitNetwork(net network.Network) error {
 		return errors.New("network startup timeout")
 	}
 	return nil
-}
-
-func stopNetwork(net network.Network) error {
-	return net.Stop()
 }

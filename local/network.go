@@ -54,6 +54,8 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 	}
 	for i, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := network.AddNode(nodeConfig); err != nil {
+			// release all resources for partially deployed network
+			network.Stop()
 			return nil, fmt.Errorf("couldn't add node %d: %w", i, err)
 		}
 	}
