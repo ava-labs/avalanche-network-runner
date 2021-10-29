@@ -10,7 +10,7 @@ import (
 type Network interface {
 	// Returns a chan that is closed when the network is ready to be used for the first time,
 	// and a chan that indicates if an error happened and the network will not be ready
-	Ready() (chan struct{}, chan error)
+	Ready() chan error
 	// Stop all the nodes
 	Stop() error
 	// Start a new node with the config

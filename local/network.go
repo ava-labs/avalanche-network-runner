@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -29,7 +31,10 @@ var _ network.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
-	log logging.Logger
+	lock sync.RWMutex
+	log  logging.Logger
+	// True if the network has been stopped
+	stopped bool // TODO use this
 	// Node type --> Path to binary
 	binMap map[NodeType]string
 	// For node name generation
@@ -43,27 +48,49 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
+	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
+	// Create the network
 	net := &localNetwork{
 		nodes:  map[string]*localNode{},
 		nextID: 1,
 		binMap: binMap,
 		log:    log,
 	}
+	// Start all the nodes given in [networkConfig]
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.AddNode(nodeConfig); err != nil {
 			return nil, err
 		}
 	}
+	// register signals to kill the network
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT)
+	signal.Notify(signals, syscall.SIGTERM)
+
+	// start up a new go routine to handle attempts to kill the application
+	go func() {
+		for range signals {
+			err := net.Stop()
+			if err != nil {
+				log.Error("error while stopping network: %s", err)
+			}
+			close(signals)
+		}
+	}()
 	return net, nil
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
 func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, net.nextID)
 		net.nextID++
 	}
+
 	// Enforce name uniqueness
 	if _, ok := net.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
@@ -73,11 +100,26 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Logs? Profiles?
-	tmpDir := os.TempDir()
+	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temp dir: %w", err)
+	}
+
+	net.log.Info("adding node %q with files at %s", nodeConfig.Name, tmpDir) // TODO lower log level
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
-	flags := []string{}
+	flags := []string{
+		// Tell the node to put the database in [tmpDir]
+		// TODO allow user to specify database path
+		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
+		// Tell the node to put the log directory in [tmpDir]
+		// TODO allow user to specify log dir path
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, tmpDir),
+		// Tell the node to use the API port
+		// TODO randomly generate this?
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, nodeConfig.APIPort),
+	}
 	configFilePath := filepath.Join(tmpDir, configFileName)
 
 	// Write this node's config file if one is given
@@ -119,6 +161,7 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
+
 	// Path to AvalancheGo binary
 	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
@@ -143,24 +186,45 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	return node, nil
 }
 
-// Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (net *localNetwork) Ready() (chan struct{}, chan error) {
-	readyCh := make(chan struct{})
-	errorCh := make(chan error)
+// Returns a channel that is closed when the network
+// is ready (all the initial nodes are up and healthy.)
+// If an error is sent on this channel, the network
+// is not healthy after the timeout.
+func (net *localNetwork) Ready() chan error {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
+	readyCh := make(chan error, 1)
+	nodes := make([]*localNode, 0, len(net.nodes))
+	for _, node := range net.nodes {
+		nodes = append(nodes, node)
+	}
 	go func() {
-		for nodeName := range net.nodes {
-			b := waitNode(net.nodes[nodeName].client)
-			if !b {
-				errorCh <- fmt.Errorf("timeout waiting for node %v", nodeName)
-			}
-			net.log.Info("node %q is up", nodeName)
+		// TODO use context for early return on shutdown or failure
+		errGr := errgroup.Group{}
+		for _, node := range nodes {
+			node := node
+			errGr.Go(func() error {
+				healthy, _ := node.client.HealthAPI().AwaitHealthy(15, 10*time.Second)
+				if healthy {
+					net.log.Info("node %q became healthy", node.name)
+					return nil
+				}
+				return fmt.Errorf("node %q not healthy after 1 minute", node.name)
+			})
+		}
+		if err := errGr.Wait(); err != nil {
+			readyCh <- err
 		}
 		close(readyCh)
 	}()
-	return readyCh, errorCh
+	return readyCh
 }
 
 func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
 	node, ok := net.nodes[nodeName]
 	if !ok {
 		return nil, fmt.Errorf("node %q not found in network", nodeName)
@@ -169,6 +233,9 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 func (net *localNetwork) GetNodesNames() []string {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
 	// TODO cache this
 	names := make([]string, 0, len(net.nodes))
 	for name := range net.nodes {
@@ -177,17 +244,36 @@ func (net *localNetwork) GetNodesNames() []string {
 	return names
 }
 
+// TODO does this need to return an error?
 func (net *localNetwork) Stop() error {
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
+	if net.stopped {
+		net.log.Warn("stop() called but network was already stopped")
+	}
+	net.stopped = true
+	net.log.Info("stopping network")
 	for nodeName := range net.nodes {
-		if err := net.RemoveNode(nodeName); err != nil {
-			// TODO log error but continue
-			return err
+		if err := net.removeNode(nodeName); err != nil {
+			net.log.Warn("error removing node %q: %s", nodeName, err)
 		}
 	}
+	net.log.Info("done stopping network") // todo remove
 	return nil
 }
 
+// Sends a SIGTERM to the given node and removes it from this network
 func (net *localNetwork) RemoveNode(nodeName string) error {
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
+	return net.removeNode(nodeName)
+}
+
+// Assumes [net.lock] is held
+func (net *localNetwork) removeNode(nodeName string) error {
+	net.log.Debug("removing node %q", nodeName)
 	node, ok := net.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
@@ -217,30 +303,4 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	return nil
-}
-
-// waitNode waits until the node initializes, or timeouts
-func waitNode(client api.Client) bool {
-	info := client.InfoAPI()
-	timeout := 1 * time.Minute
-	pollTime := 10 * time.Second
-	nodeIsUp := false
-	for t0 := time.Now(); !nodeIsUp && time.Since(t0) <= timeout; {
-		nodeIsUp = true
-		if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
-			nodeIsUp = false
-			continue
-		}
-		if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
-			nodeIsUp = false
-			continue
-		}
-		if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
-			nodeIsUp = false
-		}
-		if !nodeIsUp {
-			time.Sleep(pollTime)
-		}
-	}
-	return nodeIsUp
 }

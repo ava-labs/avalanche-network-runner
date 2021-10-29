@@ -91,11 +91,11 @@ func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
 	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
-    for i, nodeConfig := range networkConfig.NodeConfigs {
-        if nodeConfig.Type != nil {
-            networkConfig.NodeConfigs[i].Type = NodeType(nodeConfig.Type.(float64))
-        }
-    }
+	for i, nodeConfig := range networkConfig.NodeConfigs {
+		if nodeConfig.Type != nil {
+			networkConfig.NodeConfigs[i].Type = NodeType(nodeConfig.Type.(float64))
+		}
+	}
 	return &networkConfig, nil
 }
 
@@ -114,12 +114,10 @@ func awaitNetwork(net network.Network) error {
 		time.Sleep(5 * time.Minute)
 		timeoutCh <- struct{}{}
 	}()
-	readyCh, errorCh := net.Ready()
+	readyCh := net.Ready()
 	select {
 	case <-readyCh:
 		break
-	case err := <-errorCh:
-		return err
 	case <-timeoutCh:
 		return errors.New("network startup timeout")
 	}

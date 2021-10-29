@@ -1,0 +1,11 @@
+{
+    "network-id":12345,
+    "bootstrap-ips":"127.0.0.1:9651",
+    "bootstrap-ids":"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
+    "network-peer-list-gossip-frequency":"5s",
+    "network-max-reconnect-delay":"2s",
+    "public-ip":"127.0.0.1",
+    "log-level":"verbo",
+    "staking-port":9657,
+    "health-check-frequency":"10s"
+}
