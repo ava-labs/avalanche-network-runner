@@ -2,7 +2,6 @@ package local
 
 import (
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,44 +18,129 @@ import (
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
 		"",
-		`{}`,
-		`{"NodeConfigs":[]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
-		err := networkStartWaitStop([]byte(networkConfigJSON))
-		assert.Error(t, err)
+		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
+		if err == nil {
+			_, err := networkStartWait(t, networkConfig)
+			assert.Error(t, err)
+		}
 	}
 }
 
-func TestBasicNetwork(t *testing.T) {
-	networkConfigPath := "network_configs/basic_network.json"
-	networkConfigJSON, err := readNetworkConfigJSON(networkConfigPath)
+func TestNetworkFromConfig(t *testing.T) {
+	networkConfigPath := "network_config.json"
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := networkStartWaitStop(networkConfigJSON); err != nil {
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	net, err := networkStartWait(t, networkConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = net.Stop()
+	}()
+	runningNodes := make(map[string]bool)
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		runningNodes[nodeConfig.Name] = true
+	}
+	if err := checkNetwork(t, net, runningNodes, nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func networkStartWaitStop(networkConfigJSON []byte) error {
-	binMap, err := getBinMap()
+func TestNetworkNodeOps(t *testing.T) {
+	networkConfigPath := "network_config.json"
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-	networkConfig, err := getNetworkConfig(networkConfigJSON)
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-	net, err := startNetwork(binMap, networkConfig)
+	net, err := networkStartWait(t, &network.Config{})
 	if err != nil {
-		return err
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = net.Stop()
+	}()
+	runningNodes := make(map[string]bool)
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		_, err = net.AddNode(nodeConfig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		runningNodes[nodeConfig.Name] = true
+		if err := checkNetwork(t, net, runningNodes, nil); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := awaitNetwork(net); err != nil {
-		return err
+		t.Fatal(err)
 	}
-	if err := stopNetwork(net); err != nil {
-		return err
+	var removedClients []api.Client
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		node, err := net.GetNode(nodeConfig.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := node.GetAPIClient()
+		removedClients = append(removedClients, client)
+		err = net.RemoveNode(nodeConfig.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		delete(runningNodes, nodeConfig.Name)
+		if err := checkNetwork(t, net, runningNodes, removedClients); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Network, error) {
+	binMap, err := getBinMap()
+	if err != nil {
+		return nil, err
+	}
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
+	if err != nil {
+		return nil, err
+	}
+	if err := awaitNetwork(net); err != nil {
+		_ = net.Stop()
+		return nil, err
+	}
+	return net, nil
+}
+
+func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedClients []api.Client) error {
+	nodeNames := net.GetNodesNames()
+	if len(nodeNames) != len(runningNodes) {
+		return fmt.Errorf("GetNodesNames() len %v should equal number of running nodes %v", len(nodeNames), len(runningNodes))
+	}
+	for nodeName := range runningNodes {
+		node, err := net.GetNode(nodeName)
+		if err != nil {
+			return err
+		}
+		client := node.GetAPIClient()
+		if _, err := client.InfoAPI().GetNodeID(); err != nil {
+			return err
+		}
+	}
+	for _, client := range removedClients {
+		nodeID, err := client.InfoAPI().GetNodeID()
+		if err == nil {
+			return fmt.Errorf("removed node %v is answering requests", nodeID)
+		}
 	}
 	return nil
 }
@@ -78,36 +163,6 @@ func getBinMap() (map[NodeType]string, error) {
 	return binMap, nil
 }
 
-func readNetworkConfigJSON(networkConfigPath string) ([]byte, error) {
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't read network config file %s: %s", networkConfigPath, err)
-	}
-	return networkConfigJSON, nil
-}
-
-func getNetworkConfig(networkConfigJSON []byte) (*network.Config, error) {
-	networkConfig := network.Config{}
-	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
-	}
-	for i, nodeConfig := range networkConfig.NodeConfigs {
-		if nodeConfig.Type != nil {
-			networkConfig.NodeConfigs[i].Type = NodeType(nodeConfig.Type.(float64))
-		}
-	}
-	return &networkConfig, nil
-}
-
-func startNetwork(binMap map[NodeType]string, networkConfig *network.Config) (network.Network, error) {
-	var net network.Network
-	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
-	if err != nil {
-		return nil, err
-	}
-	return net, nil
-}
-
 func awaitNetwork(net network.Network) error {
 	timeoutCh := make(chan struct{})
 	go func() {
@@ -122,8 +177,4 @@ func awaitNetwork(net network.Network) error {
 		return errors.New("network startup timeout")
 	}
 	return nil
-}
-
-func stopNetwork(net network.Network) error {
-	return net.Stop()
 }

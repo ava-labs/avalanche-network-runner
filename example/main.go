@@ -51,7 +51,6 @@ func main() {
 			networkConfig.NodeConfigs,
 			node.Config{
 				Type:        local.AVALANCHEGO,
-				APIPort:     9650 + 2*uint(i),
 				ConfigFile:  configFile,
 				StakingKey:  stakingKey,
 				StakingCert: stakingCert,

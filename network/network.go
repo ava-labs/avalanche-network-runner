@@ -31,13 +31,13 @@ func NewNetwork(Config, map[int]string) (*Network, error) {
 }
 
 type Config struct {
-	NodeConfigs []node.Config // Node config for each node
+	// Config for each node
+	NodeConfigs []node.Config
 }
 
+// TODO add more validation
 func (c *Config) Validate() error {
 	switch {
-	case c.NodeConfigs == nil:
-		return errors.New("NodeConfigs field is empty")
 	case len(c.NodeConfigs) == 0:
 		return errors.New("NodeConfigs field must have at least a node")
 	default:

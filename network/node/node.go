@@ -13,7 +13,7 @@ type Config struct {
 	ConfigFile       []byte
 	CChainConfigFile []byte
 	GenesisFile      []byte
-	APIPort          uint // Must be the the same as one given in config file
+	LogsToStdout     bool
 }
 
 // An AvalancheGo node

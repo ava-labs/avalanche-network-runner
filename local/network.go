@@ -1,7 +1,10 @@
 package local
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -41,6 +44,8 @@ type localNetwork struct {
 	nextID uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
+	// Keep insertion order
+	nodeNames []string
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
@@ -81,18 +86,18 @@ func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[Nod
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
-	net.lock.Lock()
-	defer net.lock.Unlock()
+func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, net.nextID)
-		net.nextID++
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextID)
+		ln.nextID++
 	}
 
 	// Enforce name uniqueness
-	if _, ok := net.nodes[nodeConfig.Name]; ok {
+	if _, ok := ln.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
@@ -105,7 +110,13 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	net.log.Info("adding node %q with files at %s", nodeConfig.Name, tmpDir) // TODO lower log level
+	// Get free http port
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, fmt.Errorf("could not get free api port: %w", err)
+	}
+	apiPort := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
@@ -115,14 +126,16 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
 		// Tell the node to put the log directory in [tmpDir]
 		// TODO allow user to specify log dir path
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, tmpDir),
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
 		// Tell the node to use the API port
 		// TODO randomly generate this?
-		fmt.Sprintf("--%s=%d", config.HTTPPortKey, nodeConfig.APIPort),
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 	}
-	configFilePath := filepath.Join(tmpDir, configFileName)
+
+	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort) // TODO lower log level
 
 	// Write this node's config file if one is given
+	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
 			return nil, fmt.Errorf("error creating/writing config file: %w", err)
@@ -155,34 +168,52 @@ func (net *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	// Write this node's C-Chain file if one is given
 	if len(nodeConfig.CChainConfigFile) != 0 {
-		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFilePath)
+		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
 			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
-
 	// Path to AvalancheGo binary
 	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
 	}
-	avalancheGoBinaryPath, ok := net.binMap[nodeType]
+	avalancheGoBinaryPath, ok := ln.binMap[nodeType]
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
 	// Start the AvalancheGo node and pass it the flags
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
+	if nodeConfig.LogsToStdout {
+		ch := make(chan string, 1)
+		read, w, err := os.Pipe()
+		if err != nil {
+			return nil, fmt.Errorf("could not get pipe for node stdout redirect: %w", err)
+		}
+		go func() {
+			sc := bufio.NewScanner(read)
+			for sc.Scan() {
+				ln.log.Info(fmt.Sprintf("[%s] %s", nodeConfig.Name, sc.Text()))
+				fmt.Printf("[%s] %s\n", nodeConfig.Name, sc.Text())
+			}
+			close(ch)
+		}()
+		cmd.Stdout = w
+		cmd.Stderr = w
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
-		client: NewAPIClient("localhost", nodeConfig.APIPort, apiTimeout),
+		client: NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
+		tmpDir: tmpDir,
 	}
-	net.nodes[node.name] = node
+	ln.nodeNames = append(ln.nodeNames, node.name)
+	ln.nodes[node.name] = node
 	return node, nil
 }
 
@@ -279,11 +310,21 @@ func (net *localNetwork) removeNode(nodeName string) error {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
 	delete(net.nodes, nodeName)
+	var nodeNames []string
+	for _, networkNodeName := range net.nodeNames {
+		if networkNodeName != nodeName {
+			nodeNames = append(nodeNames, networkNodeName)
+		}
+	}
+	net.nodeNames = nodeNames
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	if err := node.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
+	}
+	if err := node.cmd.Wait(); err != nil {
+		return fmt.Errorf("error waiting node %s to finish: %w", nodeName, err)
 	}
 	return nil
 }
@@ -303,4 +344,55 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	return nil
+}
+
+// TODO do we need this? It isn't used anywhere.
+func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
+	var networkConfigMap map[string]interface{}
+	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
+	}
+	networkConfig := network.Config{}
+	var networkGenesisFile []byte
+	var networkCChainConfigFile []byte
+	if networkConfigMap["GenesisFile"] != nil {
+		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
+	}
+	if networkConfigMap["CChainConfigFile"] != nil {
+		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
+	}
+	if networkConfigMap["NodeConfigs"] != nil {
+		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
+			nodeConfigMap := nodeConfigMap.(map[string]interface{})
+			nodeConfig := node.Config{}
+			nodeConfig.GenesisFile = networkGenesisFile
+			nodeConfig.CChainConfigFile = networkCChainConfigFile
+			if nodeConfigMap["Type"] != nil {
+				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
+			}
+			if nodeConfigMap["Name"] != nil {
+				nodeConfig.Name = nodeConfigMap["Name"].(string)
+			}
+			if nodeConfigMap["StakingKey"] != nil {
+				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
+			}
+			if nodeConfigMap["StakingCert"] != nil {
+				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
+			}
+			if nodeConfigMap["ConfigFile"] != nil {
+				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
+			}
+			if nodeConfigMap["CChainConfigFile"] != nil {
+				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
+			}
+			if nodeConfigMap["GenesisFile"] != nil {
+				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
+			}
+			if nodeConfigMap["LogsToStdout"] != nil {
+				nodeConfig.LogsToStdout = nodeConfigMap["LogsToStdout"].(bool)
+			}
+			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		}
+	}
+	return &networkConfig, nil
 }
