@@ -40,8 +40,12 @@
   {
    "Type": 1,
    "Name": "sixth",
-   "LogsToStdout": true,
-   "ConfigFile": "{\"db-type\":\"memdb\",\"http-host\":\"\",\"log-level\":\"info\",\"network-id\":\"network-0\",\"public-ip\":\"127.0.0.1\",\"snow-quorum-size\":16,\"snow-sample-size\":20,\"staking-enabled\":true,\"tx-fee\":1000000,\"bootstrap-ids\":\"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg,NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ,NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN,NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu,NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5\",\"bootstrap-ips\":\"127.0.0.1:9670,127.0.0.1:9673,127.0.0.1:9661,127.0.0.1:9664,127.0.0.1:9667\",\"chain-config-dir\":\"/tmp/runlocal-413218785\",\"genesis\":\"/tmp/runlocal-413218785/genesis.json\",\"http-port\":9675,\"log-dir\":\"/tmp/runlocal-413218785/logs\",\"staking-ephemeral-cert-enabled\":true,\"staking-port\":9676}"
+   "ConfigFile": "{\"db-type\":\"memdb\",\"http-host\":\"\",\"log-level\":\"info\",\"network-id\":\"network-0\",\"public-ip\":\"127.0.0.1\",\"snow-quorum-size\":16,\"snow-sample-size\":20,\"staking-enabled\":true,\"tx-fee\":1000000,\"bootstrap-ids\":\"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg,NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ,NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN,NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu,NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5\",\"bootstrap-ips\":\"127.0.0.1:9670,127.0.0.1:9673,127.0.0.1:9661,127.0.0.1:9664,127.0.0.1:9667\",\"staking-ephemeral-cert-enabled\":true,\"staking-port\":9676}"
+  },
+  {
+   "Type": 2,
+   "Name": "byzantine",
+   "ConfigFile": "{\"db-type\":\"memdb\",\"http-host\":\"\",\"log-level\":\"info\",\"network-id\":\"network-0\",\"public-ip\":\"127.0.0.1\",\"snow-quorum-size\":16,\"snow-sample-size\":20,\"staking-enabled\":true,\"tx-fee\":1000000,\"bootstrap-ids\":\"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg,NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ,NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN,NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu,NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5\",\"bootstrap-ips\":\"127.0.0.1:9670,127.0.0.1:9673,127.0.0.1:9661,127.0.0.1:9664,127.0.0.1:9667\",\"staking-ephemeral-cert-enabled\":true,\"staking-port\":9686,\"byzantine-behavior\":\"random-app-msgs\",\"byzantine-http-port\":9677}"
   }
  ]
 }
