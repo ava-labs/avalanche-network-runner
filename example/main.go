@@ -7,7 +7,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -29,6 +28,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Read node configs, staking keys, staking certs
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
 		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs/node%d", goPath, i)
@@ -58,6 +58,9 @@ func main() {
 		)
 	}
 
+	// Uncomment this line to print the first node's logs to stdout
+	// networkConfig.NodeConfigs[0].Stdout = os.Stdout
+
 	// Create the network
 	nw, err := local.NewNetwork(
 		log,
@@ -78,18 +81,7 @@ func main() {
 		log.Fatal("network never became healthy: %s\n", err)
 		handleError(log, nw)
 	}
-	nodeNames := nw.GetNodesNames()
-	node, err := nw.GetNode(nodeNames[0])
-	if err != nil {
-		log.Fatal("%s", err)
-		handleError(log, nw)
-	}
-	nodeID, err := node.GetNodeID()
-	if err != nil {
-		log.Fatal("%s", err)
-		handleError(log, nw)
-	}
-	log.Info("this network has %d nodes and the first node's ID is %s\n", len(nodeNames), nodeID.PrefixedString(constants.NodeIDPrefix))
+	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
 	if err := nw.Stop(); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}

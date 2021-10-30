@@ -1,7 +1,6 @@
 package local
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +27,8 @@ const (
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
+	healthCheckFreq       = 5 * time.Second
+	healthyTimeout        = 100 * time.Second
 )
 
 var errStopped = errors.New("network stopped")
@@ -66,26 +67,39 @@ func NewNetwork(
 		nodeTypeToBinaryPath: nodeTypeToBinaryPath,
 		log:                  log,
 	}
-	// Start all the nodes given in [networkConfig]
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if _, err := net.AddNode(nodeConfig); err != nil {
-			return nil, err
-		}
-	}
+
 	// register signals to kill the network
 	signalsCh := make(chan os.Signal, 1)
 	signal.Notify(signalsCh, syscall.SIGINT)
 	signal.Notify(signalsCh, syscall.SIGTERM)
-
 	// start up a new go routine to handle attempts to kill the application
 	go func() {
-		sig := <-signalsCh
-		log.Info("got OS signal %s", sig)
-		if err := net.Stop(); err != nil {
-			log.Error("error while stopping network: %s", err)
+		select {
+		// If we get a SIGINT or SIGTERM, stop the network.
+		case sig := <-signalsCh:
+			log.Info("got OS signal %s", sig)
+			if err := net.Stop(); err != nil {
+				log.Warn("error while stopping network: %s", err)
+			}
+		// If the network is stopped, end this go routine.
+		case <-net.closedOnStopCh:
 		}
-		signal.Stop(signalsCh)
 	}()
+
+	// Start all the nodes given in [networkConfig]
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if _, err := net.addNode(nodeConfig); err != nil {
+			if err := net.stop(); err != nil {
+				// Clean up nodes already created
+				log.Warn("error while stopping network: %s", err)
+			}
+			return nil, err
+		}
+	}
+
 	return net, nil
 }
 
@@ -94,6 +108,11 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	return ln.addNode(nodeConfig)
+}
+
+// Assumes [ln.lock] is held
+func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
@@ -114,10 +133,10 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// Get free http port
+	// Get a free port
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
-		return nil, fmt.Errorf("could not get free api port: %w", err)
+		return nil, fmt.Errorf("could not get free port: %w", err)
 	}
 	apiPort := l.Addr().(*net.TCPAddr).Port
 	_ = l.Close()
@@ -136,7 +155,8 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 	}
 
-	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort) // TODO lower log level
+	// TODO lower log level
+	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort)
 
 	// Write this node's config file if one is given
 	configFilePath := filepath.Join(tmpDir, configFileName)
@@ -146,6 +166,7 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
+	// TODO reduce repeated code below
 	// Write this node's staking key file if one is given
 	if len(nodeConfig.StakingKey) != 0 {
 		stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
@@ -187,24 +208,14 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
-	// Start the AvalancheGo node and pass it the flags
+	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
-	if nodeConfig.LogsToStdout {
-		ch := make(chan string, 1)
-		read, w, err := os.Pipe()
-		if err != nil {
-			return nil, fmt.Errorf("could not get pipe for node stdout redirect: %w", err)
-		}
-		go func() {
-			sc := bufio.NewScanner(read)
-			for sc.Scan() {
-				ln.log.Info(fmt.Sprintf("[%s] %s", nodeConfig.Name, sc.Text()))
-				fmt.Printf("[%s] %s\n", nodeConfig.Name, sc.Text())
-			}
-			close(ch)
-		}()
-		cmd.Stdout = w
-		cmd.Stderr = w
+	// Optionally re-direct stdout and stderr
+	if nodeConfig.Stdout != nil {
+		cmd.Stdout = nodeConfig.Stdout
+	}
+	if nodeConfig.Stderr != nil {
+		cmd.Stderr = nodeConfig.Stderr
 	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
@@ -240,7 +251,7 @@ func (net *localNetwork) Ready() chan error {
 			errGr.Go(func() error {
 				// Every 5 seconds, query node for health status.
 				// Do this up to 20 times.
-				for i := 0; i < 20; i++ {
+				for i := 0; i < int(healthyTimeout/healthCheckFreq); i++ {
 					select {
 					case _, open := <-net.closedOnStopCh:
 						if !open {
@@ -248,7 +259,7 @@ func (net *localNetwork) Ready() chan error {
 						}
 					case <-ctx.Done():
 						return nil
-					case <-time.After(5 * time.Second):
+					case <-time.After(healthCheckFreq):
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
@@ -294,25 +305,31 @@ func (net *localNetwork) GetNodesNames() []string {
 
 // TODO does this need to return an error?
 func (net *localNetwork) Stop() error {
-	net.log.Info("stopping network")
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
+	return net.stop()
+}
+
+// Assumes [net.lock] is held
+func (net *localNetwork) stop() error {
 	select {
+	// See if network was already closed
 	case _, open := <-net.closedOnStopCh:
 		if !open {
-			net.log.Warn("stop() called but network was already stopped")
+			net.log.Debug("stop() called multiple times")
 			return nil
 		}
 	default:
 		close(net.closedOnStopCh)
 	}
+	net.log.Info("stopping network")
 	for nodeName := range net.nodes {
 		if err := net.removeNode(nodeName); err != nil {
 			net.log.Warn("error removing node %q: %s", nodeName, err)
 		}
 	}
-	net.log.Info("done stopping network") // todo remove
+	net.log.Info("done stopping network") // todo remove / lower level
 	return nil
 }
 
