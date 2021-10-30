@@ -2,7 +2,8 @@ package local
 
 import (
 	"bufio"
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -29,6 +30,8 @@ const (
 	apiTimeout            = 5 * time.Second
 )
 
+var errStopped = errors.New("network stopped")
+
 // interface compliance
 var _ network.Network = (*localNetwork)(nil)
 
@@ -36,30 +39,32 @@ var _ network.Network = (*localNetwork)(nil)
 type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
-	// True if the network has been stopped
-	stopped bool // TODO use this
+	// Closed when network starts shutting down
+	closedOnStopCh chan struct{}
 	// Node type --> Path to binary
-	binMap map[NodeType]string
+	nodeTypeToBinaryPath map[NodeType]string
 	// For node name generation
-	nextID uint64
+	nextNodeSuffix uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
-	// Keep insertion order
-	nodeNames []string
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[NodeType]string) (network.Network, error) {
+func NewNetwork(
+	log logging.Logger,
+	networkConfig network.Config,
+	nodeTypeToBinaryPath map[NodeType]string,
+) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 	// Create the network
 	net := &localNetwork{
-		nodes:  map[string]*localNode{},
-		nextID: 1,
-		binMap: binMap,
-		log:    log,
+		nodes:                map[string]*localNode{},
+		closedOnStopCh:       make(chan struct{}),
+		nodeTypeToBinaryPath: nodeTypeToBinaryPath,
+		log:                  log,
 	}
 	// Start all the nodes given in [networkConfig]
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -91,8 +96,8 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextID)
-		ln.nextID++
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
+		ln.nextNodeSuffix++
 	}
 
 	// Enforce name uniqueness
@@ -178,7 +183,7 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
 	}
-	avalancheGoBinaryPath, ok := ln.binMap[nodeType]
+	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[nodeType]
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
@@ -211,7 +216,6 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		cmd:    cmd,
 		tmpDir: tmpDir,
 	}
-	ln.nodeNames = append(ln.nodeNames, node.name)
 	ln.nodes[node.name] = node
 	return node, nil
 }
@@ -230,19 +234,32 @@ func (net *localNetwork) Ready() chan error {
 		nodes = append(nodes, node)
 	}
 	go func() {
-		// TODO use context for early return on shutdown or failure
-		errGr := errgroup.Group{}
+		errGr, ctx := errgroup.WithContext(context.Background())
 		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
-				healthy, _ := node.client.HealthAPI().AwaitHealthy(15, 10*time.Second)
-				if healthy {
-					net.log.Info("node %q became healthy", node.name)
-					return nil
+				// Every 5 seconds, query node for health status.
+				// Do this up to 20 times.
+				for i := 0; i < 20; i++ {
+					select {
+					case _, open := <-net.closedOnStopCh:
+						if !open {
+							return errStopped
+						}
+					case <-ctx.Done():
+						return nil
+					case <-time.After(5 * time.Second):
+					}
+					health, err := node.client.HealthAPI().Health()
+					if err == nil && health.Healthy {
+						net.log.Info("node %q became healthy", node.name)
+						return nil
+					}
 				}
-				return fmt.Errorf("node %q not healthy after 1 minute", node.name)
+				return fmt.Errorf("node %q timed out on becoming healthy", node.name)
 			})
 		}
+		// Wait until all nodes are ready or timeout
 		if err := errGr.Wait(); err != nil {
 			readyCh <- err
 		}
@@ -266,24 +283,30 @@ func (net *localNetwork) GetNodesNames() []string {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
-	// TODO cache this
-	names := make([]string, 0, len(net.nodes))
+	names := make([]string, len(net.nodes))
+	i := 0
 	for name := range net.nodes {
-		names = append(names, name)
+		names[i] = name
+		i++
 	}
 	return names
 }
 
 // TODO does this need to return an error?
 func (net *localNetwork) Stop() error {
+	net.log.Info("stopping network")
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	if net.stopped {
-		net.log.Warn("stop() called but network was already stopped")
+	select {
+	case _, open := <-net.closedOnStopCh:
+		if !open {
+			net.log.Warn("stop() called but network was already stopped")
+			return nil
+		}
+	default:
+		close(net.closedOnStopCh)
 	}
-	net.stopped = true
-	net.log.Info("stopping network")
 	for nodeName := range net.nodes {
 		if err := net.removeNode(nodeName); err != nil {
 			net.log.Warn("error removing node %q: %s", nodeName, err)
@@ -309,13 +332,6 @@ func (net *localNetwork) removeNode(nodeName string) error {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
 	delete(net.nodes, nodeName)
-	var nodeNames []string
-	for _, networkNodeName := range net.nodeNames {
-		if networkNodeName != nodeName {
-			nodeNames = append(nodeNames, networkNodeName)
-		}
-	}
-	net.nodeNames = nodeNames
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -343,55 +359,4 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	return nil
-}
-
-// TODO do we need this? It isn't used anywhere.
-func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
-	var networkConfigMap map[string]interface{}
-	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
-	}
-	networkConfig := network.Config{}
-	var networkGenesisFile []byte
-	var networkCChainConfigFile []byte
-	if networkConfigMap["GenesisFile"] != nil {
-		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
-	}
-	if networkConfigMap["CChainConfigFile"] != nil {
-		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
-	}
-	if networkConfigMap["NodeConfigs"] != nil {
-		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
-			nodeConfigMap := nodeConfigMap.(map[string]interface{})
-			nodeConfig := node.Config{}
-			nodeConfig.GenesisFile = networkGenesisFile
-			nodeConfig.CChainConfigFile = networkCChainConfigFile
-			if nodeConfigMap["Type"] != nil {
-				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
-			}
-			if nodeConfigMap["Name"] != nil {
-				nodeConfig.Name = nodeConfigMap["Name"].(string)
-			}
-			if nodeConfigMap["StakingKey"] != nil {
-				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
-			}
-			if nodeConfigMap["StakingCert"] != nil {
-				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
-			}
-			if nodeConfigMap["ConfigFile"] != nil {
-				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
-			}
-			if nodeConfigMap["CChainConfigFile"] != nil {
-				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
-			}
-			if nodeConfigMap["GenesisFile"] != nil {
-				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
-			}
-			if nodeConfigMap["LogsToStdout"] != nil {
-				nodeConfig.LogsToStdout = nodeConfigMap["LogsToStdout"].(bool)
-			}
-			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
-		}
-	}
-	return &networkConfig, nil
 }

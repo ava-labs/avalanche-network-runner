@@ -73,8 +73,8 @@ func main() {
 	// Wait until the nodes in the network are ready
 	readyCh := nw.Ready()
 	fmt.Println("waiting for all nodes to report healthy...")
-	err, ok := <-readyCh
-	if ok {
+	err, gotErr := <-readyCh
+	if gotErr {
 		log.Fatal("network never became healthy: %s\n", err)
 		handleError(log, nw)
 	}
