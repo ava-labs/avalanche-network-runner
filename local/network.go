@@ -2,6 +2,8 @@ package local
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -9,7 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -17,6 +19,10 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
 )
@@ -49,6 +55,24 @@ type localNetwork struct {
 	nextNodeSuffix uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
+	// List of nodes that new nodes will bootstrap from.
+	bootstrapIPs, bootstrapIDs beaconList
+}
+
+type beaconList []string
+
+func (l beaconList) String() string {
+	if len(l) == 0 {
+		return ""
+	}
+	s := strings.Builder{}
+	for i := 0; i < len(l); i++ {
+		if i != 0 {
+			_, _ = s.WriteString(",")
+		}
+		_, _ = s.WriteString(l[i])
+	}
+	return s.String()
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
@@ -91,25 +115,19 @@ func NewNetwork(
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	for i, nodeConfig := range networkConfig.NodeConfigs {
+	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
-			var nodeName string
-			if len(nodeConfig.Name) > 0 {
-				nodeName = nodeConfig.Name
-			} else {
-				nodeName = strconv.Itoa(i)
-			}
 			if err := net.stop(); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
-			return nil, fmt.Errorf("errored on adding node %s: %s", nodeName, err)
+			return nil, err
 		}
 	}
 	return net, nil
 }
 
-// AddNode prepares the files needed in filesystem by avalanchego, and executes it
+// See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -117,7 +135,8 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	return ln.addNode(nodeConfig)
 }
 
-// Assumes [ln.lock] is held
+// Assumes [ln.lock] is held.
+// TODO make this method shorter
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
@@ -130,6 +149,53 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
+	// If no staking key/cert is given, create them.
+	// Note that len(nodeConfig.StakingKey) == 0 implies len(nodeConfig.StakingKey) == 0.
+	if len(nodeConfig.StakingKey) == 0 {
+		var err error
+		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("error creating staking key/cert: %w", err)
+		}
+	}
+
+	// Get a free port to use as the P2P port
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, fmt.Errorf("could not get free port: %w", err)
+	}
+	p2pPort := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
+
+	// Get a free port for the API port
+	l, err = net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, fmt.Errorf("could not get free port: %w", err)
+	}
+	apiPort := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
+
+	// If this node is a beacon, add its IP/ID to the beacon lists
+	if nodeConfig.IsBeacon {
+		// Parse the node ID
+		// TODO add helper in AvalancheGo for this?
+		cert, err := tls.X509KeyPair(nodeConfig.StakingCert, nodeConfig.StakingKey)
+		if err != nil {
+			return nil, err
+		}
+		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, err
+		}
+		nodeID := ids.ShortID(
+			hashing.ComputeHash160Array(
+				hashing.ComputeHash256(cert.Leaf.Raw),
+			),
+		)
+		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
+		ln.bootstrapIPs = append(ln.bootstrapIPs, fmt.Sprintf("127.0.0.1:%d", p2pPort))
+	}
+
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
@@ -139,28 +205,35 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// Get a free port
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free port: %w", err)
-	}
-	apiPort := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
-
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
 	flags := []string{
 		// Tell the node to put the database in [tmpDir]
-		// TODO allow user to specify database path
 		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
 		// Tell the node to put the log directory in [tmpDir]
-		// TODO allow user to specify log dir path
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
-		// Tell the node to use the API port
+		// Tell the node to use this API port
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
+		// Tell the node to use this P2P (staking) port
+		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
+		// Tell the node which nodes to bootstrap from
+		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
+		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
 
-	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort)
+	ln.log.Info("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
+
+	// Write this node's staking key/cert.
+	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
+	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
+		return nil, fmt.Errorf("error writing staking key: %w", err)
+	}
+	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
+	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
+	if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
+		return nil, fmt.Errorf("error writing staking cert: %w", err)
+	}
+	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
 	// Write this node's config file if one is given
 	configFilePath := filepath.Join(tmpDir, configFileName)
@@ -170,23 +243,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
-	// TODO reduce repeated code below
-	// Write this node's staking key file if one is given
-	if len(nodeConfig.StakingKey) != 0 {
-		stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
-		if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
-			return nil, fmt.Errorf("error creating/writing staking key: %w", err)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
-	}
-	// Write this node's staking cert file if one is given
-	if len(nodeConfig.StakingCert) != 0 {
-		stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
-		if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
-			return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
-	}
+
 	// Write this node's genesis file if one is given
 	if len(nodeConfig.GenesisFile) != 0 {
 		genesisFilePath := filepath.Join(tmpDir, genesisFileName)
@@ -195,6 +252,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
 	}
+
 	// Write this node's C-Chain file if one is given
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
@@ -203,6 +261,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
+
 	// Path to AvalancheGo binary
 	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
@@ -212,6 +271,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
+
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
@@ -221,9 +281,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.Stderr != nil {
 		cmd.Stderr = nodeConfig.Stderr
 	}
+	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log levelq
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
+
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
