@@ -121,7 +121,7 @@ func NewNetwork(
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
-			return nil, err
+			return nil, fmt.Errorf("errored on adding node %s: %s", nodeConfig.Name, err)
 		}
 	}
 	return net, nil
