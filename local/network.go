@@ -1,22 +1,24 @@
 package local
 
 import (
-	"bufio"
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -26,51 +28,105 @@ const (
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
+	healthCheckFreq       = 5 * time.Second
+	healthyTimeout        = 100 * time.Second
 )
+
+var errStopped = errors.New("network stopped")
 
 // interface compliance
 var _ network.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
-	log logging.Logger
+	lock sync.RWMutex
+	log  logging.Logger
+	// Closed when network starts shutting down
+	closedOnStopCh chan struct{}
 	// Node type --> Path to binary
-	binMap map[NodeType]string
+	nodeTypeToBinaryPath map[NodeType]string
 	// For node name generation
-	nextID uint64
+	nextNodeSuffix uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
-	// Keep insertion order
-	nodeNames []string
 }
 
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
-func NewNetwork(log logging.Logger, networkConfig network.Config, binMap map[NodeType]string) (network.Network, error) {
-	network := &localNetwork{
-		nodes:  map[string]*localNode{},
-		nextID: 1,
-		binMap: binMap,
-		log:    log,
+func NewNetwork(
+	log logging.Logger,
+	networkConfig network.Config,
+	nodeTypeToBinaryPath map[NodeType]string,
+) (network.Network, error) {
+	if err := networkConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
+	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
+	// Create the network
+	net := &localNetwork{
+		nodes:                map[string]*localNode{},
+		closedOnStopCh:       make(chan struct{}),
+		nodeTypeToBinaryPath: nodeTypeToBinaryPath,
+		log:                  log,
+	}
+
+	// register signals to kill the network
+	signalsCh := make(chan os.Signal, 1)
+	signal.Notify(signalsCh, syscall.SIGINT)
+	signal.Notify(signalsCh, syscall.SIGTERM)
+	// start up a new go routine to handle attempts to kill the application
+	go func() {
+		select {
+		// If we get a SIGINT or SIGTERM, stop the network.
+		case sig := <-signalsCh:
+			log.Info("got OS signal %s", sig)
+			if err := net.Stop(); err != nil {
+				log.Warn("error while stopping network: %s", err)
+			}
+		// If the network is stopped, end this go routine.
+		case <-net.closedOnStopCh:
+		}
+	}()
+
+	// Start all the nodes given in [networkConfig]
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
 	for i, nodeConfig := range networkConfig.NodeConfigs {
-		if _, err := network.AddNode(nodeConfig); err != nil {
-			// release all resources for partially deployed network
-			_ = network.Stop()
-			return nil, fmt.Errorf("couldn't add node %d: %w", i, err)
+		if _, err := net.addNode(nodeConfig); err != nil {
+			var nodeName string
+			if len(nodeConfig.Name) > 0 {
+				nodeName = nodeConfig.Name
+			} else {
+				nodeName = strconv.Itoa(i)
+			}
+			if err := net.stop(); err != nil {
+				// Clean up nodes already created
+				log.Warn("error while stopping network: %s", err)
+			}
+			return nil, fmt.Errorf("errored on adding node %s: %s", nodeName, err)
 		}
 	}
-	return network, nil
+	return net, nil
 }
 
 // AddNode prepares the files needed in filesystem by avalanchego, and executes it
-func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.addNode(nodeConfig)
+}
+
+// Assumes [ln.lock] is held
+func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, network.nextID)
-		network.nextID++
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
+		ln.nextNodeSuffix++
 	}
+
 	// Enforce name uniqueness
-	if _, ok := network.nodes[nodeConfig.Name]; ok {
+	if _, ok := ln.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
@@ -78,17 +134,34 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
-	tmpDir := filepath.Join(os.TempDir(), "networkrunner", nodeConfig.Name)
-	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
-		return nil, fmt.Errorf("couldn't create tmp dir %s", tmpDir)
+	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
+
+	// Get a free port
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, fmt.Errorf("could not get free port: %w", err)
+	}
+	apiPort := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
-	flags := []string{}
+	flags := []string{
+		// Tell the node to put the database in [tmpDir]
+		// TODO allow user to specify database path
+		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
+		// Tell the node to put the log directory in [tmpDir]
+		// TODO allow user to specify log dir path
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
+		// Tell the node to use the API port
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
+	}
 
-	// Logs
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")))
+	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort)
+
 	// Write this node's config file if one is given
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
@@ -97,6 +170,7 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
+	// TODO reduce repeated code below
 	// Write this node's staking key file if one is given
 	if len(nodeConfig.StakingKey) != 0 {
 		stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
@@ -129,42 +203,23 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
-	// Get free http port
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free api port: %w", err)
-	}
-	httpPort := l.Addr().(*net.TCPAddr).Port
-	l.Close()
-	flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, httpPort))
-	network.log.Info(fmt.Sprintf("assigning api port %d to nohe %s\n", httpPort, nodeConfig.Name))
 	// Path to AvalancheGo binary
 	nodeType, ok := nodeConfig.Type.(NodeType)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
 	}
-	avalancheGoBinaryPath, ok := network.binMap[nodeType]
+	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[nodeType]
 	if !ok {
 		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
 	}
-	// Start the AvalancheGo node and pass it the flags
+	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
-	if nodeConfig.LogsToStdout {
-		ch := make(chan string, 1)
-		read, w, err := os.Pipe()
-		if err != nil {
-			return nil, fmt.Errorf("could not get pipe for node stdout redirect: %w", err)
-		}
-		go func() {
-			sc := bufio.NewScanner(read)
-			for sc.Scan() {
-				network.log.Info(fmt.Sprintf("[%s] %s", nodeConfig.Name, sc.Text()))
-				fmt.Printf("[%s] %s\n", nodeConfig.Name, sc.Text())
-			}
-			close(ch)
-		}()
-		cmd.Stdout = w
-		cmd.Stderr = w
+	// Optionally re-direct stdout and stderr
+	if nodeConfig.Stdout != nil {
+		cmd.Stdout = nodeConfig.Stdout
+	}
+	if nodeConfig.Stderr != nil {
+		cmd.Stderr = nodeConfig.Stderr
 	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
@@ -172,67 +227,125 @@ func (network *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
-		client: NewAPIClient("localhost", uint(httpPort), apiTimeout),
+		client: NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
 		tmpDir: tmpDir,
 	}
-	network.nodeNames = append(network.nodeNames, node.name)
-	network.nodes[node.name] = node
+	ln.nodes[node.name] = node
 	return node, nil
 }
 
-// Ready closes readyCh is the network has initialized, or send error indicating network will not initialize
-func (network *localNetwork) Ready() (chan struct{}, chan error) {
-	readyCh := make(chan struct{})
-	errorCh := make(chan error)
+// See network.Network
+func (net *localNetwork) Healthy() chan error {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
+	healthyChan := make(chan error, 1)
+	nodes := make([]*localNode, 0, len(net.nodes))
+	for _, node := range net.nodes {
+		nodes = append(nodes, node)
+	}
 	go func() {
-		for _, nodeName := range network.nodeNames {
-			b := waitNode(network.nodes[nodeName].client)
-			if !b {
-				errorCh <- fmt.Errorf("timeout waiting for node %v", nodeName)
-			}
-			network.log.Info("node %q is up", nodeName)
+		errGr, ctx := errgroup.WithContext(context.Background())
+		for _, node := range nodes {
+			node := node
+			errGr.Go(func() error {
+				// Every 5 seconds, query node for health status.
+				// Do this up to 20 times.
+				for i := 0; i < int(healthyTimeout/healthCheckFreq); i++ {
+					select {
+					case <-net.closedOnStopCh:
+						return errStopped
+					case <-ctx.Done():
+						return nil
+					case <-time.After(healthCheckFreq):
+					}
+					health, err := node.client.HealthAPI().Health()
+					if err == nil && health.Healthy {
+						net.log.Info("node %q became healthy", node.name)
+						return nil
+					}
+				}
+				return fmt.Errorf("node %q timed out on becoming healthy", node.name)
+			})
 		}
-		close(readyCh)
+		// Wait until all nodes are ready or timeout
+		if err := errGr.Wait(); err != nil {
+			healthyChan <- err
+		}
+		close(healthyChan)
 	}()
-	return readyCh, errorCh
+	return healthyChan
 }
 
-func (network *localNetwork) GetNode(nodeName string) (node.Node, error) {
-	node, ok := network.nodes[nodeName]
+func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
+	node, ok := net.nodes[nodeName]
 	if !ok {
 		return nil, fmt.Errorf("node %q not found in network", nodeName)
 	}
 	return node, nil
 }
 
-func (network *localNetwork) GetNodesNames() []string {
-	return network.nodeNames
+func (net *localNetwork) GetNodesNames() []string {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
+	names := make([]string, len(net.nodes))
+	i := 0
+	for name := range net.nodes {
+		names[i] = name
+		i++
+	}
+	return names
 }
 
-func (network *localNetwork) Stop() error {
-	var cumErrMsg string
-	for nodeName := range network.nodes {
-		if err := network.RemoveNode(nodeName); err != nil {
-			cumErrMsg = fmt.Sprintf("couldn't remove node %s: %s. %s", nodeName, err, cumErrMsg)
+// TODO does this need to return an error?
+func (net *localNetwork) Stop() error {
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
+	return net.stop()
+}
+
+// Assumes [net.lock] is held
+func (net *localNetwork) stop() error {
+	select {
+	// See if network was already closed
+	case <-net.closedOnStopCh:
+		net.log.Debug("stop() called multiple times")
+		return nil
+	default:
+		close(net.closedOnStopCh)
+	}
+	net.log.Info("stopping network")
+	for nodeName := range net.nodes {
+		if err := net.removeNode(nodeName); err != nil {
+			net.log.Warn("error removing node %q: %s", nodeName, err)
 		}
 	}
-	return errors.New(cumErrMsg)
+	net.log.Info("done stopping network") // todo remove / lower level
+	return nil
 }
 
-func (network *localNetwork) RemoveNode(nodeName string) error {
-	node, ok := network.nodes[nodeName]
+// Sends a SIGTERM to the given node and removes it from this network
+func (net *localNetwork) RemoveNode(nodeName string) error {
+	net.lock.Lock()
+	defer net.lock.Unlock()
+
+	return net.removeNode(nodeName)
+}
+
+// Assumes [net.lock] is held
+func (net *localNetwork) removeNode(nodeName string) error {
+	net.log.Debug("removing node %q", nodeName)
+	node, ok := net.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
-	delete(network.nodes, nodeName)
-	var nodeNames []string
-	for _, networkNodeName := range network.nodeNames {
-		if networkNodeName != nodeName {
-			nodeNames = append(nodeNames, networkNodeName)
-		}
-	}
-	network.nodeNames = nodeNames
+	delete(net.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -260,74 +373,4 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	return nil
-}
-
-// waitNode waits until the node initializes, or timeouts
-func waitNode(client api.Client) bool {
-	info := client.InfoAPI()
-	timeout := 1 * time.Minute
-	pollTime := 10 * time.Second
-	for t0 := time.Now(); time.Since(t0) <= timeout; time.Sleep(pollTime) {
-		if bootstrapped, err := info.IsBootstrapped("P"); err != nil || !bootstrapped {
-			continue
-		}
-		if bootstrapped, err := info.IsBootstrapped("C"); err != nil || !bootstrapped {
-			continue
-		}
-		if bootstrapped, err := info.IsBootstrapped("X"); err != nil || !bootstrapped {
-			continue
-		}
-		return true
-	}
-	return false
-}
-
-func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
-	var networkConfigMap map[string]interface{}
-	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
-	}
-	networkConfig := network.Config{}
-	var networkGenesisFile []byte
-	var networkCChainConfigFile []byte
-	if networkConfigMap["GenesisFile"] != nil {
-		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
-	}
-	if networkConfigMap["CChainConfigFile"] != nil {
-		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
-	}
-	if networkConfigMap["NodeConfigs"] != nil {
-		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
-			nodeConfigMap := nodeConfigMap.(map[string]interface{})
-			nodeConfig := node.Config{}
-			nodeConfig.GenesisFile = networkGenesisFile
-			nodeConfig.CChainConfigFile = networkCChainConfigFile
-			if nodeConfigMap["Type"] != nil {
-				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
-			}
-			if nodeConfigMap["Name"] != nil {
-				nodeConfig.Name = nodeConfigMap["Name"].(string)
-			}
-			if nodeConfigMap["StakingKey"] != nil {
-				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
-			}
-			if nodeConfigMap["StakingCert"] != nil {
-				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
-			}
-			if nodeConfigMap["ConfigFile"] != nil {
-				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
-			}
-			if nodeConfigMap["CChainConfigFile"] != nil {
-				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
-			}
-			if nodeConfigMap["GenesisFile"] != nil {
-				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
-			}
-			if nodeConfigMap["LogsToStdout"] != nil {
-				nodeConfig.LogsToStdout = nodeConfigMap["LogsToStdout"].(bool)
-			}
-			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
-		}
-	}
-	return &networkConfig, nil
 }

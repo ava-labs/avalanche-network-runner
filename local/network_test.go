@@ -2,6 +2,7 @@ package local
 
 import (
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
@@ -132,8 +134,7 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]boo
 			return err
 		}
 		client := node.GetAPIClient()
-		_, err = client.InfoAPI().GetNodeID()
-		if err != nil {
+		if _, err := client.InfoAPI().GetNodeID(); err != nil {
 			return err
 		}
 	}
@@ -170,14 +171,60 @@ func awaitNetwork(net network.Network) error {
 		time.Sleep(5 * time.Minute)
 		timeoutCh <- struct{}{}
 	}()
-	readyCh, errorCh := net.Ready()
+	healthyCh := net.Healthy()
 	select {
-	case <-readyCh:
+	case <-healthyCh:
 		break
-	case err := <-errorCh:
-		return err
 	case <-timeoutCh:
 		return errors.New("network startup timeout")
 	}
 	return nil
+}
+
+// TODO do we need this? It isn't used anywhere.
+func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
+	var networkConfigMap map[string]interface{}
+	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
+	}
+	networkConfig := network.Config{}
+	var networkGenesisFile []byte
+	var networkCChainConfigFile []byte
+	if networkConfigMap["GenesisFile"] != nil {
+		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
+	}
+	if networkConfigMap["CChainConfigFile"] != nil {
+		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
+	}
+	if networkConfigMap["NodeConfigs"] != nil {
+		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
+			nodeConfigMap := nodeConfigMap.(map[string]interface{})
+			nodeConfig := node.Config{}
+			nodeConfig.GenesisFile = networkGenesisFile
+			nodeConfig.CChainConfigFile = networkCChainConfigFile
+			if nodeConfigMap["Type"] != nil {
+				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
+			}
+			if nodeConfigMap["Name"] != nil {
+				nodeConfig.Name = nodeConfigMap["Name"].(string)
+			}
+			if nodeConfigMap["StakingKey"] != nil {
+				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
+			}
+			if nodeConfigMap["StakingCert"] != nil {
+				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
+			}
+			if nodeConfigMap["ConfigFile"] != nil {
+				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
+			}
+			if nodeConfigMap["CChainConfigFile"] != nil {
+				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
+			}
+			if nodeConfigMap["GenesisFile"] != nil {
+				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
+			}
+			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		}
+	}
+	return &networkConfig, nil
 }
