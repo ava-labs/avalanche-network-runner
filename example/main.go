@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
@@ -83,6 +85,22 @@ func main() {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
+
+	// register signals to kill the network
+	signalsCh := make(chan os.Signal, 1)
+	signal.Notify(signalsCh, syscall.SIGINT)
+	signal.Notify(signalsCh, syscall.SIGTERM)
+	// start up a new go routine to handle attempts to kill the application
+	go func() {
+		// When we get a SIGINT or SIGTERM, stop the network.
+		sig := <-signalsCh
+		log.Info("got OS signal %s", sig)
+		if err := nw.Stop(); err != nil {
+			log.Warn("error while stopping network: %s", err)
+		}
+		os.Exit(128 + int(sig.(syscall.Signal)))
+	}()
+
 	// Wait until the nodes in the network are ready
 	healthyChan := nw.Healthy()
 	fmt.Println("waiting for all nodes to report healthy...")

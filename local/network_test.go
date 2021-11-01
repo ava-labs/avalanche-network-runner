@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -116,6 +118,14 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 	if err != nil {
 		return nil, err
 	}
+	signalsCh := make(chan os.Signal, 1)
+	signal.Notify(signalsCh, syscall.SIGINT)
+	signal.Notify(signalsCh, syscall.SIGTERM)
+	go func() {
+		sig := <-signalsCh
+		_ = net.Stop()
+		os.Exit(128 + int(sig.(syscall.Signal)))
+	}()
 	if err := awaitNetwork(net); err != nil {
 		_ = net.Stop()
 		return nil, err

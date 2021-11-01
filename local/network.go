@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -92,28 +91,6 @@ func NewNetwork(
 		nodeTypeToBinaryPath: nodeTypeToBinaryPath,
 		log:                  log,
 	}
-
-	// register signals to kill the network
-	signalsCh := make(chan os.Signal, 1)
-	signal.Notify(signalsCh, syscall.SIGINT)
-	signal.Notify(signalsCh, syscall.SIGTERM)
-	// start up a new go routine to handle attempts to kill the application
-	go func() {
-		select {
-		// If we get a SIGINT or SIGTERM, stop the network.
-		case sig := <-signalsCh:
-			log.Info("got OS signal %s", sig)
-			if err := net.Stop(); err != nil {
-				log.Warn("error while stopping network: %s", err)
-			}
-		// If the network is stopped, end this go routine.
-		case <-net.closedOnStopCh:
-		}
-	}()
-
-	// Start all the nodes given in [networkConfig]
-	net.lock.Lock()
-	defer net.lock.Unlock()
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
