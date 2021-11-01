@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"io"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
@@ -10,18 +11,50 @@ import (
 type Config struct {
 	// Kind of node to set up (avalanchego/byzantine/...)
 	Type interface{}
-	// Must be unique across all nodes
-	Name             string
-	StakingKey       []byte
-	StakingCert      []byte
-	ConfigFile       []byte
+	// A node's name must be unique from all other nodes
+	// in a network. If Name is the empty string, a
+	// unique name is assigned on node creation.
+	Name string
+	// True if other nodes should use this node
+	// as a bootstrap beacon.
+	IsBeacon bool
+	// If nil, a unique staking key/cert is
+	// assigned on node creation.
+	// If nil, [StakingCert] must also be nil.
+	StakingKey []byte
+	// If nil, a unique staking key/cert is
+	// assigned on node creation.
+	// If nil, [StakingKey] must also be nil.
+	StakingCert []byte
+	// Must not be nil.
+	ConfigFile []byte
+	// May be nil.
 	CChainConfigFile []byte
-	GenesisFile      []byte
+	// Must not be nil.
+	GenesisFile []byte
 	// TODO make the below specific to local network runner
 	// If non-nil, direct this node's stdout here
 	Stdout io.Writer
 	// If non-nil, direct this node's stderr here
 	Stderr io.Writer
+}
+
+// Returns an error if this config is invalid
+func (c *Config) Validate() error {
+	switch {
+	case c.Type == nil:
+		return errors.New("node type not given")
+	case len(c.ConfigFile) == 0:
+		return errors.New("node config not given")
+	case len(c.GenesisFile) == 0:
+		return errors.New("genesis file not given")
+	case len(c.StakingKey) != 0 && len(c.StakingCert) == 0:
+		return errors.New("staking key given but not staking cert")
+	case len(c.StakingKey) == 0 && len(c.StakingCert) != 0:
+		return errors.New("staking cert given but not staking key")
+	default:
+		return nil
+	}
 }
 
 // An AvalancheGo node

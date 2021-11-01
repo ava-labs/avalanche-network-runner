@@ -1,6 +1,5 @@
 {
-    "network-id":12345,
-    "staking-port":9651,
+    "network-id":1337,
     "network-peer-list-gossip-frequency":"5s",
     "network-max-reconnect-delay":"2s",
     "health-check-frequency":"10s"

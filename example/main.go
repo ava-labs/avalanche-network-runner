@@ -31,18 +31,24 @@ func main() {
 	// Read node configs, staking keys, staking certs
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
-		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs/node%d", goPath, i)
-		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
+		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
+		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
-		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", configDir))
+		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
+		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
-		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", configDir))
+		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
@@ -52,10 +58,14 @@ func main() {
 			node.Config{
 				Type:        local.AVALANCHEGO,
 				ConfigFile:  configFile,
+				GenesisFile: genesisFile,
 				StakingKey:  stakingKey,
 				StakingCert: stakingCert,
 			},
 		)
+		if i == 0 {
+			networkConfig.NodeConfigs[0].IsBeacon = true
+		}
 	}
 
 	// Uncomment this line to print the first node's logs to stdout
