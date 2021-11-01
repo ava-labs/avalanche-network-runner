@@ -171,9 +171,9 @@ func awaitNetwork(net network.Network) error {
 		time.Sleep(5 * time.Minute)
 		timeoutCh <- struct{}{}
 	}()
-	readyCh := net.Ready()
+	healthyCh := net.Healthy()
 	select {
-	case <-readyCh:
+	case <-healthyCh:
 		break
 	case <-timeoutCh:
 		return errors.New("network startup timeout")

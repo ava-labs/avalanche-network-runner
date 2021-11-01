@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -90,16 +91,21 @@ func NewNetwork(
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	for _, nodeConfig := range networkConfig.NodeConfigs {
+	for i, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
+			var nodeName string
+			if len(nodeConfig.Name) > 0 {
+				nodeName = nodeConfig.Name
+			} else {
+				nodeName = strconv.Itoa(i)
+			}
 			if err := net.stop(); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
-			return nil, err
+			return nil, fmt.Errorf("errored on adding node %s: %s", nodeName, err)
 		}
 	}
-
 	return net, nil
 }
 
@@ -127,7 +133,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
-	// TODO should we do this for other directories? Logs? Profiles?
+	// TODO should we do this for other directories? Profiles?
 	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
@@ -151,11 +157,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		// TODO allow user to specify log dir path
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
 		// Tell the node to use the API port
-		// TODO randomly generate this?
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 	}
 
-	// TODO lower log level
 	ln.log.Info("adding node %q with files at %s and API port %d", nodeConfig.Name, tmpDir, apiPort)
 
 	// Write this node's config file if one is given
@@ -231,15 +235,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	return node, nil
 }
 
-// Returns a channel that is closed when the network
-// is ready (all the initial nodes are up and healthy.)
-// If an error is sent on this channel, the network
-// is not healthy after the timeout.
-func (net *localNetwork) Ready() chan error {
+// See network.Network
+func (net *localNetwork) Healthy() chan error {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
-	readyCh := make(chan error, 1)
+	healthyChan := make(chan error, 1)
 	nodes := make([]*localNode, 0, len(net.nodes))
 	for _, node := range net.nodes {
 		nodes = append(nodes, node)
@@ -253,10 +254,8 @@ func (net *localNetwork) Ready() chan error {
 				// Do this up to 20 times.
 				for i := 0; i < int(healthyTimeout/healthCheckFreq); i++ {
 					select {
-					case _, open := <-net.closedOnStopCh:
-						if !open {
-							return errStopped
-						}
+					case <-net.closedOnStopCh:
+						return errStopped
 					case <-ctx.Done():
 						return nil
 					case <-time.After(healthCheckFreq):
@@ -272,11 +271,11 @@ func (net *localNetwork) Ready() chan error {
 		}
 		// Wait until all nodes are ready or timeout
 		if err := errGr.Wait(); err != nil {
-			readyCh <- err
+			healthyChan <- err
 		}
-		close(readyCh)
+		close(healthyChan)
 	}()
-	return readyCh
+	return healthyChan
 }
 
 func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
@@ -315,11 +314,9 @@ func (net *localNetwork) Stop() error {
 func (net *localNetwork) stop() error {
 	select {
 	// See if network was already closed
-	case _, open := <-net.closedOnStopCh:
-		if !open {
-			net.log.Debug("stop() called multiple times")
-			return nil
-		}
+	case <-net.closedOnStopCh:
+		net.log.Debug("stop() called multiple times")
+		return nil
 	default:
 		close(net.closedOnStopCh)
 	}

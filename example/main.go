@@ -74,9 +74,9 @@ func main() {
 		os.Exit(1)
 	}
 	// Wait until the nodes in the network are ready
-	readyCh := nw.Ready()
+	healthyChan := nw.Healthy()
 	fmt.Println("waiting for all nodes to report healthy...")
-	err, gotErr := <-readyCh
+	err, gotErr := <-healthyChan
 	if gotErr {
 		log.Fatal("network never became healthy: %s\n", err)
 		handleError(log, nw)

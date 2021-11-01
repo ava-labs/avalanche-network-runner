@@ -5,7 +5,6 @@
     "network-peer-list-gossip-frequency":"5s",
     "network-max-reconnect-delay":"2s",
     "public-ip":"127.0.0.1",
-    "log-level":"verbo",
     "staking-port":9659,
     "health-check-frequency":"10s"
 }
