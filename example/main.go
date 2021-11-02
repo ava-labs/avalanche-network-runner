@@ -33,6 +33,7 @@ func main() {
 	// Read node configs, staking keys, staking certs
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
+		log.Info("reading config %d", i)
 		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
 		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
@@ -98,7 +99,6 @@ func main() {
 		if err := nw.Stop(); err != nil {
 			log.Warn("error while stopping network: %s", err)
 		}
-		os.Exit(128 + int(sig.(syscall.Signal)))
 	}()
 
 	// Wait until the nodes in the network are ready
