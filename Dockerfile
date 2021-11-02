@@ -27,10 +27,11 @@ RUN go mod download
 COPY api/ api/
 COPY k8s/ k8s/
 COPY client/ client/
+COPY example/ example/
 
 # Build
 #RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./simpletest ./simplek8s/main
-RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./k8s/main
+RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./example/k8s/main.go
 
 # Final stage: the running container.
 #FROM scratch AS final
@@ -47,4 +48,4 @@ COPY --from=builder /workspace/simplenet /
 #USER nobody:nobody
 #USER 65532:65532
 
-CMD ["/simplenet"]
+ENTRYPOINT ["/simplenet"]
