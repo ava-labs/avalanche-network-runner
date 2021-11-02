@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
@@ -31,6 +33,7 @@ func main() {
 	// Read node configs, staking keys, staking certs
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
+		log.Info("reading config %d", i)
 		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
 		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
@@ -83,6 +86,21 @@ func main() {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
+
+	// register signals to kill the network
+	signalsCh := make(chan os.Signal, 1)
+	signal.Notify(signalsCh, syscall.SIGINT)
+	signal.Notify(signalsCh, syscall.SIGTERM)
+	// start up a new go routine to handle attempts to kill the application
+	go func() {
+		// When we get a SIGINT or SIGTERM, stop the network.
+		sig := <-signalsCh
+		log.Info("got OS signal %s", sig)
+		if err := nw.Stop(); err != nil {
+			log.Warn("error while stopping network: %s", err)
+		}
+	}()
+
 	// Wait until the nodes in the network are ready
 	healthyChan := nw.Healthy()
 	fmt.Println("waiting for all nodes to report healthy...")

@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -47,7 +46,7 @@ var _ network.Network = (*localNetwork)(nil)
 type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
-	// Closed when network starts shutting down
+	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	// Node type --> Path to binary
 	nodeTypeToBinaryPath map[NodeType]string
@@ -93,28 +92,6 @@ func NewNetwork(
 		log:                  log,
 	}
 
-	// register signals to kill the network
-	signalsCh := make(chan os.Signal, 1)
-	signal.Notify(signalsCh, syscall.SIGINT)
-	signal.Notify(signalsCh, syscall.SIGTERM)
-	// start up a new go routine to handle attempts to kill the application
-	go func() {
-		select {
-		// If we get a SIGINT or SIGTERM, stop the network.
-		case sig := <-signalsCh:
-			log.Info("got OS signal %s", sig)
-			if err := net.Stop(); err != nil {
-				log.Warn("error while stopping network: %s", err)
-			}
-		// If the network is stopped, end this go routine.
-		case <-net.closedOnStopCh:
-		}
-	}()
-
-	// Start all the nodes given in [networkConfig]
-	net.lock.Lock()
-	defer net.lock.Unlock()
-
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(); err != nil {
@@ -138,6 +115,10 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 // Assumes [ln.lock] is held.
 // TODO make this method shorter
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
+	if ln.isStopped() {
+		return nil, errStopped
+	}
+
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
@@ -303,6 +284,13 @@ func (net *localNetwork) Healthy() chan error {
 	defer net.lock.RUnlock()
 
 	healthyChan := make(chan error, 1)
+
+	// Return unhealthy if the network is stopped
+	if net.isStopped() {
+		healthyChan <- errStopped
+		return healthyChan
+	}
+
 	nodes := make([]*localNode, 0, len(net.nodes))
 	for _, node := range net.nodes {
 		nodes = append(nodes, node)
@@ -340,9 +328,14 @@ func (net *localNetwork) Healthy() chan error {
 	return healthyChan
 }
 
+// See network.Network
 func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
+
+	if net.isStopped() {
+		return nil, errStopped
+	}
 
 	node, ok := net.nodes[nodeName]
 	if !ok {
@@ -351,9 +344,14 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	return node, nil
 }
 
+// See network.Network
 func (net *localNetwork) GetNodesNames() []string {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
+
+	if net.isStopped() {
+		return nil
+	}
 
 	names := make([]string, len(net.nodes))
 	i := 0
@@ -374,13 +372,9 @@ func (net *localNetwork) Stop() error {
 
 // Assumes [net.lock] is held
 func (net *localNetwork) stop() error {
-	select {
-	// See if network was already closed
-	case <-net.closedOnStopCh:
+	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
 		return nil
-	default:
-		close(net.closedOnStopCh)
 	}
 	net.log.Info("stopping network")
 	for nodeName := range net.nodes {
@@ -388,6 +382,7 @@ func (net *localNetwork) stop() error {
 			net.log.Warn("error removing node %q: %s", nodeName, err)
 		}
 	}
+	close(net.closedOnStopCh)
 	net.log.Info("done stopping network") // todo remove / lower level
 	return nil
 }
@@ -402,6 +397,9 @@ func (net *localNetwork) RemoveNode(nodeName string) error {
 
 // Assumes [net.lock] is held
 func (net *localNetwork) removeNode(nodeName string) error {
+	if net.isStopped() {
+		net.log.Debug("can't remove node %q because network stopped", nodeName)
+	}
 	net.log.Debug("removing node %q", nodeName)
 	node, ok := net.nodes[nodeName]
 	if !ok {
@@ -418,6 +416,16 @@ func (net *localNetwork) removeNode(nodeName string) error {
 		return fmt.Errorf("error waiting node %s to finish: %w", nodeName, err)
 	}
 	return nil
+}
+
+// Assumes [net.lock] is held
+func (net *localNetwork) isStopped() bool {
+	select {
+	case <-net.closedOnStopCh:
+		return true
+	default:
+		return false
+	}
 }
 
 // createFile creates a file with the given path and
