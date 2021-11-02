@@ -1,17 +1,14 @@
 package local
 
 import (
-	"fmt"
 	"os/exec"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 )
 
 // interface compliance
-var _ node.Node = (*localNode)(nil)
+var _ api.Node = (*localNode)(nil)
 
 // The type of this node (e.g. normal, byzantine, etc.)
 // TODO Generalize this to allow user to specify a specific
@@ -44,21 +41,24 @@ func (node *localNode) GetName() string {
 }
 
 // Returns this node's avalanchego node ID
-func (node *localNode) GetNodeID() (ids.ShortID, error) {
+func (node *localNode) GetNodeID() ids.ShortID {
 	if node.nodeID != ids.ShortEmpty {
+		return node.nodeID
+	}
+	/*
+		info := node.client.InfoAPI()
+		strNodeID, err := info.GetNodeID()
+		if err != nil {
+			return  fmt.Errorf("could not obtain node ID from info api: %s", err)
+		}
+		nodeID, err := ids.ShortFromPrefixedString(strNodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return ids.ShortID{}, fmt.Errorf("could not parse node ID from string: %s", err)
+		}
+		node.nodeID = nodeID
 		return node.nodeID, nil
-	}
-	info := node.client.InfoAPI()
-	strNodeID, err := info.GetNodeID()
-	if err != nil {
-		return ids.ShortID{}, fmt.Errorf("could not obtain node ID from info api: %s", err)
-	}
-	nodeID, err := ids.ShortFromPrefixedString(strNodeID, constants.NodeIDPrefix)
-	if err != nil {
-		return ids.ShortID{}, fmt.Errorf("could not parse node ID from string: %s", err)
-	}
-	node.nodeID = nodeID
-	return node.nodeID, nil
+	*/
+	return ids.ShortEmpty
 }
 
 // Returns access to avalanchego apis

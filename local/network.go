@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner-local/client"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -40,7 +40,7 @@ const (
 var errStopped = errors.New("network stopped")
 
 // interface compliance
-var _ network.Network = (*localNetwork)(nil)
+var _ api.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
@@ -77,9 +77,9 @@ func (l beaconList) String() string {
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(
 	log logging.Logger,
-	networkConfig network.Config,
+	networkConfig api.NetworkConfig,
 	nodeTypeToBinaryPath map[NodeType]string,
-) (network.Network, error) {
+) (api.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
@@ -105,7 +105,7 @@ func NewNetwork(
 }
 
 // See network.Network
-func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
+func (ln *localNetwork) AddNode(nodeConfig api.NodeConfig) (api.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
@@ -114,7 +114,7 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 
 // Assumes [ln.lock] is held.
 // TODO make this method shorter
-func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
+func (ln *localNetwork) addNode(nodeConfig api.NodeConfig) (api.Node, error) {
 	if ln.isStopped() {
 		return nil, errStopped
 	}
@@ -270,7 +270,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
-		client: NewAPIClient("localhost", uint(apiPort), apiTimeout),
+		client: client.NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
 		tmpDir: tmpDir,
 	}
@@ -329,7 +329,7 @@ func (net *localNetwork) Healthy() chan error {
 }
 
 // See network.Network
-func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
+func (net *localNetwork) GetNode(nodeName string) (api.Node, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
@@ -363,15 +363,15 @@ func (net *localNetwork) GetNodesNames() []string {
 }
 
 // TODO does this need to return an error?
-func (net *localNetwork) Stop() error {
+func (net *localNetwork) Stop(ctx context.Context) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	return net.stop()
+	return net.stop(ctx)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop() error {
+func (net *localNetwork) stop(ctx context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
 		return nil

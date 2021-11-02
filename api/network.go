@@ -1,10 +1,9 @@
-package network
+package api
 
 import (
+	"context"
 	"fmt"
 	"strconv"
-
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 )
 
 // Network is an abstraction of an Avalanche network
@@ -20,29 +19,35 @@ type Network interface {
 	// Stop all the nodes.
 	// Calling Stop after the first call does nothing
 	// and returns nil.
-	Stop() error
+	Stop(context.Context) error
 	// Start a new node with the given config.
 	// Returns an error if Stop() was previously called.
-	AddNode(node.Config) (node.Node, error)
+	AddNode(NodeConfig) (Node, error)
 	// Stop the node with this name.
 	// Returns an error if Stop() was previously called.
 	RemoveNode(name string) error
 	// Return the node with this name.
 	// Returns an error if Stop() was previously called.
-	GetNode(name string) (node.Node, error)
+	GetNode(name string) (Node, error)
 	// Returns the names of all nodes in this network.
 	// Returns nil if Stop() was previously called.
 	GetNodesNames() []string
 	// TODO add methods
 }
 
-type Config struct {
+type NetworkConfig struct {
+	// How many nodes in the network
+	NodeCount int
 	// Config for each node
-	NodeConfigs []node.Config
+	NodeConfigs []NodeConfig
+	// Log level for the whole network
+	LogLevel string
+	// Name for the network
+	Name string
 }
 
 // TODO enforce that all nodes have same genesis.
-func (c *Config) Validate() error {
+func (c *NetworkConfig) Validate() error {
 	for i, nodeConfig := range c.NodeConfigs {
 		if err := nodeConfig.Validate(); err != nil {
 			var nodeName string

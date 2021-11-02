@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner-local/api/node"
 	"github.com/ava-labs/avalanche-network-runner-local/local"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Read node configs, staking keys, staking certs
-	networkConfig := network.Config{}
+	networkConfig := api.NetworkConfig{}
 	for i := 0; i < 5; i++ {
 		log.Info("reading config %d", i)
 		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
@@ -115,7 +115,7 @@ func main() {
 	}
 }
 
-func handleError(log logging.Logger, nw network.Network) {
+func handleError(log logging.Logger, nw api.Network) {
 	if err := nw.Stop(); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
