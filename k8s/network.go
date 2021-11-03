@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/client"
@@ -99,28 +99,24 @@ func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
 		time.Sleep(1 * time.Second)
 	}
 
-	// get deployed pods
-	var err error
-	a.cs, err = kubernetes.NewForConfig(a.kconfig)
-	if err != nil {
-		return nil, err
+	// use the last uri to try connecting to it until it resolves
+	// otherwise we have to sleep indiscriminately, we can't just use the API right away:
+	// the kubernetes cluster has already created the pods but not the DNS names,
+	// so using the API Client too early results in an error.
+	testuri := a.k8sNetwork.Status.NetworkMembersURI[config.NodeCount-1]
+	fmturi := fmt.Sprintf("http://%s:9650", testuri)
+	ok := false
+	for !ok {
+		logrus.Debugf("checking if %s is reachable...", fmturi)
+		_, err := http.Get(fmturi)
+		if err == nil {
+			logrus.Debugf("yes!")
+			ok = true
+		}
+		time.Sleep(1 * time.Second)
 	}
 
-	pods, err := a.cs.CoreV1().Pods(a.opts.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, p := range pods.Items {
-		name := p.GetName()
-		id := name[len("avago-"):] // TODO: constant and/or extract from some env var
-		a.pods[id] = p
-	}
-
-	if err := a.waitForPodsRunning(); err != nil {
-		return nil, err
-	}
-
-	err = a.buildIDMapping()
+	err := a.buildIDMapping()
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +182,6 @@ func (a *Adapter) Stop(ctx context.Context) error {
 	// delete network
 	err := a.k8scli.Delete(ctx, a.k8sNetwork)
 	if err != nil {
-		logrus.Fatal(err)
 		return err
 	}
 	logrus.Info("Network cleared")
@@ -315,41 +310,6 @@ func (a *Adapter) buildIDMapping() error {
 	}
 
 	return nil
-}
-
-func (a *Adapter) waitForPodsRunning() error {
-	var wg sync.WaitGroup
-
-	if len(a.pods) < a.config.NodeCount {
-		return errors.New("not all expected pods constructed")
-	}
-
-	for _, p := range a.pods {
-		wg.Add(1)
-		go a.waitForSinglePodRunning(p, &wg)
-	}
-	logrus.Info("Waiting for pods to be running...")
-	wg.Wait()
-	logrus.Info("Pods running")
-	return nil
-}
-
-func (a *Adapter) waitForSinglePodRunning(p corev1.Pod, wg *sync.WaitGroup) {
-	for {
-		pod, err := a.cs.CoreV1().Pods(p.Namespace).Get(context.TODO(), p.Name, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("Error querying pod status: %v", err)
-		}
-
-		switch pod.Status.Phase {
-		case corev1.PodRunning:
-			logrus.Debugf("Pod %s is running", pod.Name)
-			wg.Done()
-			return
-		default:
-			continue
-		}
-	}
 }
 
 func (a *Adapter) String() string {
