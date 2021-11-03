@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,7 +70,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	net, err := networkStartWait(t, &api.NetworkConfig{})
+	net, err := networkStartWait(t, &network.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +112,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	}
 }
 
-func networkStartWait(t *testing.T, networkConfig *api.NetworkConfig) (api.Network, error) {
+func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Network, error) {
 	binMap, err := getBinMap()
 	if err != nil {
 		return nil, err
@@ -136,7 +138,7 @@ func networkStartWait(t *testing.T, networkConfig *api.NetworkConfig) (api.Netwo
 	return net, nil
 }
 
-func checkNetwork(t *testing.T, net api.Network, runningNodes map[string]bool, removedClients []api.Client) error {
+func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedClients []api.Client) error {
 	nodeNames := net.GetNodesNames()
 	if len(nodeNames) != len(runningNodes) {
 		return fmt.Errorf("GetNodesNames() len %v should equal number of running nodes %v", len(nodeNames), len(runningNodes))
@@ -178,7 +180,7 @@ func getBinMap() (map[NodeType]string, error) {
 	return binMap, nil
 }
 
-func awaitNetwork(net api.Network) error {
+func awaitNetwork(net network.Network) error {
 	timeoutCh := make(chan struct{})
 	go func() {
 		time.Sleep(5 * time.Minute)
@@ -195,12 +197,12 @@ func awaitNetwork(net api.Network) error {
 }
 
 // TODO do we need this? It isn't used anywhere.
-func ParseNetworkConfigJSON(networkConfigJSON []byte) (*api.NetworkConfig, error) {
+func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 	var networkConfigMap map[string]interface{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
 	}
-	networkConfig := api.NetworkConfig{}
+	networkConfig := network.Config{}
 	var networkGenesisFile []byte
 	var networkCChainConfigFile []byte
 	if networkConfigMap["GenesisFile"] != nil {
@@ -212,7 +214,7 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*api.NetworkConfig, error
 	if networkConfigMap["NodeConfigs"] != nil {
 		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
 			nodeConfigMap := nodeConfigMap.(map[string]interface{})
-			nodeConfig := api.NodeConfig{}
+			nodeConfig := node.Config{}
 			nodeConfig.GenesisFile = networkGenesisFile
 			nodeConfig.CChainConfigFile = networkCChainConfigFile
 			if nodeConfigMap["Type"] != nil {

@@ -4,11 +4,12 @@ import (
 	"os/exec"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
 // interface compliance
-var _ api.Node = (*localNode)(nil)
+var _ node.Node = (*localNode)(nil)
 
 // The type of this node (e.g. normal, byzantine, etc.)
 // TODO Generalize this to allow user to specify a specific

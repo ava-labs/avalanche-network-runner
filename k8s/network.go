@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/client"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 
@@ -35,12 +37,12 @@ const (
 var errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 
 // Adapter is the kubernetes data type representing a network adapter.
-// It implements the api.Network interface
+// It implements the network.Network interface
 type Adapter struct {
+	config     network.Config
 	k8sNetwork *k8sapi.Avalanchego
 	k8scli     k8scli.Client
 	opts       Opts
-	config     *api.NetworkConfig
 	kconfig    *rest.Config
 	cs         *kubernetes.Clientset
 	nodes      map[string]*K8sNode
@@ -76,7 +78,7 @@ func NewAdapter(opts Opts) *Adapter {
 }
 
 // NewNetwork returns a new network whose initial state is specified in the config
-func (a *Adapter) NewNetwork(config *api.NetworkConfig) (api.Network, error) {
+func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
 	a.k8sNetwork = a.createDeploymentFromConfig(config)
 	if err := a.k8scli.Create(context.TODO(), a.k8sNetwork); err != nil {
 		return nil, err
@@ -123,7 +125,7 @@ func (a *Adapter) NewNetwork(config *api.NetworkConfig) (api.Network, error) {
 		return nil, err
 	}
 
-	a.printNetwork()
+	logrus.Infof("%s\n", a)
 	return a, nil
 }
 
@@ -139,7 +141,7 @@ func (a *Adapter) GetNodesNames() []string {
 
 // Ready returns a channel which signals when the network is ready to be used
 func (a *Adapter) Healthy() chan error {
-	errc := make(chan error)
+	errCh := make(chan error)
 	healthy := make(map[*K8sNode]bool)
 	for _, n := range a.nodes {
 		healthy[n] = false
@@ -148,11 +150,11 @@ func (a *Adapter) Healthy() chan error {
 	go func() {
 	OUTER:
 		for {
-			hcnt := 0
+			numHealthy := 0
 			for n, h := range healthy {
 				if h {
-					hcnt++
-					if hcnt == a.config.NodeCount {
+					numHealthy++
+					if numHealthy == a.config.NodeCount {
 						break OUTER
 					}
 					continue
@@ -163,20 +165,20 @@ func (a *Adapter) Healthy() chan error {
 					continue
 				}
 				if hh.Healthy {
-					hcnt++
+					numHealthy++
 					logrus.Debugf("Node %s became healthy", n.ShortID)
 					healthy[n] = true
 				}
-				if hcnt == a.config.NodeCount {
+				if numHealthy == a.config.NodeCount {
 					break OUTER
 				}
 			}
 			time.Sleep(1 * time.Second)
 		}
 		logrus.Info("Network ready")
-		errc <- nil
+		errCh <- nil
 	}()
-	return errc
+	return errCh
 }
 
 // Stop all the nodes
@@ -192,7 +194,7 @@ func (a *Adapter) Stop(ctx context.Context) error {
 }
 
 // AddNode starts a new node with the config
-func (a *Adapter) AddNode(cfg api.NodeConfig) (api.Node, error) {
+func (a *Adapter) AddNode(cfg node.Config) (node.Node, error) {
 	node := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Avalanchego",
@@ -240,8 +242,8 @@ func (a *Adapter) RemoveNode(id string) error {
 }
 
 // GetAllNodes returns all nodes
-func (a *Adapter) GetAllNodes() []api.Node {
-	nodes := make([]api.Node, len(a.nodes))
+func (a *Adapter) GetAllNodes() []node.Node {
+	nodes := make([]node.Node, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
 		nodes[i] = n
@@ -251,17 +253,16 @@ func (a *Adapter) GetAllNodes() []api.Node {
 }
 
 // GetNode returns the node with this ID.
-func (a *Adapter) GetNode(id string) (api.Node, error) {
+func (a *Adapter) GetNode(id string) (node.Node, error) {
 	for _, n := range a.nodes {
 		if n.NodeID == id {
 			return n, nil
 		}
 	}
-
 	return nil, errNodeDoesNotExist
 }
 
-func (a *Adapter) createDeploymentFromConfig(config *api.NetworkConfig) *k8sapi.Avalanchego {
+func (a *Adapter) createDeploymentFromConfig(config network.Config) *k8sapi.Avalanchego {
 	// Returns a new network whose initial state is specified in the config
 	newChain := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
@@ -351,14 +352,16 @@ func (a *Adapter) waitForSinglePodRunning(p corev1.Pod, wg *sync.WaitGroup) {
 	}
 }
 
-func (a *Adapter) printNetwork() {
-	logrus.Info("****************************************************************************************************")
-	logrus.Info("     List of nodes in the network: \n")
-	logrus.Info("  +------------------------------------------------------------------------------------------------+")
-	logrus.Info("  +  NodeID                           |     Label         |      Cluster URI                       +")
-	logrus.Info("  +------------------------------------------------------------------------------------------------+")
+func (a *Adapter) String() string {
+	s := strings.Builder{}
+	_, _ = s.WriteString("****************************************************************************************************")
+	_, _ = s.WriteString("     List of nodes in the network: \n")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
+	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
 	for _, n := range a.nodes {
-		logrus.Infof("     %s    %s    %s", n.ShortID, n.NodeID, n.URI)
+		s.WriteString(fmt.Sprintf("     %s    %s    %s", n.ShortID, n.NodeID, n.URI))
 	}
-	logrus.Info("****************************************************************************************************")
+	s.WriteString("****************************************************************************************************")
+	return s.String()
 }

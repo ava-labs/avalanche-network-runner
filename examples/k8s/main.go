@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/k8s"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,7 +13,7 @@ const DefaultNetworkTimeout = 120 * time.Second
 
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
-	config := &api.NetworkConfig{
+	config := network.Config{
 		NodeCount: 4,
 		LogLevel:  "debug",
 		Name:      "test-val",
