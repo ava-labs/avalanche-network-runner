@@ -22,11 +22,20 @@ import (
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
 		"",
+		`{"NodeConfigs": [{"ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "GenesisFile": "notempty"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
+	}
+	binMap, err := getBinMap()
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
-			_, err := networkStartWait(t, networkConfig)
+			_, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
 			assert.Error(t, err)
 		}
 	}

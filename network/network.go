@@ -42,6 +42,7 @@ type Config struct {
 }
 
 // TODO enforce that all nodes have same genesis.
+// TODO enforce that at least one node is beacon
 func (c *Config) Validate() error {
 	for i, nodeConfig := range c.NodeConfigs {
 		if err := nodeConfig.Validate(); err != nil {
