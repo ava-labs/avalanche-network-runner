@@ -27,6 +27,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty"}]}`,
 		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
 		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 	}
 	binMap, err := getBinMap()
 	if err != nil {
@@ -36,6 +38,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
 			_, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
+            fmt.Println(err)
 			assert.Error(t, err)
 		}
 	}
