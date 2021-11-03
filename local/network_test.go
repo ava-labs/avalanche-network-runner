@@ -109,6 +109,78 @@ func TestNetworkNodeOps(t *testing.T) {
 	}
 }
 
+func TestNodeNotFound(t *testing.T) {
+	networkConfigPath := "network_config.json"
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	net, err := networkStartWait(t, &network.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = net.AddNode(networkConfig.NodeConfigs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = net.GetNode(networkConfig.NodeConfigs[1].Name)
+	if err == nil {
+		t.Fatal(err)
+	}
+	err = net.Stop()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStoppedNetwork(t *testing.T) {
+	networkConfigPath := "network_config.json"
+	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	net, err := networkStartWait(t, &network.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = net.AddNode(networkConfig.NodeConfigs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = net.Stop()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = net.Stop()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = net.AddNode(networkConfig.NodeConfigs[1])
+	if err != errStopped {
+		t.Fatal(err)
+	}
+	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
+	if err != errStopped {
+		t.Fatal(err)
+	}
+	err = awaitNetwork(net)
+	if err != errStopped {
+		t.Fatal(err)
+	}
+}
+
 func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Network, error) {
 	binMap, err := getBinMap()
 	if err != nil {
