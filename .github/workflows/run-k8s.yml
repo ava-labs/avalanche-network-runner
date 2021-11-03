@@ -13,7 +13,7 @@ jobs:
           go-version: '1.17.2' # The Go version to use.
       - run: go version
     
-      - name: Configure accces to private repos 
+      - name: Allow access to avalanchego-operator repo
         env: 
           GITHUB_ACCESS_TOKEN: ${{ secrets.SNOWBOT_PAT }}
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
