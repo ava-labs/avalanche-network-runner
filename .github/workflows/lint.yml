@@ -8,7 +8,7 @@ jobs:
     name: lint
     runs-on: ubuntu-18.04
     steps:
-      - name: Allow access to AvalancheGo Operator Repo
+      - name: Allow access to avalanchego-operator repo
         env:
           GITHUB_ACCESS_TOKEN: ${{ secrets.SNOWBOT_PAT }}
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
