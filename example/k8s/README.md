@@ -58,13 +58,14 @@ To run a local kubernetes environment:
 
 
 1. Install a kubernetes environment, e.g. `minikube` or `k3s`. We use `k3s` for this README: [k3s](https://k3s.io/). Follow instructions. This will also install `kubectl`.
-2. Install `kubectx` to allow to set an easy default environment: [kubectx](https://github.com/ahmetb/kubectx)
-3. Set the `$KUBECONFIG` environment variable to read the `k3s` environment: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml` (put this into your `.profile` or preferred environment persistance method).
-4. Run `kubectx` to check that the environment is fine (it should print `default` if there are no other kubernetes configs, otherwise, check the `kubectx` docs).
-5. Make sure to run `sudo k3s server --docker --write-kubeconfig-mode 644`. This will allow to use **locally built images** (otherwise you'll need to use a public repo and push there). It may be required to stop the `systemctl` service for `k3s` if the installation configured that mode (or edit the systemd script).
+2. Make sure to run `sudo k3s server --docker --write-kubeconfig-mode 644`. This will allow to use **locally built images** (otherwise you'll need to use a public repo and push there). It may be required to `sudo systemctl stop k3s` service for `k3s` if the installation configured that mode, and disable it: `sudo systemctl disable k3s` (or edit the systemd script). Switch to other terminal.
+3. Install `kubectx` to allow to set an easy default environment: [kubectx](https://github.com/ahmetb/kubectx)
+4. Set the `$KUBECONFIG` environment variable to read the `k3s` environment: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml` (put this into your `.profile` or preferred environment persistance method). Make sure this variable is present in all terminals used for this tool.
+5. Run `kubectx` to check that the environment is fine (it should print `default` if there are no other kubernetes configs, otherwise, check the `kubectx` docs).
 6. **Run the avalanchego-operator locally**
    6a. Clone the repository: `github.com/ava-labs/avalanchego-operator`
    6b. Run `make install` followed by `make run`. This should be everything needed.
 7. Install the service account, role and roleconfigs for the network runner pod: `kubectl -f apply examples/k8s/svc-rbac.yaml`.
-8. Deploy the pod to your local cluster via `kubectl -f apply examples/k8s/simple-network-pod.yaml`.
-9. Check that all is ok with `kubectl get pods`.
+8. Build this app as a pod: `docker build -t k8s-netrunner:alpha`. If you use a different app name than `k8s-netrunner` and/or tag `alpha`, the `examples/k8s/simple-network-pod.yaml` file needs to be updated accordingly.
+9. Deploy the pod to your local cluster via `kubectl -f apply examples/k8s/simple-network-pod.yaml`. This picks the image built in 8. to deploy as a pod. Then from within this pod it starts all other nodes.
+10. Check that all is ok with `kubectl get pods`. You will first see the `k8s-netrunner` pod, and after some time, the other configured nodes should appear. To check logs, execute `kubectl logs k8s-netrunner`.
