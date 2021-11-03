@@ -81,7 +81,7 @@ func TestNetworkNodeOps(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		runningNodes[nodeConfig.Name] = true
 		if err := checkNetwork(t, net, runningNodes, nil); err != nil {
 			t.Fatal(err)
@@ -122,9 +122,8 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 	signal.Notify(signalsCh, syscall.SIGINT)
 	signal.Notify(signalsCh, syscall.SIGTERM)
 	go func() {
-		sig := <-signalsCh
+		<-signalsCh
 		_ = net.Stop()
-		os.Exit(128 + int(sig.(syscall.Signal)))
 	}()
 	if err := awaitNetwork(net); err != nil {
 		_ = net.Stop()
@@ -183,8 +182,10 @@ func awaitNetwork(net network.Network) error {
 	}()
 	healthyCh := net.Healthy()
 	select {
-	case <-healthyCh:
-		break
+	case err, ok := <-healthyCh:
+		if ok {
+			return err
+		}
 	case <-timeoutCh:
 		return errors.New("network startup timeout")
 	}
@@ -217,6 +218,9 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 			}
 			if nodeConfigMap["Name"] != nil {
 				nodeConfig.Name = nodeConfigMap["Name"].(string)
+			}
+			if nodeConfigMap["IsBeacon"] != nil {
+				nodeConfig.IsBeacon = nodeConfigMap["IsBeacon"].(bool)
 			}
 			if nodeConfigMap["StakingKey"] != nil {
 				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
