@@ -1,13 +1,14 @@
-package api
+package node
 
 import (
 	"errors"
 	"io"
 
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-type NodeConfig struct {
+type Config struct {
 	// Kind of node to set up (avalanchego/byzantine/...)
 	Type interface{}
 	// A node's name must be unique from all other nodes
@@ -39,7 +40,7 @@ type NodeConfig struct {
 }
 
 // Returns an error if this config is invalid
-func (c *NodeConfig) Validate() error {
+func (c *Config) Validate() error {
 	switch {
 	case c.Type == nil:
 		return errors.New("node type not given")
@@ -64,6 +65,6 @@ type Node interface {
 	// Return this node's Avalanche node ID.
 	GetNodeID() ids.ShortID
 	// Return a client that can be used to make API calls.
-	GetAPIClient() Client
+	GetAPIClient() api.Client
 	// TODO add methods
 }

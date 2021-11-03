@@ -15,8 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/client"
+	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -40,7 +41,7 @@ const (
 var errStopped = errors.New("network stopped")
 
 // interface compliance
-var _ api.Network = (*localNetwork)(nil)
+var _ network.Network = (*localNetwork)(nil)
 
 // network keeps information uses for network management, and accessing all the nodes
 type localNetwork struct {
@@ -77,9 +78,9 @@ func (l beaconList) String() string {
 // NewNetwork creates a network from given configuration and map of node kinds to binaries
 func NewNetwork(
 	log logging.Logger,
-	networkConfig api.NetworkConfig,
+	networkConfig network.Config,
 	nodeTypeToBinaryPath map[NodeType]string,
-) (api.Network, error) {
+) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
@@ -94,7 +95,7 @@ func NewNetwork(
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
-			if err := net.stop(); err != nil {
+			if err := net.stop(context.TODO()); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
@@ -105,7 +106,7 @@ func NewNetwork(
 }
 
 // See network.Network
-func (ln *localNetwork) AddNode(nodeConfig api.NodeConfig) (api.Node, error) {
+func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
@@ -114,7 +115,7 @@ func (ln *localNetwork) AddNode(nodeConfig api.NodeConfig) (api.Node, error) {
 
 // Assumes [ln.lock] is held.
 // TODO make this method shorter
-func (ln *localNetwork) addNode(nodeConfig api.NodeConfig) (api.Node, error) {
+func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.isStopped() {
 		return nil, errStopped
 	}
@@ -329,7 +330,7 @@ func (net *localNetwork) Healthy() chan error {
 }
 
 // See network.Network
-func (net *localNetwork) GetNode(nodeName string) (api.Node, error) {
+func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
