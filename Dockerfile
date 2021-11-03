@@ -17,13 +17,14 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
+copy network/ network/
 COPY api/ api/
 COPY k8s/ k8s/
 COPY client/ client/
-COPY example/ example/
+COPY examples/ examples/
 
 # Build
-RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./example/k8s/main.go
+RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./examples/k8s/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
