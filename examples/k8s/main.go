@@ -13,7 +13,7 @@ const DefaultNetworkTimeout = 120 * time.Second
 
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
-	config := &network.Config{
+	config := network.Config{
 		NodeCount: 4,
 		LogLevel:  "debug",
 		Name:      "test-val",

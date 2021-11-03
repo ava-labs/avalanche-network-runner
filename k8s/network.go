@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,10 +39,10 @@ var errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 // Adapter is the kubernetes data type representing a network adapter.
 // It implements the network.Network interface
 type Adapter struct {
+	config     network.Config
 	k8sNetwork *k8sapi.Avalanchego
 	k8scli     k8scli.Client
 	opts       Opts
-	config     *network.Config
 	kconfig    *rest.Config
 	cs         *kubernetes.Clientset
 	nodes      map[string]*K8sNode
@@ -77,7 +78,7 @@ func NewAdapter(opts Opts) *Adapter {
 }
 
 // NewNetwork returns a new network whose initial state is specified in the config
-func (a *Adapter) NewNetwork(config *network.Config) (network.Network, error) {
+func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
 	a.k8sNetwork = a.createDeploymentFromConfig(config)
 	if err := a.k8scli.Create(context.TODO(), a.k8sNetwork); err != nil {
 		return nil, err
@@ -124,7 +125,7 @@ func (a *Adapter) NewNetwork(config *network.Config) (network.Network, error) {
 		return nil, err
 	}
 
-	a.printNetwork()
+	logrus.Infof("%s\n", a)
 	return a, nil
 }
 
@@ -140,7 +141,7 @@ func (a *Adapter) GetNodesNames() []string {
 
 // Ready returns a channel which signals when the network is ready to be used
 func (a *Adapter) Healthy() chan error {
-	errc := make(chan error)
+	errCh := make(chan error)
 	healthy := make(map[*K8sNode]bool)
 	for _, n := range a.nodes {
 		healthy[n] = false
@@ -149,11 +150,11 @@ func (a *Adapter) Healthy() chan error {
 	go func() {
 	OUTER:
 		for {
-			hcnt := 0
+			numHealthy := 0
 			for n, h := range healthy {
 				if h {
-					hcnt++
-					if hcnt == a.config.NodeCount {
+					numHealthy++
+					if numHealthy == a.config.NodeCount {
 						break OUTER
 					}
 					continue
@@ -164,20 +165,20 @@ func (a *Adapter) Healthy() chan error {
 					continue
 				}
 				if hh.Healthy {
-					hcnt++
+					numHealthy++
 					logrus.Debugf("Node %s became healthy", n.ShortID)
 					healthy[n] = true
 				}
-				if hcnt == a.config.NodeCount {
+				if numHealthy == a.config.NodeCount {
 					break OUTER
 				}
 			}
 			time.Sleep(1 * time.Second)
 		}
 		logrus.Info("Network ready")
-		errc <- nil
+		errCh <- nil
 	}()
-	return errc
+	return errCh
 }
 
 // Stop all the nodes
@@ -258,11 +259,10 @@ func (a *Adapter) GetNode(id string) (node.Node, error) {
 			return n, nil
 		}
 	}
-
 	return nil, errNodeDoesNotExist
 }
 
-func (a *Adapter) createDeploymentFromConfig(config *network.Config) *k8sapi.Avalanchego {
+func (a *Adapter) createDeploymentFromConfig(config network.Config) *k8sapi.Avalanchego {
 	// Returns a new network whose initial state is specified in the config
 	newChain := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
@@ -352,14 +352,16 @@ func (a *Adapter) waitForSinglePodRunning(p corev1.Pod, wg *sync.WaitGroup) {
 	}
 }
 
-func (a *Adapter) printNetwork() {
-	logrus.Info("****************************************************************************************************")
-	logrus.Info("     List of nodes in the network: \n")
-	logrus.Info("  +------------------------------------------------------------------------------------------------+")
-	logrus.Info("  +  NodeID                           |     Label         |      Cluster URI                       +")
-	logrus.Info("  +------------------------------------------------------------------------------------------------+")
+func (a *Adapter) String() string {
+	s := strings.Builder{}
+	_, _ = s.WriteString("****************************************************************************************************")
+	_, _ = s.WriteString("     List of nodes in the network: \n")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
+	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
 	for _, n := range a.nodes {
-		logrus.Infof("     %s    %s    %s", n.ShortID, n.NodeID, n.URI)
+		s.WriteString(fmt.Sprintf("     %s    %s    %s", n.ShortID, n.NodeID, n.URI))
 	}
-	logrus.Info("****************************************************************************************************")
+	s.WriteString("****************************************************************************************************")
+	return s.String()
 }
