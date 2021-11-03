@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -20,7 +21,7 @@ type Network interface {
 	// Stop all the nodes.
 	// Calling Stop after the first call does nothing
 	// and returns nil.
-	Stop() error
+	Stop(context.Context) error
 	// Start a new node with the given config.
 	// Returns an error if Stop() was previously called.
 	AddNode(node.Config) (node.Node, error)
@@ -37,8 +38,14 @@ type Network interface {
 }
 
 type Config struct {
+	// How many nodes in the network
+	NodeCount int
 	// Config for each node
 	NodeConfigs []node.Config
+	// Log level for the whole network
+	LogLevel string
+	// Name for the network
+	Name string
 }
 
 // TODO enforce that all nodes have same genesis.

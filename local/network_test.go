@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -12,9 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -47,7 +48,8 @@ func TestNetworkFromConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		_ = net.Stop()
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
 	}()
 	runningNodes := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -73,7 +75,8 @@ func TestNetworkNodeOps(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		_ = net.Stop()
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
 	}()
 	runningNodes := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -123,11 +126,13 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 	signal.Notify(signalsCh, syscall.SIGTERM)
 	go func() {
 		sig := <-signalsCh
-		_ = net.Stop()
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
 		os.Exit(128 + int(sig.(syscall.Signal)))
 	}()
 	if err := awaitNetwork(net); err != nil {
-		_ = net.Stop()
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
 		return nil, err
 	}
 	return net, nil

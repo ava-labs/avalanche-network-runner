@@ -1,0 +1,23 @@
+name: runK8s 
+
+on:
+  workflow_dispatch: {}
+  
+jobs:
+  test:
+    runs-on: k8s
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with: 
+          go-version: '1.17.2' # The Go version to use.
+      - run: go version
+    
+      - name: Configure accces to private repos 
+        env: 
+          GITHUB_ACCESS_TOKEN: ${{ secrets.SNOWBOT_PAT }}
+        run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
+    
+      - name: Run the k8s app 
+        run: go run simplek8s/main/main.go
+

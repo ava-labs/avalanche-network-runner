@@ -1,10 +1,10 @@
-package local
+package client
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
