@@ -1,9 +1,9 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
-    "bytes"
 
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 )
@@ -42,35 +42,30 @@ type Config struct {
 	NodeConfigs []node.Config
 }
 
-// TODO current implementation requires first node to be beacon, instead of some one, like the validation enforces
 func (c *Config) Validate() error {
-    var genesisFile []byte
-    var firstNodeName string
-    var hasSomeBeacon bool
+	var genesisFile []byte
+	var firstNodeName string
 	for i, nodeConfig := range c.NodeConfigs {
-        var nodeName string
-        if len(nodeConfig.Name) > 0 {
-            nodeName = nodeConfig.Name
-        } else {
-            nodeName = strconv.Itoa(i)
-        }
-        if nodeConfig.IsBeacon {
-            hasSomeBeacon = true
-        }
-        if i == 0 {
-            genesisFile = nodeConfig.GenesisFile
-            firstNodeName = nodeName
-        } else {
-            if bytes.Compare(genesisFile, nodeConfig.GenesisFile) != 0 {
-			    return fmt.Errorf("node %q config failed validation: genesis file difference against %q", nodeName, firstNodeName)
-            }
-        }
+		var nodeName string
+		if len(nodeConfig.Name) > 0 {
+			nodeName = nodeConfig.Name
+		} else {
+			nodeName = strconv.Itoa(i)
+		}
+		if i == 0 {
+			if !nodeConfig.IsBeacon {
+				return fmt.Errorf("node %q config failed validation: first node must be beacon", nodeName)
+			}
+			genesisFile = nodeConfig.GenesisFile
+			firstNodeName = nodeName
+		} else {
+			if bytes.Compare(genesisFile, nodeConfig.GenesisFile) != 0 {
+				return fmt.Errorf("node %q config failed validation: genesis file difference against %q", nodeName, firstNodeName)
+			}
+		}
 		if err := nodeConfig.Validate(); err != nil {
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
 	}
-    if len(c.NodeConfigs) != 0 && !hasSomeBeacon {
-			return fmt.Errorf("node configs failed validation: there are 0 beacon nodes")
-    }
 	return nil
 }

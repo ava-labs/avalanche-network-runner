@@ -21,14 +21,24 @@ import (
 
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
+		// no json
 		"",
-		`{"NodeConfigs": [{"ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "GenesisFile": "notempty"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
-		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+		// no type
+		`{"NodeConfigs": [{"IsBeacon": true, "ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
+		// no config
+		`{"NodeConfigs": [{"IsBeacon": true, "Type": 1, "GenesisFile": "notempty"}]}`,
+		// no genesis
+		`{"NodeConfigs": [{"IsBeacon": true, "Type": 1, "ConfigFile": "notempty"}]}`,
+		// staking key but no staking cert
+		`{"NodeConfigs": [{"IsBeacon": true, "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
+		// staking cert but no staking key
+		`{"NodeConfigs": [{"IsBeacon": true, "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
+		// different genesis file
+		`{"NodeConfigs": [{"IsBeacon": true, "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
+		// first node is not beacon
+		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+		// repeated name
+		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 	}
 	binMap, err := getBinMap()
 	if err != nil {
@@ -38,7 +48,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
 			_, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
-            fmt.Println(err)
 			assert.Error(t, err)
 		}
 	}
