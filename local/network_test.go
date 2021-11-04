@@ -418,6 +418,12 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 			if nodeConfigMap["GenesisFile"] != nil {
 				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
 			}
+			if nodeConfigMap["Stdout"] != nil {
+				nodeConfig.Stdout = os.Stdout
+			}
+			if nodeConfigMap["Stderr"] != nil {
+				nodeConfig.Stderr = os.Stderr
+			}
 			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 		}
 	}

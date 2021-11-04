@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -259,10 +260,18 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
 	if nodeConfig.Stdout != nil {
-		cmd.Stdout = nodeConfig.Stdout
+		nodeStdout, ok := nodeConfig.Stdout.(io.Writer)
+		if !ok {
+			return nil, fmt.Errorf("expected io.Writer but got %T", nodeConfig.Stdout)
+		}
+		cmd.Stdout = nodeStdout
 	}
 	if nodeConfig.Stderr != nil {
-		cmd.Stderr = nodeConfig.Stderr
+		nodeStderr, ok := nodeConfig.Stderr.(io.Writer)
+		if !ok {
+			return nil, fmt.Errorf("expected io.Writer but got %T", nodeConfig.Stderr)
+		}
+		cmd.Stderr = nodeStderr
 	}
 	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log levelq
 	if err := cmd.Start(); err != nil {

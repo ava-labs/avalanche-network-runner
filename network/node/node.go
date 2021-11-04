@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"io"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/ids"
@@ -32,11 +31,10 @@ type Config struct {
 	CChainConfigFile []byte
 	// Must not be nil.
 	GenesisFile []byte
-	// TODO make the below specific to local network runner
 	// If non-nil, direct this node's stdout here
-	Stdout io.Writer
+	Stdout interface{}
 	// If non-nil, direct this node's stderr here
-	Stderr io.Writer
+	Stderr interface{}
 }
 
 // Returns an error if this config is invalid
