@@ -250,10 +250,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	cmd := exec.Command(localNodeConfig.BinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
 	if localNodeConfig.Stdout != nil {
-		cmd.Stdout = nodeConfig.Stdout
+		cmd.Stdout = localNodeConfig.Stdout
 	}
 	if localNodeConfig.Stderr != nil {
-		cmd.Stderr = nodeConfig.Stderr
+		cmd.Stderr = localNodeConfig.Stderr
 	}
 	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, localNodeConfig.BinaryPath, flags) // TODO lower log level
 	if err := cmd.Start(); err != nil {
