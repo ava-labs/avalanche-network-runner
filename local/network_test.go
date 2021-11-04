@@ -83,6 +83,25 @@ func TestInvalidCommand(t *testing.T) {
 	}
 }
 
+func TestUnhealthyNetwork(t *testing.T) {
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkConfig.NodeConfigs[0].ConfigFile = []byte(`{"network-id":1}`)
+	net, err := startNetwork(t, networkConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
+	}()
+	if awaitNetwork(net) == nil {
+		t.Fatal(errors.New("await for unhealthy network was successful"))
+	}
+}
+
 // TODO add byzantine node to conf
 func TestNetworkFromConfig(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
