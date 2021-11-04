@@ -43,14 +43,10 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		// repeated name
 		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 	}
-	binMap, err := getBinMap()
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
-			_, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
+			_, err := startNetwork(t, networkConfig)
 			assert.Error(t, err)
 		}
 	}
@@ -62,7 +58,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	net, err := networkStartWait(t, networkConfig)
+	net, err := startNetwork(t, networkConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,6 +66,9 @@ func TestNetworkFromConfig(t *testing.T) {
 		ctx := context.TODO()
 		_ = net.Stop(ctx)
 	}()
+	if err := awaitNetwork(net); err != nil {
+		t.Fatal(err)
+	}
 	runningNodes := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		runningNodes[nodeConfig.Name] = true
@@ -84,7 +83,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	net, err := networkStartWait(t, &network.Config{})
+	net, err := startNetwork(t, &network.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +130,7 @@ func TestNodeNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	net, err := networkStartWait(t, &network.Config{})
+	net, err := startNetwork(t, &network.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,8 +143,13 @@ func TestNodeNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// get uncorrect node
+	// get uncorrect node (non created)
 	_, err = net.GetNode(networkConfig.NodeConfigs[1].Name)
+	if err == nil {
+		t.Fatal(err)
+	}
+	// remove uncorrect node (non created)
+	err = net.RemoveNode(networkConfig.NodeConfigs[1].Name)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -156,13 +160,13 @@ func TestNodeNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// remove uncorrect node (removed)
-	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	// get uncorrect node (removed)
+	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	if err == nil {
 		t.Fatal(err)
 	}
-	// remove uncorrect node (non created)
-	err = net.RemoveNode(networkConfig.NodeConfigs[1].Name)
+	// remove uncorrect node (removed)
+	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -178,7 +182,7 @@ func TestStoppedNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	net, err := networkStartWait(t, &network.Config{})
+	net, err := startNetwork(t, &network.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +213,7 @@ func TestStoppedNetwork(t *testing.T) {
 	}
 }
 
-func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Network, error) {
+func startNetwork(t *testing.T, networkConfig *network.Config) (network.Network, error) {
 	binMap, err := getBinMap()
 	if err != nil {
 		return nil, err
@@ -226,11 +230,6 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 		ctx := context.TODO()
 		_ = net.Stop(ctx)
 	}()
-	if err := awaitNetwork(net); err != nil {
-		ctx := context.TODO()
-		_ = net.Stop(ctx)
-		return nil, err
-	}
 	return net, nil
 }
 
@@ -286,9 +285,13 @@ func awaitNetwork(net network.Network) error {
 	select {
 	case err, ok := <-healthyCh:
 		if ok {
+			ctx := context.TODO()
+			_ = net.Stop(ctx)
 			return err
 		}
 	case <-timeoutCh:
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
 		return errors.New("network startup timeout")
 	}
 	return nil
