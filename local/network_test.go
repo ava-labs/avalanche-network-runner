@@ -103,6 +103,8 @@ func TestUnhealthyNetwork(t *testing.T) {
 }
 
 // TODO add byzantine node to conf
+// TestNetworkFromConfig creates/waits/checks/stops a network from config file
+// the check verify that all the nodes api clients are up
 func TestNetworkFromConfig(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
@@ -128,6 +130,10 @@ func TestNetworkFromConfig(t *testing.T) {
 	}
 }
 
+// TestNetworkNodeOps creates/waits/checks/stops a network created from an empty one
+// nodes are first added one by one, then removed one by one. between all operations, a network check is performed
+// the check verify that all the nodes api clients are up for started nodes, and down for removed nodes
+// all nodes are taken from config file
 func TestNetworkNodeOps(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
@@ -175,6 +181,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	}
 }
 
+// TestStoppedNetwork checks operations fail for unkown node
 func TestNodeNotFound(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
@@ -227,6 +234,7 @@ func TestNodeNotFound(t *testing.T) {
 	}
 }
 
+// TestStoppedNetwork checks operations fail for an already stopped network
 func TestStoppedNetwork(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
@@ -245,18 +253,22 @@ func TestStoppedNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Stop does not fail
 	err = net.Stop(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
 	if err != errStopped {
 		t.Fatal(err)
 	}
+	// GetNode failure
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	if err != errStopped {
 		t.Fatal(err)
 	}
+	// Healthy failure
 	err = awaitNetwork(net)
 	if err != errStopped {
 		t.Fatal(err)
