@@ -14,13 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/client"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner-local/constants"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
@@ -33,8 +34,6 @@ const (
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
-	healthCheckFreq       = 5 * time.Second
-	healthyTimeout        = 100 * time.Second
 )
 
 var errStopped = errors.New("network stopped")
@@ -50,7 +49,7 @@ type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
 	// Used to create a new API client
-	newAPIClientF client.NewAPIClientF
+	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
 	newNodeProcessF NewNodeProcessF
 	// Closed when network is done shutting down
@@ -102,7 +101,7 @@ func (l beaconList) String() string {
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
-	newAPIClientF client.NewAPIClientF,
+	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
@@ -199,7 +198,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 				hashing.ComputeHash256(cert.Leaf.Raw),
 			),
 		)
-		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
+		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(avagoconst.NodeIDPrefix))
 		ln.bootstrapIPs = append(ln.bootstrapIPs, fmt.Sprintf("127.0.0.1:%d", p2pPort))
 	}
 
@@ -319,13 +318,13 @@ func (net *localNetwork) Healthy() chan error {
 			errGr.Go(func() error {
 				// Every 5 seconds, query node for health status.
 				// Do this up to 20 times.
-				for i := 0; i < int(healthyTimeout/healthCheckFreq); i++ {
+				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
 					select {
 					case <-net.closedOnStopCh:
 						return errStopped
 					case <-ctx.Done():
 						return nil
-					case <-time.After(healthCheckFreq):
+					case <-time.After(constants.HealthCheckFreq):
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
