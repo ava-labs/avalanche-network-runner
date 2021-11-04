@@ -6,6 +6,23 @@ Tool to run and interact with an Avalanche network locally
 
 Golang Library to interact with an Avalanche network from a user client software.
 
+Network creation:
+
+```
+func NewNetwork(logging.Logger, network.Config, map[NodeType]string)
+```
+
+Network manipulation:
+
+```
+func (*localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
+func (*localNetwork) RemoveNode(nodeName string) error 
+func (*localNetwork) Healthy() chan error 
+func (*localNetwork) GetNode(nodeName string) (node.Node, error) 
+func (*localNetwork) GetNodesNames() ([]string, error) 
+func (*localNetwork) Stop(ctx context.Context) error 
+```
+
 ## Demo example
 
 Clone https://github.com/ava-labs/avalanche-network-runner-local to GOPATH (into $GOPATH/src/github.com/ava-labs/avalanche-network-runner-local)
