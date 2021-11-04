@@ -260,10 +260,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
 	if localNodeConfig.Stdout != nil {
-		cmd.Stdout = nodeConfig.Stdout
+		cmd.Stdout = localNodeConfig.Stdout
 	}
 	if localNodeConfig.Stderr != nil {
-		cmd.Stderr = nodeConfig.Stderr
+		cmd.Stderr = localNodeConfig.Stderr
 	}
 	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log level
 	if err := cmd.Start(); err != nil {
