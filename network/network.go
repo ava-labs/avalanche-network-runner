@@ -52,6 +52,7 @@ type Config struct {
 func (c *Config) Validate() error {
 	var genesisFile []byte
 	var firstNodeName string
+	var someNodeIsBeacon bool
 	for i, nodeConfig := range c.NodeConfigs {
 		var nodeName string
 		if len(nodeConfig.Name) > 0 {
@@ -59,10 +60,10 @@ func (c *Config) Validate() error {
 		} else {
 			nodeName = strconv.Itoa(i)
 		}
+		if nodeConfig.IsBeacon {
+			someNodeIsBeacon = true
+		}
 		if i == 0 {
-			if !nodeConfig.IsBeacon {
-				return fmt.Errorf("node %q config failed validation: first node must be beacon", nodeName)
-			}
 			genesisFile = nodeConfig.GenesisFile
 			firstNodeName = nodeName
 		} else {
@@ -73,6 +74,9 @@ func (c *Config) Validate() error {
 		if err := nodeConfig.Validate(); err != nil {
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
+	}
+	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+		return fmt.Errorf("node config failed validation: at least one node must be beacon")
 	}
 	return nil
 }
