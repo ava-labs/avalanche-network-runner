@@ -210,7 +210,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	}
 }
 
-// TestStoppedNetwork checks operations fail for unkown node
+// TestNodeNotFound checks operations fail for unkown node
 func TestNodeNotFound(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
@@ -283,13 +283,15 @@ func TestStoppedNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.TODO()
+	// need to for Stop to not fail for "signal: Terminated"
+	time.Sleep(1 * time.Second)
 	err = net.Stop(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Stop does not fail
+	// Stop failure
 	err = net.Stop(ctx)
-	if err != nil {
+	if err == nil {
 		t.Fatal(err)
 	}
 	// AddNode failure

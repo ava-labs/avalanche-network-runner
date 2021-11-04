@@ -373,7 +373,6 @@ func (net *localNetwork) GetNodesNames() ([]string, error) {
 	return names, nil
 }
 
-// TODO does this need to return an error?
 func (net *localNetwork) Stop(ctx context.Context) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -385,17 +384,18 @@ func (net *localNetwork) Stop(ctx context.Context) error {
 func (net *localNetwork) stop(ctx context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
-		return nil
+		return errStopped
 	}
 	net.log.Info("stopping network")
+	var err error
 	for nodeName := range net.nodes {
-		if err := net.removeNode(nodeName); err != nil {
+		if err = net.removeNode(nodeName); err != nil {
 			net.log.Warn("error removing node %q: %s", nodeName, err)
 		}
 	}
 	close(net.closedOnStopCh)
 	net.log.Info("done stopping network") // todo remove / lower level
-	return nil
+	return err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
