@@ -248,6 +248,11 @@ func TestStoppedNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// first GetNodesNames should return some nodes
+	nodeNames := net.GetNodesNames()
+	if len(nodeNames) == 0 {
+		t.Fatal(errors.New("network is expected to have nodes"))
+	}
 	ctx := context.TODO()
 	err = net.Stop(ctx)
 	if err != nil {
@@ -267,6 +272,11 @@ func TestStoppedNetwork(t *testing.T) {
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	if err != errStopped {
 		t.Fatal(err)
+	}
+	// second GetNodesNames should return no nodes
+	nodeNames = net.GetNodesNames()
+	if len(nodeNames) != 0 {
+		t.Fatal(errors.New("stopped network should not have nodes"))
 	}
 	// Healthy failure
 	err = awaitNetwork(net)
