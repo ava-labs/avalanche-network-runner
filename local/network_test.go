@@ -102,6 +102,31 @@ func TestUnhealthyNetwork(t *testing.T) {
 	}
 }
 
+func TestGeneratedNodesNames(t *testing.T) {
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range networkConfig.NodeConfigs {
+		networkConfig.NodeConfigs[i].Name = ""
+	}
+	net, err := startNetwork(t, networkConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		ctx := context.TODO()
+		_ = net.Stop(ctx)
+	}()
+	nodeNameMap := make(map[string]bool)
+	for _, nodeName := range net.GetNodesNames() {
+		nodeNameMap[nodeName] = true
+	}
+	if len(nodeNameMap) != len(networkConfig.NodeConfigs) {
+		t.Fatal(fmt.Errorf("number of unique node names in network %v differs from number of nodes in config %v", len(nodeNameMap), len(networkConfig.NodeConfigs)))
+	}
+}
+
 // TODO add byzantine node to conf
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes api clients are up
