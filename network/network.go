@@ -68,11 +68,11 @@ func (c *Config) Validate() error {
 			firstNodeName = nodeName
 		} else {
 			if !bytes.Equal(genesisFile, nodeConfig.GenesisFile) {
-				return fmt.Errorf("node %q config failed validation: genesis file difference against %q", nodeName, firstNodeName)
+				return fmt.Errorf("node %s config failed validation: genesis file difference against %s", nodeName, firstNodeName)
 			}
 		}
 		if err := nodeConfig.Validate(); err != nil {
-			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
+			return fmt.Errorf("node %s config failed validation: %w", nodeName, err)
 		}
 	}
 	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {

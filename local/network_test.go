@@ -98,7 +98,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 		_ = net.Stop(ctx)
 	}()
 	if awaitNetwork(net) == nil {
-		t.Fatal(errors.New("await for unhealthy network was successful"))
+		t.Fatal(errors.New("expected network to never get healthy, but it was"))
 	}
 }
 
@@ -127,7 +127,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 		nodeNameMap[nodeName] = true
 	}
 	if len(nodeNameMap) != len(networkConfig.NodeConfigs) {
-		t.Fatal(fmt.Errorf("number of unique node names in network %v differs from number of nodes in config %v", len(nodeNameMap), len(networkConfig.NodeConfigs)))
+		t.Fatalf("number of unique node names in network %v differs from number of nodes in config %v", len(nodeNameMap), len(networkConfig.NodeConfigs))
 	}
 }
 
