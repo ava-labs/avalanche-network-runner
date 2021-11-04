@@ -209,12 +209,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Write this node's staking key/cert.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
-		return nil, fmt.Errorf("error writing staking key: %w", err)
+		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
 	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
 	if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
-		return nil, fmt.Errorf("error writing staking cert: %w", err)
+		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 

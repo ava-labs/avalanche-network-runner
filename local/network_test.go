@@ -68,6 +68,21 @@ func TestNodeTypeInterface(t *testing.T) {
 	}
 }
 
+func TestInvalidCommand(t *testing.T) {
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binMap := map[NodeType]string{
+		AVALANCHEGO: "unknown",
+		BYZANTINE:   "unknown",
+	}
+	_, err = NewNetwork(logging.NoLog{}, *networkConfig, binMap)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 // TODO add byzantine node to conf
 func TestNetworkFromConfig(t *testing.T) {
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
