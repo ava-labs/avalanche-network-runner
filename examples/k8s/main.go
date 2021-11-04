@@ -33,7 +33,7 @@ func main() {
 		Name:      "test-val",
 	}
 	opts := k8s.Opts{
-		Namespace:      "default",
+		Namespace:      "dev",
 		DeploymentSpec: "avalanchego-test-validator",
 		Kind:           "Avalanchego",
 		APIVersion:     "chain.avax.network/v1alpha1",
