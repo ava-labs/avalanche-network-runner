@@ -66,7 +66,7 @@ func (c *Config) Validate() error {
 			genesisFile = nodeConfig.GenesisFile
 			firstNodeName = nodeName
 		} else {
-			if bytes.Compare(genesisFile, nodeConfig.GenesisFile) != 0 {
+			if !bytes.Equal(genesisFile, nodeConfig.GenesisFile) {
 				return fmt.Errorf("node %q config failed validation: genesis file difference against %q", nodeName, firstNodeName)
 			}
 		}

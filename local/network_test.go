@@ -54,6 +54,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 }
 
+// TODO add byzantine node to conf
 func TestNetworkFromConfig(t *testing.T) {
 	networkConfigPath := "network_config.json"
 	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
@@ -159,7 +160,8 @@ func TestNodeNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
-	err = net.Stop()
+	ctx := context.TODO()
+	err = net.Stop(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,11 +185,12 @@ func TestStoppedNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = net.Stop()
+	ctx := context.TODO()
+	err = net.Stop(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = net.Stop()
+	err = net.Stop(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
