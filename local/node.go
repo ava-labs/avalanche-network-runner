@@ -32,8 +32,6 @@ type localNode struct {
 	// The command that started this node.
 	// Send a SIGTERM to [cmd.Process] to stop this node.
 	cmd *exec.Cmd
-	// Tmp dir for node files
-	tmpDir string
 }
 
 // Return this node's unique name
@@ -43,23 +41,7 @@ func (node *localNode) GetName() string {
 
 // Returns this node's avalanchego node ID
 func (node *localNode) GetNodeID() ids.ShortID {
-	if node.nodeID != ids.ShortEmpty {
-		return node.nodeID
-	}
-	/*
-		info := node.client.InfoAPI()
-		strNodeID, err := info.GetNodeID()
-		if err != nil {
-			return  fmt.Errorf("could not obtain node ID from info api: %s", err)
-		}
-		nodeID, err := ids.ShortFromPrefixedString(strNodeID, constants.NodeIDPrefix)
-		if err != nil {
-			return ids.ShortID{}, fmt.Errorf("could not parse node ID from string: %s", err)
-		}
-		node.nodeID = nodeID
-		return node.nodeID, nil
-	*/
-	return ids.ShortEmpty
+	return node.nodeID
 }
 
 // Returns access to avalanchego apis

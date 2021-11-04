@@ -157,23 +157,24 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	apiPort := l.Addr().(*net.TCPAddr).Port
 	_ = l.Close()
 
+	// Parse the node ID
+	// TODO add helper in AvalancheGo for this?
+	cert, err := tls.X509KeyPair(nodeConfig.StakingCert, nodeConfig.StakingKey)
+	if err != nil {
+		return nil, err
+	}
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+	nodeID := ids.ShortID(
+		hashing.ComputeHash160Array(
+			hashing.ComputeHash256(cert.Leaf.Raw),
+		),
+	)
+
 	// If this node is a beacon, add its IP/ID to the beacon lists
 	if nodeConfig.IsBeacon {
-		// Parse the node ID
-		// TODO add helper in AvalancheGo for this?
-		cert, err := tls.X509KeyPair(nodeConfig.StakingCert, nodeConfig.StakingKey)
-		if err != nil {
-			return nil, err
-		}
-		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			return nil, err
-		}
-		nodeID := ids.ShortID(
-			hashing.ComputeHash160Array(
-				hashing.ComputeHash256(cert.Leaf.Raw),
-			),
-		)
 		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
 		ln.bootstrapIPs = append(ln.bootstrapIPs, fmt.Sprintf("127.0.0.1:%d", p2pPort))
 	}
@@ -273,7 +274,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		name:   nodeConfig.Name,
 		client: client.NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
-		tmpDir: tmpDir,
+		nodeID: nodeID,
 	}
 	ln.nodes[node.name] = node
 	return node, nil
