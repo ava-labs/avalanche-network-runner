@@ -1,6 +1,7 @@
 package local
 
 import (
+	"io"
 	"os/exec"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
@@ -20,6 +21,17 @@ const (
 	AVALANCHEGO NodeType = iota + 1
 	BYZANTINE
 )
+
+// Node configurations which are specific to the
+// local implementation of a network / node.
+type NodeConfig struct {
+	// What type of node this is
+	Type NodeType
+	// If non-nil, direct this node's stdout here
+	Stdout io.Writer
+	// If non-nil, direct this node's stderr here
+	Stderr io.Writer
+}
 
 // Gives access to basic nodes info, and to most avalanchego apis
 type localNode struct {
