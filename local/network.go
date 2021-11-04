@@ -94,7 +94,21 @@ func NewNetwork(
 		log:                  log,
 	}
 
+	var nodeConfigs []node.Config
+	// first add beacon nodes to generate beacon lists
 	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+	// then add non beacon nodes
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if !nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+
+	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.TODO()); err != nil {
 				// Clean up nodes already created
