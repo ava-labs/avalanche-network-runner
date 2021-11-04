@@ -2,8 +2,6 @@ package local
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -17,13 +15,12 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/client"
+	"github.com/ava-labs/avalanche-network-runner-local/helpers"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
 )
@@ -173,20 +170,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	_ = l.Close()
 
 	// Parse the node ID
-	// TODO add helper in AvalancheGo for this?
-	cert, err := tls.X509KeyPair(nodeConfig.StakingCert, nodeConfig.StakingKey)
+	nodeID, err := helpers.GetNodeIDFromCertKey(nodeConfig.StakingCert, nodeConfig.StakingKey)
 	if err != nil {
 		return nil, err
 	}
-	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return nil, err
-	}
-	nodeID := ids.ShortID(
-		hashing.ComputeHash160Array(
-			hashing.ComputeHash256(cert.Leaf.Raw),
-		),
-	)
 
 	// If this node is a beacon, add its IP/ID to the beacon lists
 	if nodeConfig.IsBeacon {
