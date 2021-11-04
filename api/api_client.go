@@ -1,10 +1,9 @@
-package client
+package api
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
@@ -17,7 +16,7 @@ import (
 )
 
 // interface compliance
-var _ api.Client = (*APIClient)(nil)
+var _ Client = (*APIClient)(nil)
 
 // APIClient gives access to most avalanchego apis (or suitable wrappers)
 type APIClient struct {
@@ -25,7 +24,7 @@ type APIClient struct {
 	xChain       *avm.Client
 	xChainWallet *avm.WalletClient
 	cChain       *evm.Client
-	cChainEth    *api.EthClient
+	cChainEth    *EthClient
 	info         *info.Client
 	health       *health.Client
 	ipcs         *ipcs.Client
@@ -43,7 +42,7 @@ func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APICl
 		xChain:       avm.NewClient(uri, "X", requestTimeout),
 		xChainWallet: avm.NewWalletClient(uri, "X", requestTimeout),
 		cChain:       evm.NewCChainClient(uri, requestTimeout),
-		cChainEth:    api.NewEthClient(ipAddr, port), // wrapper over ethclient.Client
+		cChainEth:    NewEthClient(ipAddr, port), // wrapper over ethclient.Client
 		info:         info.NewClient(uri, requestTimeout),
 		health:       health.NewClient(uri, requestTimeout),
 		ipcs:         ipcs.NewClient(uri, requestTimeout),
@@ -70,7 +69,7 @@ func (c APIClient) CChainAPI() *evm.Client {
 	return c.cChain
 }
 
-func (c APIClient) CChainEthAPI() *api.EthClient {
+func (c APIClient) CChainEthAPI() *EthClient {
 	return c.cChainEth
 }
 
