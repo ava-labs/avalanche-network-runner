@@ -139,21 +139,30 @@ func TestNodeNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// get correct node
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// get uncorrect node
 	_, err = net.GetNode(networkConfig.NodeConfigs[1].Name)
 	if err == nil {
 		t.Fatal(err)
 	}
 	// give some time to the node to start, otherwise Wait() gets "signal: terminated" error
 	time.Sleep(1 * time.Second)
+	// remove correct node
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// remove uncorrect node (removed)
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	if err == nil {
+		t.Fatal(err)
+	}
+	// remove uncorrect node (non created)
+	err = net.RemoveNode(networkConfig.NodeConfigs[1].Name)
 	if err == nil {
 		t.Fatal(err)
 	}
