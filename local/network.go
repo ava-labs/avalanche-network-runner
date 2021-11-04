@@ -401,15 +401,16 @@ func (net *localNetwork) stop(ctx context.Context) error {
 		return errStopped
 	}
 	net.log.Info("stopping network")
-	var err error
+	var retErr error
 	for nodeName := range net.nodes {
-		if err = net.removeNode(nodeName); err != nil {
+		if err := net.removeNode(nodeName); err != nil {
 			net.log.Warn("error removing node %q: %s", nodeName, err)
+			retErr = err
 		}
 	}
 	close(net.closedOnStopCh)
 	net.log.Info("done stopping network") // todo remove / lower level
-	return err
+	return retErr
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
