@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +18,9 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
+
+//go:embed network_config.json
+var networkConfigJSON []byte
 
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigsJSON := []string{
@@ -56,11 +58,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 
 // TODO add byzantine node to conf
 func TestNetworkFromConfig(t *testing.T) {
-	networkConfigPath := "network_config.json"
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -83,11 +80,6 @@ func TestNetworkFromConfig(t *testing.T) {
 }
 
 func TestNetworkNodeOps(t *testing.T) {
-	networkConfigPath := "network_config.json"
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -135,11 +127,6 @@ func TestNetworkNodeOps(t *testing.T) {
 }
 
 func TestNodeNotFound(t *testing.T) {
-	networkConfigPath := "network_config.json"
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -178,11 +165,6 @@ func TestNodeNotFound(t *testing.T) {
 }
 
 func TestStoppedNetwork(t *testing.T) {
-	networkConfigPath := "network_config.json"
-	networkConfigJSON, err := ioutil.ReadFile(networkConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
 	if err != nil {
 		t.Fatal(err)
