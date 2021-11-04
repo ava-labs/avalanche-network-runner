@@ -400,7 +400,7 @@ func (net *localNetwork) RemoveNode(nodeName string) error {
 // Assumes [net.lock] is held
 func (net *localNetwork) removeNode(nodeName string) error {
 	if net.isStopped() {
-		net.log.Debug("can't remove node %q because network stopped", nodeName)
+		return errStopped
 	}
 	net.log.Debug("removing node %q", nodeName)
 	node, ok := net.nodes[nodeName]

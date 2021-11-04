@@ -278,6 +278,11 @@ func TestStoppedNetwork(t *testing.T) {
 	if len(nodeNames) != 0 {
 		t.Fatal(errors.New("stopped network should not have nodes"))
 	}
+	// RemoveNode failure
+	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	if err != errStopped {
+		t.Fatal(err)
+	}
 	// Healthy failure
 	err = awaitNetwork(net)
 	if err != errStopped {
