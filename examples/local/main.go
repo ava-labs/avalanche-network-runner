@@ -110,7 +110,8 @@ func main() {
 		log.Fatal("network never became healthy: %s\n", err)
 		handleError(log, nw)
 	}
-	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
+	nodeNames, _ := nw.GetNodesNames()
+	log.Info("this network's nodes: %s\n", nodeNames)
 	if err := nw.Stop(context.TODO()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}

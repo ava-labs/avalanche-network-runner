@@ -125,14 +125,14 @@ func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
 	return a, nil
 }
 
-func (a *Adapter) GetNodesNames() []string {
+func (a *Adapter) GetNodesNames() ([]string, error) {
 	nodes := make([]string, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
 		nodes[i] = n.NodeID
 		i++
 	}
-	return nodes
+	return nodes, nil
 }
 
 // Ready returns a channel which signals when the network is ready to be used

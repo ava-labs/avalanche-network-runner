@@ -119,7 +119,11 @@ func TestGeneratedNodesNames(t *testing.T) {
 		_ = net.Stop(ctx)
 	}()
 	nodeNameMap := make(map[string]bool)
-	for _, nodeName := range net.GetNodesNames() {
+	nodeNames, err := net.GetNodesNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, nodeName := range nodeNames {
 		nodeNameMap[nodeName] = true
 	}
 	if len(nodeNameMap) != len(networkConfig.NodeConfigs) {
@@ -274,9 +278,9 @@ func TestStoppedNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	// first GetNodesNames should return some nodes
-	nodeNames := net.GetNodesNames()
-	if len(nodeNames) == 0 {
-		t.Fatal(errors.New("network is expected to have nodes"))
+	_, err = net.GetNodesNames()
+	if err != nil {
+		t.Fatal(err)
 	}
 	ctx := context.TODO()
 	err = net.Stop(ctx)
@@ -299,9 +303,9 @@ func TestStoppedNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	// second GetNodesNames should return no nodes
-	nodeNames = net.GetNodesNames()
-	if len(nodeNames) != 0 {
-		t.Fatal(errors.New("stopped network should not have nodes"))
+	_, err = net.GetNodesNames()
+	if err != errStopped {
+		t.Fatal(err)
 	}
 	// RemoveNode failure
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
@@ -336,7 +340,10 @@ func startNetwork(t *testing.T, networkConfig *network.Config) (network.Network,
 }
 
 func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedClients []api.Client) error {
-	nodeNames := net.GetNodesNames()
+	nodeNames, err := net.GetNodesNames()
+	if err != nil {
+		return err
+	}
 	if len(nodeNames) != len(runningNodes) {
 		return fmt.Errorf("GetNodesNames() len %v should equal number of running nodes %v", len(nodeNames), len(runningNodes))
 	}

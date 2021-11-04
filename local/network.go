@@ -356,12 +356,12 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetNodesNames() []string {
+func (net *localNetwork) GetNodesNames() ([]string, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
 	if net.isStopped() {
-		return nil
+		return nil, errStopped
 	}
 
 	names := make([]string, len(net.nodes))
@@ -370,7 +370,7 @@ func (net *localNetwork) GetNodesNames() []string {
 		names[i] = name
 		i++
 	}
-	return names
+	return names, nil
 }
 
 // TODO does this need to return an error?
