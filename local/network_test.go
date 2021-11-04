@@ -61,7 +61,9 @@ func TestNodeTypeInterface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	networkConfig.NodeConfigs[0].Type = 1
+	localNodeConfig := networkConfig.NodeConfigs[0].ImplSpecificConfig.(NodeConfig)
+	localNodeConfig.Type = 1
+	networkConfig.NodeConfigs[0].ImplSpecificConfig = localNodeConfig
 	_, err = startNetwork(t, networkConfig)
 	if err == nil {
 		t.Fatal(err)
@@ -428,9 +430,6 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 			nodeConfig := node.Config{}
 			nodeConfig.GenesisFile = networkGenesisFile
 			nodeConfig.CChainConfigFile = networkCChainConfigFile
-			if nodeConfigMap["Type"] != nil {
-				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
-			}
 			if nodeConfigMap["Name"] != nil {
 				nodeConfig.Name = nodeConfigMap["Name"].(string)
 			}
@@ -452,12 +451,17 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 			if nodeConfigMap["GenesisFile"] != nil {
 				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
 			}
+			localNodeConf := NodeConfig{}
+			if nodeConfigMap["Type"] != nil {
+				localNodeConf.Type = NodeType(nodeConfigMap["Type"].(float64))
+			}
 			if nodeConfigMap["Stdout"] != nil {
-				nodeConfig.Stdout = os.Stdout
+				localNodeConf.Stdout = os.Stdout
 			}
 			if nodeConfigMap["Stderr"] != nil {
-				nodeConfig.Stderr = os.Stderr
+				localNodeConf.Stderr = os.Stderr
 			}
+			nodeConfig.ImplSpecificConfig = localNodeConf
 			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 		}
 	}
