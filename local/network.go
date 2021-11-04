@@ -244,26 +244,28 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 
-	// Path to AvalancheGo binary
-	nodeType, ok := nodeConfig.Type.(NodeType)
+	// Get the local node specific config
+	localNodeConfig, ok := nodeConfig.ImplSpecificConfig.(NodeConfig)
 	if !ok {
-		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
+		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
 	}
-	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[nodeType]
+
+	// Path to AvalancheGo binary
+	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[localNodeConfig.Type]
 	if !ok {
-		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
+		return nil, fmt.Errorf("got unexpected node type %v", localNodeConfig.Type)
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
-	if nodeConfig.Stdout != nil {
-		cmd.Stdout = nodeConfig.Stdout
+	if localNodeConfig.Stdout != nil {
+		cmd.Stdout = localNodeConfig.Stdout
 	}
-	if nodeConfig.Stderr != nil {
-		cmd.Stderr = nodeConfig.Stderr
+	if localNodeConfig.Stderr != nil {
+		cmd.Stderr = localNodeConfig.Stderr
 	}
-	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log levelq
+	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log level
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
 	}
