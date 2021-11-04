@@ -115,3 +115,12 @@ cd $GOPATH/src/github.com/ava-labs/avalanche-network-runner-local
 go run examples/local/main.go
 ```
 
+## Unit testing
+
+To verify status of the library, execute:
+
+```
+cd $GOPATH/src/github.com/ava-labs/avalanche-network-runner-local
+go test ./...
+```
+
