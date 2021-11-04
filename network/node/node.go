@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	// Kind of node to set up (avalanchego/byzantine/...)
-	Type interface{}
+	// Configuration specific to a particular implementation of a node.
+	ImplSpecificConfig interface{}
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
@@ -31,17 +31,13 @@ type Config struct {
 	CChainConfigFile []byte
 	// Must not be nil.
 	GenesisFile []byte
-	// If non-nil, direct this node's stdout here
-	Stdout interface{}
-	// If non-nil, direct this node's stderr here
-	Stderr interface{}
 }
 
 // Returns an error if this config is invalid
 func (c *Config) Validate() error {
 	switch {
-	case c.Type == nil:
-		return errors.New("node type not given")
+	case c.ImplSpecificConfig == nil:
+		return errors.New("implementation-specific node config not given")
 	case len(c.ConfigFile) == 0:
 		return errors.New("node config not given")
 	case len(c.GenesisFile) == 0:

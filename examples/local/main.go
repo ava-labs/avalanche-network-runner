@@ -60,11 +60,11 @@ func main() {
 		networkConfig.NodeConfigs = append(
 			networkConfig.NodeConfigs,
 			node.Config{
-				Type:        local.AVALANCHEGO,
-				ConfigFile:  configFile,
-				GenesisFile: genesisFile,
-				StakingKey:  stakingKey,
-				StakingCert: stakingCert,
+				ImplSpecificConfig: local.NodeConfig{Type: local.AVALANCHEGO},
+				ConfigFile:         configFile,
+				GenesisFile:        genesisFile,
+				StakingKey:         stakingKey,
+				StakingCert:        stakingCert,
 			},
 		)
 		if i == 0 {
@@ -107,7 +107,7 @@ func main() {
 	fmt.Println("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
-		log.Fatal("network never became healthy: %s\n", err)
+		log.Fatal("network never became healthy: %s", err)
 		handleError(log, nw)
 	}
 	nodeNames, _ := nw.GetNodesNames()
