@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network/node/api"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -63,7 +63,7 @@ type Node interface {
 	// across all the nodes in its network.
 	GetName() string
 	// Return this node's Avalanche node ID.
-	GetNodeID() (ids.ShortID, error)
+	GetNodeID() ids.ShortID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
 	// TODO add methods

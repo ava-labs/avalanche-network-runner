@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ava-labs/avalanchego v1.6.3
+	github.com/ava-labs/avalanchego-operator v0.0.0-20211101125343-c83f461f9edb
 	github.com/ava-labs/coreth v0.7.2-rc.1
 	github.com/ethereum/go-ethereum v1.10.9
 	github.com/fatih/color v1.10.0 // indirect
@@ -16,12 +17,15 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.8.1 // indirect
-	github.com/prometheus/client_golang v1.9.0 // indirect
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/afero v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.22.5 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
+	k8s.io/api v0.22.3
+	k8s.io/apimachinery v0.22.3
+	k8s.io/client-go v0.22.3
+	sigs.k8s.io/controller-runtime v0.10.2
 )
