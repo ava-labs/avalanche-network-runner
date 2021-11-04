@@ -160,6 +160,16 @@ func TestNodeNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
+	// give some time to the node to start, otherwise Wait() gets "signal: terminated" error
+	time.Sleep(1 * time.Second)
+	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	if err == nil {
+		t.Fatal(err)
+	}
 	ctx := context.TODO()
 	err = net.Stop(ctx)
 	if err != nil {
