@@ -49,8 +49,6 @@ type localNetwork struct {
 	log  logging.Logger
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
-	// Node type --> Path to binary
-	nodeTypeToBinaryPath map[NodeType]string
 	// For node name generation
 	nextNodeSuffix uint64
 	// Node Name --> Node
@@ -79,7 +77,6 @@ func (l beaconList) String() string {
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
-	nodeTypeToBinaryPath map[NodeType]string,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
@@ -87,10 +84,9 @@ func NewNetwork(
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 	// Create the network
 	net := &localNetwork{
-		nodes:                map[string]*localNode{},
-		closedOnStopCh:       make(chan struct{}),
-		nodeTypeToBinaryPath: nodeTypeToBinaryPath,
-		log:                  log,
+		nodes:          map[string]*localNode{},
+		closedOnStopCh: make(chan struct{}),
+		log:            log,
 	}
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -250,14 +246,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
 	}
 
-	// Path to AvalancheGo binary
-	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[localNodeConfig.Type]
-	if !ok {
-		return nil, fmt.Errorf("got unexpected node type %v", localNodeConfig.Type)
-	}
-
 	// Start the AvalancheGo node and pass it the flags defined above
-	cmd := exec.Command(avalancheGoBinaryPath, flags...)
+	cmd := exec.Command(localNodeConfig.BinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
 	if localNodeConfig.Stdout != nil {
 		cmd.Stdout = nodeConfig.Stdout
@@ -265,9 +255,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if localNodeConfig.Stderr != nil {
 		cmd.Stderr = nodeConfig.Stderr
 	}
-	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log level
+	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, localNodeConfig.BinaryPath, flags) // TODO lower log level
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", avalancheGoBinaryPath, flags, err)
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", localNodeConfig.BinaryPath, flags, err)
 	}
 
 	// Create a wrapper for this node so we can reference it later
@@ -275,7 +265,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		name:   nodeConfig.Name,
 		client: client.NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
-		tmpDir: tmpDir,
 	}
 	ln.nodes[node.name] = node
 	return node, nil

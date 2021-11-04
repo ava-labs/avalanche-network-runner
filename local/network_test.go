@@ -117,7 +117,7 @@ func networkStartWait(t *testing.T, networkConfig *network.Config) (network.Netw
 	if err != nil {
 		return nil, err
 	}
-	net, err := NewNetwork(logging.NoLog{}, *networkConfig, binMap)
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig)
 	if err != nil {
 		return nil, err
 	}

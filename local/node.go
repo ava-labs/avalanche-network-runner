@@ -26,7 +26,7 @@ const (
 // local implementation of a network / node.
 type NodeConfig struct {
 	// What type of node this is
-	Type NodeType
+	BinaryPath string
 	// If non-nil, direct this node's stdout here
 	Stdout io.Writer
 	// If non-nil, direct this node's stderr here
@@ -44,8 +44,6 @@ type localNode struct {
 	// The command that started this node.
 	// Send a SIGTERM to [cmd.Process] to stop this node.
 	cmd *exec.Cmd
-	// Tmp dir for node files
-	tmpDir string
 }
 
 // Return this node's unique name

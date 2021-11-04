@@ -31,6 +31,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Path to AvalancheGo binary
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
+
 	// Read node configs, staking keys, staking certs
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
@@ -60,11 +63,13 @@ func main() {
 		networkConfig.NodeConfigs = append(
 			networkConfig.NodeConfigs,
 			node.Config{
-				ImplSpecificConfig: local.NodeConfig{Type: local.AVALANCHEGO},
-				ConfigFile:         configFile,
-				GenesisFile:        genesisFile,
-				StakingKey:         stakingKey,
-				StakingCert:        stakingCert,
+				ImplSpecificConfig: local.NodeConfig{
+					BinaryPath: binaryPath,
+				},
+				ConfigFile:  configFile,
+				GenesisFile: genesisFile,
+				StakingKey:  stakingKey,
+				StakingCert: stakingCert,
 			},
 		)
 		if i == 0 {
@@ -79,9 +84,6 @@ func main() {
 	nw, err := local.NewNetwork(
 		log,
 		networkConfig,
-		map[local.NodeType]string{
-			local.AVALANCHEGO: fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego"),
-		},
 	)
 	if err != nil {
 		log.Fatal("%s", err)
