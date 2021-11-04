@@ -42,13 +42,28 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		`{"NodeConfigs": [{"Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 		// repeated name
 		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+		// type not found
+		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 3, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
 			_, err := startNetwork(t, networkConfig)
+			fmt.Println(err)
 			assert.Error(t, err)
 		}
+	}
+}
+
+func TestNodeTypeInterface(t *testing.T) {
+	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkConfig.NodeConfigs[0].Type = 1
+	_, err = startNetwork(t, networkConfig)
+	if err == nil {
+		t.Fatal(err)
 	}
 }
 
