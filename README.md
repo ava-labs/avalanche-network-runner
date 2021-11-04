@@ -9,7 +9,7 @@ Golang Library to interact with an Avalanche network from a user client software
 Network creation:
 
 ```
-func NewNetwork(logging.Logger, network.Config, map[NodeType]string)
+func NewNetwork(log logging.Logger, networkConfig network.Config, nodeTypeToBinaryPath map[NodeType]string)
 ```
 
 Network manipulation:
