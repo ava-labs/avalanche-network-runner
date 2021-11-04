@@ -44,12 +44,13 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
 		// type not found
 		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 3, "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+		// invalid cert/key format
+		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "Type": 1, "ConfigFile": "notempty", "GenesisFile": "notempty1", "StakingCert": "notempty", "StakingKey": "notempty"}]}`,
 	}
 	for _, networkConfigJSON := range networkConfigsJSON {
 		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
 		if err == nil {
 			_, err := startNetwork(t, networkConfig)
-			fmt.Println(err)
 			assert.Error(t, err)
 		}
 	}
@@ -312,7 +313,6 @@ func awaitNetwork(net network.Network) error {
 	return nil
 }
 
-// TODO do we need this? It isn't used anywhere.
 func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 	var networkConfigMap map[string]interface{}
 	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
