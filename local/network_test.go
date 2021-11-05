@@ -22,7 +22,6 @@ func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
 	config := network.Config{
-		NodeCount:   0,
 		NodeConfigs: nil,
 		LogLevel:    "DEBUG",
 		Name:        "My Network",
