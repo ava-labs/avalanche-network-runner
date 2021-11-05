@@ -28,46 +28,44 @@ func main() {
 	}
 
 	config := network.Config{
-		NodeCount: 4,
+		NodeCount: 5,
 		LogLevel:  "debug",
 		Name:      "test-val",
-	}
-	opts := k8s.Opts{
-		Namespace:      "dev",
-		DeploymentSpec: "avalanchego-test-validator",
-		Kind:           "Avalanchego",
-		APIVersion:     "chain.avax.network/v1alpha1",
-		Image:          "avaplatform/avalanchego",
-		Tag:            "v1.6.4",
-		LogLevelKey:    "AVAGO_LOG_LEVEL",
-		Log:            log,
+		ImplSpecificConfig: k8s.Config{
+			Namespace:      "dev",
+			DeploymentSpec: "avalanchego-test-validator",
+			Kind:           "Avalanchego",
+			APIVersion:     "chain.avax.network/v1alpha1",
+			Image:          "avaplatform/avalanchego",
+			Tag:            "v1.6.4",
+			LogLevelKey:    "AVAGO_LOG_LEVEL",
+		},
 	}
 
 	timeout, cancel := context.WithTimeout(context.Background(), DefaultNetworkTimeout)
 	defer cancel()
 
-	adapter := k8s.NewAdapter(opts)
-	_, err = adapter.NewNetwork(config)
+	adapter, err := k8s.NewNetwork(config, log)
 	defer adapter.Stop(timeout)
 	if err != nil {
-		log.Error("Error creating network: %v", err)
-		return
+		log.Fatal("Error creating network: %s", err)
+		os.Exit(1)
 	}
 
 	log.Info("Network created. Booting...")
 
-	errc := adapter.Healthy()
+	errCh := adapter.Healthy()
 
 	select {
 	case <-timeout.Done():
-		log.Error("Timed out waiting for network to boot. Exiting.")
-		return
-	case err := <-errc:
+		log.Fatal("Timed out waiting for network to boot. Exiting.")
+		os.Exit(1)
+	case err := <-errCh:
 		if err == nil {
 			log.Info("Network created!!!")
 			return
 		}
-		log.Error("Error booting network: %v", err)
-		return
+		log.Fatal("Error booting network: %s", err)
+		os.Exit(1)
 	}
 }

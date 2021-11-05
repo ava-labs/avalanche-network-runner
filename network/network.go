@@ -38,6 +38,8 @@ type Network interface {
 }
 
 type Config struct {
+	// Configuration specific to a particular implementation of a network.
+	ImplSpecificConfig interface{}
 	// How many nodes in the network
 	NodeCount int
 	// Config for each node
