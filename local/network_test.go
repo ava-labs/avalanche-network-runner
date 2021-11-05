@@ -39,30 +39,142 @@ func newMockProcessStartFail(node.Config, ...string) (NodeProcess, error) {
 
 func TestWrongNetworkConfigs(t *testing.T) {
 	networkConfigs := []network.Config{
-		/*
-			// no binary path
-			`{"NodeConfigs": [{"IsBeacon": true, "ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
-			// no config
-			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "GenesisFile": "notempty"}]}`,
-			// no genesis
-			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty"}]}`,
-			// staking key but no staking cert
-			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
-			// staking cert but no staking key
-			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
-			// different genesis file
-			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
-			// first node is not beacon
-			`{"NodeConfigs": [{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
-			// repeated name
-			`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
-			// invalid cert/key format
-			`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1", "StakingCert": "notempty", "StakingKey": "notempty"}]}`,
-		*/
+		// no ImplSpecificConfig
+		{
+			NodeConfigs: []node.Config{
+				{
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+				},
+			},
+		},
+		// no ConfigFile
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+				},
+			},
+		},
+		// no GenesisFile
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:   true,
+					ConfigFile: []byte("nonempty"),
+				},
+			},
+		},
+		// StakingKey but no StakingCert
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+					StakingKey:  []byte("nonempty"),
+				},
+			},
+		},
+		// StakingCert but no StakingKey
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+					StakingCert: []byte("nonempty"),
+				},
+			},
+		},
+		// different genesis file
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty1"),
+					ConfigFile:  []byte("nonempty"),
+				},
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty2"),
+					ConfigFile:  []byte("nonempty"),
+				},
+			},
+		},
+		// no beacon node
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+				},
+			},
+		},
+		// repeated name
+		{
+			NodeConfigs: []node.Config{
+				{
+					Name: "node0",
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+				},
+				{
+					Name: "node0",
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+				},
+			},
+		},
+		// invalid cert/key format
+		{
+			NodeConfigs: []node.Config{
+				{
+					ImplSpecificConfig: NodeConfig{
+						BinaryPath: "pepe",
+					},
+					IsBeacon:    true,
+					GenesisFile: []byte("nonempty"),
+					ConfigFile:  []byte("nonempty"),
+					StakingCert: []byte("nonempty"),
+					StakingKey:  []byte("nonempty"),
+				},
+			},
+		},
 	}
 	for _, networkConfig := range networkConfigs {
 		_, err := startNetwork(t, &networkConfig)
-		fmt.Println(err)
 		assert.Error(t, err)
 	}
 }
