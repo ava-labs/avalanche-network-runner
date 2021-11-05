@@ -24,6 +24,7 @@ import (
 var networkConfigJSON []byte
 
 var _ NewNodeProcessF = newFullMockProcess
+var _ NewNodeProcessF = newMockProcessStartFail
 
 func newFullMockProcess(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
