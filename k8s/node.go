@@ -7,10 +7,10 @@ import (
 
 // K8sNode is a Avalanchego representation on k8s
 type K8sNode struct {
-	shortID ids.ShortID
-	nodeID  string
-	uri     string
-	client  api.Client
+	nodeID ids.ShortID
+	name   string
+	uri    string
+	client api.Client
 }
 
 // GetAPIClient returns the client to access the avalanchego API
@@ -20,16 +20,11 @@ func (n *K8sNode) GetAPIClient() api.Client {
 
 // GetName returns the string representation of this node
 func (n *K8sNode) GetName() string {
-	return n.nodeID
+	return n.name
 }
 
 // GetNodeID returns the ShortID for this node
 func (n *K8sNode) GetNodeID() ids.ShortID {
-	return n.shortID
-}
-
-// GetID is an alias to return the name
-func (n *K8sNode) GetID() string {
 	return n.nodeID
 }
 

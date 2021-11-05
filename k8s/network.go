@@ -35,13 +35,13 @@ var (
 	errStopped          = errors.New("network stopped")
 )
 
-// Adapter is the kubernetes data type representing a network adapter.
+// networkImpl is the kubernetes data type representing a kubernetes network adapter.
 // It implements the network.Network interface
-type Adapter struct {
+type networkImpl struct {
 	config     network.Config
 	k8sNetwork *k8sapi.Avalanchego
 	k8scli     k8scli.Client
-	opts       Opts
+	opts       Config
 	kconfig    *rest.Config
 	cs         *kubernetes.Clientset
 	nodes      map[string]*K8sNode
@@ -51,8 +51,8 @@ type Adapter struct {
 	log            logging.Logger
 }
 
-// Opts encapsulates kubernetes specific options
-type Opts struct {
+// Config encapsulates kubernetes specific options
+type Config struct {
 	Namespace      string // The kubernetes Namespace
 	DeploymentSpec string // Identifies this network in the cluster
 	Kind           string // Identifies the object Kind for the operator
@@ -60,36 +60,40 @@ type Opts struct {
 	Image          string // The docker image to use
 	Tag            string // The docker tag to use
 	LogLevelKey    string // The key for the log level value
-	Log            logging.Logger
 }
 
 // NewAdapter creates a new adapter
-func NewAdapter(opts Opts) *Adapter {
+func newAdapter(opts Config) (*networkImpl, error) {
 	// init k8s client
-	log := opts.Log
 	scheme := runtime.NewScheme()
 	if err := k8sapi.AddToScheme(scheme); err != nil {
-		log.Fatal("%v", err)
-		return nil
+		return nil, err
 	}
 	kubeconfig := ctrl.GetConfigOrDie()
 	kubeClient, err := k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
 	if err != nil {
-		log.Fatal("%v", err)
-		return nil
+		return nil, err
 	}
-	opts.Log.Info("K8s client initialized")
-	return &Adapter{
+	return &networkImpl{
 		k8scli:         kubeClient,
 		opts:           opts,
 		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
-		log:            log,
-	}
+	}, nil
 }
 
 // NewNetwork returns a new network whose initial state is specified in the config
-func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
+func NewNetwork(config network.Config, log logging.Logger) (network.Network, error) {
+	k8sconf, ok := config.ImplSpecificConfig.(Config)
+	if !ok {
+		return nil, errors.New("Incompatible network config object")
+	}
+	a, err := newAdapter(k8sconf)
+	if err != nil {
+		return nil, err
+	}
+	a.log = log
+	a.log.Info("K8s client initialized")
 	a.config = config
 	a.k8sNetwork = a.createDeploymentFromConfig()
 	if err := a.k8scli.Create(context.TODO(), a.k8sNetwork); err != nil {
@@ -117,40 +121,46 @@ func (a *Adapter) NewNetwork(config network.Config) (network.Network, error) {
 	// so using the API Client too early results in an error.
 	testuri := a.k8sNetwork.Status.NetworkMembersURI[config.NodeCount-1]
 	fmturi := fmt.Sprintf("http://%s:%d", testuri, constants.DefaultPort)
-	ok := false
-	for !ok {
-		a.log.Debug("checking if %s is reachable...", fmturi)
-		_, err := http.Get(fmturi)
-		if err == nil {
-			a.log.Debug("%s has become reachable", fmturi)
-			ok = true
+	timeout, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+LOOP:
+	for {
+		select {
+		case <-timeout.Done():
+			return nil, timeout.Err()
+		default:
+			a.log.Debug("checking if %s is reachable...", fmturi)
+			_, err := http.Get(fmturi)
+			if err == nil {
+				a.log.Debug("%s has become reachable", fmturi)
+				break LOOP
+			}
+			time.Sleep(1 * time.Second)
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	// build a mapping from the given k8s URIs to names/ids
-	err := a.buildNodeMapping()
-	if err != nil {
+	if err := a.buildNodeMapping(); err != nil {
 		return nil, err
 	}
 
-	a.log.Info("%s\n", a)
+	a.log.Info("%s", a)
 	return a, nil
 }
 
 // GetNodesNames returns an array of node names
-func (a *Adapter) GetNodesNames() []string {
+func (a *networkImpl) GetNodesNames() []string {
 	nodes := make([]string, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
-		nodes[i] = n.nodeID
+		nodes[i] = n.name
 		i++
 	}
 	return nodes
 }
 
 // Healthy returns a channel which signals when the network is ready to be used
-func (a *Adapter) Healthy() chan error {
+func (a *networkImpl) Healthy() chan error {
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -187,7 +197,7 @@ func (a *Adapter) Healthy() chan error {
 }
 
 // Stop all the nodes
-func (a *Adapter) Stop(ctx context.Context) error {
+func (a *networkImpl) Stop(ctx context.Context) error {
 	// delete network
 	err := a.k8scli.Delete(ctx, a.k8sNetwork)
 	if err != nil {
@@ -199,7 +209,7 @@ func (a *Adapter) Stop(ctx context.Context) error {
 }
 
 // AddNode starts a new node with the config
-func (a *Adapter) AddNode(cfg node.Config) (node.Node, error) {
+func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	node := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       a.opts.Kind,
@@ -218,12 +228,12 @@ func (a *Adapter) AddNode(cfg node.Config) (node.Node, error) {
 			Env:             a.k8sNetwork.Spec.Env,
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(constants.K8sResourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
-					corev1.ResourceMemory: resource.MustParse(constants.K8sResourceLimitsMemory),
+					corev1.ResourceCPU:    resource.MustParse(K8sResourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
+					corev1.ResourceMemory: resource.MustParse(K8sResourceLimitsMemory),
 				},
 				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(constants.K8sResourceRequestCPU),
-					corev1.ResourceMemory: resource.MustParse(constants.K8sResourceRequestMemory),
+					corev1.ResourceCPU:    resource.MustParse(K8sResourceRequestCPU),
+					corev1.ResourceMemory: resource.MustParse(K8sResourceRequestMemory),
 				},
 			},
 		},
@@ -236,7 +246,7 @@ func (a *Adapter) AddNode(cfg node.Config) (node.Node, error) {
 }
 
 // RemoveNode stops the node with this ID.
-func (a *Adapter) RemoveNode(id string) error {
+func (a *networkImpl) RemoveNode(id string) error {
 	if p, ok := a.pods[id]; ok {
 		if err := a.cs.CoreV1().Nodes().Delete(context.TODO(), p.Name, metav1.DeleteOptions{}); err != nil {
 			return err
@@ -247,7 +257,7 @@ func (a *Adapter) RemoveNode(id string) error {
 }
 
 // GetAllNodes returns all nodes
-func (a *Adapter) GetAllNodes() []node.Node {
+func (a *networkImpl) GetAllNodes() []node.Node {
 	nodes := make([]node.Node, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
@@ -258,14 +268,14 @@ func (a *Adapter) GetAllNodes() []node.Node {
 }
 
 // GetNode returns the node with this ID.
-func (a *Adapter) GetNode(id string) (node.Node, error) {
+func (a *networkImpl) GetNode(id string) (node.Node, error) {
 	if n, ok := a.nodes[id]; ok {
 		return n, nil
 	}
 	return nil, errNodeDoesNotExist
 }
 
-func (a *Adapter) createDeploymentFromConfig() *k8sapi.Avalanchego {
+func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
 	// Returns a new network whose initial state is specified in the config
 	newChain := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
@@ -295,33 +305,33 @@ func (a *Adapter) createDeploymentFromConfig() *k8sapi.Avalanchego {
 
 // buildNodeMapping creates the actual k8s node representation and creates the nodes map
 // with the name as the key
-func (a *Adapter) buildNodeMapping() error {
+func (a *networkImpl) buildNodeMapping() error {
 	for i, u := range a.k8sNetwork.Status.NetworkMembersURI {
-		a.log.Debug(u)
+		a.log.Debug("creating network node and client for %s", u)
 		cli := api.NewAPIClient(u, constants.DefaultPort, constants.TimeoutDuration)
 		nid, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err
 		}
-		a.log.Debug(nid)
-		nodeID := fmt.Sprintf("validator-%d", i)
-		shortID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
+		a.log.Debug("NodeID for this node is %s", nid)
+		name := fmt.Sprintf("validator-%d", i)
+		nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
 		if err != nil {
 			return fmt.Errorf("could not convert node id from string: %s", err)
 		}
-		a.nodes[nodeID] = &K8sNode{
-			uri:     u,
-			client:  cli,
-			nodeID:  nodeID,
-			shortID: shortID,
+		a.nodes[name] = &K8sNode{
+			uri:    u,
+			client: cli,
+			name:   name,
+			nodeID: nodeID,
 		}
-		a.log.Debug("NodeID: %s, ShortID: %s, URI: %s", nodeID, shortID, u)
+		a.log.Debug("Name: %s, NodeID: %s, URI: %s", name, nodeID, u)
 	}
 
 	return nil
 }
 
-func (a *Adapter) String() string {
+func (a *networkImpl) String() string {
 	s := strings.Builder{}
 	_, _ = s.WriteString("****************************************************************************************************")
 	_, _ = s.WriteString("     List of nodes in the network: \n")
@@ -329,7 +339,7 @@ func (a *Adapter) String() string {
 	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +")
 	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
 	for _, n := range a.nodes {
-		s.WriteString(fmt.Sprintf("     %s    %s    %s", n.shortID, n.nodeID, n.uri))
+		s.WriteString(fmt.Sprintf("     %s    %s    %s", n.nodeID, n.name, n.uri))
 	}
 	s.WriteString("****************************************************************************************************")
 	return s.String()
