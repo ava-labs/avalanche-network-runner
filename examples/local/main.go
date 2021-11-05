@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -42,7 +43,7 @@ func main() {
 
 	// Define the nodes to run when network is created.
 	// Read config file from disk.
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/examples/local/configs", goPath)
 	configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
 	if err != nil {
 		log.Fatal("%s", err)
@@ -84,7 +85,9 @@ func main() {
 		networkConfig.NodeConfigs = append(
 			networkConfig.NodeConfigs,
 			node.Config{
-				Type:        local.AVALANCHEGO,
+				ImplSpecificConfig: local.NodeConfig{
+					Type: local.AVALANCHEGO,
+				},
 				ConfigFile:  configFile,
 				StakingKey:  stakingKey,
 				StakingCert: stakingCert,
@@ -152,7 +155,7 @@ func main() {
 		// When we get a SIGINT or SIGTERM, stop the network.
 		sig := <-signalsCh
 		log.Info("got OS signal %s", sig)
-		if err := nw.Stop(); err != nil {
+		if err := nw.Stop(context.TODO()); err != nil {
 			log.Warn("error while stopping network: %s", err)
 		}
 	}()
@@ -166,13 +169,13 @@ func main() {
 		handleError(log, nw)
 	}
 	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
-	if err := nw.Stop(); err != nil {
+	if err := nw.Stop(context.TODO()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
 }
 
 func handleError(log logging.Logger, nw network.Network) {
-	if err := nw.Stop(); err != nil {
+	if err := nw.Stop(context.TODO()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
 	os.Exit(1)

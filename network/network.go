@@ -1,6 +1,8 @@
 package network
 
 import (
+	"context"
+
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 )
 
@@ -17,7 +19,7 @@ type Network interface {
 	// Stop all the nodes.
 	// Calling Stop after the first call does nothing
 	// and returns nil.
-	Stop() error
+	Stop(context.Context) error
 	// Start a new node with the given config.
 	// Returns an error if Stop() was previously called.
 	AddNode(node.Config) (node.Node, error)

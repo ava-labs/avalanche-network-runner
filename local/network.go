@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner-local/client"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
@@ -100,7 +101,7 @@ func NewNetwork(
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
-			if err := net.stop(); err != nil {
+			if err := net.stop(context.TODO()); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
@@ -226,24 +227,26 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 
-	// Path to AvalancheGo binary
-	nodeType, ok := nodeConfig.Type.(NodeType)
+	// Get the local node specific config
+	localNodeConfig, ok := nodeConfig.ImplSpecificConfig.(NodeConfig)
 	if !ok {
-		return nil, fmt.Errorf("expected NodeType but got %T", nodeConfig.Type)
+		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
 	}
-	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[nodeType]
+
+	// Path to AvalancheGo binary
+	avalancheGoBinaryPath, ok := ln.nodeTypeToBinaryPath[localNodeConfig.Type]
 	if !ok {
-		return nil, fmt.Errorf("got unexpected node type %v", nodeType)
+		return nil, fmt.Errorf("got unexpected node type %v", localNodeConfig.Type)
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(avalancheGoBinaryPath, flags...)
 	// Optionally re-direct stdout and stderr
-	if nodeConfig.Stdout != nil {
-		cmd.Stdout = nodeConfig.Stdout
+	if localNodeConfig.Stdout != nil {
+		cmd.Stdout = localNodeConfig.Stdout
 	}
-	if nodeConfig.Stderr != nil {
-		cmd.Stderr = nodeConfig.Stderr
+	if localNodeConfig.Stderr != nil {
+		cmd.Stderr = localNodeConfig.Stderr
 	}
 	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, avalancheGoBinaryPath, flags) // TODO lower log level
 	if err := cmd.Start(); err != nil {
@@ -253,7 +256,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:   nodeConfig.Name,
-		client: NewAPIClient("localhost", uint(apiPort), apiTimeout),
+		client: client.NewAPIClient("localhost", uint(apiPort), apiTimeout),
 		cmd:    cmd,
 		tmpDir: tmpDir,
 	}
@@ -346,15 +349,15 @@ func (net *localNetwork) GetNodesNames() []string {
 }
 
 // TODO does this need to return an error?
-func (net *localNetwork) Stop() error {
+func (net *localNetwork) Stop(ctx context.Context) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
 
-	return net.stop()
+	return net.stop(ctx)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop() error {
+func (net *localNetwork) stop(ctx context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
 		return nil

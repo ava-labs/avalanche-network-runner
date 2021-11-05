@@ -46,6 +46,13 @@ type Config struct {
 	Genesis []byte
 	// May have length 0
 	NodeConfigs []node.Config
+	// Log level for the whole network
+	LogLevel string
+	// Name for the network
+	Name string
+	// How many nodes in the network.
+	// TODO do we need this?
+	NodeCount int
 }
 
 // TODO enforce that all nodes have same genesis.
