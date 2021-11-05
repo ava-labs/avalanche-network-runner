@@ -2,8 +2,6 @@ package local
 
 import (
 	"context"
-	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,9 +17,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
-
-//go:embed network_config.json
-var networkConfigJSON []byte
 
 var _ NewNodeProcessF = newFullMockProcess
 var _ NewNodeProcessF = newMockProcessStartFail
@@ -43,40 +38,37 @@ func newMockProcessStartFail(node.Config, ...string) (NodeProcess, error) {
 }
 
 func TestWrongNetworkConfigs(t *testing.T) {
-	networkConfigsJSON := []string{
-		// no json
-		"",
-		// no binary path
-		`{"NodeConfigs": [{"IsBeacon": true, "ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
-		// no config
-		`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "GenesisFile": "notempty"}]}`,
-		// no genesis
-		`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty"}]}`,
-		// staking key but no staking cert
-		`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
-		// staking cert but no staking key
-		`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
-		// different genesis file
-		`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
-		// first node is not beacon
-		`{"NodeConfigs": [{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
-		// repeated name
-		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
-		// invalid cert/key format
-		`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1", "StakingCert": "notempty", "StakingKey": "notempty"}]}`,
+	networkConfigs := []network.Config{
+		/*
+			// no binary path
+			`{"NodeConfigs": [{"IsBeacon": true, "ConfigFile": "notempty", "GenesisFile": "notempty"}]}`,
+			// no config
+			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "GenesisFile": "notempty"}]}`,
+			// no genesis
+			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty"}]}`,
+			// staking key but no staking cert
+			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingKey": "notempty"}]}`,
+			// staking cert but no staking key
+			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty", "StakingCert": "notempty"}]}`,
+			// different genesis file
+			`{"NodeConfigs": [{"IsBeacon": true, "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty2"}]}`,
+			// first node is not beacon
+			`{"NodeConfigs": [{"BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+			// repeated name
+			`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"},{"Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1"}]}`,
+			// invalid cert/key format
+			`{"NodeConfigs": [{"IsBeacon": true, "Name": "node1", "BinaryPath": "1", "ConfigFile": "notempty", "GenesisFile": "notempty1", "StakingCert": "notempty", "StakingKey": "notempty"}]}`,
+		*/
 	}
-	for _, networkConfigJSON := range networkConfigsJSON {
-		networkConfig, err := ParseNetworkConfigJSON([]byte(networkConfigJSON))
-		if err == nil {
-			_, err := startNetwork(t, networkConfig)
-			fmt.Println(err)
-			assert.Error(t, err)
-		}
+	for _, networkConfig := range networkConfigs {
+		_, err := startNetwork(t, &networkConfig)
+		fmt.Println(err)
+		assert.Error(t, err)
 	}
 }
 
 func TestImplSpecificConfigInterface(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +80,7 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 }
 
 func TestInvalidCommand(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +93,7 @@ func TestInvalidCommand(t *testing.T) {
 /*
 Needs fake health api?
 func TestUnhealthyNetwork(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +113,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 */
 
 func TestGeneratedNodesNames(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +145,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes api clients are up
 func TestNetworkFromConfig(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +174,7 @@ func TestNetworkFromConfig(t *testing.T) {
 // the check verify that all the nodes api clients are up for started nodes, and down for removed nodes
 // all nodes are taken from config file
 func TestNetworkNodeOps(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +221,7 @@ func TestNetworkNodeOps(t *testing.T) {
 
 // TestNodeNotFound checks operations fail for unkown node
 func TestNodeNotFound(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +272,7 @@ func TestNodeNotFound(t *testing.T) {
 
 // TestStoppedNetwork checks operations fail for an already stopped network
 func TestStoppedNetwork(t *testing.T) {
-	networkConfig, err := ParseNetworkConfigJSON(networkConfigJSON)
+	networkConfig, err := GetNetworkConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,67 +398,42 @@ func awaitNetwork(net network.Network) error {
 	return nil
 }
 
-func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
-	var networkConfigMap map[string]interface{}
-	if err := json.Unmarshal(networkConfigJSON, &networkConfigMap); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshall network config json: %s", err)
+func GetNetworkConfig() (*network.Config, error) {
+	genesisFile, err := os.ReadFile("test_files/network1/genesis.json")
+	if err != nil {
+		return nil, err
+	}
+	cchainConfigFile, err := os.ReadFile("test_files/network1/cchain_config.json")
+	if err != nil {
+		return nil, err
 	}
 	networkConfig := network.Config{}
-	var networkGenesisFile []byte
-	var networkCChainConfigFile []byte
-	if networkConfigMap["GenesisFile"] != nil {
-		networkGenesisFile = []byte(networkConfigMap["GenesisFile"].(string))
-	}
-	if networkConfigMap["CChainConfigFile"] != nil {
-		networkCChainConfigFile = []byte(networkConfigMap["CChainConfigFile"].(string))
-	}
-	if networkConfigMap["NodeConfigs"] != nil {
-		for _, nodeConfigMap := range networkConfigMap["NodeConfigs"].([]interface{}) {
-			nodeConfigMap := nodeConfigMap.(map[string]interface{})
-			nodeConfig := node.Config{}
-			nodeConfig.GenesisFile = networkGenesisFile
-			nodeConfig.CChainConfigFile = networkCChainConfigFile
-			if nodeConfigMap["Name"] != nil {
-				nodeConfig.Name = nodeConfigMap["Name"].(string)
-			}
-			if nodeConfigMap["IsBeacon"] != nil {
-				nodeConfig.IsBeacon = nodeConfigMap["IsBeacon"].(bool)
-			}
-			if nodeConfigMap["StakingKey"] != nil {
-				nodeConfig.StakingKey = []byte(nodeConfigMap["StakingKey"].(string))
-			}
-			if nodeConfigMap["StakingCert"] != nil {
-				nodeConfig.StakingCert = []byte(nodeConfigMap["StakingCert"].(string))
-			}
-			if nodeConfigMap["ConfigFile"] != nil {
-				nodeConfig.ConfigFile = []byte(nodeConfigMap["ConfigFile"].(string))
-			}
-			if nodeConfigMap["CChainConfigFile"] != nil {
-				nodeConfig.CChainConfigFile = []byte(nodeConfigMap["CChainConfigFile"].(string))
-			}
-			if nodeConfigMap["GenesisFile"] != nil {
-				nodeConfig.GenesisFile = []byte(nodeConfigMap["GenesisFile"].(string))
-			}
-			localNodeConf := &NodeConfig{}
-			var set bool
-			if nodeConfigMap["BinaryPath"] != nil {
-				set = true
-				localNodeConf.BinaryPath = nodeConfigMap["BinaryPath"].(string)
-			}
-			if nodeConfigMap["Stdout"] != nil {
-				set = true
-				localNodeConf.Stdout = os.Stdout
-			}
-			if nodeConfigMap["Stderr"] != nil {
-				set = true
-				localNodeConf.Stderr = os.Stderr
-			}
-			if set {
-				nodeConfig.ImplSpecificConfig = *localNodeConf
-			}
-			networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+	for i := 1; i <= 6; i++ {
+		nodeConfig := node.Config{}
+		nodeConfig.GenesisFile = genesisFile
+		nodeConfig.CChainConfigFile = cchainConfigFile
+		nodeConfig.Name = fmt.Sprintf("node%d", i)
+		configFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/config.json", i))
+		if err != nil {
+			return nil, err
 		}
+		nodeConfig.ConfigFile = configFile
+		certFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/staking.crt", i))
+		if err == nil {
+			nodeConfig.StakingCert = certFile
+		}
+		keyFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/staking.key", i))
+		if err == nil {
+			nodeConfig.StakingKey = keyFile
+		}
+		localNodeConf := &NodeConfig{}
+		localNodeConf.BinaryPath = "pepito"
+		localNodeConf.Stdout = os.Stdout
+		localNodeConf.Stderr = os.Stderr
+		nodeConfig.ImplSpecificConfig = *localNodeConf
+		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
+	networkConfig.NodeConfigs[0].IsBeacon = true
 	return &networkConfig, nil
 }
 
