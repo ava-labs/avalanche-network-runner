@@ -30,6 +30,13 @@ import (
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	// How long we'll wait for a kubernetes pod to become reachable
+	nodeReachableTimeout = 2 * time.Minute
+	// Time between checks to see if a node is reachable
+	nodeReachableRetryFreq = 3 * time.Second
+)
+
 var (
 	errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 	errStopped          = errors.New("network stopped")
@@ -39,9 +46,9 @@ var (
 // It implements the network.Network interface
 type networkImpl struct {
 	config     network.Config
+	k8sConfig  Config
 	k8sNetwork *k8sapi.Avalanchego
 	k8scli     k8scli.Client
-	opts       Config
 	kconfig    *rest.Config
 	cs         *kubernetes.Clientset
 	nodes      map[string]*K8sNode
@@ -62,6 +69,7 @@ type Config struct {
 	LogLevelKey    string // The key for the log level value
 }
 
+// TODO should this just be a part of NewNetwork?
 // NewAdapter creates a new adapter
 func newAdapter(opts Config) (*networkImpl, error) {
 	// init k8s client
@@ -76,7 +84,7 @@ func newAdapter(opts Config) (*networkImpl, error) {
 	}
 	return &networkImpl{
 		k8scli:         kubeClient,
-		opts:           opts,
+		k8sConfig:      opts,
 		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
 	}, nil
@@ -107,12 +115,12 @@ func NewNetwork(config network.Config, log logging.Logger) (network.Network, err
 	for len(a.k8sNetwork.Status.NetworkMembersURI) != a.k8sNetwork.Spec.NodeCount {
 		err := a.k8scli.Get(context.TODO(), types.NamespacedName{
 			Name:      a.k8sNetwork.Name,
-			Namespace: a.opts.Namespace,
+			Namespace: a.k8sConfig.Namespace,
 		}, a.k8sNetwork)
 		if err != nil {
 			return nil, err
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	// use the last uri to try connecting to it until it resolves
@@ -121,21 +129,26 @@ func NewNetwork(config network.Config, log logging.Logger) (network.Network, err
 	// so using the API Client too early results in an error.
 	testuri := a.k8sNetwork.Status.NetworkMembersURI[config.NodeCount-1]
 	fmturi := fmt.Sprintf("http://%s:%d", testuri, constants.DefaultPort)
-	timeout, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
 	defer cancel()
 LOOP:
 	for {
 		select {
-		case <-timeout.Done():
-			return nil, timeout.Err()
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		default:
 			a.log.Debug("checking if %s is reachable...", fmturi)
-			_, err := http.Get(fmturi)
-			if err == nil {
+			// TODO is there a better way to wait until the node is reachable?
+			if _, err := http.Get(fmturi); err == nil {
 				a.log.Debug("%s has become reachable", fmturi)
 				break LOOP
 			}
-			time.Sleep(1 * time.Second)
+			// Wait before checking again
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(nodeReachableRetryFreq):
+			}
 		}
 	}
 
@@ -144,7 +157,7 @@ LOOP:
 		return nil, err
 	}
 
-	a.log.Info("%s", a)
+	a.log.Info("network: %s", a)
 	return a, nil
 }
 
@@ -212,12 +225,12 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	node := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       a.opts.Kind,
-			APIVersion: a.opts.APIVersion,
+			Kind:       a.k8sConfig.Kind,
+			APIVersion: a.k8sConfig.APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cfg.Name,
-			Namespace: a.opts.Namespace,
+			Namespace: a.k8sConfig.Namespace,
 		},
 		Spec: k8sapi.AvalanchegoSpec{
 			DeploymentName:  cfg.Name,
@@ -228,12 +241,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 			Env:             a.k8sNetwork.Spec.Env,
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(K8sResourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
-					corev1.ResourceMemory: resource.MustParse(K8sResourceLimitsMemory),
+					corev1.ResourceCPU:    resource.MustParse(resourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
+					corev1.ResourceMemory: resource.MustParse(resourceLimitsMemory),
 				},
 				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(K8sResourceRequestCPU),
-					corev1.ResourceMemory: resource.MustParse(K8sResourceRequestMemory),
+					corev1.ResourceCPU:    resource.MustParse(resourceRequestCPU),
+					corev1.ResourceMemory: resource.MustParse(resourceRequestMemory),
 				},
 			},
 		},
@@ -279,21 +292,21 @@ func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
 	// Returns a new network whose initial state is specified in the config
 	newChain := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       a.opts.Kind,
-			APIVersion: a.opts.APIVersion,
+			Kind:       a.k8sConfig.Kind,
+			APIVersion: a.k8sConfig.APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.opts.DeploymentSpec,
-			Namespace: a.opts.Namespace,
+			Name:      a.k8sConfig.DeploymentSpec,
+			Namespace: a.k8sConfig.Namespace,
 		},
 		Spec: k8sapi.AvalanchegoSpec{
 			DeploymentName: a.config.Name,
 			NodeCount:      a.config.NodeCount,
-			Image:          a.opts.Image,
-			Tag:            a.opts.Tag,
+			Image:          a.k8sConfig.Image,
+			Tag:            a.k8sConfig.Tag,
 			Env: []corev1.EnvVar{
 				{
-					Name:  a.opts.LogLevelKey,
+					Name:  a.k8sConfig.LogLevelKey,
 					Value: a.config.LogLevel,
 				},
 			},
@@ -308,7 +321,7 @@ func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
 func (a *networkImpl) buildNodeMapping() error {
 	for i, u := range a.k8sNetwork.Status.NetworkMembersURI {
 		a.log.Debug("creating network node and client for %s", u)
-		cli := api.NewAPIClient(u, constants.DefaultPort, constants.TimeoutDuration)
+		cli := api.NewAPIClient(u, constants.DefaultPort, constants.APITimeoutDuration)
 		nid, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err
