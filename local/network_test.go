@@ -385,11 +385,10 @@ func TestStoppedNetwork(t *testing.T) {
 	// first GetNodesNames should return some nodes
 	_, err = net.GetNodesNames()
 	assert.NoError(err)
-	ctx := context.TODO()
-	err = net.Stop(ctx)
+	err = net.Stop(context.TODO())
 	assert.NoError(err)
 	// Stop failure
-	assert.EqualValues(net.Stop(ctx), errStopped)
+	assert.EqualValues(net.Stop(context.TODO()), errStopped)
 	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
 	assert.EqualValues(err, errStopped)
