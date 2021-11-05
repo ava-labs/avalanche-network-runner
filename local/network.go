@@ -12,16 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/client"
-	"github.com/ava-labs/avalanche-network-runner-local/helpers"
 	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/constants"
+	"github.com/ava-labs/avalanche-network-runner-local/helpers"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
 	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
 )
@@ -202,7 +200,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// If this node is a beacon, add its IP/ID to the beacon lists
 	if nodeConfig.IsBeacon {
-		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
+		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(avagoconst.NodeIDPrefix))
 		ln.bootstrapIPs = append(ln.bootstrapIPs, fmt.Sprintf("127.0.0.1:%d", p2pPort))
 	}
 

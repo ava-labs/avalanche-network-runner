@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/client"
 	"github.com/ava-labs/avalanche-network-runner-local/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -196,7 +195,7 @@ func TestInvalidCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewNetwork(logging.NoLog{}, *networkConfig, client.NewAPIClient, newMockProcessStartFail)
+	_, err = NewNetwork(logging.NoLog{}, *networkConfig, api.NewAPIClient, newMockProcessStartFail)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -444,7 +443,7 @@ func TestStoppedNetwork(t *testing.T) {
 }
 
 func startNetwork(t *testing.T, networkConfig *network.Config) (network.Network, error) {
-	net, err := NewNetwork(logging.NoLog{}, *networkConfig, client.NewAPIClient, newFullMockProcess)
+	net, err := NewNetwork(logging.NoLog{}, *networkConfig, api.NewAPIClient, newFullMockProcess)
 	if err != nil {
 		return nil, err
 	}

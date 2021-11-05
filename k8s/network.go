@@ -162,7 +162,7 @@ LOOP:
 }
 
 // GetNodesNames returns an array of node names
-func (a *Adapter) GetNodesNames() ([]string, error) {
+func (a *networkImpl) GetNodesNames() ([]string, error) {
 	nodes := make([]string, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
