@@ -44,18 +44,18 @@ Where:
 
 Node fields common to all backends (local,k8s):
 
-- *Name*: optional. unique reference name for the node. if not given, it is generated
-- *IsBeacon*: optional. indicator that the node is going to be a bootstrapper for the other nodes in the network. at least one node should be bootstrapper
-- *StakingKey*: optional. key file contents for the node. if not given , it is generated (note also cert should not be given)
-- *StakingCert*: optional. cert file contents for the node. if not given, it is generated (note also key should not be given)
-- *CChainConfigFile*: optional. c chain config file for the node
-- *ConfigFile*: config file for the node
-- *GenesisFile*: genesis file for the node
+- **Name**: optional. unique reference name for the node. if not given, it is generated
+- **IsBeacon**: optional. indicator that the node is going to be a bootstrapper for the other nodes in the network. at least one node should be bootstrapper
+- **StakingKey**: optional. key file contents for the node. if not given , it is generated (note also cert should not be given)
+- **StakingCert**: optional. cert file contents for the node. if not given, it is generated (note also key should not be given)
+- **CChainConfigFile**: optional. c chain config file for the node
+- **ConfigFile**: config file for the node
+- **GenesisFile**: genesis file for the node
 
 Node fields specific to local backend (`ImplSpecificConfig`):
-- *BinaryPath*: specifies the node binary to execute
-- *Stdout*: optional. writer to which to associate the standard output of the node.
-- *Stderr*: optional. writer to which to associate the standard error of the node.
+- **BinaryPath**: specifies the node binary to execute
+- **Stdout**: optional. writer to which to associate the standard output of the node.
+- **Stderr**: optional. writer to which to associate the standard error of the node.
 
 Node fields specific to k8s backend (`ImplSpecificConfig`):
 
