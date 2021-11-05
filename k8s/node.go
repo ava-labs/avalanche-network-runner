@@ -5,25 +5,30 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
+// K8sNode is a Avalanchego representation on k8s
 type K8sNode struct {
-	ShortID ids.ShortID
-	NodeID  string
-	Client  api.Client
-	URI     string
+	nodeID ids.ShortID
+	name   string
+	uri    string
+	client api.Client
 }
 
+// GetAPIClient returns the client to access the avalanchego API
 func (n *K8sNode) GetAPIClient() api.Client {
-	return n.Client
+	return n.client
 }
 
+// GetName returns the string representation of this node
 func (n *K8sNode) GetName() string {
-	return n.NodeID
+	return n.name
 }
 
+// GetNodeID returns the ShortID for this node
 func (n *K8sNode) GetNodeID() ids.ShortID {
-	return n.ShortID
+	return n.nodeID
 }
 
-func (n *K8sNode) GetID() string {
-	return n.NodeID
+// GetURI returns the k8s URI to talk to the node
+func (n *K8sNode) GetURI() string {
+	return n.uri
 }

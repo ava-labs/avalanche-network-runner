@@ -565,7 +565,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 	net, err := NewNetwork(
 		logging.NoLog{},
 		config,
-		client.NewAPIClient, // TODO change AvalancheGo so we can mock API clients
+		api.NewAPIClient, // TODO change AvalancheGo so we can mock API clients
 		newMockProcess,
 	)
 	assert.NoError(err)
@@ -616,7 +616,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	net, err := NewNetwork(
 		logging.NoLog{},
 		config,
-		client.NewAPIClient,
+		api.NewAPIClient,
 		newProcessF,
 	)
 	assert.NoError(err)

@@ -2,52 +2,69 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/k8s"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/sirupsen/logrus"
+	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
 const DefaultNetworkTimeout = 120 * time.Second
 
 func main() {
-	logrus.SetLevel(logrus.DebugLevel)
+	// Create the logger
+	loggingConfig, err := logging.DefaultConfig()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	logFactory := logging.NewFactory(loggingConfig)
+	log, err := logFactory.Make("main")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	config := network.Config{
-		NodeCount: 4,
+		NodeCount: 5,
 		LogLevel:  "debug",
 		Name:      "test-val",
-	}
-	opts := k8s.Opts{
-		Namespace:      "default",
-		DeploymentSpec: "avalanchego-test-validator",
+		ImplSpecificConfig: k8s.Config{
+			Namespace:      "dev",
+			DeploymentSpec: "avalanchego-test-validator",
+			Kind:           "Avalanchego",
+			APIVersion:     "chain.avax.network/v1alpha1",
+			Image:          "avaplatform/avalanchego",
+			Tag:            "v1.6.4",
+			LogLevelKey:    "AVAGO_LOG_LEVEL",
+		},
 	}
 
 	timeout, cancel := context.WithTimeout(context.Background(), DefaultNetworkTimeout)
 	defer cancel()
 
-	adapter := k8s.NewAdapter(opts)
-	_, err := adapter.NewNetwork(config)
-	defer adapter.Stop(timeout)
+	adapter, err := k8s.NewNetwork(config, log)
 	if err != nil {
-		logrus.Errorf("Error creating network: %v", err)
-		return
+		log.Fatal("Error creating network: %s", err)
+		os.Exit(1)
 	}
+	defer adapter.Stop(timeout)
 
-	logrus.Info("Network created. Booting...")
+	log.Info("Network created. Booting...")
 
-	errc := adapter.Healthy()
+	errCh := adapter.Healthy()
 
 	select {
 	case <-timeout.Done():
-		logrus.Error("Timed out waiting for network to boot. Exiting.")
-		return
-	case err := <-errc:
-		if err == nil {
-			logrus.Info("Network created!!!")
-			return
+		log.Fatal("Timed out waiting for network to boot. Exiting.")
+		os.Exit(1)
+	case err := <-errCh:
+		if err != nil {
+			log.Fatal("Error booting network: %s", err)
+			os.Exit(1)
 		}
-		logrus.Errorf("Error booting network: %v", err)
-		return
 	}
+	log.Info("Network created!!!")
 }
