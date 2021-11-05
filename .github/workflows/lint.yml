@@ -1,6 +1,6 @@
-# This workflow lints this package.
+# This workflow lints and runs unit tests on this package.
 # It runs when a change is pushed.
-name: Lint
+name: Lint and Unit Test
 on:
   [push]
 jobs:
@@ -19,3 +19,17 @@ jobs:
           version: 'v1.42'
           working-directory: .
           args: --timeout 3m
+  unit_test:
+    needs: lint
+    name: Unit Test
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Allow access to avalanchego-operator repo
+        env:
+          GITHUB_ACCESS_TOKEN: ${{ secrets.SNOWBOT_PAT }}
+        run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with: 
+          go-version: '1.17.2' # The Go version to use.
+      - run: go test ./... -timeout 2m

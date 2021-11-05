@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ava-labs/avalanche-network-runner-local/client"
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -33,6 +34,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	// Path to AvalancheGo binary
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
 
 	// Create network config
 	networkConfig := network.Config{
@@ -86,7 +90,7 @@ func main() {
 			networkConfig.NodeConfigs,
 			node.Config{
 				ImplSpecificConfig: local.NodeConfig{
-					Type: local.AVALANCHEGO,
+					BinaryPath: binaryPath,
 				},
 				ConfigFile:  configFile,
 				StakingKey:  stakingKey,
@@ -137,9 +141,8 @@ func main() {
 	nw, err := local.NewNetwork(
 		log,
 		networkConfig,
-		map[local.NodeType]string{
-			local.AVALANCHEGO: fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego"),
-		},
+		client.NewAPIClient,
+		local.NewNodeProcess,
 	)
 	if err != nil {
 		log.Fatal("%s", err)

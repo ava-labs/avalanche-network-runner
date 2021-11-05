@@ -17,7 +17,10 @@ import (
 )
 
 // interface compliance
-var _ api.Client = (*APIClient)(nil)
+var (
+	_ api.Client    = (*APIClient)(nil)
+	_ NewAPIClientF = NewAPIClient
+)
 
 // APIClient gives access to most avalanchego apis (or suitable wrappers)
 type APIClient struct {
@@ -35,8 +38,11 @@ type APIClient struct {
 	cindex       *indexer.Client
 }
 
+// Returns a new API client for a node at [ipAddr]:[port].
+type NewAPIClientF func(ipAddr string, port uint, requestTimeout time.Duration) api.Client
+
 // NewAPIClient initialize most of avalanchego apis
-func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) *APIClient {
+func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
 	uri := fmt.Sprintf("http://%s:%d", ipAddr, port)
 	return &APIClient{
 		platform:     platformvm.NewClient(uri, requestTimeout),
