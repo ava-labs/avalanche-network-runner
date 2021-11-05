@@ -218,7 +218,7 @@ func ParseNetworkConfigJSON(networkConfigJSON []byte) (*network.Config, error) {
 			nodeConfig.GenesisFile = networkGenesisFile
 			nodeConfig.CChainConfigFile = networkCChainConfigFile
 			if nodeConfigMap["Type"] != nil {
-				nodeConfig.Type = NodeType(nodeConfigMap["Type"].(float64))
+				nodeConfig.ImplSpecificConfig = NodeType(nodeConfigMap["Type"].(float64))
 			}
 			if nodeConfigMap["Name"] != nil {
 				nodeConfig.Name = nodeConfigMap["Name"].(string)
