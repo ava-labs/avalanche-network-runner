@@ -37,6 +37,11 @@ type AddrAndBalance struct {
 
 // Config that defines a network when it is created.
 type Config struct {
+	// Must not be the ID of Mainnet, Testnet or Localnet.
+	// If any nodes are given a config file, the network ID
+	// in the config file will be over-ridden by this network ID.
+	// This network ID must match the one in [Genesis].
+	NetworkID uint32
 	// Must not be nil
 	Genesis []byte
 	// May have length 0
@@ -109,7 +114,6 @@ func NewAvalancheGoGenesis(
 
 	for _, xChainBal := range xChainBalances {
 		xChainAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), xChainBal.Addr[:])
-		log.Info("X-Chain address: %s. Amount: %d", xChainAddr, xChainBal.Balance)
 		config.Allocations = append(
 			config.Allocations,
 			genesis.UnparsedAllocation{

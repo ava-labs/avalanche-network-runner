@@ -29,7 +29,7 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 	healthCheckFreq       = 5 * time.Second
-	healthyTimeout        = 100 * time.Second
+	healthyTimeout        = 200 * time.Second
 )
 
 var errStopped = errors.New("network stopped")
@@ -41,6 +41,8 @@ var _ network.Network = (*localNetwork)(nil)
 type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
+	// This network's ID.
+	networkID uint32
 	// This network's genesis file.
 	// Must not be nil.
 	genesis []byte
@@ -86,6 +88,7 @@ func NewNetwork(
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 	// Create the network
 	net := &localNetwork{
+		networkID:            networkConfig.NetworkID,
 		genesis:              networkConfig.Genesis,
 		nodes:                map[string]*localNode{},
 		closedOnStopCh:       make(chan struct{}),
@@ -161,9 +164,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
 	flags := []string{
+		// Tell the node its network ID
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 		// Tell the node to put the database in [tmpDir]
+		// TODO allow user to specify different database directory
 		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
 		// Tell the node to put the log directory in [tmpDir]
+		// TODO allow user to specify different logs directory
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
 		// Tell the node to use this API port
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),

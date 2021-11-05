@@ -41,8 +41,6 @@ func (c *Config) Validate() error {
 	switch {
 	case c.Type == nil:
 		return errors.New("node type not given")
-	case len(c.ConfigFile) == 0:
-		return errors.New("node config not given")
 	case len(c.StakingKey) == 0:
 		return errors.New("staking key not given")
 	case len(c.StakingCert) == 0:

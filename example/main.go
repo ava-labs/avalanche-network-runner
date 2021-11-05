@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,15 +9,16 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner-local/utils"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/units"
 )
 
 var goPath = os.ExpandEnv("$GOPATH")
 
-// Start a network with 1 node which connects to mainnet.
-// Uses default configs.
+// Start 10 nodes, wait for them to become healthy, then stop them all.
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
@@ -34,49 +33,54 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Read node configs, staking keys, staking certs
-	log.Info("reading genesis")
+	// Create network config
+	networkConfig := network.Config{
+		NetworkID: 1337,
+	}
+
+	allNodeIDs := []ids.ShortID{}
+
+	// Define the nodes to run when network is created.
+	// Read config file from disk.
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
-	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
+	configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
 	if err != nil {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
-	networkConfig := network.Config{
-		Genesis: genesisFile,
-	}
-	for i := 0; i < 5; i++ {
-		log.Info("reading config %d", i)
-		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
-		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
-		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
-		}
-		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
-		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
-		}
-		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
-		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
-		}
-		// TODO add helper for this?
-		cert, err := tls.X509KeyPair(stakingCert, stakingKey)
-		if err != nil {
-			log.Fatal("%s", err)
-		}
-		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			os.Exit(1)
-		}
-		nodeID := ids.ShortID(
-			hashing.ComputeHash160Array(
-				hashing.ComputeHash256(cert.Leaf.Raw),
-			),
+	for i := 0; i < 6; i++ {
+		var (
+			stakingKey  []byte
+			stakingCert []byte
 		)
+		// For first 3 nodes, read staking key/cert from disk
+		if i < 3 {
+			log.Info("reading node %d key/cert", i)
+			nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
+			stakingKey, err = os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+			if err != nil {
+				log.Fatal("%s", err)
+				os.Exit(1)
+			}
+			stakingCert, err = os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
+			if err != nil {
+				log.Fatal("%s", err)
+				os.Exit(1)
+			}
+		} else {
+			log.Info("generating node %d key/cert", i)
+			// For first 5 nodes, don't read staking key/cert from disk
+			stakingCert, stakingKey, err = staking.NewCertAndKeyBytes()
+			if err != nil {
+				log.Fatal("%s", err)
+				os.Exit(1)
+			}
+		}
+		nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
 		networkConfig.NodeConfigs = append(
 			networkConfig.NodeConfigs,
 			node.Config{
@@ -85,12 +89,43 @@ func main() {
 				StakingKey:  stakingKey,
 				StakingCert: stakingCert,
 				NodeID:      nodeID,
+				IsBeacon:    true, // make every node a beacon
 			},
 		)
-		if i == 0 {
-			networkConfig.NodeConfigs[0].IsBeacon = true
-		}
+		allNodeIDs = append(allNodeIDs, nodeID)
 	}
+
+	// Generate and set network genesis
+	networkConfig.Genesis, err = network.NewAvalancheGoGenesis(
+		log,
+		networkConfig.NetworkID, // Network ID
+		[]network.AddrAndBalance{ // X-Chain Balances
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 1,
+			},
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 2,
+			},
+		},
+		[]network.AddrAndBalance{ // C-Chain Balances
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 3,
+			},
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 4,
+			},
+		},
+		allNodeIDs, // Make all nodes validators
+	)
+	if err != nil {
+		log.Fatal("%s", err)
+		os.Exit(1)
+	}
+	log.Debug("network genesis: %s", networkConfig.Genesis)
 
 	// Uncomment this line to print the first node's logs to stdout
 	// networkConfig.NodeConfigs[0].Stdout = os.Stdout
