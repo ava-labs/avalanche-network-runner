@@ -52,12 +52,12 @@ Node fields common to all backends (local,k8s):
 - *ConfigFile*: config file for the node
 - *GenesisFile*: genesis file for the node
 
-Node fields specific to local backend (ImplSpecificConfig):
+Node fields specific to local backend (`ImplSpecificConfig`):
 - *BinaryPath*: specifies the node binary to execute
 - *Stdout*: optional. writer to which to associate the standard output of the node.
 - *Stderr*: optional. writer to which to associate the standard error of the node.
 
-Node fields specific to k8s backend (ImplSpecificConfig):
+Node fields specific to k8s backend (`ImplSpecificConfig`):
 
 ### Network manipulation
 
@@ -99,7 +99,7 @@ PChainIndexAPI() api.IndexerClient
 CChainIndexAPI() api.IndexerClient
 ```
 
-Where most of then are interfaces over associated avalanchego or coreth apis, except api.EthClient, which is a wrapper over coreth ethclient.Client websocket, that add mutexed calls, and lazy start of connection (on first call).
+Where most of then are interfaces over associated avalanchego or coreth apis, except `api.EthClient`, which is a wrapper over coreth `ethclient.Client` websocket, that add mutexed calls, and lazy start of connection (on first call).
 
 ## Instalation
 
