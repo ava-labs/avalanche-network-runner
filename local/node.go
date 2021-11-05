@@ -3,6 +3,7 @@ package local
 import (
 	"io"
 	"os/exec"
+	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -10,27 +11,47 @@ import (
 )
 
 // interface compliance
-var _ node.Node = (*localNode)(nil)
-
-// The type of this node (e.g. normal, byzantine, etc.)
-// TODO Generalize this to allow user to specify a specific
-// branch, etc. Or just have user provide path to binaries.
-type NodeType int
-
-const (
-	AVALANCHEGO NodeType = iota + 1
-	BYZANTINE
+var (
+	_ node.Node   = (*localNode)(nil)
+	_ NodeProcess = (*nodeProcessImpl)(nil)
 )
 
 // Node configurations which are specific to the
 // local implementation of a network / node.
 type NodeConfig struct {
 	// What type of node this is
-	Type NodeType
+	BinaryPath string
 	// If non-nil, direct this node's stdout here
 	Stdout io.Writer
 	// If non-nil, direct this node's stderr here
 	Stderr io.Writer
+}
+
+// Use an interface so we can mock running
+// AvalancheGo binaries in tests
+type NodeProcess interface {
+	// Start this process
+	Start() error
+	// Send a SIGTERM to this process
+	Stop() error
+	// Returns when the process finishes exiting
+	Wait() error
+}
+
+type nodeProcessImpl struct {
+	cmd *exec.Cmd
+}
+
+func (p *nodeProcessImpl) Start() error {
+	return p.cmd.Start()
+}
+
+func (p *nodeProcessImpl) Wait() error {
+	return p.cmd.Wait()
+}
+
+func (p *nodeProcessImpl) Stop() error {
+	return p.cmd.Process.Signal(syscall.SIGTERM)
 }
 
 // Gives access to basic nodes info, and to most avalanchego apis
@@ -41,11 +62,8 @@ type localNode struct {
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
 	client api.Client
-	// The command that started this node.
-	// Send a SIGTERM to [cmd.Process] to stop this node.
-	cmd *exec.Cmd
-	// Tmp dir for node files
-	tmpDir string
+	// The process running this node.
+	process NodeProcess
 }
 
 // Return this node's unique name
