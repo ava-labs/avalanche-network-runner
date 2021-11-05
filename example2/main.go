@@ -7,13 +7,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/units"
 )
 
 var goPath = os.ExpandEnv("$GOPATH")
@@ -35,34 +38,23 @@ func main() {
 	}
 
 	// Read node configs, staking keys, staking certs
-	log.Info("reading genesis")
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
-	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
-	if err != nil {
-		log.Fatal("%s", err)
-		os.Exit(1)
-	}
-	networkConfig := network.Config{
-		Genesis: genesisFile,
-	}
+	networkConfig := network.Config{}
+
 	for i := 0; i < 5; i++ {
 		log.Info("reading config %d", i)
+		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/example/configs", goPath)
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
 		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
-		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
-		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
-		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
-		}
+		// Derive the node ID.
 		// TODO add helper for this?
 		cert, err := tls.X509KeyPair(stakingCert, stakingKey)
 		if err != nil {
@@ -91,6 +83,40 @@ func main() {
 			networkConfig.NodeConfigs[0].IsBeacon = true
 		}
 	}
+
+	networkConfig.Genesis, err = network.NewAvalancheGoGenesis(
+		log,
+		uint32(1337),
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 1,
+			},
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 2,
+			},
+		},
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 3,
+			},
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: units.KiloAvax + 4,
+			},
+		},
+		[]ids.ShortID{
+			networkConfig.NodeConfigs[0].NodeID, // TODO change
+			networkConfig.NodeConfigs[1].NodeID, // TODO change
+		},
+	)
+	if err != nil {
+		log.Fatal("%s", err)
+		os.Exit(1)
+	}
+	log.Info("%s", networkConfig.Genesis)
 
 	// Uncomment this line to print the first node's logs to stdout
 	// networkConfig.NodeConfigs[0].Stdout = os.Stdout
@@ -131,6 +157,7 @@ func main() {
 		handleError(log, nw)
 	}
 	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
+	time.Sleep(time.Minute)
 	if err := nw.Stop(); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}

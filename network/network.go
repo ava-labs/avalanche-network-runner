@@ -1,9 +1,6 @@
 package network
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
 )
 
@@ -34,25 +31,4 @@ type Network interface {
 	// Returns nil if Stop() was previously called.
 	GetNodesNames() []string
 	// TODO add methods
-}
-
-type Config struct {
-	// Config for each node
-	NodeConfigs []node.Config
-}
-
-// TODO enforce that all nodes have same genesis.
-func (c *Config) Validate() error {
-	for i, nodeConfig := range c.NodeConfigs {
-		if err := nodeConfig.Validate(); err != nil {
-			var nodeName string
-			if len(nodeConfig.Name) > 0 {
-				nodeName = nodeConfig.Name
-			} else {
-				nodeName = strconv.Itoa(i)
-			}
-			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
-		}
-	}
-	return nil
 }

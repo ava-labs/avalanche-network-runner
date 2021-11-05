@@ -18,20 +18,17 @@ type Config struct {
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
 	IsBeacon bool
-	// If nil, a unique staking key/cert is
-	// assigned on node creation.
-	// If nil, [StakingCert] must also be nil.
+	// Must not be nil
 	StakingKey []byte
-	// If nil, a unique staking key/cert is
-	// assigned on node creation.
-	// If nil, [StakingKey] must also be nil.
+	// Must not be nil
 	StakingCert []byte
+	// Must not be nil
+	NodeID ids.ShortID
 	// Must not be nil.
+	// TODO what if network ID here doesn't match that in genesis?
 	ConfigFile []byte
 	// May be nil.
 	CChainConfigFile []byte
-	// Must not be nil.
-	GenesisFile []byte
 	// TODO make the below specific to local network runner
 	// If non-nil, direct this node's stdout here
 	Stdout io.Writer
@@ -46,12 +43,10 @@ func (c *Config) Validate() error {
 		return errors.New("node type not given")
 	case len(c.ConfigFile) == 0:
 		return errors.New("node config not given")
-	case len(c.GenesisFile) == 0:
-		return errors.New("genesis file not given")
-	case len(c.StakingKey) != 0 && len(c.StakingCert) == 0:
-		return errors.New("staking key given but not staking cert")
-	case len(c.StakingKey) == 0 && len(c.StakingCert) != 0:
-		return errors.New("staking cert given but not staking key")
+	case len(c.StakingKey) == 0:
+		return errors.New("staking key not given")
+	case len(c.StakingCert) == 0:
+		return errors.New("staking cert not given")
 	default:
 		return nil
 	}
