@@ -1,141 +1,162 @@
-# avalanche-network-runner
-
-Tool to run and interact with an Avalanche network, deployed either in localhost or in a kubernetes cluster.
+# Avalanche Network Runner
 
 ## Overview
 
-Golang Library to interact with an Avalanche network from a user client software, with development or testing purposes. 
+This is a tool to run and interact with an Avalanche network.
+The nodes that compose the network can run either locally or in a Kubernetes cluster.
+This tool may be especially useful for development and testing.
 
-The network can be:
+The network you run can be:
 
-1. local to the use machine, that is, consisting of different operating system processes, instantiated from avalanchego executables, assigned to different avalanche nodes.
-2. deployed in a kubernetes cluster, consisting of different kubernetes pods, instantiated from avalanchego containers, assigned to different avalanche nodes.
+1. Locally: each node runs in a process on your computer.
+2. In Kubernetes: each node runs in a Kubernetes pod. The Kubernetes pods may be on your computer or remote.
 
-All library functions are race free, so can be safely executed from concurrent user software.
+## Configuration
 
-The configuration for each node is by default automatically generated, including:
-- api port of the node
-- staking port of the node
-- reference to bootstrap nodes (by using user specified IsBeacon field in network config)
-- cert/key contents (if not given)
-- paths and files for genesis, config, cchain conf, cert/key, from given or generated []byte contents
-- log/db directories
+When the user creates a network, they specify the configurations of the nodes that are in the network upon creation.
 
-Besides that, parts of the configuration for the node can be specified by the user, for example:
-- genesis file
-- config file
-- cchain config file
-- cert/key file
+A node config is defined by this struct:
 
-### Network creation
-
-A network can be created from a specification of the starting nodes on it, including he special case of cero nodes. In any case, subsequently new nodes can be added, and nodes can be removed.
-
-```
-func NewNetwork(log logging.Logger, networkConfig network.Config, ...)
-```
-
-It takes a `network.Config` (basically a list of `node.Config` items), an returns an implementation (either local or k8s) of the interface `network.Network`. 
-
-Where:
-- `network.Network` is defined in `github.com/ava-labs/avalanche-network-runner-local/network/network.go`
-- `network.Config` is defined in `github.com/ava-labs/avalanche-network-runner-local/network/network.go`
-- `node.Config` is defined in `github.com/ava-labs/avalanche-network-runner-local/network/node/node.go`
-
-Node fields common to all backends (local,k8s):
-
-- *Name*: optional. unique reference name for the node. if not given, it is generated
-- *IsBeacon*: optional. indicator that the node is going to be a bootstrapper for the other nodes in the network. at least one node should be bootstrapper
-- *StakingKey*: optional. key file contents for the node. if not given , it is generated (note also cert should not be given)
-- *StakingCert*: optional. cert file contents for the node. if not given, it is generated (note also key should not be given)
-- *CChainConfigFile*: optional. c chain config file for the node
-- *ConfigFile*: config file for the node
-- *GenesisFile*: genesis file for the node
-
-Node fields specific to local backend (ImplSpecificConfig):
-- *BinaryPath*: specifies the node binary to execute
-- *Stdout*: optional. writer to which to associate the standard output of the node.
-- *Stderr*: optional. writer to which to associate the standard error of the node.
-
-Node fields specific to k8s backend (ImplSpecificConfig):
-
-### Network manipulation
-
-Functions used to change the nodes in the network, get information from the them, wait the network to be ready, and stopping it.
-
-```
-func (*localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) 
-func (*localNetwork) RemoveNode(nodeName string) error 
-func (*localNetwork) Healthy() chan error 
-func (*localNetwork) GetNode(nodeName string) (node.Node, error) 
-func (*localNetwork) GetNodesNames() ([]string, error) 
-func (*localNetwork) Stop(ctx context.Context) error 
+```go
+type Config struct {
+    // Configuration specific to a particular implementation of a node.
+    ImplSpecificConfig interface{}
+    // A node's name must be unique from all other nodes
+    // in a network. If Name is the empty string, a
+    // unique name is assigned on node creation.
+    Name string
+    // True if other nodes should use this node
+    // as a bootstrap beacon.
+    IsBeacon bool
+    // If nil, a unique staking key/cert is
+    // assigned on node creation.
+    // If nil, [StakingCert] must also be nil.
+    StakingKey []byte
+    // If nil, a unique staking key/cert is
+    // assigned on node creation.
+    // If nil, [StakingKey] must also be nil.
+    StakingCert []byte
+    // Must not be nil.
+    ConfigFile []byte
+    // May be nil.
+    CChainConfigFile []byte
+    // Must not be nil.
+    GenesisFile []byte
+}
 ```
 
-### Node interaction
+As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
+The following node configuration fields will be overwritten, even if provided:
 
-A given node, obtained from `GetNode()` can be queried for its name and avalanchego id. 
+- API port
+- P2P (staking) port
+- Paths to files such as the genesis, node config, etc.
+- Log/database directories
+- Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
 
-```
-GetName() string
-GetNodeID() ids.ShortID
-GetAPIClient() api.Client
-```
+A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
+For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
+whereas a node running locally has a config field that specifies the path of the binary that the node runs.
 
-`GetAPIClient()` give access to all subjacent avalanchego apis:
+## Network Creation
 
-```
-PChainAPI() api.PChainClient
-XChainAPI() pi.AvmClient
-XChainWalletAPI() api.AvmWalletClient
-CChainAPI() api.EvmClient
-CChainEthAPI() api.EthClient 
-InfoAPI() api.InfoClient
-HealthAPI() api.HealthClient
-IpcsAPI() api.IpcsClient
-KeystoreAPI() api.KeystoreClient
-AdminAPI() api.AdminClient
-PChainIndexAPI() api.IndexerClient
-CChainIndexAPI() api.IndexerClient
-```
+Each network runner implementation (local/Kubernetes) has a function that returns a new network.
 
-Where most of then are interfaces over associated avalanchego or coreth apis, except api.EthClient, which is a wrapper over coreth ethclient.Client websocket, that add mutexed calls, and lazy start of connection (on first call).
+Each is parameterized on `network.Config`:
 
-## Instalation
-
-Clone repository `https://github.com/ava-labs/avalanche-network-runner-local` to `$GOPATH`
-
-For example by:
-
-```
-GO111MODULE=off go get github.com/ava-labs/avalanche-network-runner-local
+```go
+type Config struct {
+   // How many nodes are the network
+   // TODO do we need this?
+   NodeCount int
+   // Config for each node
+   NodeConfigs []node.Config
+   // Log level for the whole network
+   LogLevel string
+   // Name for the network
+   Name string
+}
 ```
 
-## Unit testing
+The function that returns a new network may have additional configuration fields.
 
-To verify status of the library, execute:
+## Network Interaction
 
+The network runner allows users to interact with an AvalancheGo network using the `network.Network` interface:
+
+```go
+// Network is an abstraction of an Avalanche network
+type Network interface {
+    // Returns a chan that is closed when
+    // all the nodes in the network are healthy.
+    // If an error is sent on this channel, at least 1
+    // node didn't become healthy before the timeout.
+    // If an error isn't sent on the channel before it
+    // closes, all the nodes are healthy.
+    // A stopped network is considered unhealthy.
+    Healthy() chan error
+    // Stop all the nodes.
+    // Calling Stop after the first call does nothing
+    // and returns nil.
+    Stop(context.Context) error
+    // Start a new node with the given config.
+    // Returns an error if Stop() was previously called.
+    AddNode(node.Config) (node.Node, error)
+    // Stop the node with this name.
+    // Returns an error if Stop() was previously called.
+    RemoveNode(name string) error
+    // Return the node with this name.
+    // Returns an error if Stop() was previously called.
+    GetNode(name string) (node.Node, error)
+    // Returns the names of all nodes in this network.
+    // Returns nil if Stop() was previously called.
+    GetNodesNames() []string
+}
 ```
-cd $GOPATH/src/github.com/ava-labs/avalanche-network-runner-local
+
+and allows users to interact with a node using the `node.Node` interface:
+
+```go
+// An AvalancheGo node
+type Node interface {
+    // Return this node's name, which is unique
+    // across all the nodes in its network.
+    GetName() string
+    // Return this node's Avalanche node ID.
+    GetNodeID() ids.ShortID
+    // Return a client that can be used to make API calls.
+    GetAPIClient() api.Client
+}
+```
+
+## Installation
+
+### Download
+
+```sh
+`git clone https://github.com/ava-labs/avalanche-network-runner-local.git`
+```
+
+### Run Unit Tests
+
+Inside the directory cloned above:
+
+```sh
 go test ./...
 ```
 
-## Local network runner demo example 
+### Run a Small Example
 
-
-The demo starts a local network with 5 nodes, waits until the nodes are healthy, prints their names, then stops all the nodes.
+As an example of how to use the network runner, we've included a small `main.go` that uses the local implementation of the network runner.
+When run, it starts a local network with 5 nodes, waits until the nodes are healthy, prints their names, then stops all the nodes.
 
 It assumes:
 
-1. you have the AvalancheGo v1.6.4 binaries at `$GOPATH/src/github.com/ava-labs/avalanchego/build`
-2. the library is located at `$GOPATH/src/github.com/ava-labs/avalanche-network-runner-local`)
+1. You have the AvalancheGo v1.6.4 binaries at `$GOPATH/src/github.com/ava-labs/avalanchego/build`
+2. The network runner direcory is at `$GOPATH/src/github.com/ava-labs/avalanche-network-runner-local`)
 
-Execution:
+To run the demo:
 
-```
-cd $GOPATH/src/github.com/ava-labs/avalanche-network-runner-local
+```sh
 go run examples/local/main.go
 ```
-
-
-
