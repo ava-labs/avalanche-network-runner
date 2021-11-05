@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner-local/tools/gendb"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -116,8 +117,21 @@ func main() {
 		handleError(log, nw)
 	}
 	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
-	if err := nw.Stop(context.TODO()); err != nil {
-		log.Warn("error while stopping network: %s", err)
+	conf := gendb.GenDBConfig{
+		NumTxs:   1000,
+		IncludeX: true,
+		// IncludeP: true,
+		IncludeP: false,
+		IncludeC: true,
+	}
+	log.Info("run db generation...")
+	err = gendb.GenDB(nw, conf)
+	if err != nil {
+		log.Fatal("%s", err)
+
+		if err := nw.Stop(context.TODO()); err != nil {
+			log.Warn("error while stopping network: %s", err)
+		}
 	}
 }
 
