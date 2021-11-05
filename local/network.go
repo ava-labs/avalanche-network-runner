@@ -289,8 +289,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:   nodeConfig.Name,
-		nodeID: nodeID,
+		name:    nodeConfig.Name,
+		nodeID:  nodeID,
 		client:  ln.newAPIClientF("localhost", uint(apiPort), apiTimeout),
 		process: nodeProcess,
 	}
