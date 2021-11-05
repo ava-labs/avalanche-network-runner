@@ -63,15 +63,15 @@ type localNetwork struct {
 	bootstrapIPs, bootstrapIDs beaconList
 }
 
-type NewNodeProcessF func(config node.Config, binaryPath string, args ...string) (NodeProcess, error)
+type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, error)
 
-func NewNodeProcess(config node.Config, binaryPath string, flags ...string) (NodeProcess, error) {
+func NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	localNodeConfig, ok := config.ImplSpecificConfig.(NodeConfig)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeConfig but got %T", config.ImplSpecificConfig)
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
-	cmd := exec.Command(localNodeConfig.BinaryPath, flags...)
+	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
 	// Optionally re-direct stdout and stderr
 	if localNodeConfig.Stdout != nil {
 		cmd.Stdout = localNodeConfig.Stdout
@@ -276,7 +276,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.newNodeProcessF(nodeConfig, localNodeConfig.BinaryPath, flags...)
+	nodeProcess, err := ln.newNodeProcessF(nodeConfig, flags...)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}

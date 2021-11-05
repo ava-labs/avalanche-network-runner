@@ -15,7 +15,7 @@ import (
 
 var _ NewNodeProcessF = newMockProcess
 
-func newMockProcess(node.Config, string, ...string) (NodeProcess, error) {
+func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 	return &mocks.NodeProcess{}, nil
 }
 
@@ -67,7 +67,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	}
 	// Assert that the node's config is being passed correctly
 	// to the function that starts the node process.
-	newProcessF := func(config node.Config, binaryPath string, _ ...string) (NodeProcess, error) {
+	newProcessF := func(config node.Config, _ ...string) (NodeProcess, error) {
 		assert.EqualValues(nodeName, config.Name)
 		assert.True(config.IsBeacon)
 		assert.EqualValues(genesis, config.GenesisFile)
