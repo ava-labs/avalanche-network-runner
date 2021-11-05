@@ -1,9 +1,8 @@
 package k8s
 
 const (
-	K8sResourceLimitsCPU    = "1"
-	K8sResourceLimitsMemory = "4Gi"
-
-	K8sResourceRequestCPU    = "500m"
-	K8sResourceRequestMemory = "2Gi"
+	resourceLimitsCPU     = "1"
+	resourceLimitsMemory  = "4Gi"
+	resourceRequestCPU    = "500m"
+	resourceRequestMemory = "2Gi"
 )
