@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/local"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/local"
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -39,7 +39,7 @@ func main() {
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
 		log.Info("reading config %d", i)
-		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/examples/local/configs", goPath)
+		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/local/configs", goPath)
 		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
 			log.Fatal("%s", err)

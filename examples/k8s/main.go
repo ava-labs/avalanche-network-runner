@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner-local/k8s"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
+	"github.com/ava-labs/avalanche-network-runner/k8s"
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 

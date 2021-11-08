@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	"github.com/ava-labs/avalanche-network-runner-local/api"
+	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
