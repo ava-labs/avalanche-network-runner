@@ -37,20 +37,21 @@ type Network interface {
 	// TODO add methods
 }
 
+// Config encapsulates general config params for a network
 type Config struct {
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// How many nodes in the network
-	NodeCount int
+	NodeCount int `json:"node_count"`
 	// Config for each node
 	NodeConfigs []node.Config
 	// Log level for the whole network
-	LogLevel string
+	LogLevel string `json:"log_level"`
 	// Name for the network
-	Name string
+	Name string `json:"name"`
 }
 
-// TODO enforce that all nodes have same genesis.
+// Validate TODO enforce that all nodes have same genesis.
 func (c *Config) Validate() error {
 	for i, nodeConfig := range c.NodeConfigs {
 		if err := nodeConfig.Validate(); err != nil {

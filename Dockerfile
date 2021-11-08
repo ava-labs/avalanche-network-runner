@@ -20,7 +20,7 @@ RUN go mod download
 copy network/ network/
 COPY api/ api/
 COPY k8s/ k8s/
-COPY client/ client/
+COPY constants/ constants/
 COPY examples/ examples/
 
 # Build
@@ -30,5 +30,6 @@ RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./examples/k8s/main.go
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/base-debian11
 COPY --from=builder /workspace/simplenet / 
+COPY --from=builder /workspace/examples/ /examples/
 
 ENTRYPOINT ["/simplenet"]

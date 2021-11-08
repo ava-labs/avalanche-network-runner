@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/labstack/gommon/log"
 	"golang.org/x/sync/errgroup"
 
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
@@ -60,13 +62,14 @@ type networkImpl struct {
 
 // Config encapsulates kubernetes specific options
 type Config struct {
-	Namespace      string // The kubernetes Namespace
-	DeploymentSpec string // Identifies this network in the cluster
-	Kind           string // Identifies the object Kind for the operator
-	APIVersion     string // The APIVersion of the kubernetes object
-	Image          string // The docker image to use
-	Tag            string // The docker tag to use
-	LogLevelKey    string // The key for the log level value
+	ProvideFiles   bool   `json:"provide_files"`   // If true, upload certs and genesis, otherwise have k8s generate them
+	Namespace      string `json:"namespace"`       // The kubernetes Namespace
+	DeploymentSpec string `json:"deployment_spec"` // Identifies this network in the cluster
+	Kind           string `json:"kind"`            // Identifies the object Kind for the operator
+	APIVersion     string `json:"api_version"`     // The APIVersion of the kubernetes object
+	Image          string `json:"image"`           // The docker image to use
+	Tag            string `json:"tag"`             // The docker tag to use
+	LogLevelKey    string `json:"log_level_key"`   // The key for the log level value
 }
 
 // TODO should this just be a part of NewNetwork?
@@ -290,6 +293,12 @@ func (a *networkImpl) GetNode(id string) (node.Node, error) {
 
 func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
 	// Returns a new network whose initial state is specified in the config
+	var certs []k8sapi.Certificate
+	var genesis string
+
+	if a.k8sConfig.ProvideFiles {
+		certs, genesis = a.readFiles()
+	}
 	newChain := &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       a.k8sConfig.Kind,
@@ -310,6 +319,8 @@ func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
 					Value: a.config.LogLevel,
 				},
 			},
+			Certificates: certs,
+			Genesis:      genesis,
 		},
 	}
 
@@ -342,6 +353,36 @@ func (a *networkImpl) buildNodeMapping() error {
 	}
 
 	return nil
+}
+
+func (a *networkImpl) readFiles() ([]k8sapi.Certificate, string) {
+	certs := make([]k8sapi.Certificate, a.config.NodeCount)
+	configDir := "./examples/common/configs"
+	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
+	if err != nil {
+		log.Fatal("%s", err)
+		os.Exit(1)
+	}
+	for i := 0; i < a.config.NodeCount; i++ {
+		log.Info("reading config %d", i)
+		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
+		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+		cert := k8sapi.Certificate{
+			Cert: string(stakingCert),
+			Key:  string(stakingKey),
+		}
+		certs[i] = cert
+	}
+	return certs, string(genesisFile)
 }
 
 func (a *networkImpl) String() string {
