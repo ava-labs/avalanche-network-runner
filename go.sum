@@ -91,8 +91,8 @@ github.com/ava-labs/avalanchego v1.5.3/go.mod h1:mfsT8C6mfjCEAjE90q8aNh9BqGEFNBd
 github.com/ava-labs/avalanchego v1.6.2-rc.2/go.mod h1:Dir4TnnbmIzrl5/Gnqxv+89qGmwIPjqKjLBWXw2lu9M=
 github.com/ava-labs/avalanchego v1.6.3 h1:X26BpzRaW8mNCxAZaouN5M9RXY454SxYPEf9BmxwpFg=
 github.com/ava-labs/avalanchego v1.6.3/go.mod h1:Dir4TnnbmIzrl5/Gnqxv+89qGmwIPjqKjLBWXw2lu9M=
-github.com/ava-labs/avalanchego-operator v0.0.0-20211101125343-c83f461f9edb h1:6Zxh4jpJWbENJ3sHyvxcqf3RumypxnEi8MrE2vQFrFo=
-github.com/ava-labs/avalanchego-operator v0.0.0-20211101125343-c83f461f9edb/go.mod h1:Emlw5alL+G004gZYwihY08o6cWtOaU88v+AaRCUximA=
+github.com/ava-labs/avalanchego-operator v0.0.0-20211103120206-926f99318243 h1:Wy1l5H8ePVCmO2sncSZdh3+GZQNx7ttI4uvL+41rBTo=
+github.com/ava-labs/avalanchego-operator v0.0.0-20211103120206-926f99318243/go.mod h1:Emlw5alL+G004gZYwihY08o6cWtOaU88v+AaRCUximA=
 github.com/ava-labs/coreth v0.7.2-rc.1 h1:toMqyMjOn4m2Zhvrhf9eyNHfoIqxbmIvpefrITka5Y8=
 github.com/ava-labs/coreth v0.7.2-rc.1/go.mod h1:cBwNCAwz4Bc8cVLKpFMt85QVJycBHiLbGcPnKEt/eKY=
 github.com/aws/aws-sdk-go-v2 v1.2.0/go.mod h1:zEQs02YRBw1DjK0PoJv3ygDYOFTre1ejlJWl8FwAuQo=
