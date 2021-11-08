@@ -9,6 +9,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner-local/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,23 @@ func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
+	// Use a dummy genesis
+	genesis, err := network.NewAvalancheGoGenesis(
+		logging.NoLog{},
+		1337,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		nil,
+		[]ids.ShortID{ids.GenerateTestShortID()},
+	)
+	assert.NoError(err)
 	config := network.Config{
+		NetworkID:   1337,
+		Genesis:     genesis,
 		NodeConfigs: nil,
 		LogLevel:    "DEBUG",
 		Name:        "My Network",
