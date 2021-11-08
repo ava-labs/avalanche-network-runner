@@ -1,4 +1,4 @@
-module github.com/ava-labs/avalanche-network-runner-local
+module github.com/ava-labs/avalanche-network-runner
 
 go 1.16
 

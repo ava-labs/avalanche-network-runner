@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/local/mocks"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/local/mocks"
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
