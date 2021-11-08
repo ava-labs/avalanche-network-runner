@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -130,31 +131,40 @@ func NewNetwork(config network.Config, log logging.Logger) (network.Network, err
 	// otherwise we have to sleep indiscriminately, we can't just use the API right away:
 	// the kubernetes cluster has already created the pods but not the DNS names,
 	// so using the API Client too early results in an error.
-	testuri := a.k8sNetwork.Status.NetworkMembersURI[config.NodeCount-1]
-	fmturi := fmt.Sprintf("http://%s:%d", testuri, constants.DefaultPort)
 	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
 	defer cancel()
-LOOP:
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			a.log.Debug("checking if %s is reachable...", fmturi)
-			// TODO is there a better way to wait until the node is reachable?
-			if _, err := http.Get(fmturi); err == nil {
-				a.log.Debug("%s has become reachable", fmturi)
-				break LOOP
+
+	errGr, ctx := errgroup.WithContext(ctx)
+	for _, testuri := range a.k8sNetwork.Status.NetworkMembersURI {
+		testuri := testuri
+		errGr.Go(func() error {
+			fmturi := fmt.Sprintf("http://%s:%d", testuri, constants.DefaultPort)
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					a.log.Debug("checking if %s is reachable...", fmturi)
+					// TODO is there a better way to wait until the node is reachable?
+					if _, err := http.Get(fmturi); err == nil {
+						a.log.Debug("%s has become reachable", fmturi)
+						return nil
+					}
+					// Wait before checking again
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-time.After(nodeReachableRetryFreq):
+					}
+				}
 			}
-			// Wait before checking again
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(nodeReachableRetryFreq):
-			}
-		}
+		})
 	}
 
+	// Wait until all nodes are ready or timeout
+	if err := errGr.Wait(); err != nil {
+		return nil, err
+	}
 	// build a mapping from the given k8s URIs to names/ids
 	if err := a.buildNodeMapping(); err != nil {
 		return nil, err
@@ -376,9 +386,11 @@ func (a *networkImpl) readFiles() ([]k8sapi.Certificate, string) {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
+		crt := base64.StdEncoding.EncodeToString(stakingCert)
+		key := base64.StdEncoding.EncodeToString(stakingKey)
 		cert := k8sapi.Certificate{
-			Cert: string(stakingCert),
-			Key:  string(stakingKey),
+			Cert: crt,
+			Key:  key,
 		}
 		certs[i] = cert
 	}
@@ -387,14 +399,14 @@ func (a *networkImpl) readFiles() ([]k8sapi.Certificate, string) {
 
 func (a *networkImpl) String() string {
 	s := strings.Builder{}
-	_, _ = s.WriteString("****************************************************************************************************")
+	_, _ = s.WriteString("\n****************************************************************************************************\n")
 	_, _ = s.WriteString("     List of nodes in the network: \n")
-	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
-	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +")
-	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+\n")
+	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +\n")
+	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+\n")
 	for _, n := range a.nodes {
-		s.WriteString(fmt.Sprintf("     %s    %s    %s", n.nodeID, n.name, n.uri))
+		s.WriteString(fmt.Sprintf("     %s    %s    %s\n", n.nodeID, n.name, n.uri))
 	}
-	s.WriteString("****************************************************************************************************")
+	s.WriteString("****************************************************************************************************\n")
 	return s.String()
 }
