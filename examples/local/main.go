@@ -7,11 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/local"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
-	"github.com/ava-labs/avalanche-network-runner-local/utils"
+	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/local"
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -47,7 +47,7 @@ func main() {
 
 	// Define the nodes to run when network is created.
 	// Read config file from disk.
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/examples/local/configs", goPath)
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/local/configs", goPath)
 	configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
 	if err != nil {
 		log.Fatal("%s", err)
@@ -165,7 +165,7 @@ func main() {
 
 	// Wait until the nodes in the network are ready
 	healthyChan := nw.Healthy()
-	fmt.Println("waiting for all nodes to report healthy...")
+	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
 		log.Fatal("network never became healthy: %s\n", err)

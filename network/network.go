@@ -3,7 +3,7 @@ package network
 import (
 	"context"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
 // Network is an abstraction of an Avalanche network

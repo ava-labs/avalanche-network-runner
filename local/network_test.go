@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/local/mocks"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/local/mocks"
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -23,10 +23,11 @@ func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
+	networkID := uint32(1337)
 	// Use a dummy genesis
 	genesis, err := network.NewAvalancheGoGenesis(
 		logging.NoLog{},
-		1337,
+		networkID,
 		[]network.AddrAndBalance{
 			{
 				Addr:    ids.GenerateTestShortID(),
@@ -38,7 +39,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 	)
 	assert.NoError(err)
 	config := network.Config{
-		NetworkID:   1337,
+		NetworkID:   networkID,
 		Genesis:     genesis,
 		NodeConfigs: nil,
 		LogLevel:    "DEBUG",
