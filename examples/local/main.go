@@ -20,7 +20,7 @@ import (
 
 var goPath = os.ExpandEnv("$GOPATH")
 
-// Start 10 nodes, wait for them to become healthy, then stop them all.
+// Start 6 nodes, wait for them to become healthy, then stop them all.
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
