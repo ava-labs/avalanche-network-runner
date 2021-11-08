@@ -17,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/labstack/gommon/log"
 	"golang.org/x/sync/errgroup"
 
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
@@ -370,20 +369,20 @@ func (a *networkImpl) readFiles() ([]k8sapi.Certificate, string) {
 	configDir := "./examples/common/configs"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
-		log.Fatal("%s", err)
+		a.log.Fatal("%s", err)
 		os.Exit(1)
 	}
 	for i := 0; i < a.config.NodeCount; i++ {
-		log.Info("reading config %d", i)
+		a.log.Info("reading config %d", i)
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
 		stakingKey, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
 		if err != nil {
-			log.Fatal("%s", err)
+			a.log.Fatal("%s", err)
 			os.Exit(1)
 		}
 		stakingCert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
 		if err != nil {
-			log.Fatal("%s", err)
+			a.log.Fatal("%s", err)
 			os.Exit(1)
 		}
 		crt := base64.StdEncoding.EncodeToString(stakingCert)
