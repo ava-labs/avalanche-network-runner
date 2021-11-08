@@ -42,6 +42,8 @@ type Config struct {
 	// in the config file will be over-ridden by this network ID.
 	// This network ID must match the one in [Genesis].
 	NetworkID uint32
+	// Configuration specific to a particular implementation of a network.
+	ImplSpecificConfig interface{}
 	// Must not be nil
 	Genesis []byte
 	// May have length 0
@@ -57,6 +59,10 @@ type Config struct {
 
 // TODO enforce that all nodes have same genesis.
 func (c *Config) Validate() error {
+	switch {
+	case len(c.Genesis) == 0:
+		return errors.New("no genesis given")
+	}
 	for i, nodeConfig := range c.NodeConfigs {
 		if err := nodeConfig.Validate(); err != nil {
 			var nodeName string

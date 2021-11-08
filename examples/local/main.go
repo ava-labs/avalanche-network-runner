@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ava-labs/avalanche-network-runner-local/client"
+	"github.com/ava-labs/avalanche-network-runner-local/api"
 	"github.com/ava-labs/avalanche-network-runner-local/local"
 	"github.com/ava-labs/avalanche-network-runner-local/network"
 	"github.com/ava-labs/avalanche-network-runner-local/network/node"
@@ -141,7 +141,7 @@ func main() {
 	nw, err := local.NewNetwork(
 		log,
 		networkConfig,
-		client.NewAPIClient,
+		api.NewAPIClient,
 		local.NewNodeProcess,
 	)
 	if err != nil {
