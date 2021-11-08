@@ -405,11 +405,11 @@ func GetNetworkConfig() (network.Config, error) {
 		LogLevel: "DEBUG",
 		Name:     "My Network",
 	}
-	genesisFile, err := os.ReadFile("test_files/network1/genesis.json")
+	genesisFile, err := os.ReadFile("test_files/genesis.json")
 	if err != nil {
 		return networkConfig, err
 	}
-	cchainConfigFile, err := os.ReadFile("test_files/network1/cchain_config.json")
+	cchainConfigFile, err := os.ReadFile("test_files/cchain_config.json")
 	if err != nil {
 		return networkConfig, err
 	}
@@ -418,16 +418,16 @@ func GetNetworkConfig() (network.Config, error) {
 		nodeConfig.GenesisFile = genesisFile
 		nodeConfig.CChainConfigFile = cchainConfigFile
 		nodeConfig.Name = fmt.Sprintf("node%d", i)
-		configFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/config.json", i))
+		configFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/config.json", i))
 		if err != nil {
 			return networkConfig, err
 		}
 		nodeConfig.ConfigFile = configFile
-		certFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/staking.crt", i))
+		certFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.crt", i))
 		if err == nil {
 			nodeConfig.StakingCert = certFile
 		}
-		keyFile, err := os.ReadFile(fmt.Sprintf("test_files/network1/node%d/staking.key", i))
+		keyFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.key", i))
 		if err == nil {
 			nodeConfig.StakingKey = keyFile
 		}
