@@ -39,7 +39,7 @@ func main() {
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
 		log.Info("reading config %d", i)
-		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/local/configs", goPath)
+		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/common/configs", goPath)
 		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
 			log.Fatal("%s", err)

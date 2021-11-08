@@ -42,11 +42,11 @@ type Config struct {
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// How many nodes in the network
-	NodeCount int `json:"node_count"`
+	NodeCount int `json:"nodeCount"`
 	// Config for each node
 	NodeConfigs []node.Config
 	// Log level for the whole network
-	LogLevel string `json:"log_level"`
+	LogLevel string `json:"logLevel"`
 	// Name for the network
 	Name string `json:"name"`
 }

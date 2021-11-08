@@ -1,17 +1,17 @@
 {
   "network_config": {
-    "node_count": 5,
+    "nodeCount": 5,
     "name": "custom-test-net",
-    "log_level": "debug"
+    "logLevel": "debug"
   },
   "k8s_config": {
-    "provide_files": true,
+    "provideFiles": true,
     "namespace": "default",
-    "deployment_spec": "avalanchego-test-validator",
+    "deploymentSpec": "avalanchego-test-validator",
     "kind": "Avalanchego",
-    "api_version": "chain.avax.network/v1alpha1",
+    "apiVersion": "chain.avax.network/v1alpha1",
     "image": "avaplatform/avalanchego",
     "tag": "v1.6.4",
-    "log_level_key": "AVAGO_LOG_LEVEL"
+    "logLevelKey": "AVAGO_LOG_LEVEL"
   }
 }

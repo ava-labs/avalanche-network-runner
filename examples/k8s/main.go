@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -14,10 +13,9 @@ import (
 )
 
 const (
-	// DefaultNetworkTimeout to wait network to come up until deemed failed
-	DefaultNetworkTimeout = 120 * time.Second
-
-	confFileName = "/conf.json"
+	// defaultNetworkTimeout to wait network to come up until deemed failed
+	defaultNetworkTimeout = 120 * time.Second
+	confFileName          = "/conf.json"
 )
 
 // TODO: shouldn't we think of something like Viper for loading config file?
@@ -42,28 +40,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/examples/k8s", confPath)
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", confPath)
 	if confPath == "" {
 		configDir = "./examples/k8s"
 	}
-	confFile, err := ioutil.ReadFile(configDir + confFileName)
+	confFile, err := os.ReadFile(configDir + confFileName)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("%s", err)
 		os.Exit(1)
 	}
 
 	var rconfig allConfig
 	err = json.Unmarshal(confFile, &rconfig)
 	if err != nil {
+		log.Fatal("%s", err)
 		os.Exit(1)
 	}
 
 	// TODO maybe do config validation
-
 	config := rconfig.NetworkConfig
+	rconfig.K8sConfig.Certificates,
+		rconfig.K8sConfig.CertKeys,
+		rconfig.K8sConfig.Genesis = readFiles(log, config.NodeCount)
 	config.ImplSpecificConfig = rconfig.K8sConfig
 
-	timeout, cancel := context.WithTimeout(context.Background(), DefaultNetworkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
 	adapter, err := k8s.NewNetwork(config, log)
@@ -72,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := adapter.Stop(timeout); err != nil {
+		if err := adapter.Stop(ctx); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
 		}
 	}()
@@ -82,7 +83,7 @@ func main() {
 	errCh := adapter.Healthy()
 
 	select {
-	case <-timeout.Done():
+	case <-ctx.Done():
 		log.Fatal("Timed out waiting for network to boot. Exiting.")
 		os.Exit(1)
 	case err := <-errCh:
@@ -92,4 +93,30 @@ func main() {
 		}
 	}
 	log.Info("Network created!!!")
+}
+
+func readFiles(log logging.Logger, nodeCount int) ([][]byte, [][]byte, string) {
+	certs := make([][]byte, nodeCount)
+	keys := make([][]byte, nodeCount)
+	configDir := "./examples/common/configs"
+	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
+	if err != nil {
+		log.Fatal("%s", err)
+		os.Exit(1)
+	}
+	for i := 0; i < nodeCount; i++ {
+		log.Info("reading config %d", i)
+		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
+		keys[i], err = os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+		certs[i], err = os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+	}
+	return certs, keys, string(genesisFile)
 }
