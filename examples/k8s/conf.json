@@ -1,6 +1,7 @@
 {
   "networkConfig": {
-    "name": "custom-test-net"
+    "name": "custom-test-net",
+    "logLevel": "DEBUG"
   },
   "k8sConfig": [
     {

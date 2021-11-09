@@ -47,6 +47,8 @@ type Config struct {
 	Name string `json:"name"`
 	// Genesis is network wide
 	Genesis string
+	// LogLevel
+	LogLevel string `json:"logLevel"`
 }
 
 // Validate TODO enforce that all nodes have same genesis.

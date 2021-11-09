@@ -40,7 +40,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	log.SetLogLevel(logging.Debug)
 
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", confPath)
 	if confPath == "" {
@@ -63,6 +62,11 @@ func main() {
 	config := readFiles(log, rconfig)
 	config.ImplSpecificConfig = rconfig.K8sConfig
 
+	level, err := logging.ToLevel(config.LogLevel)
+	if err != nil {
+		log.Warn("Invalid log level configured: %s", err)
+	}
+	log.SetLogLevel(level)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 

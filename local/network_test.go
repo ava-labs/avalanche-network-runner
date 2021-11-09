@@ -59,7 +59,6 @@ func TestNewNetworkOneNode(t *testing.T) {
 		GenesisFile: genesis,
 	}
 	config := network.Config{
-		NodeCount:   1,
 		NodeConfigs: []node.Config{nodeConfig},
 		LogLevel:    "DEBUG",
 		Name:        "My Network",
