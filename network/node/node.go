@@ -13,22 +13,22 @@ type Config struct {
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
-	Name string
+	Name string `json:"name"`
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
-	IsBeacon bool
+	IsBeacon bool `json:"isBeacon"`
 	// If nil, a unique staking key/cert is
 	// assigned on node creation.
 	// If nil, [StakingCert] must also be nil.
-	StakingKey []byte
+	StakingKey []byte `json:"stakingKey"`
 	// If nil, a unique staking key/cert is
 	// assigned on node creation.
 	// If nil, [StakingKey] must also be nil.
-	StakingCert []byte
+	StakingCert []byte `json:"stakingCert"`
 	// Must not be nil.
-	ConfigFile []byte
+	ConfigFile []byte `json:"configFile"`
 	// May be nil.
-	CChainConfigFile []byte
+	CChainConfigFile []byte `json:"cchainConfigFile"`
 	// Must not be nil.
 	GenesisFile []byte
 }

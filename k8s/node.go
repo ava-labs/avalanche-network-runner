@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"github.com/ava-labs/avalanche-network-runner/api"
+	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -11,6 +12,7 @@ type K8sNode struct {
 	name   string
 	uri    string
 	client api.Client
+	k8sObj *k8sapi.Avalanchego
 }
 
 // GetAPIClient returns the client to access the avalanchego API
@@ -31,4 +33,8 @@ func (n *K8sNode) GetNodeID() ids.ShortID {
 // GetURI returns the k8s URI to talk to the node
 func (n *K8sNode) GetURI() string {
 	return n.uri
+}
+
+func (n *K8sNode) GetK8sObject() *k8sapi.Avalanchego {
+	return n.k8sObj
 }

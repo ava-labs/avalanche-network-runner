@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,6 +36,10 @@ const (
 	nodeReachableTimeout = 2 * time.Minute
 	// Time between checks to see if a node is reachable
 	nodeReachableRetryFreq = 3 * time.Second
+	envVarPrefix           = "AVAGO_"
+	genesisNetworkIDKey    = "networkID"
+	paramNetworkID         = "network-id"
+	envVarNetworkID        = "AVAGO_NETWORK_ID"
 )
 
 var (
@@ -46,14 +50,11 @@ var (
 // networkImpl is the kubernetes data type representing a kubernetes network adapter.
 // It implements the network.Network interface
 type networkImpl struct {
-	config     network.Config
-	k8sConfig  Config
-	k8sNetwork *k8sapi.Avalanchego
-	k8scli     k8scli.Client
-	kconfig    *rest.Config
-	cs         *kubernetes.Clientset
-	nodes      map[string]*K8sNode
-	pods       map[string]corev1.Pod
+	config          network.Config
+	k8scli          k8scli.Client
+	kconfig         *rest.Config
+	nodes           map[string]*K8sNode
+	bootstrapperURL string
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	log            logging.Logger
@@ -61,22 +62,21 @@ type networkImpl struct {
 
 // Config encapsulates kubernetes specific options
 type Config struct {
-	ProvideFiles   bool     `json:"provideFiles"`   // If true, upload certs and genesis, otherwise have k8s generate them
-	Namespace      string   `json:"namespace"`      // The kubernetes Namespace
-	DeploymentSpec string   `json:"deploymentSpec"` // Identifies this network in the cluster
-	Kind           string   `json:"kind"`           // Identifies the object Kind for the operator
-	APIVersion     string   `json:"apiVersion"`     // The APIVersion of the kubernetes object
-	Image          string   `json:"image"`          // The docker image to use
-	Tag            string   `json:"tag"`            // The docker tag to use
-	LogLevelKey    string   `json:"logLevelKey"`    // The key for the log level value
-	Genesis        string   `json:"genesis"`        // The genesis conf file for all nodes
-	Certificates   [][]byte // The certificates for the nodes
-	CertKeys       [][]byte // The certificate keys for the nods
+	ProvideFiles   bool   `json:"provideFiles"`   // If true, upload certs and genesis, otherwise have k8s generate them
+	Namespace      string `json:"namespace"`      // The kubernetes Namespace
+	DeploymentSpec string `json:"deploymentSpec"` // Identifies this network in the cluster
+	Kind           string `json:"kind"`           // Identifies the object Kind for the operator
+	APIVersion     string `json:"apiVersion"`     // The APIVersion of the kubernetes object
+	Image          string `json:"image"`          // The docker image to use
+	Tag            string `json:"tag"`            // The docker tag to use
+	Genesis        string `json:"genesis"`        // The genesis conf file for all nodes
+	Certificate    []byte // The certificates for the nodes
+	CertKey        []byte // The certificate keys for the nods
 }
 
 // TODO should this just be a part of NewNetwork?
 // NewAdapter creates a new adapter
-func newAdapter(opts Config) (*networkImpl, error) {
+func newAdapter(conf network.Config, log logging.Logger) (*networkImpl, error) {
 	// init k8s client
 	scheme := runtime.NewScheme()
 	if err := k8sapi.AddToScheme(scheme); err != nil {
@@ -87,87 +87,47 @@ func newAdapter(opts Config) (*networkImpl, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &networkImpl{
+		config:         conf,
 		k8scli:         kubeClient,
-		k8sConfig:      opts,
 		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
+		log:            log,
+		nodes:          make(map[string]*K8sNode, len(conf.NodeConfigs)),
 	}, nil
 }
 
 // NewNetwork returns a new network whose initial state is specified in the config
-func NewNetwork(config network.Config, log logging.Logger) (network.Network, error) {
-	k8sconf, ok := config.ImplSpecificConfig.(Config)
-	if !ok {
-		return nil, errors.New("Incompatible network config object")
-	}
-	a, err := newAdapter(k8sconf)
+func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
+	a, err := newAdapter(conf, log)
 	if err != nil {
 		return nil, err
 	}
-	a.log = log
 	a.log.Info("K8s client initialized")
-	a.config = config
-	a.k8sNetwork = a.createDeploymentFromConfig()
-	if err := a.k8scli.Create(context.TODO(), a.k8sNetwork); err != nil {
+	beacons, instances, err := a.createDeploymentFromConfig()
+	if err != nil {
 		return nil, err
 	}
-
-	a.nodes = make(map[string]*K8sNode, config.NodeCount)
-	a.pods = make(map[string]corev1.Pod, config.NodeCount)
-
-	a.log.Debug("Waiting for pods to be created...")
-	for len(a.k8sNetwork.Status.NetworkMembersURI) != a.k8sNetwork.Spec.NodeCount {
-		err := a.k8scli.Get(context.TODO(), types.NamespacedName{
-			Name:      a.k8sNetwork.Name,
-			Namespace: a.k8sConfig.Namespace,
-		}, a.k8sNetwork)
-		if err != nil {
-			return nil, err
-		}
-		time.Sleep(5 * time.Second)
+	if len(beacons) == 0 {
+		return nil, errors.New("NodeConfigs don't describe any beacon node")
 	}
-
-	// use the last uri to try connecting to it until it resolves
-	// otherwise we have to sleep indiscriminately, we can't just use the API right away:
-	// the kubernetes cluster has already created the pods but not the DNS names,
-	// so using the API Client too early results in an error.
-	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
-	defer cancel()
-
-	errGr, ctx := errgroup.WithContext(ctx)
-	for _, testuri := range a.k8sNetwork.Status.NetworkMembersURI {
-		testuri := testuri
-		errGr.Go(func() error {
-			fmturi := fmt.Sprintf("http://%s:%d", testuri, constants.DefaultPort)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				default:
-					a.log.Debug("checking if %s is reachable...", fmturi)
-					// TODO is there a better way to wait until the node is reachable?
-					if _, err := http.Get(fmturi); err == nil {
-						a.log.Debug("%s has become reachable", fmturi)
-						return nil
-					}
-					// Wait before checking again
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					case <-time.After(nodeReachableRetryFreq):
-					}
-				}
-			}
-		})
-	}
-
-	// Wait until all nodes are ready or timeout
-	if err := errGr.Wait(); err != nil {
+	if err := a.launchNodes(beacons); err != nil {
+		log.Fatal("Error launching beacons: %s", err)
 		return nil, err
 	}
+	// only one boostrap address supported for now
+	a.bootstrapperURL = beacons[0].Status.NetworkMembersURI[0]
+	if a.bootstrapperURL == "" {
+		return nil, errors.New("Bootstrap URI is set to empty")
+	}
+	if err := a.launchNodes(instances); err != nil {
+		log.Fatal("Error launching beacons: %s", err)
+		return nil, err
+	}
+	allNodes := append(beacons, instances...)
 	// build a mapping from the given k8s URIs to names/ids
-	if err := a.buildNodeMapping(); err != nil {
+	if err := a.buildNodeMapping(allNodes); err != nil {
 		return nil, err
 	}
 
@@ -226,9 +186,12 @@ func (a *networkImpl) Healthy() chan error {
 // Stop all the nodes
 func (a *networkImpl) Stop(ctx context.Context) error {
 	// delete network
-	err := a.k8scli.Delete(ctx, a.k8sNetwork)
-	if err != nil {
-		return err
+	for s, n := range a.nodes {
+		a.log.Debug("Shutting down node %s...", s)
+		err := a.k8scli.Delete(ctx, n.k8sObj)
+		if err != nil {
+			return err
+		}
 	}
 	close(a.closedOnStopCh)
 	a.log.Info("Network cleared")
@@ -237,45 +200,46 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 
 // AddNode starts a new node with the config
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
-	node := &k8sapi.Avalanchego{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       a.k8sConfig.Kind,
-			APIVersion: a.k8sConfig.APIVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cfg.Name,
-			Namespace: a.k8sConfig.Namespace,
-		},
-		Spec: k8sapi.AvalanchegoSpec{
-			DeploymentName:  cfg.Name,
-			BootstrapperURL: a.k8sNetwork.Status.BootstrapperURL,
-			NodeCount:       1,
-			Image:           a.k8sNetwork.Spec.Image,
-			Tag:             a.k8sNetwork.Spec.Tag,
-			Env:             a.k8sNetwork.Spec.Env,
-			Resources: corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(resourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
-					corev1.ResourceMemory: resource.MustParse(resourceLimitsMemory),
-				},
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(resourceRequestCPU),
-					corev1.ResourceMemory: resource.MustParse(resourceRequestMemory),
-				},
-			},
-		},
+	node, err := a.buildK8sObj(cfg)
+	if err != nil {
+		return nil, err
 	}
 	if err := a.k8scli.Create(context.TODO(), node); err != nil {
 		return nil, err
 	}
-	apiNode := &K8sNode{}
+
+	if err := a.launchNodes([]*k8sapi.Avalanchego{node}); err != nil {
+		return nil, err
+	}
+
+	uri := node.Status.NetworkMembersURI[0]
+	cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
+	nid, err := cli.InfoAPI().GetNodeID()
+	if err != nil {
+		return nil, err
+	}
+	a.log.Debug("NodeID for this node is %s", nid)
+	nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert node id from string: %s", err)
+	}
+	apiNode := &K8sNode{
+		uri:    uri,
+		client: cli,
+		name:   node.Spec.DeploymentName,
+		nodeID: nodeID,
+		k8sObj: node,
+	}
 	return apiNode, nil
 }
 
 // RemoveNode stops the node with this ID.
 func (a *networkImpl) RemoveNode(id string) error {
-	if p, ok := a.pods[id]; ok {
-		if err := a.cs.CoreV1().Nodes().Delete(context.TODO(), p.Name, metav1.DeleteOptions{}); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if p, ok := a.nodes[id]; ok {
+		if err := a.k8scli.Delete(ctx, p.k8sObj); err != nil {
 			return err
 		}
 		return nil
@@ -302,69 +266,188 @@ func (a *networkImpl) GetNode(id string) (node.Node, error) {
 	return nil, errNodeDoesNotExist
 }
 
-func (a *networkImpl) createDeploymentFromConfig() *k8sapi.Avalanchego {
-	// Returns a new network whose initial state is specified in the config
-	certs := make([]k8sapi.Certificate, a.config.NodeCount)
-
-	if a.k8sConfig.ProvideFiles {
-		for i, c := range a.k8sConfig.Certificates {
-			crt := base64.StdEncoding.EncodeToString(c)
-			key := base64.StdEncoding.EncodeToString(a.k8sConfig.CertKeys[i])
-			certs[i] = k8sapi.Certificate{
-				Cert: crt,
-				Key:  key,
-			}
+func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
+	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
+	defer cancel()
+	errGr, ctx := errgroup.WithContext(ctx)
+	for _, n := range nodes {
+		if a.bootstrapperURL != "" {
+			n.Spec.BootstrapperURL = a.bootstrapperURL
 		}
+		if err := a.k8scli.Create(context.TODO(), n); err != nil {
+			return err
+		}
+
+		a.log.Debug("Waiting for pods to be created...")
+		for len(n.Status.NetworkMembersURI) != 1 {
+			err := a.k8scli.Get(context.TODO(), types.NamespacedName{
+				Name:      n.Name,
+				Namespace: n.Namespace,
+			}, n)
+			if err != nil {
+				return err
+			}
+			time.Sleep(5 * time.Second)
+		}
+
+		a.log.Debug("Created. Waiting to be reachable...")
+		// Try connecting to nodes until the DNS resolves,
+		// otherwise we have to sleep indiscriminately, we can't just use the API right away:
+		// the kubernetes cluster has already created the pod(s) but not the DNS names,
+		// so using the API Client too early results in an error.
+		node := n
+		errGr.Go(func() error {
+			fmturi := fmt.Sprintf("http://%s:%d", node.Status.NetworkMembersURI[0], constants.DefaultPort)
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					a.log.Debug("checking if %s is reachable...", fmturi)
+					// TODO is there a better way to wait until the node is reachable?
+					if _, err := http.Get(fmturi); err == nil {
+						a.log.Debug("%s has become reachable", fmturi)
+						return nil
+					}
+					// Wait before checking again
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-time.After(nodeReachableRetryFreq):
+					}
+				}
+			}
+		})
+
 	}
+	// Wait until all nodes are ready or timeout
+	if err := errGr.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *networkImpl) createDeploymentFromConfig() ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
+	// Returns a new network whose initial state is specified in the config
+	instances := make([]*k8sapi.Avalanchego, 0)
+	beacons := make([]*k8sapi.Avalanchego, 0)
+
+	for _, c := range a.config.NodeConfigs {
+		spec, err := a.buildK8sObj(c)
+		if err != nil {
+			return nil, nil, err
+		}
+		if c.IsBeacon {
+			beacons = append(beacons, spec)
+			continue
+		}
+		instances = append(instances, spec)
+	}
+	return beacons, instances, nil
+}
+
+func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
+	env, err := a.buildNodeEnv(c)
+	if err != nil {
+		return nil, err
+	}
+	certs := []k8sapi.Certificate{
+		{
+			Cert: base64.StdEncoding.EncodeToString(c.StakingCert),
+			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
+		},
+	}
+	k8sConf, ok := c.ImplSpecificConfig.(Config)
+	if !ok {
+		return nil, errors.New("Incompatible network config object")
+	}
+
 	return &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       a.k8sConfig.Kind,
-			APIVersion: a.k8sConfig.APIVersion,
+			Kind:       k8sConf.Kind,
+			APIVersion: k8sConf.APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.k8sConfig.DeploymentSpec,
-			Namespace: a.k8sConfig.Namespace,
+			Name:      k8sConf.DeploymentSpec,
+			Namespace: k8sConf.Namespace,
 		},
 		Spec: k8sapi.AvalanchegoSpec{
-			DeploymentName: a.config.Name,
-			NodeCount:      a.config.NodeCount,
-			Image:          a.k8sConfig.Image,
-			Tag:            a.k8sConfig.Tag,
-			Env: []corev1.EnvVar{
-				{
-					Name:  a.k8sConfig.LogLevelKey,
-					Value: a.config.LogLevel,
+			BootstrapperURL: "",
+			DeploymentName:  c.Name,
+			Image:           k8sConf.Image,
+			Tag:             k8sConf.Tag,
+			Env:             env,
+			NodeCount:       1,
+			Certificates:    certs,
+			Genesis:         a.config.Genesis,
+			Resources: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse(resourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
+					corev1.ResourceMemory: resource.MustParse(resourceLimitsMemory),
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse(resourceRequestCPU),
+					corev1.ResourceMemory: resource.MustParse(resourceRequestMemory),
 				},
 			},
-			Certificates: certs,
-			Genesis:      a.k8sConfig.Genesis,
 		},
+	}, nil
+}
+
+func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
+	networkID, err := getNetworkID(a.config.Genesis)
+	if err != nil {
+		return []corev1.EnvVar{}, err
 	}
+	var avagoConf map[string]interface{}
+	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
+		return []corev1.EnvVar{}, err
+	}
+	env := make([]corev1.EnvVar, 0)
+	for key, val := range avagoConf {
+		// we set the same network-id from genesis to avoid conflicts
+		if key == paramNetworkID {
+			continue
+		}
+		v := corev1.EnvVar{
+			Name:  convertKey(key),
+			Value: val.(string),
+		}
+		env = append(env, v)
+	}
+	v := corev1.EnvVar{
+		Name:  envVarNetworkID,
+		Value: fmt.Sprint(networkID),
+	}
+	env = append(env, v)
+
+	return env, nil
 }
 
 // buildNodeMapping creates the actual k8s node representation and creates the nodes map
 // with the name as the key
-func (a *networkImpl) buildNodeMapping() error {
-	for i, u := range a.k8sNetwork.Status.NetworkMembersURI {
-		a.log.Debug("creating network node and client for %s", u)
-		cli := api.NewAPIClient(u, constants.DefaultPort, constants.APITimeoutDuration)
+func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
+	for _, n := range nodes {
+		uri := n.Status.NetworkMembersURI[0]
+		a.log.Debug("creating network node and client for %s", uri)
+		cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
 		nid, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err
 		}
 		a.log.Debug("NodeID for this node is %s", nid)
-		name := fmt.Sprintf("validator-%d", i)
 		nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
 		if err != nil {
 			return fmt.Errorf("could not convert node id from string: %s", err)
 		}
-		a.nodes[name] = &K8sNode{
-			uri:    u,
+		a.nodes[n.Spec.DeploymentName] = &K8sNode{
+			uri:    uri,
 			client: cli,
-			name:   name,
+			name:   n.Spec.DeploymentName,
 			nodeID: nodeID,
+			k8sObj: n,
 		}
-		a.log.Debug("Name: %s, NodeID: %s, URI: %s", name, nodeID, u)
+		a.log.Debug("Name: %s, NodeID: %s, URI: %s", n.Spec.DeploymentName, nodeID, uri)
 	}
 
 	return nil
@@ -382,4 +465,24 @@ func (a *networkImpl) String() string {
 	}
 	s.WriteString("****************************************************************************************************\n")
 	return s.String()
+}
+
+func convertKey(key string) string {
+	key = strings.Replace(key, "-", "_", -1)
+	key = strings.ToUpper(key)
+	newKey := fmt.Sprintf("%s%s", envVarPrefix, key)
+	return newKey
+}
+
+func getNetworkID(genesisStr string) (float64, error) {
+	var genesis map[string]interface{}
+	if err := json.Unmarshal([]byte(genesisStr), &genesis); err != nil {
+		return -1, err
+	}
+	for k, v := range genesis {
+		if k == genesisNetworkIDKey {
+			return v.(float64), nil
+		}
+	}
+	return -1, errors.New("No network-id config key found in genesis")
 }

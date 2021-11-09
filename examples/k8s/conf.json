@@ -1,17 +1,52 @@
 {
-  "network_config": {
-    "nodeCount": 5,
-    "name": "custom-test-net",
-    "logLevel": "debug"
+  "networkConfig": {
+    "name": "custom-test-net"
   },
-  "k8s_config": {
-    "provideFiles": true,
-    "namespace": "default",
-    "deploymentSpec": "avalanchego-test-validator",
-    "kind": "Avalanchego",
-    "apiVersion": "chain.avax.network/v1alpha1",
-    "image": "avaplatform/avalanchego",
-    "tag": "v1.6.4",
-    "logLevelKey": "AVAGO_LOG_LEVEL"
-  }
+  "k8sConfig": [
+    {
+      "provideFiles": true,
+      "namespace": "default",
+      "deploymentSpec": "avalanchego-test-validator-0",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "provideFiles": true,
+      "namespace": "default",
+      "deploymentSpec": "avalanchego-test-validator-1",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "provideFiles": true,
+      "namespace": "default",
+      "deploymentSpec": "avalanchego-test-validator-2",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "provideFiles": true,
+      "namespace": "default",
+      "deploymentSpec": "avalanchego-test-validator-3",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "provideFiles": true,
+      "namespace": "default",
+      "deploymentSpec": "avalanchego-test-validator-4",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    }
+  ]
 }

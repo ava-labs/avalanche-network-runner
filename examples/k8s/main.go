@@ -9,6 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/k8s"
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -22,8 +23,8 @@ const (
 var confPath = os.ExpandEnv("$GOPATH")
 
 type allConfig struct {
-	NetworkConfig network.Config `json:"network_config"`
-	K8sConfig     k8s.Config     `json:"k8s_config"`
+	NetworkConfig network.Config `json:"networkConfig"`
+	K8sConfig     []k8s.Config   `json:"k8sConfig"`
 }
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	log.SetLogLevel(logging.Debug)
 
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", confPath)
 	if confPath == "" {
@@ -58,10 +60,7 @@ func main() {
 	}
 
 	// TODO maybe do config validation
-	config := rconfig.NetworkConfig
-	rconfig.K8sConfig.Certificates,
-		rconfig.K8sConfig.CertKeys,
-		rconfig.K8sConfig.Genesis = readFiles(log, config.NodeCount)
+	config := readFiles(log, rconfig)
 	config.ImplSpecificConfig = rconfig.K8sConfig
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
@@ -95,28 +94,45 @@ func main() {
 	log.Info("Network created!!!")
 }
 
-func readFiles(log logging.Logger, nodeCount int) ([][]byte, [][]byte, string) {
-	certs := make([][]byte, nodeCount)
-	keys := make([][]byte, nodeCount)
+func readFiles(log logging.Logger, rconfig allConfig) network.Config {
 	configDir := "./examples/common/configs"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
-	for i := 0; i < nodeCount; i++ {
+	netcfg := rconfig.NetworkConfig
+	netcfg.Genesis = string(genesisFile)
+	netcfg.NodeConfigs = make([]node.Config, 0)
+	for i, k := range rconfig.K8sConfig {
 		log.Info("reading config %d", i)
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
-		keys[i], err = os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
+		key, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
-		certs[i], err = os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
+		cert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
 		if err != nil {
 			log.Fatal("%s", err)
 			os.Exit(1)
 		}
+		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
+		if err != nil {
+			log.Fatal("%s", err)
+			os.Exit(1)
+		}
+		c := node.Config{
+			Name:               fmt.Sprintf("validator-%d", i),
+			StakingCert:        cert,
+			StakingKey:         key,
+			ConfigFile:         configFile,
+			ImplSpecificConfig: k,
+		}
+		if i == 0 {
+			c.IsBeacon = true
+		}
+		netcfg.NodeConfigs = append(netcfg.NodeConfigs, c)
 	}
-	return certs, keys, string(genesisFile)
+	return netcfg
 }
