@@ -72,15 +72,15 @@ func main() {
 				log.Fatal("%s", err)
 				os.Exit(1)
 			}
-		} else {
+		} else { // For the last 3 nodes, use random staking key/cert
 			log.Info("generating node %d key/cert", i)
-			// For first 5 nodes, don't read staking key/cert from disk
 			stakingCert, stakingKey, err = staking.NewCertAndKeyBytes()
 			if err != nil {
 				log.Fatal("%s", err)
 				os.Exit(1)
 			}
 		}
+		// Node ID of the node we're adding to the initial network state
 		nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
 		if err != nil {
 			log.Fatal("%s", err)
@@ -90,19 +90,26 @@ func main() {
 			networkConfig.NodeConfigs,
 			node.Config{
 				ImplSpecificConfig: local.NodeConfig{
+					// Specify which binary to use to start AvalancheGo
 					BinaryPath: binaryPath,
 				},
+				// Specify config file used by this node
 				ConfigFile:  configFile,
 				StakingKey:  stakingKey,
 				StakingCert: stakingCert,
 				NodeID:      nodeID,
-				IsBeacon:    true, // make every node a beacon
+				// make this node a beacon
+				IsBeacon: true,
 			},
 		)
 		allNodeIDs = append(allNodeIDs, nodeID)
 	}
 
-	// Generate and set network genesis
+	// Generate and set network genesis.
+	// Give some random addresses an initial balance,
+	// and make all nodes validators.
+	// Note that you also read a genesis file from disk
+	// and set [networkConfig.Genesis] to that.
 	networkConfig.Genesis, err = network.NewAvalancheGoGenesis(
 		log,
 		networkConfig.NetworkID, // Network ID
@@ -132,8 +139,6 @@ func main() {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
-	log.Debug("network genesis: %s", networkConfig.Genesis)
-
 	// Uncomment this line to print the first node's logs to stdout
 	// networkConfig.NodeConfigs[0].Stdout = os.Stdout
 
@@ -149,13 +154,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// register signals to kill the network
+	// When we get a SIGINT or SIGTERM, stop the network.
 	signalsCh := make(chan os.Signal, 1)
 	signal.Notify(signalsCh, syscall.SIGINT)
 	signal.Notify(signalsCh, syscall.SIGTERM)
 	// start up a new go routine to handle attempts to kill the application
 	go func() {
-		// When we get a SIGINT or SIGTERM, stop the network.
 		sig := <-signalsCh
 		log.Info("got OS signal %s", sig)
 		if err := nw.Stop(context.TODO()); err != nil {

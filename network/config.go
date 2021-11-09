@@ -47,6 +47,7 @@ type Config struct {
 	// Must not be nil
 	Genesis []byte
 	// May have length 0
+	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config
 	// Log level for the whole network
 	LogLevel string
@@ -57,7 +58,6 @@ type Config struct {
 	NodeCount int
 }
 
-// TODO enforce that all nodes have same genesis.
 func (c *Config) Validate() error {
 	switch {
 	case len(c.Genesis) == 0:
@@ -103,15 +103,14 @@ func NewAvalancheGoGenesis(
 
 	// Address that controls stake doesn't matter -- generate it randomly
 	genesisVdrStakeAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
-	log.Info("genesis vdr addr: %s", genesisVdrStakeAddr)
 	config := genesis.UnparsedConfig{
 		NetworkID: networkID,
 		Allocations: []genesis.UnparsedAllocation{
 			{
 				ETHAddr:       "0x0000000000000000000000000000000000000000",
 				AVAXAddr:      genesisVdrStakeAddr, // Owner doesn't matter
-				InitialAmount: 0,                   // Provides stake to validators
-				UnlockSchedule: []genesis.LockedAmount{
+				InitialAmount: 0,
+				UnlockSchedule: []genesis.LockedAmount{ // Provides stake to validators
 					{
 						Amount: uint64(len(genesisVdrs)) * validatorStake,
 					},
@@ -143,6 +142,7 @@ func NewAvalancheGoGenesis(
 		)
 	}
 
+	// Set initial C-Chain balances.
 	cChainAllocs := map[string]interface{}{}
 	for _, cChainBal := range cChainBalances {
 		addrHex := fmt.Sprintf("0x%s", cChainBal.Addr.Hex())
@@ -155,6 +155,8 @@ func NewAvalancheGoGenesis(
 	cChainConfigBytes, _ := json.Marshal(cChainConfig)
 	config.CChainGenesis = string(cChainConfigBytes)
 
+	// Set initial validators.
+	// Give staking rewards to random address.
 	rewardAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
 	for _, genesisVdr := range genesisVdrs {
 		config.InitialStakers = append(
