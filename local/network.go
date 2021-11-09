@@ -188,6 +188,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
+	// Note that these flags will overwrite the values of these
+	// config options in the config file, if applicable.
 	flags := []string{
 		// Tell the node its network ID
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
@@ -206,7 +208,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
 
-	// If this node is a beacon, add its IP/ID to the beacon lists
+	// If this node is a beacon, add its IP/ID to the beacon lists.
+	// Note that we do this *after* we set this node's bootstrap IPs/IDs
+	// so this node won't try to use itself as a beacon.
 	if nodeConfig.IsBeacon {
 		ln.bootstrapIDs[nodeConfig.NodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
@@ -214,7 +218,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	ln.log.Info("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
 
-	// Write this node's staking key/cert.
+	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
 		return nil, fmt.Errorf("error writing staking key: %w", err)
@@ -226,7 +230,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
-	// Write this node's config file if one is given
+	// Write this node's config file to disk if one is given.
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
@@ -235,14 +239,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
 
-	// Write this node's genesis file
+	// Write this node's genesis file to disk.
 	genesisFilePath := filepath.Join(tmpDir, genesisFileName)
 	if err := createFileAndWrite(genesisFilePath, ln.genesis); err != nil {
 		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
 
-	// Write this node's C-Chain file if one is given
+	// Write this node's C-Chain file to disk if one is given.
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
@@ -251,7 +255,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 
-	// Get the local node specific config
+	// Get the local node-specific config
 	localNodeConfig, ok := nodeConfig.ImplSpecificConfig.(NodeConfig)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
