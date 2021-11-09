@@ -65,7 +65,7 @@ To run a local kubernetes environment:
 6. **Run the avalanchego-operator locally**
    6a. Clone the repository: `github.com/ava-labs/avalanchego-operator`
    6b. Run `make install` followed by `make run`. This should be everything needed.
-7. Install the service account, role and roleconfigs for the network runner pod: `kubectl -f apply examples/k8s/svc-rbac.yaml`.
-8. Build this app as a pod: `docker build -t k8s-netrunner:alpha`. If you use a different app name than `k8s-netrunner` and/or tag `alpha`, the `examples/k8s/simple-network-pod.yaml` file needs to be updated accordingly.
-9. Deploy the pod to your local cluster via `kubectl -f apply examples/k8s/simple-network-pod.yaml`. This picks the image built in 8. to deploy as a pod. Then from within this pod it starts all other nodes.
+7. Install the service account, role and roleconfigs for the network runner pod: `kubectl apply -f examples/k8s/svc-rbac.yaml`.
+8. Build this app as a pod: `docker build -t k8s-netrunner:alpha .`. If you use a different app name than `k8s-netrunner` and/or tag `alpha`, the `examples/k8s/simple-network-pod.yaml` file needs to be updated accordingly.
+9. Deploy the pod to your local cluster via `kubectl apply -f examples/k8s/simple-network-pod.yaml`. This picks the image built in 8. to deploy as a pod. Then from within this pod it starts all other nodes.
 10. Check that all is ok with `kubectl get pods`. You will first see the `k8s-netrunner` pod, and after some time, the other configured nodes should appear. To check logs, execute `kubectl logs k8s-netrunner`.
