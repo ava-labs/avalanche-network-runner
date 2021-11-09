@@ -158,7 +158,6 @@ func main() {
 	signalsCh := make(chan os.Signal, 1)
 	signal.Notify(signalsCh, syscall.SIGINT)
 	signal.Notify(signalsCh, syscall.SIGTERM)
-	// start up a new go routine to handle attempts to kill the application
 	go func() {
 		sig := <-signalsCh
 		log.Info("got OS signal %s", sig)
