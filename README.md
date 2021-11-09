@@ -67,7 +67,6 @@ Each is parameterized on `network.Config`:
 ```go
 type Config struct {
    // How many nodes are the network
-   // TODO do we need this?
    NodeCount int
    // Config for each node
    NodeConfigs []node.Config

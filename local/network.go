@@ -2,8 +2,6 @@ package local
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -19,10 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/staking"
-	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/hashing"
+	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
 )
@@ -48,6 +43,11 @@ var (
 type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
+	// This network's ID.
+	networkID uint32
+	// This network's genesis file.
+	// Must not be nil.
+	genesis []byte
 	// Used to create a new API client
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
@@ -81,18 +81,20 @@ func NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
 
-type beaconList []string
+type beaconList map[string]struct{}
 
 func (l beaconList) String() string {
 	if len(l) == 0 {
 		return ""
 	}
 	s := strings.Builder{}
-	for i := 0; i < len(l); i++ {
+	i := 0
+	for beacon := range l {
 		if i != 0 {
 			_, _ = s.WriteString(",")
 		}
-		_, _ = s.WriteString(l[i])
+		_, _ = s.WriteString(beacon)
+		i++
 	}
 	return s.String()
 }
@@ -110,9 +112,13 @@ func NewNetwork(
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 	// Create the network
 	net := &localNetwork{
+		networkID:       networkConfig.NetworkID,
+		genesis:         networkConfig.Genesis,
 		nodes:           map[string]*localNode{},
 		closedOnStopCh:  make(chan struct{}),
 		log:             log,
+		bootstrapIPs:    make(beaconList),
+		bootstrapIDs:    make(beaconList),
 		newAPIClientF:   newAPIClientF,
 		newNodeProcessF: newNodeProcessF,
 	}
@@ -155,16 +161,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
-	// If no staking key/cert is given, create them.
-	// Note that len(nodeConfig.StakingKey) == 0 implies len(nodeConfig.StakingKey) == 0.
-	if len(nodeConfig.StakingKey) == 0 {
-		var err error
-		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
-		if err != nil {
-			return nil, fmt.Errorf("error creating staking key/cert: %w", err)
-		}
-	}
-
 	// Get a free port to use as the P2P port
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -181,27 +177,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	apiPort := l.Addr().(*net.TCPAddr).Port
 	_ = l.Close()
 
-	// If this node is a beacon, add its IP/ID to the beacon lists
-	if nodeConfig.IsBeacon {
-		// Parse the node ID
-		// TODO add helper in AvalancheGo for this?
-		cert, err := tls.X509KeyPair(nodeConfig.StakingCert, nodeConfig.StakingKey)
-		if err != nil {
-			return nil, err
-		}
-		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			return nil, err
-		}
-		nodeID := ids.ShortID(
-			hashing.ComputeHash160Array(
-				hashing.ComputeHash256(cert.Leaf.Raw),
-			),
-		)
-		ln.bootstrapIDs = append(ln.bootstrapIDs, nodeID.PrefixedString(avagoconst.NodeIDPrefix))
-		ln.bootstrapIPs = append(ln.bootstrapIPs, fmt.Sprintf("127.0.0.1:%d", p2pPort))
-	}
-
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
@@ -213,10 +188,16 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Flags for AvalancheGo that point to the files
 	// we're about to create.
+	// Note that these flags will overwrite the values of these
+	// config options in the config file, if applicable.
 	flags := []string{
+		// Tell the node its network ID
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 		// Tell the node to put the database in [tmpDir]
+		// TODO allow user to specify different database directory
 		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
 		// Tell the node to put the log directory in [tmpDir]
+		// TODO allow user to specify different logs directory
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
 		// Tell the node to use this API port
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
@@ -227,9 +208,17 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
 
+	// If this node is a beacon, add its IP/ID to the beacon lists.
+	// Note that we do this *after* we set this node's bootstrap IPs/IDs
+	// so this node won't try to use itself as a beacon.
+	if nodeConfig.IsBeacon {
+		ln.bootstrapIDs[nodeConfig.NodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
+		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
+	}
+
 	ln.log.Info("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
 
-	// Write this node's staking key/cert.
+	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
 		return nil, fmt.Errorf("error writing staking key: %w", err)
@@ -241,7 +230,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
-	// Write this node's config file if one is given
+	// Write this node's config file to disk if one is given.
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
@@ -250,16 +239,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
 	}
 
-	// Write this node's genesis file if one is given
-	if len(nodeConfig.GenesisFile) != 0 {
-		genesisFilePath := filepath.Join(tmpDir, genesisFileName)
-		if err := createFileAndWrite(genesisFilePath, nodeConfig.GenesisFile); err != nil {
-			return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
+	// Write this node's genesis file to disk.
+	genesisFilePath := filepath.Join(tmpDir, genesisFileName)
+	if err := createFileAndWrite(genesisFilePath, ln.genesis); err != nil {
+		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
 	}
+	flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
 
-	// Write this node's C-Chain file if one is given
+	// Write this node's C-Chain file to disk if one is given.
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
@@ -268,7 +255,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 
-	// Get the local node specific config
+	// Get the local node-specific config
 	localNodeConfig, ok := nodeConfig.ImplSpecificConfig.(NodeConfig)
 	if !ok {
 		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
