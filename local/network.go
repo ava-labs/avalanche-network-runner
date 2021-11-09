@@ -125,7 +125,7 @@ func NewNetwork(
 
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
-			if err := net.stop(context.TODO()); err != nil {
+			if err := net.stop(context.Background()); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
