@@ -106,7 +106,7 @@ func readFiles(log logging.Logger, rconfig allConfig) network.Config {
 		os.Exit(1)
 	}
 	netcfg := rconfig.NetworkConfig
-	netcfg.Genesis = string(genesisFile)
+	netcfg.Genesis = genesisFile
 	netcfg.NodeConfigs = make([]node.Config, 0)
 	for i, k := range rconfig.K8sConfig {
 		log.Info("reading config %d", i)

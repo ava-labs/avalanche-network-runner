@@ -9,6 +9,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +23,24 @@ func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
+	networkID := uint32(1337)
+	// Use a dummy genesis
+	genesis, err := network.NewAvalancheGoGenesis(
+		logging.NoLog{},
+		networkID,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		nil,
+		[]ids.ShortID{ids.GenerateTestShortID()},
+	)
+	assert.NoError(err)
 	config := network.Config{
+		NetworkID:   networkID,
+		Genesis:     genesis,
 		NodeConfigs: nil,
 		LogLevel:    "DEBUG",
 		Name:        "My Network",
@@ -49,17 +68,22 @@ func TestNewNetworkOneNode(t *testing.T) {
 	assert.NoError(err)
 	avalancheGoConfig, err := os.ReadFile("test_files/config.json")
 	assert.NoError(err)
+	// Generate staking key/cert
+	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+	assert.NoError(err)
 	nodeConfig := node.Config{
 		ImplSpecificConfig: NodeConfig{
 			BinaryPath: binaryPath,
 		},
 		ConfigFile:  avalancheGoConfig,
+		StakingKey:  stakingKey,
+		StakingCert: stakingCert,
 		Name:        nodeName,
 		IsBeacon:    true,
-		GenesisFile: genesis,
 	}
 	config := network.Config{
 		NodeConfigs: []node.Config{nodeConfig},
+		Genesis:     genesis,
 		LogLevel:    "DEBUG",
 		Name:        "My Network",
 	}
@@ -68,7 +92,6 @@ func TestNewNetworkOneNode(t *testing.T) {
 	newProcessF := func(config node.Config, _ ...string) (NodeProcess, error) {
 		assert.EqualValues(nodeName, config.Name)
 		assert.True(config.IsBeacon)
-		assert.EqualValues(genesis, config.GenesisFile)
 		assert.EqualValues(avalancheGoConfig, config.ConfigFile)
 		assert.EqualValues(binaryPath, config.ImplSpecificConfig.(NodeConfig).BinaryPath)
 		process := &mocks.NodeProcess{}
@@ -82,8 +105,12 @@ func TestNewNetworkOneNode(t *testing.T) {
 		newProcessF,
 	)
 	assert.NoError(err)
+
 	// Assert that GetNodesNames() includes only the 1 node's name
 	names := net.GetNodesNames()
 	assert.Contains(names, nodeName)
 	assert.Len(names, 1)
+
+	// Assert that the network's genesis was set
+	assert.EqualValues(genesis, net.(*localNetwork).genesis)
 }

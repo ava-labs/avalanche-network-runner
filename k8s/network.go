@@ -378,7 +378,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 			Env:             env,
 			NodeCount:       1,
 			Certificates:    certs,
-			Genesis:         a.config.Genesis,
+			Genesis:         string(a.config.Genesis),
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse(resourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
@@ -394,7 +394,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 }
 
 func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
-	networkID, err := getNetworkID(a.config.Genesis)
+	networkID, err := getNetworkID(string(a.config.Genesis))
 	if err != nil {
 		return []corev1.EnvVar{}, err
 	}
