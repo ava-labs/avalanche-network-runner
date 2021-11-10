@@ -219,7 +219,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 	_, err = NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
 	// TODO: needs to set fake fail health api
-	//assert.Error(awaitNetwork(net))
+	//assert.Error(awaitNetworkHealthy(net))
 }
 
 func TestGeneratedNodesNames(t *testing.T) {
@@ -250,7 +250,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
 	// TODO: needs to set fake successful health api
-	//assert.NoError(awaitNetwork(net))
+	//assert.NoError(awaitNetworkHealthy(net))
 	runningNodes := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		runningNodes[nodeConfig.Name] = true
@@ -276,7 +276,7 @@ func TestNetworkNodeOps(t *testing.T) {
 		checkNetwork(t, net, runningNodes, nil)
 	}
 	// TODO: needs to set fake successful health api
-	//assert.NoError(awaitNetwork(net))
+	//assert.NoError(awaitNetworkHealthy(net))
 	removedNodes := make(map[string]bool)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		_, err := net.GetNode(nodeConfig.Name)
@@ -346,7 +346,7 @@ func TestStoppedNetwork(t *testing.T) {
 	// RemoveNode failure
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), errStopped)
 	// Healthy failure
-	assert.EqualValues(awaitNetwork(net), errStopped)
+	assert.EqualValues(awaitNetworkHealthy(net), errStopped)
 }
 
 func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedNodes map[string]bool) {
@@ -364,7 +364,7 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]boo
 	}
 }
 
-func awaitNetwork(net network.Network) error {
+func awaitNetworkHealthy(net network.Network) error {
 	healthyCh := net.Healthy()
 	err, ok := <-healthyCh
 	if ok {
