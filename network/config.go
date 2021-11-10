@@ -71,11 +71,11 @@ func (c *Config) Validate() error {
 			} else {
 				nodeName = strconv.Itoa(i)
 			}
-            if nodeConfig.IsBeacon {
-                someNodeIsBeacon = true
-            }
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
+        if nodeConfig.IsBeacon {
+            someNodeIsBeacon = true
+        }
 	}
 	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
 		return fmt.Errorf("node config failed validation: at least one node must be beacon")
