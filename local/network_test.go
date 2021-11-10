@@ -7,10 +7,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ava-labs/avalanche-network-runner-local/api"
-	"github.com/ava-labs/avalanche-network-runner-local/local/mocks"
-	"github.com/ava-labs/avalanche-network-runner-local/network"
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/local/mocks"
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -42,8 +44,25 @@ func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
+	networkID := uint32(1337)
+	// Use a dummy genesis
+	genesis, err := network.NewAvalancheGoGenesis(
+		logging.NoLog{},
+		networkID,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		nil,
+		[]ids.ShortID{ids.GenerateTestShortID()},
+	)
+	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
+	networkConfig.networkID = networkID
+	networkConfig.genesis = genesis
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
 		logging.NoLog{},
@@ -78,11 +97,15 @@ func TestNewNetworkOneNode(t *testing.T) {
 		newProcessF,
 	)
 	assert.NoError(err)
+
 	// Assert that GetNodesNames() includes only the 1 node's name
 	names, err := net.GetNodesNames()
 	assert.NoError(err)
 	assert.Contains(names, networkConfig.NodeConfigs[0].Name)
 	assert.Len(names, 1)
+
+	// Assert that the network's genesis was set
+	assert.EqualValues(genesis, net.(*localNetwork).genesis)
 }
 
 // Check configs that are expected to be invalid at network creation time
@@ -398,6 +421,7 @@ func defaultNetworkConfig() (network.Config, error) {
 	// TODO remove test files when we can auto-generate genesis
 	// and other files
 	networkConfig := network.Config{
+		NetworkID:   uint32(0),
 		LogLevel: "DEBUG",
 		Name:     "My Network",
 	}
@@ -428,6 +452,10 @@ func defaultNetworkConfig() (network.Config, error) {
 		if err == nil {
 			nodeConfig.StakingKey = keyFile
 		}
+        if nodeConfig.StakingCert == nil {
+            nodeConfig.StakingCert, nodeConfig.StakingKey, err := staking.NewCertAndKeyBytes()
+            assert.NoError(err)
+        }
 		localNodeConf := NodeConfig{
 			BinaryPath: "pepito",
 			Stdout:     os.Stdout,

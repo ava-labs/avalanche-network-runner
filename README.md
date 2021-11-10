@@ -67,7 +67,6 @@ Each is parameterized on `network.Config`:
 ```go
 type Config struct {
    // How many nodes are the network
-   // TODO do we need this?
    NodeCount int
    // Config for each node
    NodeConfigs []node.Config
@@ -134,7 +133,7 @@ type Node interface {
 ### Download
 
 ```sh
-`git clone https://github.com/ava-labs/avalanche-network-runner-local.git`
+`git clone https://github.com/ava-labs/avalanche-network-runner.git`
 ```
 
 ### Run Unit Tests
@@ -153,7 +152,7 @@ When run, it starts a local network with 5 nodes, waits until the nodes are heal
 It assumes:
 
 1. You have the AvalancheGo v1.6.4 binaries at `$GOPATH/src/github.com/ava-labs/avalanchego/build`
-2. The network runner direcory is at `$GOPATH/src/github.com/ava-labs/avalanche-network-runner-local`)
+2. The network runner direcory is at `$GOPATH/src/github.com/ava-labs/avalanche-network-runner`)
 
 To run the demo:
 

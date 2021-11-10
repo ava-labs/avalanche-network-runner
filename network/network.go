@@ -2,10 +2,8 @@ package network
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
-	"github.com/ava-labs/avalanche-network-runner-local/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
 // Network is an abstraction of an Avalanche network
@@ -35,39 +33,4 @@ type Network interface {
 	// Returns nil if Stop() was previously called.
 	GetNodesNames() ([]string, error)
 	// TODO add methods
-}
-
-type Config struct {
-	// Configuration specific to a particular implementation of a network.
-	ImplSpecificConfig interface{}
-	// How many nodes in the network
-	NodeCount int
-	// Config for each node
-	NodeConfigs []node.Config
-	// Log level for the whole network
-	LogLevel string
-	// Name for the network
-	Name string
-}
-
-func (c *Config) Validate() error {
-	var someNodeIsBeacon bool
-	for i, nodeConfig := range c.NodeConfigs {
-		var nodeName string
-		if len(nodeConfig.Name) > 0 {
-			nodeName = nodeConfig.Name
-		} else {
-			nodeName = strconv.Itoa(i)
-		}
-		if nodeConfig.IsBeacon {
-			someNodeIsBeacon = true
-		}
-		if err := nodeConfig.Validate(); err != nil {
-			return fmt.Errorf("node %s config failed validation: %w", nodeName, err)
-		}
-	}
-	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
-		return fmt.Errorf("node config failed validation: at least one node must be beacon")
-	}
-	return nil
 }
