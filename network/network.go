@@ -1,7 +1,6 @@
 package network
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -52,8 +51,6 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
-	var genesisFile []byte
-	var firstNodeName string
 	var someNodeIsBeacon bool
 	for i, nodeConfig := range c.NodeConfigs {
 		var nodeName string
@@ -64,14 +61,6 @@ func (c *Config) Validate() error {
 		}
 		if nodeConfig.IsBeacon {
 			someNodeIsBeacon = true
-		}
-		if i == 0 {
-			genesisFile = nodeConfig.GenesisFile
-			firstNodeName = nodeName
-		} else {
-			if !bytes.Equal(genesisFile, nodeConfig.GenesisFile) {
-				return fmt.Errorf("node %s config failed validation: genesis file difference against %s", nodeName, firstNodeName)
-			}
 		}
 		if err := nodeConfig.Validate(); err != nil {
 			return fmt.Errorf("node %s config failed validation: %w", nodeName, err)

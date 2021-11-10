@@ -39,7 +39,7 @@ func main() {
 	networkConfig := network.Config{}
 	for i := 0; i < 5; i++ {
 		log.Info("reading config %d", i)
-		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner-local/examples/local/configs", goPath)
+		configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/local/configs", goPath)
 		genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 		if err != nil {
 			log.Fatal("%s", err)
@@ -116,11 +116,11 @@ func main() {
 		handleError(log, nw)
 	}
 	nodeNames, err := nw.GetNodesNames()
-    if err {
+	if err != nil {
 		log.Warn("error while obtaining node names : %s", err)
-    } else {
-        log.Info("this network's nodes: %s\n", nodeNames)
-    }
+	} else {
+		log.Info("this network's nodes: %s\n", nodeNames)
+	}
 	if err := nw.Stop(context.TODO()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}

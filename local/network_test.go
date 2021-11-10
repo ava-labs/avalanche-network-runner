@@ -41,7 +41,7 @@ func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
@@ -60,7 +60,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 // Start a network with one node.
 func TestNewNetworkOneNode(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	networkConfig.NodeConfigs = networkConfig.NodeConfigs[:1]
 	// Assert that the node's config is being passed correctly
@@ -149,27 +149,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
-		// different genesis file
-		{
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
-					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty1"),
-					ConfigFile:  []byte("nonempty"),
-				},
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
-					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty2"),
-					ConfigFile:  []byte("nonempty"),
-				},
-			},
-		},
 		// no beacon node
 		{
 			NodeConfigs: []node.Config{
@@ -229,7 +208,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
 	_, err = NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
@@ -239,7 +218,7 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 func TestUnhealthyNetwork(t *testing.T) {
 	t.Skip()
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	_, err = NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
@@ -249,7 +228,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 
 func TestGeneratedNodesNames(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	for i := range networkConfig.NodeConfigs {
 		networkConfig.NodeConfigs[i].Name = ""
@@ -270,7 +249,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 // the check verify that all the nodes api clients are up
 func TestNetworkFromConfig(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
@@ -289,7 +268,7 @@ func TestNetworkFromConfig(t *testing.T) {
 // all nodes are taken from config file
 func TestNetworkNodeOps(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
@@ -317,7 +296,7 @@ func TestNetworkNodeOps(t *testing.T) {
 // TestNodeNotFound checks operations fail for unkown node
 func TestNodeNotFound(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
@@ -346,7 +325,7 @@ func TestNodeNotFound(t *testing.T) {
 // TestStoppedNetwork checks operations fail for an already stopped network
 func TestStoppedNetwork(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := GetNetworkConfig()
+	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
 	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
@@ -398,7 +377,7 @@ func awaitNetwork(net network.Network) error {
 	return nil
 }
 
-func GetNetworkConfig() (network.Config, error) {
+func defaultNetworkConfig() (network.Config, error) {
 	// TODO remove test files when we can auto-generate genesis
 	// and other files
 	networkConfig := network.Config{
@@ -414,10 +393,11 @@ func GetNetworkConfig() (network.Config, error) {
 		return networkConfig, err
 	}
 	for i := 1; i <= 6; i++ {
-		nodeConfig := node.Config{}
-		nodeConfig.GenesisFile = genesisFile
-		nodeConfig.CChainConfigFile = cchainConfigFile
-		nodeConfig.Name = fmt.Sprintf("node%d", i)
+		nodeConfig := node.Config{
+			GenesisFile:      genesisFile,
+			CChainConfigFile: cchainConfigFile,
+			Name:             fmt.Sprintf("node%d", i),
+		}
 		configFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/config.json", i))
 		if err != nil {
 			return networkConfig, err
@@ -431,11 +411,12 @@ func GetNetworkConfig() (network.Config, error) {
 		if err == nil {
 			nodeConfig.StakingKey = keyFile
 		}
-		localNodeConf := &NodeConfig{}
-		localNodeConf.BinaryPath = "pepito"
-		localNodeConf.Stdout = os.Stdout
-		localNodeConf.Stderr = os.Stderr
-		nodeConfig.ImplSpecificConfig = *localNodeConf
+		localNodeConf := NodeConfig{
+			BinaryPath: "pepito",
+			Stdout:     os.Stdout,
+			Stderr:     os.Stderr,
+		}
+		nodeConfig.ImplSpecificConfig = localNodeConf
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
