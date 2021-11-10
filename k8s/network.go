@@ -62,7 +62,6 @@ type networkImpl struct {
 
 // Config encapsulates kubernetes specific options
 type Config struct {
-	ProvideFiles   bool   `json:"provideFiles"`   // If true, upload certs and genesis, otherwise have k8s generate them
 	Namespace      string `json:"namespace"`      // The kubernetes Namespace
 	DeploymentSpec string `json:"deploymentSpec"` // Identifies this network in the cluster
 	Kind           string `json:"kind"`           // Identifies the object Kind for the operator

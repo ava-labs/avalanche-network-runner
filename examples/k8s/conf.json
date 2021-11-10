@@ -5,7 +5,6 @@
   },
   "k8sConfig": [
     {
-      "provideFiles": true,
       "namespace": "default",
       "deploymentSpec": "avalanchego-test-validator-0",
       "kind": "Avalanchego",
@@ -14,7 +13,6 @@
       "tag": "v1.6.4"
     },
     {
-      "provideFiles": true,
       "namespace": "default",
       "deploymentSpec": "avalanchego-test-validator-1",
       "kind": "Avalanchego",
@@ -23,7 +21,6 @@
       "tag": "v1.6.4"
     },
     {
-      "provideFiles": true,
       "namespace": "default",
       "deploymentSpec": "avalanchego-test-validator-2",
       "kind": "Avalanchego",
@@ -32,7 +29,6 @@
       "tag": "v1.6.4"
     },
     {
-      "provideFiles": true,
       "namespace": "default",
       "deploymentSpec": "avalanchego-test-validator-3",
       "kind": "Avalanchego",
@@ -41,7 +37,6 @@
       "tag": "v1.6.4"
     },
     {
-      "provideFiles": true,
       "namespace": "default",
       "deploymentSpec": "avalanchego-test-validator-4",
       "kind": "Avalanchego",
