@@ -85,10 +85,10 @@ func TestNewNetworkOneNode(t *testing.T) {
 }
 
 func TestWrongNetworkConfigs(t *testing.T) {
-	assert := assert.New(t)
-	networkConfigs := []network.Config{
-		// no ImplSpecificConfig
-		{
+	tests := map[string]struct {
+		input network.Config
+	}{
+		"no ImplSpecificConfig": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					IsBeacon:    true,
@@ -96,9 +96,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					ConfigFile:  []byte("nonempty"),
 				},
 			},
-		},
-		// no ConfigFile
-		{
+		}},
+		"no ConfigFile": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -108,9 +107,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					GenesisFile: []byte("nonempty"),
 				},
 			},
-		},
-		// no GenesisFile
-		{
+		}},
+		"no GenesisFile": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -120,9 +118,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					ConfigFile: []byte("nonempty"),
 				},
 			},
-		},
-		// StakingKey but no StakingCert
-		{
+		}},
+		"StakingKey but no StakingCert": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -134,9 +131,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					StakingKey:  []byte("nonempty"),
 				},
 			},
-		},
-		// StakingCert but no StakingKey
-		{
+		}},
+		"StakingCert but no StakingKey": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -148,9 +144,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					StakingCert: []byte("nonempty"),
 				},
 			},
-		},
-		// no beacon node
-		{
+		}},
+		"no beacon node": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -160,9 +155,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					ConfigFile:  []byte("nonempty"),
 				},
 			},
-		},
-		// repeated name
-		{
+		}},
+		"repeated name": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					Name: "node0",
@@ -183,9 +177,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					ConfigFile:  []byte("nonempty"),
 				},
 			},
-		},
-		// invalid cert/key format
-		{
+		}},
+		"invalid cert/key format": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -198,11 +191,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 					StakingKey:  []byte("nonempty"),
 				},
 			},
-		},
+		}},
 	}
-	for _, networkConfig := range networkConfigs {
-		_, err := NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
-		assert.Error(err)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert := assert.New(t)
+			_, err := NewNetwork(logging.NoLog{}, tc.input, api.NewAPIClient, newMockProcessSuccessful)
+			assert.Error(err)
+		})
 	}
 }
 
