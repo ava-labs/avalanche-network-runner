@@ -123,14 +123,13 @@ func NewNetwork(
 		newNodeProcessF: newNodeProcessF,
 	}
 
+	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
-	// first add beacon nodes to generate beacon lists
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if nodeConfig.IsBeacon {
 			nodeConfigs = append(nodeConfigs, nodeConfig)
 		}
 	}
-	// then add non beacon nodes
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if !nodeConfig.IsBeacon {
 			nodeConfigs = append(nodeConfigs, nodeConfig)
