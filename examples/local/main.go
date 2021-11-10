@@ -171,10 +171,29 @@ func main() {
 	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
-		log.Fatal("network never became healthy: %s\n", err)
+		log.Fatal("network never became healthy: %s", err)
 		handleError(log, nw)
 	}
-	log.Info("this network's nodes: %s\n", nw.GetNodesNames())
+
+	// Print the node names
+	nodeNames := nw.GetNodesNames()
+	log.Info("this network's nodes: %s", nodeNames)
+
+	// Get one node
+	node, err := nw.GetNode(nodeNames[0])
+	if err != nil {
+		log.Fatal("couldn't get node: %s", err)
+		handleError(log, nw)
+	}
+
+	// Get its node ID through its API and print it
+	nodeID, err := node.GetAPIClient().InfoAPI().GetNodeID()
+	if err != nil {
+		log.Fatal("couldn't get node ID: %s", err)
+		handleError(log, nw)
+	}
+	log.Info("one node's ID is: %s", nodeID)
+
 	if err := nw.Stop(context.TODO()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
