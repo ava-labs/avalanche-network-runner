@@ -61,8 +61,8 @@ func TestNewNetworkEmpty(t *testing.T) {
 	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
-	networkConfig.networkID = networkID
-	networkConfig.genesis = genesis
+	networkConfig.NetworkID = networkID
+	networkConfig.Genesis = genesis
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
 		logging.NoLog{},
@@ -105,7 +105,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	assert.Len(names, 1)
 
 	// Assert that the network's genesis was set
-	assert.EqualValues(genesis, net.(*localNetwork).genesis)
+	assert.EqualValues(networkConfig.Genesis, net.(*localNetwork).genesis)
 }
 
 // Check configs that are expected to be invalid at network creation time
@@ -114,26 +114,26 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		input network.Config
 	}{
 		"no ImplSpecificConfig": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
+					IsBeacon:   true,
+					ConfigFile: []byte("nonempty"),
 				},
 			},
 		}},
 		"no ConfigFile": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
+					IsBeacon: true,
 				},
 			},
 		}},
-		"no GenesisFile": {input: network.Config{
+		"no Genesis": {input: network.Config{
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
@@ -145,75 +145,60 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			},
 		}},
 		"StakingKey but no StakingCert": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
-					StakingKey:  []byte("nonempty"),
+					IsBeacon:   true,
+					ConfigFile: []byte("nonempty"),
+					StakingKey: []byte("nonempty"),
 				},
 			},
 		}},
 		"StakingCert but no StakingKey": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
 					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
 					ConfigFile:  []byte("nonempty"),
 					StakingCert: []byte("nonempty"),
 				},
 			},
 		}},
 		"no beacon node": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
+					ConfigFile: []byte("nonempty"),
 				},
 			},
 		}},
 		"repeated name": {input: network.Config{
+			Genesis: []byte("nonempty"),
 			NodeConfigs: []node.Config{
 				{
 					Name: "node0",
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
+					IsBeacon:   true,
+					ConfigFile: []byte("nonempty"),
 				},
 				{
 					Name: "node0",
 					ImplSpecificConfig: NodeConfig{
 						BinaryPath: "pepe",
 					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
-				},
-			},
-		}},
-		"invalid cert/key format": {input: network.Config{
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
-					},
-					IsBeacon:    true,
-					GenesisFile: []byte("nonempty"),
-					ConfigFile:  []byte("nonempty"),
-					StakingCert: []byte("nonempty"),
-					StakingKey:  []byte("nonempty"),
+					IsBeacon:   true,
+					ConfigFile: []byte("nonempty"),
 				},
 			},
 		}},
@@ -328,9 +313,11 @@ func TestNetworkNodeOps(t *testing.T) {
 // being it either not created, or created and removed thereafter
 func TestNodeNotFound(t *testing.T) {
 	assert := assert.New(t)
+	emptyNetworkConfig, err := emptyNetworkConfig()
+	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
+	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -357,9 +344,11 @@ func TestNodeNotFound(t *testing.T) {
 // TestStoppedNetwork checks that operations fail for an already stopped network
 func TestStoppedNetwork(t *testing.T) {
 	assert := assert.New(t)
+	emptyNetworkConfig, err := emptyNetworkConfig()
+	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
+	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, api.NewAPIClient, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -417,15 +406,25 @@ func awaitNetworkHealthy(net network.Network) error {
 	return nil
 }
 
+func emptyNetworkConfig() (network.Config, error) {
+	// TODO remove test files when we can auto-generate genesis
+	// and other files
+	genesisFile, err := os.ReadFile("test_files/genesis.json")
+	if err != nil {
+		return network.Config{}, err
+	}
+	return network.Config{
+		NetworkID: uint32(0),
+		LogLevel:  "DEBUG",
+		Name:      "My Network",
+		Genesis:   genesisFile,
+	}, nil
+}
+
 func defaultNetworkConfig() (network.Config, error) {
 	// TODO remove test files when we can auto-generate genesis
 	// and other files
-	networkConfig := network.Config{
-		NetworkID:   uint32(0),
-		LogLevel: "DEBUG",
-		Name:     "My Network",
-	}
-	genesisFile, err := os.ReadFile("test_files/genesis.json")
+	networkConfig, err := emptyNetworkConfig()
 	if err != nil {
 		return networkConfig, err
 	}
@@ -435,7 +434,6 @@ func defaultNetworkConfig() (network.Config, error) {
 	}
 	for i := 1; i <= 6; i++ {
 		nodeConfig := node.Config{
-			GenesisFile:      genesisFile,
 			CChainConfigFile: cchainConfigFile,
 			Name:             fmt.Sprintf("node%d", i),
 		}
@@ -452,10 +450,12 @@ func defaultNetworkConfig() (network.Config, error) {
 		if err == nil {
 			nodeConfig.StakingKey = keyFile
 		}
-        if nodeConfig.StakingCert == nil {
-            nodeConfig.StakingCert, nodeConfig.StakingKey, err := staking.NewCertAndKeyBytes()
-            assert.NoError(err)
-        }
+		if nodeConfig.StakingCert == nil {
+			nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
+			if err != nil {
+				return networkConfig, err
+			}
+		}
 		localNodeConf := NodeConfig{
 			BinaryPath: "pepito",
 			Stdout:     os.Stdout,
