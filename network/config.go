@@ -40,6 +40,7 @@ type Config struct {
 	// If any nodes are given a config file, the network ID
 	// in the config file will be over-ridden by this network ID.
 	// This network ID must match the one in [Genesis].
+	// TODO what if network ID here doesn't match that in genesis?
 	NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
