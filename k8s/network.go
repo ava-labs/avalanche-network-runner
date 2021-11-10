@@ -187,8 +187,9 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 	// delete network
 	for s, n := range a.nodes {
 		a.log.Debug("Shutting down node %s...", s)
-		err := a.k8scli.Delete(ctx, n.k8sObj)
-		if err != nil {
+		if err := a.k8scli.Delete(ctx, n.k8sObj); err != nil {
+			// TODO don't we want to continue deleting
+			// nodes here, even if there is an error?
 			return err
 		}
 	}
@@ -222,14 +223,13 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
 	}
-	apiNode := &K8sNode{
+	return &K8sNode{
 		uri:    uri,
 		client: cli,
 		name:   node.Spec.DeploymentName,
 		nodeID: nodeID,
 		k8sObj: node,
-	}
-	return apiNode, nil
+	}, nil
 }
 
 // RemoveNode stops the node with this ID.
@@ -358,7 +358,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 	}
 	k8sConf, ok := c.ImplSpecificConfig.(Config)
 	if !ok {
-		return nil, errors.New("Incompatible network config object")
+		return nil, fmt.Errorf("expected Config but got %T", c.ImplSpecificConfig)
 	}
 
 	return &k8sapi.Avalanchego{
@@ -394,7 +394,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 }
 
 func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
-	networkID, err := getNetworkID(string(a.config.Genesis))
+	networkID, err := getNetworkID(a.config.Genesis)
 	if err != nil {
 		return []corev1.EnvVar{}, err
 	}
@@ -402,7 +402,7 @@ func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
 	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
 		return []corev1.EnvVar{}, err
 	}
-	env := make([]corev1.EnvVar, 0)
+	env := make([]corev1.EnvVar, 0, len(avagoConf)+1)
 	for key, val := range avagoConf {
 		// we set the same network-id from genesis to avoid conflicts
 		if key == paramNetworkID {
@@ -473,15 +473,19 @@ func convertKey(key string) string {
 	return newKey
 }
 
-func getNetworkID(genesisStr string) (float64, error) {
+// Returns the networkID in the given genesis file
+func getNetworkID(genesisBytes []byte) (float64, error) {
 	var genesis map[string]interface{}
-	if err := json.Unmarshal([]byte(genesisStr), &genesis); err != nil {
+	if err := json.Unmarshal(genesisBytes, &genesis); err != nil {
 		return -1, err
 	}
-	for k, v := range genesis {
-		if k == genesisNetworkIDKey {
-			return v.(float64), nil
-		}
+	networkIDIntf, ok := genesis[genesisNetworkIDKey]
+	if !ok {
+		return 0, errors.New("genesis doesn't have network ID")
 	}
-	return -1, errors.New("No network-id config key found in genesis")
+	networkID, ok := networkIDIntf.(float64)
+	if !ok {
+		return 0, fmt.Errorf("expected flaot64 but got %T", networkIDIntf)
+	}
+	return networkID, nil
 }
