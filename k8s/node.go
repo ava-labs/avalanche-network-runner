@@ -35,6 +35,7 @@ func (n *K8sNode) GetURI() string {
 	return n.uri
 }
 
+// GetK8sObject returns the kubernetes object representing a node in the kubernetes cluster
 func (n *K8sNode) GetK8sObject() *k8sapi.Avalanchego {
 	return n.k8sObj
 }

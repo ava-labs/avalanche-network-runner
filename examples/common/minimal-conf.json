@@ -1,0 +1,13 @@
+{
+  "avalanchegoCommon": {
+    "nodeCount": 5
+  },
+  "k8sCommon": {
+    "namespace": "default",
+    "image": "avaplatform/avalanchego",
+    "tag": "v1.6.4",
+    "apiVersion": "chain.avax.network/v1alpha1",
+    "kind": "Avalanchego",
+    "name": "custom-test-net"
+  }
+}

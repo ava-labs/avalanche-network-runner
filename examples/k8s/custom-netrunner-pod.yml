@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
   - name: k8s-netrunner 
-    image: k8s-netrunner:minimal
+    image: k8s-netrunner:custom
     imagePullPolicy: IfNotPresent 
   restartPolicy: Never
   serviceAccountName:  k8s-netrunner

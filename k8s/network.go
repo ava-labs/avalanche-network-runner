@@ -36,10 +36,14 @@ const (
 	nodeReachableTimeout = 2 * time.Minute
 	// Time between checks to see if a node is reachable
 	nodeReachableRetryFreq = 3 * time.Second
-	envVarPrefix           = "AVAGO_"
-	genesisNetworkIDKey    = "networkID"
-	paramNetworkID         = "network-id"
-	envVarNetworkID        = "AVAGO_NETWORK_ID"
+	// Prefix the avalanchego-operator uses to pass params to avalanchego nodes
+	envVarPrefix = "AVAGO_"
+	// key for the network ID in the genesis file
+	genesisNetworkIDKey = "networkID"
+	// key for the network ID for the avalanchego node
+	paramNetworkID = "network-id"
+	// key for the network ID for the avalanchego-operator
+	envVarNetworkID = "AVAGO_NETWORK_ID"
 )
 
 var (
@@ -60,20 +64,19 @@ type networkImpl struct {
 	log            logging.Logger
 }
 
-// Config encapsulates kubernetes specific options
-type Config struct {
-	Namespace      string `json:"namespace"`      // The kubernetes Namespace
-	DeploymentSpec string `json:"deploymentSpec"` // Identifies this network in the cluster
-	Kind           string `json:"kind"`           // Identifies the object Kind for the operator
-	APIVersion     string `json:"apiVersion"`     // The APIVersion of the kubernetes object
-	Image          string `json:"image"`          // The docker image to use
-	Tag            string `json:"tag"`            // The docker tag to use
-	Genesis        string `json:"genesis"`        // The genesis conf file for all nodes
-	Certificate    []byte // The certificates for the nodes
-	CertKey        []byte // The certificate keys for the nods
+// Spec encapsulates kubernetes specific options
+type Spec struct {
+	Namespace   string `json:"namespace"`  // The kubernetes Namespace
+	Identifier  string `json:"identifier"` // Identifies this network in the cluster
+	Kind        string `json:"kind"`       // Identifies the object Kind for the operator
+	APIVersion  string `json:"apiVersion"` // The APIVersion of the kubernetes object
+	Image       string `json:"image"`      // The docker image to use
+	Tag         string `json:"tag"`        // The docker tag to use
+	Genesis     string `json:"genesis"`    // The genesis conf file for all nodes
+	Certificate []byte // The certificates for the nodes
+	CertKey     []byte // The certificate keys for the nods
 }
 
-// TODO should this just be a part of NewNetwork?
 // NewAdapter creates a new adapter
 func newAdapter(conf network.Config, log logging.Logger) (*networkImpl, error) {
 	// init k8s client
@@ -115,6 +118,7 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 		log.Fatal("Error launching beacons: %s", err)
 		return nil, err
 	}
+	a.log.Info("Bootstrap node(s) started")
 	// only one boostrap address supported for now
 	a.bootstrapperURL = beacons[0].Status.NetworkMembersURI[0]
 	if a.bootstrapperURL == "" {
@@ -124,13 +128,14 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 		log.Fatal("Error launching beacons: %s", err)
 		return nil, err
 	}
+	a.log.Info("All nodes started")
 	allNodes := append(beacons, instances...)
 	// build a mapping from the given k8s URIs to names/ids
 	if err := a.buildNodeMapping(allNodes); err != nil {
 		return nil, err
 	}
 
-	a.log.Info("network: %s", a)
+	a.log.Info("Network is up: %s", a)
 	return a, nil
 }
 
@@ -185,14 +190,20 @@ func (a *networkImpl) Healthy() chan error {
 // Stop all the nodes
 func (a *networkImpl) Stop(ctx context.Context) error {
 	// delete network
+	failCount := 0
 	for s, n := range a.nodes {
 		a.log.Debug("Shutting down node %s...", s)
 		err := a.k8scli.Delete(ctx, n.k8sObj)
 		if err != nil {
-			return err
+			a.log.Warn("Error shutting down node %s: %s", s, err)
+			failCount++
+			// just continue shutting down other nodes
 		}
 	}
 	close(a.closedOnStopCh)
+	if failCount > 0 {
+		return fmt.Errorf("%d nodes failed shutting down", failCount)
+	}
 	a.log.Info("Network cleared")
 	return nil
 }
@@ -203,10 +214,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	a.log.Debug("Adding new node %s to network...", cfg.Name)
 	if err := a.k8scli.Create(context.TODO(), node); err != nil {
 		return nil, err
 	}
 
+	a.log.Debug("Launching new node %s to network...", cfg.Name)
 	if err := a.launchNodes([]*k8sapi.Avalanchego{node}); err != nil {
 		return nil, err
 	}
@@ -217,7 +230,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.log.Debug("NodeID for this node is %s", nid)
+	a.log.Debug("Succesful. NodeID for this node is %s", nid)
 	nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
@@ -241,6 +254,7 @@ func (a *networkImpl) RemoveNode(id string) error {
 		if err := a.k8scli.Delete(ctx, p.k8sObj); err != nil {
 			return err
 		}
+		a.log.Info("Removed node %s", p)
 		return nil
 	}
 	return errNodeDoesNotExist
@@ -326,6 +340,7 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
+// createDeploymentFromConfig reads the config file(s) and creates the required kubernetes deployment objects
 func (a *networkImpl) createDeploymentFromConfig() ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
 	// Returns a new network whose initial state is specified in the config
 	instances := make([]*k8sapi.Avalanchego, 0)
@@ -345,6 +360,9 @@ func (a *networkImpl) createDeploymentFromConfig() ([]*k8sapi.Avalanchego, []*k8
 	return beacons, instances, nil
 }
 
+// buildK8sObj builds an object representing a node for the kubernetes cluster.
+// It takes a node.Config object which defines the required parameters and returns
+// an object deployable on kubernetes
 func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 	env, err := a.buildNodeEnv(c)
 	if err != nil {
@@ -356,10 +374,12 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(Config)
+	k8sConf, ok := c.ImplSpecificConfig.(Spec)
 	if !ok {
-		return nil, errors.New("Incompatible network config object")
+		return nil, fmt.Errorf("Expected Spec but got %T", c.ImplSpecificConfig)
 	}
+
+	k8sConf.Identifier = c.Name
 
 	return &k8sapi.Avalanchego{
 		TypeMeta: metav1.TypeMeta{
@@ -367,7 +387,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 			APIVersion: k8sConf.APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sConf.DeploymentSpec,
+			Name:      k8sConf.Identifier,
 			Namespace: k8sConf.Namespace,
 		},
 		Spec: k8sapi.AvalanchegoSpec{
@@ -393,26 +413,32 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 	}, nil
 }
 
+// buildNodeEnv builds the environment variables array required by the avalanchego-operator
+// which then passes these on to the actual avalanchego nodes.
+// It takes a node.Config describing a node and returns an array of environment variables
+// with the type required by the operator.
 func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
 	networkID, err := getNetworkID(string(a.config.Genesis))
 	if err != nil {
 		return []corev1.EnvVar{}, err
 	}
-	var avagoConf map[string]interface{}
-	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
-		return []corev1.EnvVar{}, err
-	}
 	env := make([]corev1.EnvVar, 0)
-	for key, val := range avagoConf {
-		// we set the same network-id from genesis to avoid conflicts
-		if key == paramNetworkID {
-			continue
+	if c.ConfigFile != nil {
+		var avagoConf map[string]interface{}
+		if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
+			return []corev1.EnvVar{}, err
 		}
-		v := corev1.EnvVar{
-			Name:  convertKey(key),
-			Value: val.(string),
+		for key, val := range avagoConf {
+			// we set the same network-id from genesis to avoid conflicts
+			if key == paramNetworkID {
+				continue
+			}
+			v := corev1.EnvVar{
+				Name:  convertKey(key),
+				Value: val.(string),
+			}
+			env = append(env, v)
 		}
-		env = append(env, v)
 	}
 	v := corev1.EnvVar{
 		Name:  envVarNetworkID,
@@ -424,7 +450,7 @@ func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
 }
 
 // buildNodeMapping creates the actual k8s node representation and creates the nodes map
-// with the name as the key
+// with the name as the key. It also establishes connection via the API client.
 func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	for _, n := range nodes {
 		uri := n.Status.NetworkMembersURI[0]
@@ -452,6 +478,7 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
+// String returns a string representing the network nodes
 func (a *networkImpl) String() string {
 	s := strings.Builder{}
 	_, _ = s.WriteString("\n****************************************************************************************************\n")
@@ -460,12 +487,14 @@ func (a *networkImpl) String() string {
 	_, _ = s.WriteString("  +  NodeID                           |     Label         |      Cluster URI                       +\n")
 	_, _ = s.WriteString("  +------------------------------------------------------------------------------------------------+\n")
 	for _, n := range a.nodes {
-		s.WriteString(fmt.Sprintf("     %s    %s    %s\n", n.nodeID, n.name, n.uri))
+		s.WriteString(fmt.Sprintf("     %s    %s         %s\n", n.nodeID, n.name, n.uri))
 	}
 	s.WriteString("****************************************************************************************************\n")
 	return s.String()
 }
 
+// convertKey converts an avalanchego parameter as required for an avalanchego node config file,
+// to the format required by the operator: AVAGO_[ALL_UPPER_CASE_DASH_REPLACED_BY_UNDERSCORE]
 func convertKey(key string) string {
 	key = strings.Replace(key, "-", "_", -1)
 	key = strings.ToUpper(key)
@@ -473,6 +502,7 @@ func convertKey(key string) string {
 	return newKey
 }
 
+// getNetworkID returns the networkID contained in the genesis string
 func getNetworkID(genesisStr string) (float64, error) {
 	var genesis map[string]interface{}
 	if err := json.Unmarshal([]byte(genesisStr), &genesis); err != nil {
