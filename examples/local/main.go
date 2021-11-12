@@ -161,7 +161,7 @@ func main() {
 	go func() {
 		sig := <-signalsCh
 		log.Info("got OS signal %s", sig)
-		if err := nw.Stop(context.TODO()); err != nil {
+		if err := nw.Stop(context.Background()); err != nil {
 			log.Warn("error while stopping network: %s", err)
 		}
 	}()
@@ -180,13 +180,13 @@ func main() {
 	} else {
 		log.Info("this network's nodes: %s\n", nodeNames)
 	}
-	if err := nw.Stop(context.TODO()); err != nil {
+	if err := nw.Stop(context.Background()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
 }
 
 func handleError(log logging.Logger, nw network.Network) {
-	if err := nw.Stop(context.TODO()); err != nil {
+	if err := nw.Stop(context.Background()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
 	os.Exit(1)
