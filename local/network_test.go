@@ -31,6 +31,7 @@ func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration
 	healthReply := &health.APIHealthClientReply{Healthy: true}
 	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health").Return(healthReply, nil)
+    // ethClient used when removing nodes, to close websocket connection
 	ethClient := &apimocks.EthClient{}
 	ethClient.On("Close").Return()
 	client := &apimocks.Client{}
