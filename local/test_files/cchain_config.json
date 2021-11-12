@@ -1,0 +1,1 @@
+{"snowman-api-enabled": false,"coreth-admin-api-enabled": false,"net-api-enabled": true,"rpc-gas-cap": 2500000000,"rpc-tx-fee-cap": 100,"eth-api-enabled": true,"personal-api-enabled": true,"tx-pool-api-enabled": true,"debug-api-enabled": false,"web3-api-enabled": true,"local-txs-enabled": true}

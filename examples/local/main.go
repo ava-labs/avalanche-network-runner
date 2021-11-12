@@ -176,7 +176,11 @@ func main() {
 	}
 
 	// Print the node names
-	nodeNames := nw.GetNodesNames()
+	nodeNames, err := nw.GetNodesNames()
+	if err != nil {
+		log.Fatal("couldn't get node names: %s", err)
+		handleError(log, nw)
+	}
 	log.Info("this network's nodes: %s", nodeNames)
 
 	// Get one node

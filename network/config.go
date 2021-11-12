@@ -59,6 +59,7 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
+	var someNodeIsBeacon bool
 	switch {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
@@ -73,6 +74,12 @@ func (c *Config) Validate() error {
 			}
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
+		if nodeConfig.IsBeacon {
+			someNodeIsBeacon = true
+		}
+	}
+	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+		return errors.New("beacon nodes not given")
 	}
 	return nil
 }

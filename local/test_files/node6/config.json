@@ -1,0 +1,1 @@
+{"db-type":"memdb","network-id":0,"public-ip":"127.0.0.1","network-peer-list-gossip-frequency":"5s","network-max-reconnect-delay":"2s","health-check-frequency":"10s"}
