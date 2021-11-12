@@ -96,7 +96,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 	net, err := NewNetwork(
 		logging.NoLog{},
 		networkConfig,
-		newMockAPISuccessful, // TODO change AvalancheGo so we can mock API clients
+		newMockAPISuccessful,
 		newMockProcessUndef,
 	)
 	assert.NoError(err)
@@ -274,7 +274,6 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 }
 
 // Creates a network and fake health api response so network Healthy also fails
-// TODO: needs to set fake fail health api. uncomment after that.
 func TestUnhealthyNetwork(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig, err := defaultNetworkConfig()
@@ -307,7 +306,6 @@ func TestGeneratedNodesNames(t *testing.T) {
 // TODO add byzantine node to conf
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes can be accessed
-// TODO: needs to set fake successful health api. uncomment after that.
 func TestNetworkFromConfig(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig, err := defaultNetworkConfig()
