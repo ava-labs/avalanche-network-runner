@@ -347,7 +347,6 @@ func TestNetworkNodeOps(t *testing.T) {
 		_, err := net.GetNode(nodeConfig.Name)
 		assert.NoError(err)
 		err = net.RemoveNode(nodeConfig.Name)
-		return
 		assert.NoError(err)
 		removedNodes[nodeConfig.Name] = true
 		delete(runningNodes, nodeConfig.Name)
