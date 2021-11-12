@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,8 +30,6 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 )
-
-var errStopped = errors.New("network stopped")
 
 // interface compliance
 var (
@@ -160,7 +158,7 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 // TODO make this method shorter
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.isStopped() {
-		return nil, errStopped
+		return nil, network.ErrStopped
 	}
 
 	// If no name was given, use default name pattern
@@ -303,7 +301,7 @@ func (net *localNetwork) Healthy() chan error {
 
 	// Return unhealthy if the network is stopped
 	if net.isStopped() {
-		healthyChan <- errStopped
+		healthyChan <- network.ErrStopped
 		return healthyChan
 	}
 
@@ -321,7 +319,7 @@ func (net *localNetwork) Healthy() chan error {
 				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
 					select {
 					case <-net.closedOnStopCh:
-						return errStopped
+						return network.ErrStopped
 					case <-ctx.Done():
 						return nil
 					case <-time.After(constants.HealthCheckFreq):
@@ -350,7 +348,7 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	defer net.lock.RUnlock()
 
 	if net.isStopped() {
-		return nil, errStopped
+		return nil, network.ErrStopped
 	}
 
 	node, ok := net.nodes[nodeName]
@@ -366,7 +364,7 @@ func (net *localNetwork) GetNodesNames() ([]string, error) {
 	defer net.lock.RUnlock()
 
 	if net.isStopped() {
-		return nil, errStopped
+		return nil, network.ErrStopped
 	}
 
 	names := make([]string, len(net.nodes))
@@ -386,22 +384,22 @@ func (net *localNetwork) Stop(ctx context.Context) error {
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop(ctx context.Context) error {
+func (net *localNetwork) stop(_ context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
-		return errStopped
+		return network.ErrStopped
 	}
 	net.log.Info("stopping network")
-	var retErr error
+	errs := wrappers.Errs{}
 	for nodeName := range net.nodes {
 		if err := net.removeNode(nodeName); err != nil {
-			net.log.Warn("error removing node %q: %s", nodeName, err)
-			retErr = err
+			net.log.Error("error stopping node %q: %s", nodeName, err)
+			errs.Add(err)
 		}
 	}
 	close(net.closedOnStopCh)
 	net.log.Info("done stopping network") // todo remove / lower level
-	return retErr
+	return errs.Err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
@@ -415,7 +413,7 @@ func (net *localNetwork) RemoveNode(nodeName string) error {
 // Assumes [net.lock] is held
 func (net *localNetwork) removeNode(nodeName string) error {
 	if net.isStopped() {
-		return errStopped
+		return network.ErrStopped
 	}
 	net.log.Debug("removing node %q", nodeName)
 	node, ok := net.nodes[nodeName]

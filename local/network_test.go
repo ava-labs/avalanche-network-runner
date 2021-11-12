@@ -25,6 +25,7 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 	return &mocks.NodeProcess{}, nil
 }
 
+// Returns a NodeProcess that always returns nil
 func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Start").Return(nil)
@@ -33,6 +34,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	return process, nil
 }
 
+// Return a NodeProcess that returns an error when Start is called
 func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Start").Return(errors.New("Start failed"))
@@ -71,7 +73,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 		newMockProcessUndef,
 	)
 	assert.NoError(err)
-	// Assert that GetNodesNames() includes only the 1 node's name
+	// Assert that GetNodesNames() returns an empty list
 	names, err := net.GetNodesNames()
 	assert.NoError(err)
 	assert.Len(names, 0)
@@ -108,105 +110,127 @@ func TestNewNetworkOneNode(t *testing.T) {
 	assert.EqualValues(networkConfig.Genesis, net.(*localNetwork).genesis)
 }
 
+// Test that NewNetwork returns an error when
+// starting a node returns an error
+func TestNewNetworkFailToStartNode(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig, err := defaultNetworkConfig()
+	assert.NoError(err)
+	_, err = NewNetwork(
+		logging.NoLog{},
+		networkConfig,
+		api.NewAPIClient,
+		newMockProcessFailedStart,
+	)
+	assert.Error(err)
+}
+
 // Check configs that are expected to be invalid at network creation time
 func TestWrongNetworkConfigs(t *testing.T) {
 	tests := map[string]struct {
-		input network.Config
+		config network.Config
 	}{
-		"no ImplSpecificConfig": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					IsBeacon:   true,
-					ConfigFile: []byte("nonempty"),
-				},
-			},
-		}},
-		"no ConfigFile": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+		"no ImplSpecificConfig": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						IsBeacon:   true,
+						ConfigFile: []byte("nonempty"),
 					},
-					IsBeacon: true,
 				},
-			},
-		}},
-		"no Genesis": {input: network.Config{
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"no ConfigFile": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon: true,
 					},
-					IsBeacon:   true,
-					ConfigFile: []byte("nonempty"),
 				},
-			},
-		}},
-		"StakingKey but no StakingCert": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"no Genesis": {
+			config: network.Config{
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:   true,
+						ConfigFile: []byte("nonempty"),
 					},
-					IsBeacon:   true,
-					ConfigFile: []byte("nonempty"),
-					StakingKey: []byte("nonempty"),
 				},
-			},
-		}},
-		"StakingCert but no StakingKey": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"StakingKey but no StakingCert": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:   true,
+						ConfigFile: []byte("nonempty"),
+						StakingKey: []byte("nonempty"),
 					},
-					IsBeacon:    true,
-					ConfigFile:  []byte("nonempty"),
-					StakingCert: []byte("nonempty"),
 				},
-			},
-		}},
-		"no beacon node": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"StakingCert but no StakingKey": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						ConfigFile:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
-					ConfigFile: []byte("nonempty"),
 				},
-			},
-		}},
-		"repeated name": {input: network.Config{
-			Genesis: []byte("nonempty"),
-			NodeConfigs: []node.Config{
-				{
-					Name: "node0",
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"no beacon node": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						ConfigFile: []byte("nonempty"),
 					},
-					IsBeacon:   true,
-					ConfigFile: []byte("nonempty"),
 				},
-				{
-					Name: "node0",
-					ImplSpecificConfig: NodeConfig{
-						BinaryPath: "pepe",
+			}},
+		"repeated name": {
+			config: network.Config{
+				Genesis: []byte("nonempty"),
+				NodeConfigs: []node.Config{
+					{
+						Name: "node0",
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:   true,
+						ConfigFile: []byte("nonempty"),
 					},
-					IsBeacon:   true,
-					ConfigFile: []byte("nonempty"),
+					{
+						Name: "node0",
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:   true,
+						ConfigFile: []byte("nonempty"),
+					},
 				},
-			},
-		}},
+			}},
 	}
-	for name, tc := range tests {
+	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			_, err := NewNetwork(logging.NoLog{}, tc.input, api.NewAPIClient, newMockProcessSuccessful)
+			_, err := NewNetwork(logging.NoLog{}, tt.config, api.NewAPIClient, newMockProcessSuccessful)
 			assert.Error(err)
 		})
 	}
@@ -321,22 +345,22 @@ func TestNodeNotFound(t *testing.T) {
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
-	// get correct node
+	// get node
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
-	// get uncorrect node (non created)
+	// get non-existent node
 	_, err = net.GetNode(networkConfig.NodeConfigs[1].Name)
 	assert.Error(err)
-	// remove uncorrect node (non created)
+	// remove non-existent node
 	err = net.RemoveNode(networkConfig.NodeConfigs[1].Name)
 	assert.Error(err)
-	// remove correct node
+	// remove node
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
-	// get uncorrect node (removed)
+	// get removed node
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.Error(err)
-	// remove uncorrect node (removed)
+	// remove already-removed node
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	assert.Error(err)
 }
@@ -358,20 +382,20 @@ func TestStoppedNetwork(t *testing.T) {
 	err = net.Stop(context.TODO())
 	assert.NoError(err)
 	// Stop failure
-	assert.EqualValues(net.Stop(context.TODO()), errStopped)
+	assert.EqualValues(net.Stop(context.TODO()), network.ErrStopped)
 	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
-	assert.EqualValues(err, errStopped)
+	assert.EqualValues(err, network.ErrStopped)
 	// GetNode failure
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
-	assert.EqualValues(err, errStopped)
+	assert.EqualValues(err, network.ErrStopped)
 	// second GetNodesNames should return no nodes
 	_, err = net.GetNodesNames()
-	assert.EqualValues(err, errStopped)
+	assert.EqualValues(err, network.ErrStopped)
 	// RemoveNode failure
-	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), errStopped)
+	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
-	assert.EqualValues(awaitNetworkHealthy(net), errStopped)
+	assert.EqualValues(awaitNetworkHealthy(net), network.ErrStopped)
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and

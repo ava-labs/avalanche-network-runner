@@ -79,7 +79,7 @@ func (c *Config) Validate() error {
 		}
 	}
 	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
-		return fmt.Errorf("node config failed validation: at least one node must be beacon")
+		return errors.New("beacon nodes not given")
 	}
 	return nil
 }
