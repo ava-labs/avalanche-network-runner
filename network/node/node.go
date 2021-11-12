@@ -21,8 +21,6 @@ type Config struct {
 	StakingKey []byte
 	// Must not be nil
 	StakingCert []byte
-	// Must not be empty
-	NodeID ids.ShortID
 	// Must not be nil.
 	ConfigFile []byte
 	// May be nil.

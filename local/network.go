@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/constants"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -109,9 +110,14 @@ func NewNetwork(
 		return nil, fmt.Errorf("config failed validation: %w", err)
 	}
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
+
+	networkID, err := utils.NetworkIDFromGenesis(networkConfig.Genesis)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
 	// Create the network
 	net := &localNetwork{
-		networkID:       networkConfig.NetworkID,
+		networkID:       networkID,
 		genesis:         networkConfig.Genesis,
 		nodes:           map[string]*localNode{},
 		closedOnStopCh:  make(chan struct{}),
@@ -220,11 +226,17 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
 
+	// Parse this node's ID
+	nodeID, err := utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create node ID: %w", err)
+	}
+
 	// If this node is a beacon, add its IP/ID to the beacon lists.
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
 	if nodeConfig.IsBeacon {
-		ln.bootstrapIDs[nodeConfig.NodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
+		ln.bootstrapIDs[nodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
@@ -286,6 +298,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:    nodeConfig.Name,
+		nodeID:  nodeID,
 		client:  ln.newAPIClientF("localhost", uint(apiPort), apiTimeout),
 		process: nodeProcess,
 	}

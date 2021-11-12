@@ -59,6 +59,7 @@ type localNode struct {
 	// Must be unique across all nodes in this network.
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
+	// Set in network.AddNode
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
 	client api.Client

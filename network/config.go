@@ -41,7 +41,7 @@ type Config struct {
 	// in the config file will be over-ridden by this network ID.
 	// This network ID must match the one in [Genesis].
 	// TODO what if network ID here doesn't match that in genesis?
-	NetworkID uint32
+	//NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// Must not be nil

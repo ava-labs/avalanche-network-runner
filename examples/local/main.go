@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,14 +13,24 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/ava-labs/avalanchego/utils/units"
 )
 
-var goPath = os.ExpandEnv("$GOPATH")
+const (
+	numNodes = 5
+)
+
+//go:embed configs
+var embeddedConfigsDir embed.FS
+
+var (
+	goPath     = os.ExpandEnv("$GOPATH")
+	binaryPath string // TODO read flag
+)
+
+func init() {
+	binaryPath = fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
+}
 
 // Start 6 nodes, wait for them to become healthy, then stop them all.
 func main() {
@@ -34,113 +46,17 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	// Path to AvalancheGo binary
-	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
-
-	// Create network config
-	networkConfig := network.Config{
-		NetworkID: 1337,
-	}
-
-	allNodeIDs := []ids.ShortID{}
-
-	// Define the nodes to run when network is created.
-	// Read config file from disk.
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/local/configs", goPath)
-	configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
-	if err != nil {
+	if err := run(log); err != nil {
 		log.Fatal("%s", err)
-		os.Exit(1)
 	}
-	for i := 0; i < 6; i++ {
-		var (
-			stakingKey  []byte
-			stakingCert []byte
-		)
-		// For first 3 nodes, read staking key/cert from disk
-		if i < 3 {
-			log.Info("reading node %d key/cert", i)
-			nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
-			stakingKey, err = os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
-			if err != nil {
-				log.Fatal("%s", err)
-				os.Exit(1)
-			}
-			stakingCert, err = os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
-			if err != nil {
-				log.Fatal("%s", err)
-				os.Exit(1)
-			}
-		} else { // For the last 3 nodes, use random staking key/cert
-			log.Info("generating node %d key/cert", i)
-			stakingCert, stakingKey, err = staking.NewCertAndKeyBytes()
-			if err != nil {
-				log.Fatal("%s", err)
-				os.Exit(1)
-			}
-		}
-		// Node ID of the node we're adding to the initial network state
-		nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
-		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
-		}
-		networkConfig.NodeConfigs = append(
-			networkConfig.NodeConfigs,
-			node.Config{
-				ImplSpecificConfig: local.NodeConfig{
-					// Specify which binary to use to start AvalancheGo
-					BinaryPath: binaryPath,
-				},
-				// Specify config file used by this node
-				ConfigFile:  configFile,
-				StakingKey:  stakingKey,
-				StakingCert: stakingCert,
-				NodeID:      nodeID,
-				// make this node a beacon
-				IsBeacon: true,
-			},
-		)
-		allNodeIDs = append(allNodeIDs, nodeID)
-	}
+}
 
-	// Generate and set network genesis.
-	// Give some random addresses an initial balance,
-	// and make all nodes validators.
-	// Note that you also read a genesis file from disk
-	// and set [networkConfig.Genesis] to that.
-	networkConfig.Genesis, err = network.NewAvalancheGoGenesis(
-		log,
-		networkConfig.NetworkID, // Network ID
-		[]network.AddrAndBalance{ // X-Chain Balances
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: units.KiloAvax + 1,
-			},
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: units.KiloAvax + 2,
-			},
-		},
-		[]network.AddrAndBalance{ // C-Chain Balances
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: units.KiloAvax + 3,
-			},
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: units.KiloAvax + 4,
-			},
-		},
-		allNodeIDs, // Make all nodes validators
-	)
+func run(log logging.Logger) error {
+	// Read configs to create network config
+	networkConfig, err := readConfigs()
 	if err != nil {
-		log.Fatal("%s", err)
-		os.Exit(1)
+		return fmt.Errorf("couldn't read configs: %w", err)
 	}
-	// Uncomment this line to print the first node's logs to stdout
-	// networkConfig.NodeConfigs[0].Stdout = os.Stdout
 
 	// Create the network
 	nw, err := local.NewNetwork(
@@ -150,8 +66,7 @@ func main() {
 		local.NewNodeProcess,
 	)
 	if err != nil {
-		log.Fatal("%s", err)
-		os.Exit(1)
+		return err
 	}
 
 	// When we get a SIGINT or SIGTERM, stop the network.
@@ -171,41 +86,69 @@ func main() {
 	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
-		log.Fatal("network never became healthy: %s", err)
-		handleError(log, nw)
+		return err
 	}
 
 	// Print the node names
 	nodeNames, err := nw.GetNodesNames()
 	if err != nil {
-		log.Fatal("couldn't get node names: %s", err)
-		handleError(log, nw)
+		return err
 	}
 	log.Info("this network's nodes: %s", nodeNames)
 
 	// Get one node
 	node, err := nw.GetNode(nodeNames[0])
 	if err != nil {
-		log.Fatal("couldn't get node: %s", err)
-		handleError(log, nw)
+		return err
 	}
 
 	// Get its node ID through its API and print it
 	nodeID, err := node.GetAPIClient().InfoAPI().GetNodeID()
 	if err != nil {
-		log.Fatal("couldn't get node ID: %s", err)
-		handleError(log, nw)
+		return err
 	}
 	log.Info("one node's ID is: %s", nodeID)
 	log.Info("example program done")
 	if err := nw.Stop(context.Background()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
+	return nil
 }
 
-func handleError(log logging.Logger, nw network.Network) {
-	if err := nw.Stop(context.Background()); err != nil {
-		log.Warn("error while stopping network: %s", err)
+func readConfigs() (network.Config, error) {
+	configsDir, err := fs.Sub(embeddedConfigsDir, "configs")
+	if err != nil {
+		return network.Config{}, err
 	}
-	os.Exit(1)
+
+	config := network.Config{
+		Name:        "my network",
+		NodeConfigs: make([]node.Config, numNodes),
+		LogLevel:    "INFO",
+	}
+
+	config.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	if err != nil {
+		return network.Config{}, err
+	}
+
+	for i := 0; i < len(config.NodeConfigs); i++ {
+		config.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		if err != nil {
+			return network.Config{}, fmt.Errorf("couldn't read node %d config.json: %w", i, err)
+		}
+		config.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		if err != nil {
+			return network.Config{}, fmt.Errorf("couldn't read node %d staker.key: %w", i, err)
+		}
+		config.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		if err != nil {
+			return network.Config{}, fmt.Errorf("couldn't read node %d staker.crt: %w", i, err)
+		}
+		config.NodeConfigs[i].ImplSpecificConfig = local.NodeConfig{
+			BinaryPath: binaryPath,
+		}
+		config.NodeConfigs[i].IsBeacon = true
+	}
+	return config, nil
 }

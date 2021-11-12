@@ -63,7 +63,6 @@ func TestNewNetworkEmpty(t *testing.T) {
 	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
-	networkConfig.NetworkID = networkID
 	networkConfig.Genesis = genesis
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
@@ -438,10 +437,9 @@ func emptyNetworkConfig() (network.Config, error) {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: uint32(0),
-		LogLevel:  "DEBUG",
-		Name:      "My Network",
-		Genesis:   genesisFile,
+		LogLevel: "DEBUG",
+		Name:     "My Network",
+		Genesis:  genesisFile,
 	}, nil
 }
 
