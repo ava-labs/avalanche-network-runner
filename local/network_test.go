@@ -73,25 +73,8 @@ func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
-	networkID := uint32(1337)
-	// Use a dummy genesis
-	genesis, err := network.NewAvalancheGoGenesis(
-		logging.NoLog{},
-		networkID,
-		[]network.AddrAndBalance{
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: 1,
-			},
-		},
-		nil,
-		[]ids.ShortID{ids.GenerateTestShortID()},
-	)
-	assert.NoError(err)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
-	networkConfig.NetworkID = networkID
-	networkConfig.Genesis = genesis
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
 		logging.NoLog{},
@@ -447,54 +430,43 @@ func awaitNetworkHealthy(net network.Network) error {
 }
 
 func emptyNetworkConfig() (network.Config, error) {
-	// TODO remove test files when we can auto-generate genesis
-	// and other files
-	genesisFile, err := os.ReadFile("test_files/genesis.json")
+	networkID := uint32(1337)
+	// Use a dummy genesis
+	genesis, err := network.NewAvalancheGoGenesis(
+		logging.NoLog{},
+		networkID,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		nil,
+		[]ids.ShortID{ids.GenerateTestShortID()},
+	)
 	if err != nil {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: uint32(0),
+		NetworkID: networkID,
 		LogLevel:  "DEBUG",
 		Name:      "My Network",
-		Genesis:   genesisFile,
+		Genesis:   genesis,
 	}, nil
 }
 
 func defaultNetworkConfig() (network.Config, error) {
-	// TODO remove test files when we can auto-generate genesis
-	// and other files
 	networkConfig, err := emptyNetworkConfig()
 	if err != nil {
 		return networkConfig, err
 	}
-	cchainConfigFile, err := os.ReadFile("test_files/cchain_config.json")
-	if err != nil {
-		return networkConfig, err
-	}
-	for i := 1; i <= 6; i++ {
+	for i := 0; i < 5; i++ {
 		nodeConfig := node.Config{
-			CChainConfigFile: cchainConfigFile,
-			Name:             fmt.Sprintf("node%d", i),
+			Name: fmt.Sprintf("node%d", i),
 		}
-		configFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/config.json", i))
+		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
 		if err != nil {
 			return networkConfig, err
-		}
-		nodeConfig.ConfigFile = configFile
-		certFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.crt", i))
-		if err == nil {
-			nodeConfig.StakingCert = certFile
-		}
-		keyFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.key", i))
-		if err == nil {
-			nodeConfig.StakingKey = keyFile
-		}
-		if nodeConfig.StakingCert == nil {
-			nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
-			if err != nil {
-				return networkConfig, err
-			}
 		}
 		localNodeConf := NodeConfig{
 			BinaryPath: "pepito",
