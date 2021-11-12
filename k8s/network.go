@@ -61,26 +61,6 @@ type networkImpl struct {
 	log            logging.Logger
 }
 
-// Config encapsulates kubernetes specific options
-type Config struct {
-	Namespace      string `json:"namespace"`      // The kubernetes Namespace
-	DeploymentSpec string `json:"deploymentSpec"` // Identifies this network in the cluster
-	Kind           string `json:"kind"`           // Identifies the object Kind for the operator
-	APIVersion     string `json:"apiVersion"`     // The APIVersion of the kubernetes object
-	Image          string `json:"image"`          // The docker image to use
-	Tag            string `json:"tag"`            // The docker tag to use
-	Genesis        string `json:"genesis"`        // The genesis conf file for all nodes
-	Certificate    []byte // The certificates for the nodes
-	CertKey        []byte // The certificate keys for the nods
-}
-
-// TODO remove
-// TODO should this just be a part of NewNetwork?
-// NewAdapter creates a new adapter
-// func newAdapter(conf network.Config, log logging.Logger) (*networkImpl, error) {
-
-// }
-
 // NewNetwork returns a new network whose initial state is specified in the config
 func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
 	// init k8s client
@@ -182,21 +162,18 @@ func (a *networkImpl) Healthy() chan error {
 
 // Stop all the nodes
 func (a *networkImpl) Stop(ctx context.Context) error {
-	// delete network
 	for s, n := range a.nodes {
 		a.log.Debug("Shutting down node %s...", s)
 		if err := a.k8scli.Delete(ctx, n.k8sObj); err != nil {
-			// TODO don't we want to continue deleting
-			// nodes here, even if there is an error?
-			return err
+			a.log.Error("error while stopping node %s: %s", n.name, err)
 		}
 	}
 	close(a.closedOnStopCh)
-	a.log.Info("Network cleared")
+	a.log.Info("Network stopped")
 	return nil
 }
 
-// AddNode starts a new node with the config
+// AddNode starts a new node with the given config
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	node, err := buildK8sObj(a.config.Genesis, cfg)
 	if err != nil {
@@ -212,12 +189,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 
 	uri := node.Status.NetworkMembersURI[0]
 	cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
-	nid, err := cli.InfoAPI().GetNodeID()
+	nodeIDStr, err := cli.InfoAPI().GetNodeID()
 	if err != nil {
 		return nil, err
 	}
-	a.log.Debug("NodeID for this node is %s", nid)
-	nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
+	a.log.Debug("NodeID for this node is %s", nodeIDStr)
+	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, avagoconst.NodeIDPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
 	}
@@ -365,7 +342,7 @@ func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(Config)
+	k8sConf, ok := c.ImplSpecificConfig.(NodeConfig)
 	if !ok {
 		return nil, fmt.Errorf("expected Config but got %T", c.ImplSpecificConfig)
 	}
