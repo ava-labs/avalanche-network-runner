@@ -19,7 +19,7 @@ type Client interface {
 	XChainAPI() avm.Client
 	XChainWalletAPI() avm.WalletClient
 	CChainAPI() *evm.Client
-	CChainEthAPI() *EthClient // ethclient websocket wrapper that adds mutexed calls, and lazy conn init (on first call)
+	CChainEthAPI() EthClient // ethclient websocket wrapper that adds mutexed calls, and lazy conn init (on first call)
 	InfoAPI() info.Client
 	HealthAPI() health.Client
 	IpcsAPI() ipcs.Client
