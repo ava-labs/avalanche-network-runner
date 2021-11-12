@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,9 +29,8 @@ const (
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
+	stopTimeout           = 30 * time.Second
 )
-
-var errStopped = errors.New("network stopped")
 
 // interface compliance
 var (
@@ -123,7 +122,20 @@ func NewNetwork(
 		newNodeProcessF: newNodeProcessF,
 	}
 
+	// Sort node configs so beacons start first
+	var nodeConfigs []node.Config
 	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if !nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+
+	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
 				// Clean up nodes already created
@@ -147,7 +159,7 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 // TODO make this method shorter
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.isStopped() {
-		return nil, errStopped
+		return nil, network.ErrStopped
 	}
 
 	// If no name was given, use default name pattern
@@ -221,12 +233,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
-		return nil, fmt.Errorf("error writing staking key: %w", err)
+		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
 	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
 	if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
-		return nil, fmt.Errorf("error writing staking cert: %w", err)
+		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
@@ -290,7 +302,7 @@ func (net *localNetwork) Healthy() chan error {
 
 	// Return unhealthy if the network is stopped
 	if net.isStopped() {
-		healthyChan <- errStopped
+		healthyChan <- network.ErrStopped
 		return healthyChan
 	}
 
@@ -308,7 +320,7 @@ func (net *localNetwork) Healthy() chan error {
 				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
 					select {
 					case <-net.closedOnStopCh:
-						return errStopped
+						return network.ErrStopped
 					case <-ctx.Done():
 						return nil
 					case <-time.After(constants.HealthCheckFreq):
@@ -337,7 +349,7 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	defer net.lock.RUnlock()
 
 	if net.isStopped() {
-		return nil, errStopped
+		return nil, network.ErrStopped
 	}
 
 	node, ok := net.nodes[nodeName]
@@ -348,12 +360,12 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetNodesNames() []string {
+func (net *localNetwork) GetNodesNames() ([]string, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
 	if net.isStopped() {
-		return nil
+		return nil, network.ErrStopped
 	}
 
 	names := make([]string, len(net.nodes))
@@ -362,10 +374,9 @@ func (net *localNetwork) GetNodesNames() []string {
 		names[i] = name
 		i++
 	}
-	return names
+	return names, nil
 }
 
-// TODO does this need to return an error?
 func (net *localNetwork) Stop(ctx context.Context) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -377,17 +388,30 @@ func (net *localNetwork) Stop(ctx context.Context) error {
 func (net *localNetwork) stop(ctx context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
-		return nil
+		return network.ErrStopped
 	}
 	net.log.Info("stopping network")
+	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
+	defer cancel()
+	errs := wrappers.Errs{}
 	for nodeName := range net.nodes {
+		select {
+		case <-ctx.Done():
+			// In practice we'll probably never time out here,
+			// and the caller probably won't cancel a call
+			// to stop(), but we include this to respect the
+			// network.Network interface.
+			return ctx.Err()
+		default:
+		}
 		if err := net.removeNode(nodeName); err != nil {
-			net.log.Warn("error removing node %q: %s", nodeName, err)
+			net.log.Error("error stopping node %q: %s", nodeName, err)
+			errs.Add(err)
 		}
 	}
 	close(net.closedOnStopCh)
 	net.log.Info("done stopping network") // todo remove / lower level
-	return nil
+	return errs.Err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
@@ -401,7 +425,7 @@ func (net *localNetwork) RemoveNode(nodeName string) error {
 // Assumes [net.lock] is held
 func (net *localNetwork) removeNode(nodeName string) error {
 	if net.isStopped() {
-		net.log.Debug("can't remove node %q because network stopped", nodeName)
+		return network.ErrStopped
 	}
 	net.log.Debug("removing node %q", nodeName)
 	node, ok := net.nodes[nodeName]

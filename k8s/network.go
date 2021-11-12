@@ -39,7 +39,6 @@ const (
 
 var (
 	errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
-	errStopped          = errors.New("network stopped")
 )
 
 // networkImpl is the kubernetes data type representing a kubernetes network adapter.
@@ -162,14 +161,14 @@ LOOP:
 }
 
 // GetNodesNames returns an array of node names
-func (a *networkImpl) GetNodesNames() []string {
+func (a *networkImpl) GetNodesNames() ([]string, error) {
 	nodes := make([]string, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
 		nodes[i] = n.name
 		i++
 	}
-	return nodes
+	return nodes, nil
 }
 
 // Healthy returns a channel which signals when the network is ready to be used
@@ -186,7 +185,7 @@ func (a *networkImpl) Healthy() chan error {
 				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
 					select {
 					case <-a.closedOnStopCh:
-						return errStopped
+						return network.ErrStopped
 					case <-ctx.Done():
 						return nil
 					case <-time.After(constants.HealthCheckFreq):

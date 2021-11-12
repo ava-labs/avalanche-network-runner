@@ -40,6 +40,7 @@ type Config struct {
 	// If any nodes are given a config file, the network ID
 	// in the config file will be over-ridden by this network ID.
 	// This network ID must match the one in [Genesis].
+	// TODO what if network ID here doesn't match that in genesis?
 	NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
@@ -58,6 +59,7 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
+	var someNodeIsBeacon bool
 	switch {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
@@ -72,6 +74,12 @@ func (c *Config) Validate() error {
 			}
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
+		if nodeConfig.IsBeacon {
+			someNodeIsBeacon = true
+		}
+	}
+	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+		return errors.New("beacon nodes not given")
 	}
 	return nil
 }
