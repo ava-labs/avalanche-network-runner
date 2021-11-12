@@ -259,7 +259,6 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 
 // Creates a network and fake health api response so network Healthy also fails
 func TestUnhealthyNetwork(t *testing.T) {
-	t.Skip()
 	assert := assert.New(t)
 	networkConfig, err := defaultNetworkConfig()
 	assert.NoError(err)
@@ -462,7 +461,7 @@ func defaultNetworkConfig() (network.Config, error) {
 	if err != nil {
 		return networkConfig, err
 	}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		nodeConfig := node.Config{
 			Name: fmt.Sprintf("node%d", i),
 		}
