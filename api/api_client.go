@@ -23,18 +23,18 @@ var (
 
 // APIClient gives access to most avalanchego apis (or suitable wrappers)
 type APIClient struct {
-	platform     *platformvm.Client
-	xChain       *avm.Client
-	xChainWallet *avm.WalletClient
+	platform     platformvm.Client
+	xChain       avm.Client
+	xChainWallet avm.WalletClient
 	cChain       *evm.Client
 	cChainEth    *EthClient
-	info         *info.Client
-	health       *health.Client
-	ipcs         *ipcs.Client
-	keystore     *keystore.Client
-	admin        *admin.Client
-	pindex       *indexer.Client
-	cindex       *indexer.Client
+	info         info.Client
+	health       health.Client
+	ipcs         ipcs.Client
+	keystore     keystore.Client
+	admin        admin.Client
+	pindex       indexer.Client
+	cindex       indexer.Client
 }
 
 // Returns a new API client for a node at [ipAddr]:[port].
@@ -59,15 +59,15 @@ func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) Client
 	}
 }
 
-func (c APIClient) PChainAPI() *platformvm.Client {
+func (c APIClient) PChainAPI() platformvm.Client {
 	return c.platform
 }
 
-func (c APIClient) XChainAPI() *avm.Client {
+func (c APIClient) XChainAPI() avm.Client {
 	return c.xChain
 }
 
-func (c APIClient) XChainWalletAPI() *avm.WalletClient {
+func (c APIClient) XChainWalletAPI() avm.WalletClient {
 	return c.xChainWallet
 }
 
@@ -79,30 +79,30 @@ func (c APIClient) CChainEthAPI() *EthClient {
 	return c.cChainEth
 }
 
-func (c APIClient) InfoAPI() *info.Client {
+func (c APIClient) InfoAPI() info.Client {
 	return c.info
 }
 
-func (c APIClient) HealthAPI() *health.Client {
+func (c APIClient) HealthAPI() health.Client {
 	return c.health
 }
 
-func (c APIClient) IpcsAPI() *ipcs.Client {
+func (c APIClient) IpcsAPI() ipcs.Client {
 	return c.ipcs
 }
 
-func (c APIClient) KeystoreAPI() *keystore.Client {
+func (c APIClient) KeystoreAPI() keystore.Client {
 	return c.keystore
 }
 
-func (c APIClient) AdminAPI() *admin.Client {
+func (c APIClient) AdminAPI() admin.Client {
 	return c.admin
 }
 
-func (c APIClient) PChainIndexAPI() *indexer.Client {
+func (c APIClient) PChainIndexAPI() indexer.Client {
 	return c.pindex
 }
 
-func (c APIClient) CChainIndexAPI() *indexer.Client {
+func (c APIClient) CChainIndexAPI() indexer.Client {
 	return c.cindex
 }
