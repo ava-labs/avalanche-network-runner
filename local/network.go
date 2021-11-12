@@ -29,6 +29,7 @@ const (
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
+	stopTimeout           = 30 * time.Second
 )
 
 // interface compliance
@@ -136,7 +137,7 @@ func NewNetwork(
 
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
-			if err := net.stop(context.TODO()); err != nil {
+			if err := net.stop(context.Background()); err != nil {
 				// Clean up nodes already created
 				log.Warn("error while stopping network: %s", err)
 			}
@@ -384,14 +385,25 @@ func (net *localNetwork) Stop(ctx context.Context) error {
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop(_ context.Context) error {
+func (net *localNetwork) stop(ctx context.Context) error {
 	if net.isStopped() {
 		net.log.Debug("stop() called multiple times")
 		return network.ErrStopped
 	}
 	net.log.Info("stopping network")
+	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
+	defer cancel()
 	errs := wrappers.Errs{}
 	for nodeName := range net.nodes {
+		select {
+		case <-ctx.Done():
+			// In practice we'll probably never time out here,
+			// and the caller probably won't cancel a call
+			// to stop(), but we include this to respect the
+			// network.Network interface.
+			return ctx.Err()
+		default:
+		}
 		if err := net.removeNode(nodeName); err != nil {
 			net.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
