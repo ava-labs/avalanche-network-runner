@@ -54,12 +54,9 @@ func main() {
 
 	log.Info("Network created. Booting...")
 
-	errCh := adapter.Healthy()
+	errCh := adapter.Healthy(timeout)
 
 	select {
-	case <-timeout.Done():
-		log.Fatal("Timed out waiting for network to boot. Exiting.")
-		os.Exit(1)
 	case err := <-errCh:
 		if err != nil {
 			log.Fatal("Error booting network: %s", err)

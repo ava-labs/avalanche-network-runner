@@ -18,7 +18,8 @@ type Network interface {
 	// If an error isn't sent on the channel before it
 	// closes, all the nodes are healthy.
 	// A stopped network is considered unhealthy.
-	Healthy() chan error
+	// Timeout is given by the context parameter
+	Healthy(context.Context) chan error
 	// Stop all the nodes.
 	// Returns ErrStopped if Stop() was previously called.
 	Stop(context.Context) error

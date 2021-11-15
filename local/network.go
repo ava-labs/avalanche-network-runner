@@ -294,7 +294,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) Healthy() chan error {
+func (net *localNetwork) Healthy(ctx context.Context) chan error {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 
@@ -311,19 +311,22 @@ func (net *localNetwork) Healthy() chan error {
 		nodes = append(nodes, node)
 	}
 	go func() {
-		errGr, ctx := errgroup.WithContext(context.Background())
+		errGr, ctx := errgroup.WithContext(ctx)
 		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
-				// Every 5 seconds, query node for health status.
-				// Do this up to 20 times.
-				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
+				// Every constants.HealthCheckInterval, query node for health status.
+				// Do this until ctx timeout
+				for {
 					select {
 					case <-net.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
+						if err := ctx.Err(); err != nil {
+							return fmt.Errorf("node %q failed to become healthy: %w", node.GetName(), err)
+						}
 						return nil
-					case <-time.After(constants.HealthCheckFreq):
+					case <-time.After(constants.HealthCheckInterval):
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
@@ -331,7 +334,6 @@ func (net *localNetwork) Healthy() chan error {
 						return nil
 					}
 				}
-				return fmt.Errorf("node %q timed out on becoming healthy", node.name)
 			})
 		}
 		// Wait until all nodes are ready or timeout

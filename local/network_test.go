@@ -431,7 +431,9 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]str
 // or an error if one doesn't become healthy within
 // the timeout.
 func awaitNetworkHealthy(net network.Network) error {
-	healthyCh := net.Healthy()
+	timeout, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*10))
+	defer cancel()
+	healthyCh := net.Healthy(timeout)
 	err, ok := <-healthyCh
 	if ok {
 		return err

@@ -172,7 +172,7 @@ func (a *networkImpl) GetNodesNames() ([]string, error) {
 }
 
 // Healthy returns a channel which signals when the network is ready to be used
-func (a *networkImpl) Healthy() chan error {
+func (a *networkImpl) Healthy(ctx context.Context) chan error {
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -180,15 +180,18 @@ func (a *networkImpl) Healthy() chan error {
 		for _, node := range a.nodes {
 			node := node
 			errGr.Go(func() error {
-				// Every 5 seconds, query node for health status.
-				// Do this up to 20 times.
-				for i := 0; i < int(constants.HealthyTimeout/constants.HealthCheckFreq); i++ {
+				// Every constants.HealthCheckInterval, query node for health status.
+				// Do this until ctx timeout
+				for {
 					select {
 					case <-a.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
+						if err := ctx.Err(); err != nil {
+							return fmt.Errorf("node %q failed to become healthy: %w", node.GetName(), err)
+						}
 						return nil
-					case <-time.After(constants.HealthCheckFreq):
+					case <-time.After(constants.HealthCheckInterval):
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
@@ -196,7 +199,6 @@ func (a *networkImpl) Healthy() chan error {
 						return nil
 					}
 				}
-				return fmt.Errorf("node %q timed out on becoming healthy", node.GetName())
 			})
 		}
 		// Wait until all nodes are ready or timeout
