@@ -49,7 +49,7 @@ The following node configuration fields will be overwritten, even if provided:
 - Paths to files such as the genesis, node config, etc.
 - Log/database directories
 - Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
-- Network ID (any network id info in avalanchego confs will be overwritten by the used specified network id at network conf)
+- Network ID (any network id info in avalanchego confs will be overwritten by the user specified network id at network conf)
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
