@@ -23,7 +23,7 @@ type Config struct {
 	StakingCert []byte
 	// Must not be empty
 	NodeID ids.ShortID
-	// Must not be nil.
+	// May be nil.
 	ConfigFile []byte
 	// May be nil.
 	CChainConfigFile []byte
@@ -38,6 +38,8 @@ func (c *Config) Validate() error {
 		return errors.New("staking key not given")
 	case len(c.StakingCert) == 0:
 		return errors.New("staking cert not given")
+	case c.NodeID == ids.ShortEmpty:
+		return errors.New("empty node id")
 	default:
 		return nil
 	}

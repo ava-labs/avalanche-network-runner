@@ -64,6 +64,10 @@ func (c *Config) Validate() error {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
 	}
+	switch c.NetworkID {
+	case constants.TestnetID, constants.MainnetID, constants.LocalID:
+		return errors.New("network ID can't be mainnet, testnet or local network ID")
+	}
 	for i, nodeConfig := range c.NodeConfigs {
 		if err := nodeConfig.Validate(); err != nil {
 			var nodeName string

@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -154,12 +155,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
 					{
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
-		"no ConfigFile": {
+		"empty nodeID": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
@@ -167,7 +170,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon: true,
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
@@ -178,8 +183,10 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -192,8 +199,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
 						StakingKey: []byte("nonempty"),
+						NodeID:     ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -206,8 +213,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						ConfigFile:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -219,7 +226,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						ConfigFile: []byte("nonempty"),
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -232,16 +241,20 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 					{
 						Name: "node0",
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -487,6 +500,8 @@ func defaultNetworkConfig(t *testing.T) network.Config {
 			},
 		}
 		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
+		assert.NoError(err)
+		nodeConfig.NodeID, err = utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
 		assert.NoError(err)
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
