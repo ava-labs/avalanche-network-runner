@@ -4,22 +4,61 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
 
-var _ NewNodeProcessF = newMockProcessUndef
-var _ NewNodeProcessF = newMockProcessSuccessful
-var _ NewNodeProcessF = newMockProcessFailedStart
+const (
+	defaultHealthyTimeout = 5 * time.Second
+)
+
+var (
+	_ NewNodeProcessF   = newMockProcessUndef
+	_ NewNodeProcessF   = newMockProcessSuccessful
+	_ NewNodeProcessF   = newMockProcessFailedStart
+	_ api.NewAPIClientF = newMockAPISuccessful
+	_ api.NewAPIClientF = newMockAPIUnhealthy
+)
+
+// Returns an API client where:
+// * The Health API's Health method always returns healthy
+// * The CChainEthAPI's Close method may be called
+// * Only the above 2 methods may be called
+// TODO have this method return an API Client that has all
+// APIs and methods implemented
+func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+	healthReply := &health.APIHealthClientReply{Healthy: true}
+	healthClient := &apimocks.HealthClient{}
+	healthClient.On("Health").Return(healthReply, nil)
+	// ethClient used when removing nodes, to close websocket connection
+	ethClient := &apimocks.EthClient{}
+	ethClient.On("Close").Return()
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	client.On("CChainEthAPI").Return(ethClient)
+	return client
+}
+
+// Returns an API client where the Health API's Health method always returns unhealthy
+func newMockAPIUnhealthy(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+	healthReply := &health.APIHealthClientReply{Healthy: false}
+	healthClient := &apimocks.HealthClient{}
+	healthClient.On("Health").Return(healthReply, nil)
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	return client
+}
 
 func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 	return &mocks.NodeProcess{}, nil
@@ -46,30 +85,12 @@ func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
-	networkID := uint32(1337)
-	// Use a dummy genesis
-	genesis, err := network.NewAvalancheGoGenesis(
-		logging.NoLog{},
-		networkID,
-		[]network.AddrAndBalance{
-			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: 1,
-			},
-		},
-		nil,
-		[]ids.ShortID{ids.GenerateTestShortID()},
-	)
-	assert.NoError(err)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
-	networkConfig.NetworkID = networkID
-	networkConfig.Genesis = genesis
+	networkConfig := defaultNetworkConfig(t)
 	networkConfig.NodeConfigs = nil
 	net, err := NewNetwork(
 		logging.NoLog{},
 		networkConfig,
-		api.NewAPIClient, // TODO change AvalancheGo so we can mock API clients
+		newMockAPISuccessful,
 		newMockProcessUndef,
 	)
 	assert.NoError(err)
@@ -82,8 +103,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 // Start a network with one node.
 func TestNewNetworkOneNode(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
+	networkConfig := defaultNetworkConfig(t)
 	networkConfig.NodeConfigs = networkConfig.NodeConfigs[:1]
 	// Assert that the node's config is being passed correctly
 	// to the function that starts the node process.
@@ -95,7 +115,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	net, err := NewNetwork(
 		logging.NoLog{},
 		networkConfig,
-		api.NewAPIClient,
+		newMockAPISuccessful,
 		newProcessF,
 	)
 	assert.NoError(err)
@@ -114,12 +134,11 @@ func TestNewNetworkOneNode(t *testing.T) {
 // starting a node returns an error
 func TestNewNetworkFailToStartNode(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
-	_, err = NewNetwork(
+	networkConfig := defaultNetworkConfig(t)
+	_, err := NewNetwork(
 		logging.NoLog{},
 		networkConfig,
-		api.NewAPIClient,
+		newMockAPISuccessful,
 		newMockProcessFailedStart,
 	)
 	assert.Error(err)
@@ -230,7 +249,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			_, err := NewNetwork(logging.NoLog{}, tt.config, api.NewAPIClient, newMockProcessSuccessful)
+			_, err := NewNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, newMockProcessSuccessful)
 			assert.Error(err)
 		})
 	}
@@ -239,37 +258,31 @@ func TestWrongNetworkConfigs(t *testing.T) {
 // Give incorrect type to interface{} ImplSpecificConfig
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
+	networkConfig := defaultNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
-	_, err = NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
+	_, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.Error(err)
 }
 
-/*
-// Creates a network and fake health api response so network Healthy also fails
-// TODO: needs to set fake fail health api. uncomment after that.
+// Assert that the network's Healthy() method returns an
+// error when all nodes' Health API return unhealthy
 func TestUnhealthyNetwork(t *testing.T) {
-	t.Skip()
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
+	networkConfig := defaultNetworkConfig(t)
+	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, newMockProcessSuccessful)
 	assert.NoError(err)
-	_, err = NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
-	assert.NoError(err)
-	assert.Error(awaitNetworkHealthy(net))
+	assert.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
-*/
 
-// Create a network not giving names to nodes, checks the generated names are the
-// correct number and all different
+// Create a network without giving names to nodes.
+// Checks that the generated names are the correct number and unique.
 func TestGeneratedNodesNames(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
+	networkConfig := defaultNetworkConfig(t)
 	for i := range networkConfig.NodeConfigs {
 		networkConfig.NodeConfigs[i].Name = ""
 	}
-	net, err := NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
+	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	nodeNameMap := make(map[string]bool)
 	nodeNames, err := net.GetNodesNames()
@@ -283,55 +296,57 @@ func TestGeneratedNodesNames(t *testing.T) {
 // TODO add byzantine node to conf
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes can be accessed
-/*
-// TODO: needs to set fake successful health api. uncomment after that.
 func TestNetworkFromConfig(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
+	networkConfig := defaultNetworkConfig(t)
+	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, networkConfig, api.NewAPIClient, newMockProcessSuccessful)
-	assert.NoError(err)
-	assert.NoError(awaitNetworkHealthy(net))
-	runningNodes := make(map[string]bool)
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	runningNodes := make(map[string]struct{})
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		runningNodes[nodeConfig.Name] = true
+		runningNodes[nodeConfig.Name] = struct{}{}
 	}
 	checkNetwork(t, net, runningNodes, nil)
 }
-*/
 
-// TestNetworkNodeOps creates/waits/checks/stops a network created from an empty one
-// nodes are first added one by one, then removed one by one. between all operations, a network check is performed
-// the check verify that all the started nodes are accessible, and all removed nodes are not accessible
-// all nodes are taken from config file
-/*
-// TODO: needs to set fake successful health api. uncomment after that.
+// TestNetworkNodeOps creates an empty network,
+// adds nodes one by one, then removes nodes one by one.
+// Setween all operations, a network check is performed
+// to verify that all the running nodes are in the network,
+// and all removed nodes are not.
 func TestNetworkNodeOps(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig, err := defaultNetworkConfig()
+
+	// Start a new, empty network
+	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, network.Config{}, api.NewAPIClient, newMockProcessSuccessful)
+	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
-	runningNodes := make(map[string]bool)
+	runningNodes := make(map[string]struct{})
+
+	// Add nodes to the network one by one
+	networkConfig := defaultNetworkConfig(t)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		_, err = net.AddNode(nodeConfig)
+		_, err := net.AddNode(nodeConfig)
 		assert.NoError(err)
-		runningNodes[nodeConfig.Name] = true
+		runningNodes[nodeConfig.Name] = struct{}{}
 		checkNetwork(t, net, runningNodes, nil)
 	}
-	assert.NoError(awaitNetworkHealthy(net))
-	removedNodes := make(map[string]bool)
+	// Wait for all nodes to be healthy
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+
+	// Remove nodes one by one
+	removedNodes := make(map[string]struct{})
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		_, err := net.GetNode(nodeConfig.Name)
 		assert.NoError(err)
 		err = net.RemoveNode(nodeConfig.Name)
 		assert.NoError(err)
-		removedNodes[nodeConfig.Name] = true
+		removedNodes[nodeConfig.Name] = struct{}{}
 		delete(runningNodes, nodeConfig.Name)
 		checkNetwork(t, net, runningNodes, removedNodes)
 	}
 }
-*/
 
 // TestNodeNotFound checks all operations fail for an unknown node,
 // being it either not created, or created and removed thereafter
@@ -339,9 +354,8 @@ func TestNodeNotFound(t *testing.T) {
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, api.NewAPIClient, newMockProcessSuccessful)
+	networkConfig := defaultNetworkConfig(t)
+	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -370,9 +384,8 @@ func TestStoppedNetwork(t *testing.T) {
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	networkConfig, err := defaultNetworkConfig()
-	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, api.NewAPIClient, newMockProcessSuccessful)
+	networkConfig := defaultNetworkConfig(t)
+	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -395,7 +408,7 @@ func TestStoppedNetwork(t *testing.T) {
 	// RemoveNode failure
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
-	assert.EqualValues(awaitNetworkHealthy(net), network.ErrStopped)
+	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
@@ -403,9 +416,7 @@ func TestStoppedNetwork(t *testing.T) {
 // - GetNodeNames retrieves the correct number of running nodes
 // - GetNode does not fail for given running nodes
 // - GetNode does fail for given stopped nodes
-/*
-// TODO: uncomment when associated tests are uncommented when having fake health apis
-func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]bool, removedNodes map[string]bool) {
+func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]struct{}, removedNodes map[string]struct{}) {
 	assert := assert.New(t)
 	nodeNames, err := net.GetNodesNames()
 	assert.NoError(err)
@@ -419,10 +430,14 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]boo
 		assert.Error(err)
 	}
 }
-*/
 
-func awaitNetworkHealthy(net network.Network) error {
-	healthyCh := net.Healthy()
+// Returns nil when all the nodes in [net] are healthy,
+// or an error if one doesn't become healthy within
+// the timeout.
+func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	healthyCh := net.Healthy(ctx)
 	err, ok := <-healthyCh
 	if ok {
 		return err
@@ -430,64 +445,51 @@ func awaitNetworkHealthy(net network.Network) error {
 	return nil
 }
 
+// Return a network config that has no nodes
 func emptyNetworkConfig() (network.Config, error) {
-	// TODO remove test files when we can auto-generate genesis
-	// and other files
-	genesisFile, err := os.ReadFile("test_files/genesis.json")
+	networkID := uint32(1337)
+	// Use a dummy genesis
+	genesis, err := network.NewAvalancheGoGenesis(
+		logging.NoLog{},
+		networkID,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		nil,
+		[]ids.ShortID{ids.GenerateTestShortID()},
+	)
 	if err != nil {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: uint32(0),
+		NetworkID: networkID,
 		LogLevel:  "DEBUG",
 		Name:      "My Network",
-		Genesis:   genesisFile,
+		Genesis:   genesis,
 	}, nil
 }
 
-func defaultNetworkConfig() (network.Config, error) {
-	// TODO remove test files when we can auto-generate genesis
-	// and other files
+// Returns a config for a three node network,
+// where the nodes have randomly generated staking
+// kets and certificates.
+func defaultNetworkConfig(t *testing.T) network.Config {
+	assert := assert.New(t)
 	networkConfig, err := emptyNetworkConfig()
-	if err != nil {
-		return networkConfig, err
-	}
-	cchainConfigFile, err := os.ReadFile("test_files/cchain_config.json")
-	if err != nil {
-		return networkConfig, err
-	}
-	for i := 1; i <= 6; i++ {
+	assert.NoError(err)
+	for i := 0; i < 3; i++ {
 		nodeConfig := node.Config{
-			CChainConfigFile: cchainConfigFile,
-			Name:             fmt.Sprintf("node%d", i),
+			Name: fmt.Sprintf("node%d", i),
+			ImplSpecificConfig: NodeConfig{
+				BinaryPath: "pepito",
+			},
 		}
-		configFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/config.json", i))
-		if err != nil {
-			return networkConfig, err
-		}
-		nodeConfig.ConfigFile = configFile
-		certFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.crt", i))
-		if err == nil {
-			nodeConfig.StakingCert = certFile
-		}
-		keyFile, err := os.ReadFile(fmt.Sprintf("test_files/node%d/staking.key", i))
-		if err == nil {
-			nodeConfig.StakingKey = keyFile
-		}
-		if nodeConfig.StakingCert == nil {
-			nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
-			if err != nil {
-				return networkConfig, err
-			}
-		}
-		localNodeConf := NodeConfig{
-			BinaryPath: "pepito",
-			Stdout:     os.Stdout,
-			Stderr:     os.Stderr,
-		}
-		nodeConfig.ImplSpecificConfig = localNodeConf
+		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
+		assert.NoError(err)
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
-	return networkConfig, nil
+	return networkConfig
 }
