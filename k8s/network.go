@@ -171,7 +171,8 @@ func (a *networkImpl) GetNodesNames() ([]string, error) {
 	return nodes, nil
 }
 
-// Healthy returns a channel which signals when the network is ready to be used
+// Healthy returns a channel which signals when the network is ready to be used.
+// [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
 func (a *networkImpl) Healthy(ctx context.Context) chan error {
 	errCh := make(chan error, 1)
 
@@ -187,10 +188,7 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 					case <-a.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
-						if err := ctx.Err(); err != nil {
-							return fmt.Errorf("node %q failed to become healthy: %w", node.GetName(), err)
-						}
-						return nil
+						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(constants.HealthCheckInterval):
 					}
 					health, err := node.client.HealthAPI().Health()

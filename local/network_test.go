@@ -19,6 +19,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	defaultHealthyTimeout = 5 * time.Second
+)
+
 var (
 	_ NewNodeProcessF   = newMockProcessUndef
 	_ NewNodeProcessF   = newMockProcessSuccessful
@@ -267,7 +271,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 	networkConfig := defaultNetworkConfig(t)
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, newMockProcessSuccessful)
 	assert.NoError(err)
-	assert.Error(awaitNetworkHealthy(net))
+	assert.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
 
 // Create a network without giving names to nodes.
@@ -297,7 +301,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	networkConfig := defaultNetworkConfig(t)
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
-	assert.NoError(awaitNetworkHealthy(net))
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	runningNodes := make(map[string]struct{})
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		runningNodes[nodeConfig.Name] = struct{}{}
@@ -329,7 +333,7 @@ func TestNetworkNodeOps(t *testing.T) {
 		checkNetwork(t, net, runningNodes, nil)
 	}
 	// Wait for all nodes to be healthy
-	assert.NoError(awaitNetworkHealthy(net))
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 
 	// Remove nodes one by one
 	removedNodes := make(map[string]struct{})
@@ -404,7 +408,7 @@ func TestStoppedNetwork(t *testing.T) {
 	// RemoveNode failure
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
-	assert.EqualValues(awaitNetworkHealthy(net), network.ErrStopped)
+	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
@@ -430,10 +434,10 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]str
 // Returns nil when all the nodes in [net] are healthy,
 // or an error if one doesn't become healthy within
 // the timeout.
-func awaitNetworkHealthy(net network.Network) error {
-	timeout, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*10))
+func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	healthyCh := net.Healthy(timeout)
+	healthyCh := net.Healthy(ctx)
 	err, ok := <-healthyCh
 	if ok {
 		return err

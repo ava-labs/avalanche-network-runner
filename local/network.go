@@ -322,10 +322,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 					case <-net.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
-						if err := ctx.Err(); err != nil {
-							return fmt.Errorf("node %q failed to become healthy: %w", node.GetName(), err)
-						}
-						return nil
+						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(constants.HealthCheckInterval):
 					}
 					health, err := node.client.HealthAPI().Health()
