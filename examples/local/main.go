@@ -26,12 +26,7 @@ var (
 	//go:embed configs
 	embeddedConfigsDir embed.FS
 	goPath             = os.ExpandEnv("$GOPATH")
-	binaryPath         string // TODO read flag
 )
-
-func init() {
-	binaryPath = fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
-}
 
 // Start 6 nodes, wait for them to become healthy, then stop them all.
 func main() {
@@ -47,14 +42,15 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	if err := run(log); err != nil {
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
+	if err := run(log, binaryPath); err != nil {
 		log.Fatal("%s", err)
 	}
 }
 
-func run(log logging.Logger) error {
+func run(log logging.Logger, binaryPath string) error {
 	// Read configs to create network config
-	networkConfig, err := readConfigs()
+	networkConfig, err := readConfigs(binaryPath)
 	if err != nil {
 		return fmt.Errorf("couldn't read configs: %w", err)
 	}
@@ -118,7 +114,7 @@ func run(log logging.Logger) error {
 	return nil
 }
 
-func readConfigs() (network.Config, error) {
+func readConfigs(binaryPath string) (network.Config, error) {
 	configsDir, err := fs.Sub(embeddedConfigsDir, "configs")
 	if err != nil {
 		return network.Config{}, err
