@@ -86,9 +86,9 @@ func run(log logging.Logger, binaryPath string) error {
 	}()
 
 	// Wait until the nodes in the network are ready
-	timeout, cancel := context.WithTimeout(context.Background(), healthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
 	defer cancel()
-	healthyChan := nw.Healthy(timeout)
+	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
@@ -140,9 +140,9 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 
 	// Wait until the nodes in the updated network are ready
-	timeout, cancel = context.WithTimeout(context.Background(), healthyTimeout)
+	ctx, cancel = context.WithTimeout(context.Background(), healthyTimeout)
 	defer cancel()
-	healthyChan = nw.Healthy(timeout)
+	healthyChan = nw.Healthy(ctx)
 	log.Info("waiting for updated network to report healthy...")
 	err, gotErr = <-healthyChan
 	if gotErr {
