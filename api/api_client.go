@@ -27,7 +27,7 @@ type APIClient struct {
 	xChain       avm.Client
 	xChainWallet avm.WalletClient
 	cChain       *evm.Client
-	cChainEth    *EthClient
+	cChainEth    EthClient
 	info         info.Client
 	health       health.Client
 	ipcs         ipcs.Client
@@ -75,7 +75,7 @@ func (c APIClient) CChainAPI() *evm.Client {
 	return c.cChain
 }
 
-func (c APIClient) CChainEthAPI() *EthClient {
+func (c APIClient) CChainEthAPI() EthClient {
 	return c.cChainEth
 }
 

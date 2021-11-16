@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -17,15 +18,15 @@ import (
 )
 
 const (
-	numNodes = 5
+	numNodes       = 5
+	healthyTimeout = 2 * time.Minute
 )
 
-//go:embed configs
-var embeddedConfigsDir embed.FS
-
 var (
-	goPath     = os.ExpandEnv("$GOPATH")
-	binaryPath string // TODO read flag
+	//go:embed configs
+	embeddedConfigsDir embed.FS
+	goPath             = os.ExpandEnv("$GOPATH")
+	binaryPath         string // TODO read flag
 )
 
 func init() {
@@ -82,7 +83,9 @@ func run(log logging.Logger) error {
 	}()
 
 	// Wait until the nodes in the network are ready
-	healthyChan := nw.Healthy()
+	timeout, cancel := context.WithTimeout(context.Background(), healthyTimeout)
+	defer cancel()
+	healthyChan := nw.Healthy(timeout)
 	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
