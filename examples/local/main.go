@@ -23,7 +23,13 @@ const DefaultNetworkTimeout = 120 * time.Second
 
 var goPath = os.ExpandEnv("$GOPATH")
 
-// Start 6 nodes, wait for them to become healthy, then stop them all.
+// Example:
+// - start 6 nodes
+// - wait for them to become healthy
+// - get a node and made API call
+// - add a new node
+// - remove a node
+// - stop the network
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
@@ -186,26 +192,82 @@ func main() {
 		log.Fatal("couldn't get node names: %s", err)
 		handleError(log, nw)
 	}
-	log.Info("this network's nodes: %s", nodeNames)
+	log.Info("current network's nodes: %s", nodeNames)
 
 	// Get one node
-	node, err := nw.GetNode(nodeNames[0])
+	node0, err := nw.GetNode(nodeNames[0])
 	if err != nil {
 		log.Fatal("couldn't get node: %s", err)
 		handleError(log, nw)
 	}
 
 	// Get its node ID through its API and print it
-	nodeID, err := node.GetAPIClient().InfoAPI().GetNodeID()
+	node0ID, err := node0.GetAPIClient().InfoAPI().GetNodeID()
 	if err != nil {
 		log.Fatal("couldn't get node ID: %s", err)
 		handleError(log, nw)
 	}
-	log.Info("one node's ID is: %s", nodeID)
+	log.Info("one node's ID is: %s", node0ID)
+
+	// Add a new node with generated cert/key/nodeid
+	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+	if err != nil {
+		log.Fatal("%s", err)
+		handleError(log, nw)
+	}
+	nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
+	if err != nil {
+		log.Fatal("%s", err)
+		handleError(log, nw)
+	}
+	nodeConfig := node.Config{
+		ImplSpecificConfig: local.NodeConfig{
+			BinaryPath: binaryPath,
+		},
+		ConfigFile:  configFile,
+		StakingKey:  stakingKey,
+		StakingCert: stakingCert,
+		NodeID:      nodeID,
+	}
+	_, err = nw.AddNode(nodeConfig)
+	if err != nil {
+		log.Fatal("%s", err)
+		handleError(log, nw)
+	}
+
+	// Remove one node
+	nodeToRemove := nodeNames[3]
+	log.Info("removing node %q", nodeToRemove)
+	err = nw.RemoveNode(nodeToRemove)
+	if err != nil {
+		log.Fatal("couldn't remove node: %s", err)
+		handleError(log, nw)
+	}
+
+	// Wait until the nodes in the updated network are ready
+	timeout, cancel = context.WithTimeout(context.Background(), DefaultNetworkTimeout)
+	defer cancel()
+	healthyChan = nw.Healthy(timeout)
+	log.Info("waiting for updated network to report healthy...")
+	err, gotErr = <-healthyChan
+	if gotErr {
+		log.Fatal("network never became healthy: %s", err)
+		handleError(log, nw)
+	}
+
+	// Print the node names
+	nodeNames, err = nw.GetNodesNames()
+	if err != nil {
+		log.Fatal("couldn't get node names: %s", err)
+		handleError(log, nw)
+	}
+	log.Info("updated network's nodes: %s", nodeNames)
+
 	log.Info("example program done")
 	if err := nw.Stop(context.Background()); err != nil {
 		log.Warn("error while stopping network: %s", err)
 	}
+
 }
 
 func handleError(log logging.Logger, nw network.Network) {
