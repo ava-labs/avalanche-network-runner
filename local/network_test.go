@@ -12,7 +12,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -158,7 +157,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -186,7 +184,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -200,7 +197,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						},
 						IsBeacon:   true,
 						StakingKey: []byte("nonempty"),
-						NodeID:     ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -214,7 +210,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						},
 						IsBeacon:    true,
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -228,7 +223,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						},
 						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -244,7 +238,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 					{
 						Name: "node0",
@@ -254,7 +247,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
-						NodeID:      ids.GenerateTestShortID(),
 					},
 				},
 			}},
@@ -478,10 +470,9 @@ func emptyNetworkConfig() (network.Config, error) {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: networkID,
-		LogLevel:  "DEBUG",
-		Name:      "My Network",
-		Genesis:   genesis,
+		LogLevel: "DEBUG",
+		Name:     "My Network",
+		Genesis:  genesis,
 	}, nil
 }
 
@@ -500,8 +491,6 @@ func defaultNetworkConfig(t *testing.T) network.Config {
 			},
 		}
 		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
-		assert.NoError(err)
-		nodeConfig.NodeID, err = utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
 		assert.NoError(err)
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}

@@ -32,8 +32,6 @@ type Config struct {
 	StakingKey []byte
 	// Must not be nil
 	StakingCert []byte
-	// Must not be empty
-	NodeID ids.ShortID
 	// May be nil.
 	ConfigFile []byte
 	// May be nil.
@@ -88,12 +86,6 @@ Each is parameterized on `network.Config`:
 
 ```go
 type Config struct {
-	// Must not be the ID of Mainnet, Testnet or Localnet.
-	// If any nodes are given a config file, the network ID
-	// in the config file will be over-ridden by this network ID.
-	// This network ID must match the one in [Genesis].
-	// TODO what if network ID here doesn't match that in genesis?
-	NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// Must not be nil

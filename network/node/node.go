@@ -17,12 +17,10 @@ type Config struct {
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
 	IsBeacon bool
-	// Must not be nil
+	// Must not be nil.
 	StakingKey []byte
-	// Must not be nil
+	// Must not be nil.
 	StakingCert []byte
-	// Must not be empty
-	NodeID ids.ShortID
 	// May be nil.
 	ConfigFile []byte
 	// May be nil.
@@ -38,8 +36,6 @@ func (c *Config) Validate() error {
 		return errors.New("staking key not given")
 	case len(c.StakingCert) == 0:
 		return errors.New("staking cert not given")
-	case c.NodeID == ids.ShortEmpty:
-		return errors.New("empty node id")
 	default:
 		return nil
 	}
