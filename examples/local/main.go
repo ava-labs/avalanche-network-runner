@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	numNodes       = 5
+	numNodes       = 15
 	healthyTimeout = 2 * time.Minute
 )
 
@@ -72,6 +72,9 @@ func run(log logging.Logger, binaryPath string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = nw.Stop(context.Background())
+	}()
 
 	// When we get a SIGINT or SIGTERM, stop the network.
 	signalsCh := make(chan os.Signal, 1)
