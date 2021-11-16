@@ -25,7 +25,7 @@ var goPath = os.ExpandEnv("$GOPATH")
 // Network and node configs
 type allConfig struct {
 	NetworkConfig network.Config   `json:"networkConfig"`
-	K8sConfig     []k8s.NodeConfig `json:"k8sConfig"`
+	K8sConfig     []k8s.ObjectSpec `json:"k8sConfig"`
 }
 
 func main() {
@@ -104,7 +104,7 @@ func main() {
 }
 
 func readConfig(rconfig allConfig) (network.Config, error) {
-	configDir := "./examples/common/configs"
+	configDir := "./examples/common"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
 		return network.Config{}, err
@@ -117,17 +117,14 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 		key, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
 		if err != nil {
 			return network.Config{}, err
-
 		}
 		cert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
 		if err != nil {
 			return network.Config{}, err
-
 		}
 		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
 		if err != nil {
 			return network.Config{}, err
-
 		}
 		c := node.Config{
 			Name:               fmt.Sprintf("validator-%d", i),

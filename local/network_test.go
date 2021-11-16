@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/constants"
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -23,7 +24,7 @@ func newMockProcess(node.Config, ...string) (NodeProcess, error) {
 
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
-	networkID := uint32(1337)
+	networkID := constants.DefaultNetworkID 
 	// Use a dummy genesis
 	genesis, err := network.NewAvalancheGoGenesis(
 		logging.NoLog{},

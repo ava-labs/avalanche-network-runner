@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/constants"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -40,14 +41,14 @@ func main() {
 
 	// Create network config
 	networkConfig := network.Config{
-		NetworkID: 1337,
+		NetworkID: constants.DefaultNetworkID,
 	}
 
 	allNodeIDs := []ids.ShortID{}
 
 	// Define the nodes to run when network is created.
 	// Read config file from disk.
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/common/configs", goPath)
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/common", goPath)
 	configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", configDir))
 	if err != nil {
 		log.Fatal("%s", err)

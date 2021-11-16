@@ -6,7 +6,7 @@
   "k8sConfig": [
     {
       "namespace": "dev",
-      "deploymentSpec": "avalanchego-test-validator-0",
+      "identifier": "avalanchego-test-validator-0",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
       "image": "avaplatform/avalanchego",
@@ -14,7 +14,7 @@
     },
     {
       "namespace": "dev",
-      "deploymentSpec": "avalanchego-test-validator-1",
+      "identifier": "avalanchego-test-validator-1",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
       "image": "avaplatform/avalanchego",
@@ -22,7 +22,7 @@
     },
     {
       "namespace": "dev",
-      "deploymentSpec": "avalanchego-test-validator-2",
+      "identifier": "avalanchego-test-validator-2",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
       "image": "avaplatform/avalanchego",
@@ -30,7 +30,7 @@
     },
     {
       "namespace": "dev",
-      "deploymentSpec": "avalanchego-test-validator-3",
+      "identifier": "avalanchego-test-validator-3",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
       "image": "avaplatform/avalanchego",
@@ -38,7 +38,7 @@
     },
     {
       "namespace": "dev",
-      "deploymentSpec": "avalanchego-test-validator-4",
+      "identifier": "avalanchego-test-validator-4",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
       "image": "avaplatform/avalanchego",

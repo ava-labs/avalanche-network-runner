@@ -21,6 +21,7 @@ copy network/ network/
 COPY api/ api/
 COPY k8s/ k8s/
 COPY constants/ constants/
+COPY utils/ utils/
 COPY examples/ examples/
 
 # Build

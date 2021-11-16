@@ -36,10 +36,14 @@ const (
 	nodeReachableTimeout = 2 * time.Minute
 	// Time between checks to see if a node is reachable
 	nodeReachableRetryFreq = 3 * time.Second
-	envVarPrefix           = "AVAGO_"
-	genesisNetworkIDKey    = "networkID"
-	paramNetworkID         = "network-id"
-	envVarNetworkID        = "AVAGO_NETWORK_ID"
+	// Prefix the avalanchego-operator uses to pass params to avalanchego nodes
+	envVarPrefix = "AVAGO_"
+	// key for the network ID in the genesis file
+	genesisNetworkIDKey = "networkID"
+	// key for the network ID for the avalanchego node
+	paramNetworkID = "network-id"
+	// key for the network ID for the avalanchego-operator
+	envVarNetworkID = "AVAGO_NETWORK_ID"
 )
 
 var (
@@ -54,7 +58,7 @@ type networkImpl struct {
 	k8scli  k8scli.Client
 	kconfig *rest.Config
 	// Node name --> The node
-	nodes     map[string]*K8sNode
+	nodes     map[string]*Node
 	beaconURL string
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
@@ -87,7 +91,7 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
 		log:            log,
-		nodes:          make(map[string]*K8sNode, len(conf.NodeConfigs)),
+		nodes:          make(map[string]*Node, len(conf.NodeConfigs)),
 	}
 	// Start the beacon nodes
 	if err := net.launchNodes(beacons); err != nil {
@@ -99,10 +103,12 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 	if net.beaconURL == "" {
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
+	net.log.Info("Beacon node started")
 	// Start the non-beacon nodes
 	if err := net.launchNodes(nonBeacons); err != nil {
 		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
+	net.log.Info("All nodes started")
 	// Build a mapping from k8s URIs to names/ids
 	if err := net.buildNodeMapping(append(beacons, nonBeacons...)); err != nil {
 		return nil, err
@@ -162,13 +168,18 @@ func (a *networkImpl) Healthy() chan error {
 
 // Stop all the nodes
 func (a *networkImpl) Stop(ctx context.Context) error {
+	failCount := 0
 	for s, n := range a.nodes {
 		a.log.Debug("Shutting down node %s...", s)
 		if err := a.k8scli.Delete(ctx, n.k8sObj); err != nil {
 			a.log.Error("error while stopping node %s: %s", n.name, err)
+			failCount++
 		}
 	}
 	close(a.closedOnStopCh)
+	if failCount > 0 {
+		return fmt.Errorf("%d nodes failed shutting down", failCount)
+	}
 	a.log.Info("Network stopped")
 	return nil
 }
@@ -179,10 +190,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	a.log.Debug("Adding new node %s to network...", cfg.Name)
 	if err := a.k8scli.Create(context.TODO(), node); err != nil {
 		return nil, err
 	}
 
+	a.log.Debug("Launching new node %s to network...", cfg.Name)
 	if err := a.launchNodes([]*k8sapi.Avalanchego{node}); err != nil {
 		return nil, err
 	}
@@ -193,12 +206,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.log.Debug("NodeID for this node is %s", nodeIDStr)
+	a.log.Debug("Successful. NodeID for this node is %s", nodeIDStr)
 	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, avagoconst.NodeIDPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
 	}
-	return &K8sNode{
+	return &Node{
 		uri:    uri,
 		client: cli,
 		name:   node.Spec.DeploymentName,
@@ -216,6 +229,7 @@ func (a *networkImpl) RemoveNode(id string) error {
 		if err := a.k8scli.Delete(ctx, p.k8sObj); err != nil {
 			return err
 		}
+		a.log.Info("Removed node %s", p)
 		return nil
 	}
 	return errNodeDoesNotExist
@@ -308,6 +322,7 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
+// createDeploymentFromConfig reads the config file(s) and creates the required kubernetes deployment objects
 // Takes the genesis of a network and node configs and returns:
 // 1) The beacon nodes
 // 2) The non-beacon nodes
@@ -342,9 +357,9 @@ func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(NodeConfig)
+	k8sConf, ok := c.ImplSpecificConfig.(ObjectSpec)
 	if !ok {
-		return nil, fmt.Errorf("expected Config but got %T", c.ImplSpecificConfig)
+		return nil, fmt.Errorf("expected ObjectSpec but got %T", c.ImplSpecificConfig)
 	}
 
 	return &k8sapi.Avalanchego{
@@ -353,7 +368,7 @@ func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 			APIVersion: k8sConf.APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sConf.DeploymentSpec,
+			Name:      k8sConf.Identifier,
 			Namespace: k8sConf.Namespace,
 		},
 		Spec: k8sapi.AvalanchegoSpec{
@@ -399,7 +414,7 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 	for key, val := range avagoConf {
 		// we use the network id from genesis -- ignore the one in config
 		if key == paramNetworkID {
-			// TODO make sure config's network ID doesn't conflict with genesis
+			// We just override the network ID with the one from genesis after the iteration
 			continue
 		}
 		v := corev1.EnvVar{
@@ -417,7 +432,8 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 	return env, nil
 }
 
-// Updates [a.nodes] to incluse [nodes]
+// Updates [a.nodes] to include [nodes]
+// It also establishes connection via the API client.
 func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	for _, n := range nodes {
 		uri := n.Status.NetworkMembersURI[0]
@@ -433,7 +449,7 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 			return fmt.Errorf("could not convert node id from string: %s", err)
 		}
 		// Map node name to the node
-		a.nodes[n.Spec.DeploymentName] = &K8sNode{
+		a.nodes[n.Spec.DeploymentName] = &Node{
 			uri:    uri,
 			client: cli,
 			name:   n.Spec.DeploymentName,
@@ -445,6 +461,7 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
+// String returns a string representing the network nodes
 func (a *networkImpl) String() string {
 	s := strings.Builder{}
 	_, _ = s.WriteString("\n****************************************************************************************************\n")
