@@ -465,10 +465,9 @@ func emptyNetworkConfig() (network.Config, error) {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: networkID,
-		LogLevel:  "DEBUG",
-		Name:      "My Network",
-		Genesis:   genesis,
+		LogLevel: "DEBUG",
+		Name:     "My Network",
+		Genesis:  genesis,
 	}, nil
 }
 

@@ -36,12 +36,6 @@ type AddrAndBalance struct {
 
 // Config that defines a network when it is created.
 type Config struct {
-	// Must not be the ID of Mainnet, Testnet or Localnet.
-	// If any nodes are given a config file, the network ID
-	// in the config file will be over-ridden by this network ID.
-	// This network ID must match the one in [Genesis].
-	// TODO what if network ID here doesn't match that in genesis?
-	NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// Must not be nil
