@@ -50,32 +50,19 @@ var (
 // networkImpl is the kubernetes data type representing a kubernetes network adapter.
 // It implements the network.Network interface
 type networkImpl struct {
-	config          network.Config
-	k8scli          k8scli.Client
-	kconfig         *rest.Config
-	nodes           map[string]*K8sNode
-	bootstrapperURL string
+	config  network.Config
+	k8scli  k8scli.Client
+	kconfig *rest.Config
+	// Node name --> The node
+	nodes     map[string]*K8sNode
+	beaconURL string
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	log            logging.Logger
 }
 
-// Config encapsulates kubernetes specific options
-type Config struct {
-	Namespace      string `json:"namespace"`      // The kubernetes Namespace
-	DeploymentSpec string `json:"deploymentSpec"` // Identifies this network in the cluster
-	Kind           string `json:"kind"`           // Identifies the object Kind for the operator
-	APIVersion     string `json:"apiVersion"`     // The APIVersion of the kubernetes object
-	Image          string `json:"image"`          // The docker image to use
-	Tag            string `json:"tag"`            // The docker tag to use
-	Genesis        string `json:"genesis"`        // The genesis conf file for all nodes
-	Certificate    []byte // The certificates for the nodes
-	CertKey        []byte // The certificate keys for the nods
-}
-
-// TODO should this just be a part of NewNetwork?
-// NewAdapter creates a new adapter
-func newAdapter(conf network.Config, log logging.Logger) (*networkImpl, error) {
+// NewNetwork returns a new network whose initial state is specified in the config
+func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
 	// init k8s client
 	scheme := runtime.NewScheme()
 	if err := k8sapi.AddToScheme(scheme); err != nil {
@@ -86,52 +73,43 @@ func newAdapter(conf network.Config, log logging.Logger) (*networkImpl, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &networkImpl{
+	log.Info("K8s client initialized")
+	beacons, nonBeacons, err := createDeploymentFromConfig(conf.Genesis, conf.NodeConfigs)
+	if err != nil {
+		return nil, err
+	}
+	if len(beacons) == 0 {
+		return nil, errors.New("NodeConfigs don't describe any beacon nodes")
+	}
+	net := &networkImpl{
 		config:         conf,
 		k8scli:         kubeClient,
 		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
 		log:            log,
 		nodes:          make(map[string]*K8sNode, len(conf.NodeConfigs)),
-	}, nil
-}
-
-// NewNetwork returns a new network whose initial state is specified in the config
-func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
-	a, err := newAdapter(conf, log)
-	if err != nil {
-		return nil, err
 	}
-	a.log.Info("K8s client initialized")
-	beacons, instances, err := a.createDeploymentFromConfig()
-	if err != nil {
-		return nil, err
+	// Start the beacon nodes
+	if err := net.launchNodes(beacons); err != nil {
+		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
-	if len(beacons) == 0 {
-		return nil, errors.New("NodeConfigs don't describe any beacon node")
-	}
-	if err := a.launchNodes(beacons); err != nil {
-		log.Fatal("Error launching beacons: %s", err)
-		return nil, err
-	}
-	// only one boostrap address supported for now
-	a.bootstrapperURL = beacons[0].Status.NetworkMembersURI[0]
-	if a.bootstrapperURL == "" {
+	// Tell future nodes the IP of the beacon node
+	// TODO add support for multiple beacons
+	net.beaconURL = beacons[0].Status.NetworkMembersURI[0]
+	if net.beaconURL == "" {
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
-	if err := a.launchNodes(instances); err != nil {
-		log.Fatal("Error launching beacons: %s", err)
-		return nil, err
+	// Start the non-beacon nodes
+	if err := net.launchNodes(nonBeacons); err != nil {
+		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
-	allNodes := append(beacons, instances...)
-	// build a mapping from the given k8s URIs to names/ids
-	if err := a.buildNodeMapping(allNodes); err != nil {
+	// Build a mapping from k8s URIs to names/ids
+	if err := net.buildNodeMapping(append(beacons, nonBeacons...)); err != nil {
 		return nil, err
 	}
 
-	a.log.Info("network: %s", a)
-	return a, nil
+	net.log.Info("network: %s", net)
+	return net, nil
 }
 
 // GetNodesNames returns an array of node names
@@ -184,23 +162,20 @@ func (a *networkImpl) Healthy() chan error {
 
 // Stop all the nodes
 func (a *networkImpl) Stop(ctx context.Context) error {
-	// delete network
 	for s, n := range a.nodes {
 		a.log.Debug("Shutting down node %s...", s)
 		if err := a.k8scli.Delete(ctx, n.k8sObj); err != nil {
-			// TODO don't we want to continue deleting
-			// nodes here, even if there is an error?
-			return err
+			a.log.Error("error while stopping node %s: %s", n.name, err)
 		}
 	}
 	close(a.closedOnStopCh)
-	a.log.Info("Network cleared")
+	a.log.Info("Network stopped")
 	return nil
 }
 
-// AddNode starts a new node with the config
+// AddNode starts a new node with the given config
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
-	node, err := a.buildK8sObj(cfg)
+	node, err := buildK8sObj(a.config.Genesis, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -214,12 +189,12 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 
 	uri := node.Status.NetworkMembersURI[0]
 	cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
-	nid, err := cli.InfoAPI().GetNodeID()
+	nodeIDStr, err := cli.InfoAPI().GetNodeID()
 	if err != nil {
 		return nil, err
 	}
-	a.log.Debug("NodeID for this node is %s", nid)
-	nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
+	a.log.Debug("NodeID for this node is %s", nodeIDStr)
+	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, avagoconst.NodeIDPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
 	}
@@ -265,19 +240,23 @@ func (a *networkImpl) GetNode(id string) (node.Node, error) {
 	return nil, errNodeDoesNotExist
 }
 
+// Create Kubernetes pods running AvalancheGo and wait until
+// they are reachable
 func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
 	defer cancel()
+
 	errGr, ctx := errgroup.WithContext(ctx)
 	for _, n := range nodes {
-		if a.bootstrapperURL != "" {
-			n.Spec.BootstrapperURL = a.bootstrapperURL
+		if a.beaconURL != "" {
+			n.Spec.BootstrapperURL = a.beaconURL
 		}
+		// Create a Kubernetes pod for this node
 		if err := a.k8scli.Create(context.TODO(), n); err != nil {
 			return err
 		}
 
-		a.log.Debug("Waiting for pods to be created...")
+		a.log.Debug("Waiting for pod to be created...")
 		for len(n.Status.NetworkMembersURI) != 1 {
 			err := a.k8scli.Get(context.TODO(), types.NamespacedName{
 				Name:      n.Name,
@@ -286,10 +265,14 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 			if err != nil {
 				return err
 			}
-			time.Sleep(5 * time.Second)
+			select {
+			case <-time.After(5 * time.Second):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
-		a.log.Debug("Created. Waiting to be reachable...")
+		a.log.Debug("pod created. Waiting to be reachable...")
 		// Try connecting to nodes until the DNS resolves,
 		// otherwise we have to sleep indiscriminately, we can't just use the API right away:
 		// the kubernetes cluster has already created the pod(s) but not the DNS names,
@@ -317,7 +300,6 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 				}
 			}
 		})
-
 	}
 	// Wait until all nodes are ready or timeout
 	if err := errGr.Wait(); err != nil {
@@ -326,13 +308,15 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
-func (a *networkImpl) createDeploymentFromConfig() ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
-	// Returns a new network whose initial state is specified in the config
-	instances := make([]*k8sapi.Avalanchego, 0)
-	beacons := make([]*k8sapi.Avalanchego, 0)
-
-	for _, c := range a.config.NodeConfigs {
-		spec, err := a.buildK8sObj(c)
+// Takes the genesis of a network and node configs and returns:
+// 1) The beacon nodes
+// 2) The non-beacon nodes
+// as avalanchego-operator compatible descriptions.
+// May return nil slices.
+func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
+	var beacons, nonBeacons []*k8sapi.Avalanchego
+	for _, c := range nodeConfigs {
+		spec, err := buildK8sObj(genesis, c)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -340,13 +324,15 @@ func (a *networkImpl) createDeploymentFromConfig() ([]*k8sapi.Avalanchego, []*k8
 			beacons = append(beacons, spec)
 			continue
 		}
-		instances = append(instances, spec)
+		nonBeacons = append(nonBeacons, spec)
 	}
-	return beacons, instances, nil
+	return beacons, nonBeacons, nil
 }
 
-func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
-	env, err := a.buildNodeEnv(c)
+// Takes a node's config and genesis and returns the node
+// as a Kubernetes spec
+func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
+	env, err := buildNodeEnv(genesis, c)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +342,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(Config)
+	k8sConf, ok := c.ImplSpecificConfig.(NodeConfig)
 	if !ok {
 		return nil, fmt.Errorf("expected Config but got %T", c.ImplSpecificConfig)
 	}
@@ -378,7 +364,7 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 			Env:             env,
 			NodeCount:       1,
 			Certificates:    certs,
-			Genesis:         string(a.config.Genesis),
+			Genesis:         string(genesis),
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse(resourceLimitsCPU), // TODO: Should these be supplied by Opts rather than const?
@@ -393,19 +379,27 @@ func (a *networkImpl) buildK8sObj(c node.Config) (*k8sapi.Avalanchego, error) {
 	}, nil
 }
 
-func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
-	networkID, err := getNetworkID(a.config.Genesis)
-	if err != nil {
-		return []corev1.EnvVar{}, err
-	}
-	var avagoConf map[string]interface{}
+// Given a node's config and genesis, returns the environment
+// variables (i.e. config flags) to give to the node
+func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
+	var avagoConf map[string]interface{} // AvalancheGo config file as a map
 	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
-		return []corev1.EnvVar{}, err
+		return nil, err
 	}
+	networkID, err := getNetworkID(genesis)
+	if err != nil {
+		return nil, err
+	}
+
+	// For each config flag, convert it to the format
+	// AvalancheGo expects environment variable config flags in.
+	// e.g. bootstrap-ips --> AVAGO_BOOTSTRAP_IPS
+	// e.g. log-level --> AVAGO_LOG_LEVEL
 	env := make([]corev1.EnvVar, 0, len(avagoConf)+1)
 	for key, val := range avagoConf {
-		// we set the same network-id from genesis to avoid conflicts
+		// we use the network id from genesis -- ignore the one in config
 		if key == paramNetworkID {
+			// TODO make sure config's network ID doesn't conflict with genesis
 			continue
 		}
 		v := corev1.EnvVar{
@@ -414,31 +408,31 @@ func (a *networkImpl) buildNodeEnv(c node.Config) ([]corev1.EnvVar, error) {
 		}
 		env = append(env, v)
 	}
+	// Provide environment variable giving the network ID
 	v := corev1.EnvVar{
 		Name:  envVarNetworkID,
 		Value: fmt.Sprint(networkID),
 	}
 	env = append(env, v)
-
 	return env, nil
 }
 
-// buildNodeMapping creates the actual k8s node representation and creates the nodes map
-// with the name as the key
+// Updates [a.nodes] to incluse [nodes]
 func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	for _, n := range nodes {
 		uri := n.Status.NetworkMembersURI[0]
 		a.log.Debug("creating network node and client for %s", uri)
 		cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
-		nid, err := cli.InfoAPI().GetNodeID()
+		nodeIDStr, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err
 		}
-		a.log.Debug("NodeID for this node is %s", nid)
-		nodeID, err := ids.ShortFromPrefixedString(nid, avagoconst.NodeIDPrefix)
+		a.log.Debug("NodeID for this node is %s", nodeIDStr)
+		nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, avagoconst.NodeIDPrefix)
 		if err != nil {
 			return fmt.Errorf("could not convert node id from string: %s", err)
 		}
+		// Map node name to the node
 		a.nodes[n.Spec.DeploymentName] = &K8sNode{
 			uri:    uri,
 			client: cli,
@@ -448,7 +442,6 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 		}
 		a.log.Debug("Name: %s, NodeID: %s, URI: %s", n.Spec.DeploymentName, nodeID, uri)
 	}
-
 	return nil
 }
 
@@ -466,6 +459,10 @@ func (a *networkImpl) String() string {
 	return s.String()
 }
 
+// Convert a config flag to the format AvalancheGo expects
+// environment variable config flags in.
+// e.g. bootstrap-ips --> AVAGO_BOOTSTRAP_IPS
+// e.g. log-level --> AVAGO_LOG_LEVEL
 func convertKey(key string) string {
 	key = strings.Replace(key, "-", "_", -1)
 	key = strings.ToUpper(key)

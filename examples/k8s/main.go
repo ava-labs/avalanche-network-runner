@@ -20,11 +20,12 @@ const (
 )
 
 // TODO: shouldn't we think of something like Viper for loading config file?
-var confPath = os.ExpandEnv("$GOPATH")
+var goPath = os.ExpandEnv("$GOPATH")
 
+// Network and node configs
 type allConfig struct {
-	NetworkConfig network.Config `json:"networkConfig"`
-	K8sConfig     []k8s.Config   `json:"k8sConfig"`
+	NetworkConfig network.Config   `json:"networkConfig"`
+	K8sConfig     []k8s.NodeConfig `json:"k8sConfig"`
 }
 
 func main() {
@@ -41,8 +42,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", confPath)
-	if confPath == "" {
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", goPath)
+	if goPath == "" {
 		configDir = "./examples/k8s"
 	}
 	confFile, err := os.ReadFile(configDir + confFileName)
@@ -51,18 +52,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	var rconfig allConfig
-	err = json.Unmarshal(confFile, &rconfig)
-	if err != nil {
+	// Network and node configs
+	var allConfig allConfig
+	if err := json.Unmarshal(confFile, &allConfig); err != nil {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
 
-	// TODO maybe do config validation
-	config := readFiles(log, rconfig)
-	config.ImplSpecificConfig = rconfig.K8sConfig
+	// TODO maybe do networkConfig validation
+	networkConfig, err := readConfig(allConfig)
+	if err != nil {
+		log.Fatal("error reading configs: %s", err)
+		os.Exit(1)
+	}
+	networkConfig.ImplSpecificConfig = allConfig.K8sConfig
 
-	level, err := logging.ToLevel(config.LogLevel)
+	level, err := logging.ToLevel(networkConfig.LogLevel)
 	if err != nil {
 		log.Warn("Invalid log level configured: %s", err)
 	}
@@ -70,20 +75,20 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
-	adapter, err := k8s.NewNetwork(config, log)
+	network, err := k8s.NewNetwork(networkConfig, log)
 	if err != nil {
 		log.Fatal("Error creating network: %s", err)
 		os.Exit(1)
 	}
 	defer func() {
-		if err := adapter.Stop(ctx); err != nil {
+		if err := network.Stop(ctx); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
 		}
 	}()
 
 	log.Info("Network created. Booting...")
 
-	errCh := adapter.Healthy()
+	errCh := network.Healthy()
 
 	select {
 	case <-ctx.Done():
@@ -98,33 +103,31 @@ func main() {
 	log.Info("Network created!!!")
 }
 
-func readFiles(log logging.Logger, rconfig allConfig) network.Config {
+func readConfig(rconfig allConfig) (network.Config, error) {
 	configDir := "./examples/common/configs"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
-		log.Fatal("%s", err)
-		os.Exit(1)
+		return network.Config{}, err
 	}
 	netcfg := rconfig.NetworkConfig
 	netcfg.Genesis = genesisFile
 	netcfg.NodeConfigs = make([]node.Config, 0)
 	for i, k := range rconfig.K8sConfig {
-		log.Info("reading config %d", i)
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
 		key, err := os.ReadFile(fmt.Sprintf("%s/staking.key", nodeConfigDir))
 		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
+			return network.Config{}, err
+
 		}
 		cert, err := os.ReadFile(fmt.Sprintf("%s/staking.crt", nodeConfigDir))
 		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
+			return network.Config{}, err
+
 		}
 		configFile, err := os.ReadFile(fmt.Sprintf("%s/config.json", nodeConfigDir))
 		if err != nil {
-			log.Fatal("%s", err)
-			os.Exit(1)
+			return network.Config{}, err
+
 		}
 		c := node.Config{
 			Name:               fmt.Sprintf("validator-%d", i),
@@ -132,11 +135,9 @@ func readFiles(log logging.Logger, rconfig allConfig) network.Config {
 			StakingKey:         key,
 			ConfigFile:         configFile,
 			ImplSpecificConfig: k,
-		}
-		if i == 0 {
-			c.IsBeacon = true
+			IsBeacon:           i == 0,
 		}
 		netcfg.NodeConfigs = append(netcfg.NodeConfigs, c)
 	}
-	return netcfg
+	return netcfg, nil
 }
