@@ -14,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -28,7 +29,13 @@ var (
 	goPath             = os.ExpandEnv("$GOPATH")
 )
 
-// Start 6 nodes, wait for them to become healthy, then stop them all.
+// Example:
+// - start some nodes
+// - wait for them to become healthy
+// - get a node and make an API call to it
+// - add a new node
+// - remove a node
+// - stop the network
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
@@ -79,9 +86,9 @@ func run(log logging.Logger, binaryPath string) error {
 	}()
 
 	// Wait until the nodes in the network are ready
-	timeout, cancel := context.WithTimeout(context.Background(), healthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
 	defer cancel()
-	healthyChan := nw.Healthy(timeout)
+	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
 	err, gotErr := <-healthyChan
 	if gotErr {
@@ -93,20 +100,63 @@ func run(log logging.Logger, binaryPath string) error {
 	if err != nil {
 		return err
 	}
-	log.Info("this network's nodes: %s", nodeNames)
+	log.Info("current network's nodes: %s", nodeNames)
 
 	// Get one node
-	node, err := nw.GetNode(nodeNames[0])
+	node0, err := nw.GetNode(nodeNames[0])
 	if err != nil {
 		return err
 	}
 
 	// Get its node ID through its API and print it
-	nodeID, err := node.GetAPIClient().InfoAPI().GetNodeID()
+	node0ID, err := node0.GetAPIClient().InfoAPI().GetNodeID()
 	if err != nil {
 		return err
 	}
-	log.Info("one node's ID is: %s", nodeID)
+	log.Info("one node's ID is: %s", node0ID)
+
+	// Add a new node with generated cert/key/nodeid
+	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+	if err != nil {
+		return err
+	}
+	nodeConfig := node.Config{
+		Name: "New Node",
+		ImplSpecificConfig: local.NodeConfig{
+			BinaryPath: binaryPath,
+		},
+		StakingKey:  stakingKey,
+		StakingCert: stakingCert,
+	}
+	if _, err := nw.AddNode(nodeConfig); err != nil {
+		return err
+	}
+
+	// Remove one node
+	nodeToRemove := nodeNames[3]
+	log.Info("removing node %q", nodeToRemove)
+	if err := nw.RemoveNode(nodeToRemove); err != nil {
+		return err
+	}
+
+	// Wait until the nodes in the updated network are ready
+	ctx, cancel = context.WithTimeout(context.Background(), healthyTimeout)
+	defer cancel()
+	healthyChan = nw.Healthy(ctx)
+	log.Info("waiting for updated network to report healthy...")
+	err, gotErr = <-healthyChan
+	if gotErr {
+		return err
+	}
+
+	// Print the node names
+	nodeNames, err = nw.GetNodesNames()
+	if err != nil {
+		return err
+	}
+	// Will have the new node but not the removed one
+	log.Info("updated network's nodes: %s", nodeNames)
+
 	log.Info("example program done")
 	if err := nw.Stop(context.Background()); err != nil {
 		log.Warn("error while stopping network: %s", err)
