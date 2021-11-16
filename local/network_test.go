@@ -154,12 +154,13 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
 					{
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
-		"no ConfigFile": {
+		"empty nodeID": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
@@ -167,7 +168,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon: true,
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
@@ -178,8 +181,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
@@ -192,7 +196,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
 						StakingKey: []byte("nonempty"),
 					},
 				},
@@ -206,7 +209,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						ConfigFile:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
 					},
 				},
@@ -219,7 +221,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						ConfigFile: []byte("nonempty"),
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
@@ -232,16 +235,18 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 					{
 						Name: "node0",
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						IsBeacon:   true,
-						ConfigFile: []byte("nonempty"),
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
 					},
 				},
 			}},
@@ -465,10 +470,9 @@ func emptyNetworkConfig() (network.Config, error) {
 		return network.Config{}, err
 	}
 	return network.Config{
-		NetworkID: networkID,
-		LogLevel:  "DEBUG",
-		Name:      "My Network",
-		Genesis:   genesis,
+		LogLevel: "DEBUG",
+		Name:     "My Network",
+		Genesis:  genesis,
 	}, nil
 }
 
