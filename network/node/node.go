@@ -17,14 +17,11 @@ type Config struct {
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
 	IsBeacon bool
-	// Must not be nil
-	StakingKey []byte
-	// Must not be nil
-	StakingCert []byte
-	// Must not be empty
-	NodeID ids.ShortID
 	// Must not be nil.
-	// TODO what if network ID here doesn't match that in genesis?
+	StakingKey []byte
+	// Must not be nil.
+	StakingCert []byte
+	// May be nil.
 	ConfigFile []byte
 	// May be nil.
 	CChainConfigFile []byte

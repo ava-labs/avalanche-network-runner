@@ -42,7 +42,7 @@ func main() {
 		},
 	}
 
-	timeout, cancel := context.WithTimeout(context.Background(), DefaultNetworkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultNetworkTimeout)
 	defer cancel()
 
 	adapter, err := k8s.NewNetwork(config, log)
@@ -50,16 +50,13 @@ func main() {
 		log.Fatal("Error creating network: %s", err)
 		os.Exit(1)
 	}
-	defer adapter.Stop(timeout)
+	defer adapter.Stop(ctx)
 
 	log.Info("Network created. Booting...")
 
-	errCh := adapter.Healthy()
+	errCh := adapter.Healthy(ctx)
 
 	select {
-	case <-timeout.Done():
-		log.Fatal("Timed out waiting for network to boot. Exiting.")
-		os.Exit(1)
 	case err := <-errCh:
 		if err != nil {
 			log.Fatal("Error booting network: %s", err)

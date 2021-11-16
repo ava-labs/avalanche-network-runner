@@ -13,9 +13,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// EthClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
+// Interface compliance
+var _ EthClient = &ethClient{}
+
+type EthClient interface {
+	Close()
+	SendTransaction(context.Context, *types.Transaction) error
+	TransactionReceipt(context.Context, common.Hash) (*types.Receipt, error)
+	BalanceAt(context.Context, common.Address, *big.Int) (*big.Int, error)
+	BlockByNumber(context.Context, *big.Int) (*types.Block, error)
+	BlockNumber(context.Context) (uint64, error)
+	CallContract(context.Context, interfaces.CallMsg, *big.Int) ([]byte, error)
+	NonceAt(context.Context, common.Address, *big.Int) (uint64, error)
+	AssetBalanceAt(context.Context, common.Address, ids.ID, *big.Int) (*big.Int, error)
+}
+
+// ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
 // All calls are wrapped in a mutex, and try to create a connection if it doesn't exist yet
-type EthClient struct {
+type ethClient struct {
 	ipAddr string
 	port   uint
 	client *ethclient.Client
@@ -25,15 +40,15 @@ type EthClient struct {
 // NewEthClient mainly takes ip/port info for usage in future calls
 // Connection can't be initialized in constructor because node is not ready when the constructor is called
 // It follows convention of most avalanchego api constructors that can be called without having a ready node
-func NewEthClient(ipAddr string, port uint) *EthClient {
-	return &EthClient{
+func NewEthClient(ipAddr string, port uint) EthClient {
+	return &ethClient{
 		ipAddr: ipAddr,
 		port:   port,
 	}
 }
 
 // connect attempts to connect with websocket ethclient API
-func (c *EthClient) connect() error {
+func (c *ethClient) connect() error {
 	if c.client == nil {
 		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", c.ipAddr, c.port))
 		if err != nil {
@@ -45,7 +60,7 @@ func (c *EthClient) connect() error {
 }
 
 // Close closes opened connection (if any)
-func (c *EthClient) Close() {
+func (c *ethClient) Close() {
 	if c.client == nil {
 		return
 	}
@@ -54,7 +69,7 @@ func (c *EthClient) Close() {
 	c.client.Close()
 }
 
-func (c *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (c *ethClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -63,7 +78,7 @@ func (c *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) 
 	return c.client.SendTransaction(ctx, tx)
 }
 
-func (c *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (c *ethClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -72,7 +87,7 @@ func (c *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) 
 	return c.client.TransactionReceipt(ctx, txHash)
 }
 
-func (c *EthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+func (c *ethClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -81,7 +96,7 @@ func (c *EthClient) BalanceAt(ctx context.Context, account common.Address, block
 	return c.client.BalanceAt(ctx, account, blockNumber)
 }
 
-func (c *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+func (c *ethClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -90,7 +105,7 @@ func (c *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.
 	return c.client.BlockByNumber(ctx, number)
 }
 
-func (c *EthClient) BlockNumber(ctx context.Context) (uint64, error) {
+func (c *ethClient) BlockNumber(ctx context.Context) (uint64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -99,7 +114,7 @@ func (c *EthClient) BlockNumber(ctx context.Context) (uint64, error) {
 	return c.client.BlockNumber(ctx)
 }
 
-func (c *EthClient) CallContract(ctx context.Context, msg interfaces.CallMsg, blockNumber *big.Int) ([]byte, error) {
+func (c *ethClient) CallContract(ctx context.Context, msg interfaces.CallMsg, blockNumber *big.Int) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -108,7 +123,7 @@ func (c *EthClient) CallContract(ctx context.Context, msg interfaces.CallMsg, bl
 	return c.client.CallContract(ctx, msg, blockNumber)
 }
 
-func (c *EthClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
+func (c *ethClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {
@@ -117,7 +132,7 @@ func (c *EthClient) NonceAt(ctx context.Context, account common.Address, blockNu
 	return c.client.NonceAt(ctx, account, blockNumber)
 }
 
-func (c *EthClient) AssetBalanceAt(ctx context.Context, account common.Address, assetID ids.ID, blockNumber *big.Int) (*big.Int, error) {
+func (c *ethClient) AssetBalanceAt(ctx context.Context, account common.Address, assetID ids.ID, blockNumber *big.Int) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if err := c.connect(); err != nil {

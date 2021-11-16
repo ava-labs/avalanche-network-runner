@@ -1,7 +1,5 @@
 {
-    "network-id":1337,
-    "network-peer-list-gossip-frequency":"5s",
-    "network-max-reconnect-delay":"2s",
-    "public-ip":"127.0.0.1",
-    "health-check-frequency":"10s"
+    "network-peer-list-gossip-frequency":"250ms",
+    "network-max-reconnect-delay":"1s",
+    "health-check-frequency":"2s"
 }

@@ -19,29 +19,23 @@ A node config is defined by this struct:
 
 ```go
 type Config struct {
-    // Configuration specific to a particular implementation of a node.
-    ImplSpecificConfig interface{}
-    // A node's name must be unique from all other nodes
-    // in a network. If Name is the empty string, a
-    // unique name is assigned on node creation.
-    Name string
-    // True if other nodes should use this node
-    // as a bootstrap beacon.
-    IsBeacon bool
-    // If nil, a unique staking key/cert is
-    // assigned on node creation.
-    // If nil, [StakingCert] must also be nil.
-    StakingKey []byte
-    // If nil, a unique staking key/cert is
-    // assigned on node creation.
-    // If nil, [StakingKey] must also be nil.
-    StakingCert []byte
-    // Must not be nil.
-    ConfigFile []byte
-    // May be nil.
-    CChainConfigFile []byte
-    // Must not be nil.
-    GenesisFile []byte
+	// Configuration specific to a particular implementation of a node.
+	ImplSpecificConfig interface{}
+	// A node's name must be unique from all other nodes
+	// in a network. If Name is the empty string, a
+	// unique name is assigned on node creation.
+	Name string
+	// True if other nodes should use this node
+	// as a bootstrap beacon.
+	IsBeacon bool
+	// Must not be nil
+	StakingKey []byte
+	// Must not be nil
+	StakingCert []byte
+	// May be nil.
+	ConfigFile []byte
+	// May be nil.
+	CChainConfigFile []byte
 }
 ```
 
@@ -53,10 +47,36 @@ The following node configuration fields will be overwritten, even if provided:
 - Paths to files such as the genesis, node config, etc.
 - Log/database directories
 - Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
+- Network ID (any network id info in avalanchego confs will be overwritten by the user specified network id at network conf)
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
 whereas a node running locally has a config field that specifies the path of the binary that the node runs.
+
+## Genesis Generation
+
+Given network id, desired genesis balances, and validators, automatic genesis generation 
+can be obtained by using `network.NewAvalancheGoGenesis`:
+
+```go
+// Return a genesis JSON where:
+// The nodes in [genesisVdrs] are validators.
+// The C-Chain and X-Chain balances are given by
+// [cChainBalances] and [xChainBalances].
+// Note that many of the genesis fields (i.e. reward addresses)
+// are randomly generated or hard-coded.
+func NewAvalancheGoGenesis(
+	log logging.Logger,
+	networkID uint32,
+	xChainBalances []AddrAndBalance,
+	cChainBalances []AddrAndBalance,
+	genesisVdrs []ids.ShortID,
+) ([]byte, error)
+```
+
+Later on the genesis contents can be used in network creation.
+
+Note that both genesis and network conf should contain the same network id.
 
 ## Network Creation
 
@@ -66,14 +86,20 @@ Each is parameterized on `network.Config`:
 
 ```go
 type Config struct {
-   // How many nodes are the network
-   NodeCount int
-   // Config for each node
-   NodeConfigs []node.Config
-   // Log level for the whole network
-   LogLevel string
-   // Name for the network
-   Name string
+	// Configuration specific to a particular implementation of a network.
+	ImplSpecificConfig interface{}
+	// Must not be nil
+	Genesis []byte
+	// May have length 0
+	// (i.e. network may have no nodes on creation.)
+	NodeConfigs []node.Config
+	// Log level for the whole network
+	LogLevel string
+	// Name for the network
+	Name string
+	// How many nodes in the network.
+	// TODO move to k8s package?
+	NodeCount int
 }
 ```
 
@@ -86,30 +112,32 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-    // Returns a chan that is closed when
-    // all the nodes in the network are healthy.
-    // If an error is sent on this channel, at least 1
-    // node didn't become healthy before the timeout.
-    // If an error isn't sent on the channel before it
-    // closes, all the nodes are healthy.
-    // A stopped network is considered unhealthy.
-    Healthy() chan error
-    // Stop all the nodes.
-    // Calling Stop after the first call does nothing
-    // and returns nil.
-    Stop(context.Context) error
-    // Start a new node with the given config.
-    // Returns an error if Stop() was previously called.
-    AddNode(node.Config) (node.Node, error)
-    // Stop the node with this name.
-    // Returns an error if Stop() was previously called.
-    RemoveNode(name string) error
-    // Return the node with this name.
-    // Returns an error if Stop() was previously called.
-    GetNode(name string) (node.Node, error)
-    // Returns the names of all nodes in this network.
-    // Returns nil if Stop() was previously called.
-    GetNodesNames() []string
+	// Returns a chan that is closed when
+	// all the nodes in the network are healthy.
+	// If an error is sent on this channel, at least 1
+	// node didn't become healthy before the timeout.
+	// If an error isn't sent on the channel before it
+	// closes, all the nodes are healthy.
+	// A stopped network is considered unhealthy.
+	// Timeout is given by the context parameter.
+	// [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
+	Healthy(context.Context) chan error
+	// Stop all the nodes.
+	// Returns ErrStopped if Stop() was previously called.
+	Stop(context.Context) error
+	// Start a new node with the given config.
+	// Returns ErrStopped if Stop() was previously called.
+	AddNode(node.Config) (node.Node, error)
+	// Stop the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	RemoveNode(name string) error
+	// Return the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNode(name string) (node.Node, error)
+	// Returns the names of all nodes in this network.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNodesNames() ([]string, error)
+	// TODO add methods
 }
 ```
 
