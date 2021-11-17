@@ -19,7 +19,6 @@ type ObjectSpec struct {
 }
 
 // Node is a Avalanchego representation on k8s
-// TODO rename this struct node?
 type Node struct {
 	// This node's AvalancheGo node ID
 	nodeID ids.ShortID

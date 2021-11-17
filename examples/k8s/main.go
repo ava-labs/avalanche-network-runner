@@ -72,7 +72,7 @@ func main() {
 		log.Warn("Invalid log level configured: %s", err)
 	}
 	log.SetLogLevel(level)
-	timeout, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
 	network, err := k8s.NewNetwork(networkConfig, log)
@@ -81,17 +81,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := network.Stop(timeout); err != nil {
+		if err := network.Stop(ctx); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
 		}
 	}()
 
 	log.Info("Network created. Booting...")
 
-	errCh := network.Healthy(timeout)
+	errCh := network.Healthy(ctx)
 
 	select {
-	case <-timeout.Done():
+	case <-ctx.Done():
 		log.Fatal("Timed out waiting for network to boot. Exiting.")
 		os.Exit(1)
 	case err := <-errCh:
