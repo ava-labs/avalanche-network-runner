@@ -305,6 +305,14 @@ func TestGeneratedNodesNames(t *testing.T) {
 	assert.EqualValues(len(nodeNameMap), len(networkConfig.NodeConfigs))
 }
 
+func TestDefaultNetwork(t *testing.T) {
+	assert := assert.New(t)
+    binaryPath := "pepito"
+    net, err := GenerateDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+}
+
 // TODO add byzantine node to conf
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes can be accessed

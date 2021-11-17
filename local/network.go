@@ -13,9 +13,11 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/config"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -151,6 +153,66 @@ func NewNetwork(
 		}
 	}
 	return net, nil
+}
+
+// GenerateDefaultNetwork creates a default network
+func GenerateDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+	newAPIClientF api.NewAPIClientF,
+	newNodeProcessF NewNodeProcessF,
+) (network.Network, error) {
+	networkID := uint32(1337)
+    var nodeConfigs []node.Config
+	var genesisValidators []ids.ShortID
+	for i := 0; i < 5; i++ {
+        stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+        if err != nil {
+            return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
+        }
+        nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
+        if err != nil {
+            return nil, fmt.Errorf("couldn't create node ID: %w", err)
+        }
+		nodeConfig := node.Config{
+			Name: fmt.Sprintf("node%d", i),
+            IsBeacon: true,
+            StakingCert: stakingCert,
+            StakingKey: stakingKey,
+			ImplSpecificConfig: NodeConfig{
+				BinaryPath: binaryPath,
+			},
+		}
+	    genesisValidators = append(genesisValidators, nodeID)
+		nodeConfigs = append(nodeConfigs, nodeConfig)
+	}
+	genesis, err := network.NewAvalancheGoGenesis(
+		log,
+		networkID,
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		[]network.AddrAndBalance{
+			{
+				Addr:    ids.GenerateTestShortID(),
+				Balance: 1,
+			},
+		},
+		genesisValidators,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't generate default genesis: %w", err)
+	}
+    networkConfig := network.Config{
+		LogLevel: "DEBUG",
+		Name:     "Default Network",
+        Genesis: genesis,
+        NodeConfigs: nodeConfigs,
+	}
+    return NewNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network
