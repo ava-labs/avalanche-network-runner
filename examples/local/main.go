@@ -72,6 +72,11 @@ func run(log logging.Logger, binaryPath string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := nw.Stop(context.Background()); err != nil {
+			log.Debug("error stopping network: %w", err)
+		}
+	}()
 
 	// When we get a SIGINT or SIGTERM, stop the network.
 	signalsCh := make(chan os.Signal, 1)
@@ -81,7 +86,7 @@ func run(log logging.Logger, binaryPath string) error {
 		sig := <-signalsCh
 		log.Info("got OS signal %s", sig)
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Warn("error while stopping network: %s", err)
+			log.Debug("error while stopping network: %s", err)
 		}
 	}()
 
@@ -159,7 +164,7 @@ func run(log logging.Logger, binaryPath string) error {
 
 	log.Info("example program done")
 	if err := nw.Stop(context.Background()); err != nil {
-		log.Warn("error while stopping network: %s", err)
+		log.Debug("error while stopping network: %s", err)
 	}
 	return nil
 }
