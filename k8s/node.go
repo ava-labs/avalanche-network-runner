@@ -32,3 +32,13 @@ func (n *K8sNode) GetNodeID() ids.ShortID {
 func (n *K8sNode) GetURI() string {
 	return n.uri
 }
+
+// Return API access url
+func (n *K8sNode) GetAPIURL() string {
+	return ""
+}
+
+// Return staking url
+func (n *K8sNode) GetStakingURL() string {
+	return ""
+}

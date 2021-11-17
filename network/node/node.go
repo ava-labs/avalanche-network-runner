@@ -50,5 +50,9 @@ type Node interface {
 	GetNodeID() ids.ShortID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
+	// Return API access url
+	GetAPIURL() string
+	// Return staking url
+	GetStakingURL() string
 	// TODO add methods
 }
