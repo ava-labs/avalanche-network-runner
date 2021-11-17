@@ -72,7 +72,7 @@ func main() {
 		log.Warn("Invalid log level configured: %s", err)
 	}
 	log.SetLogLevel(level)
-	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
+	timeout, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
 	network, err := k8s.NewNetwork(networkConfig, log)
@@ -81,17 +81,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := network.Stop(ctx); err != nil {
+		if err := network.Stop(timeout); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
 		}
 	}()
 
 	log.Info("Network created. Booting...")
 
-	errCh := network.Healthy()
+	errCh := network.Healthy(timeout)
 
 	select {
-	case <-ctx.Done():
+	case <-timeout.Done():
 		log.Fatal("Timed out waiting for network to boot. Exiting.")
 		os.Exit(1)
 	case err := <-errCh:
@@ -104,7 +104,7 @@ func main() {
 }
 
 func readConfig(rconfig allConfig) (network.Config, error) {
-	configDir := "./examples/common"
+	configDir := "./examples/k8s/configs"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
 		return network.Config{}, err

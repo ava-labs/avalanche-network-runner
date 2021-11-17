@@ -59,6 +59,7 @@ type localNode struct {
 	// Must be unique across all nodes in this network.
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
+	// Set in network.AddNode
 	nodeID ids.ShortID
 	// Allows user to make API calls to this node.
 	client api.Client
@@ -73,23 +74,7 @@ func (node *localNode) GetName() string {
 
 // Returns this node's avalanchego node ID
 func (node *localNode) GetNodeID() ids.ShortID {
-	if node.nodeID != ids.ShortEmpty {
-		return node.nodeID
-	}
-	/*
-		info := node.client.InfoAPI()
-		strNodeID, err := info.GetNodeID()
-		if err != nil {
-			return  fmt.Errorf("could not obtain node ID from info api: %s", err)
-		}
-		nodeID, err := ids.ShortFromPrefixedString(strNodeID, constants.NodeIDPrefix)
-		if err != nil {
-			return ids.ShortID{}, fmt.Errorf("could not parse node ID from string: %s", err)
-		}
-		node.nodeID = nodeID
-		return node.nodeID, nil
-	*/
-	return ids.ShortEmpty
+	return node.nodeID
 }
 
 // Returns access to avalanchego apis

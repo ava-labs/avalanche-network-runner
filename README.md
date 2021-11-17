@@ -95,21 +95,21 @@ type Network interface {
     // A stopped network is considered unhealthy.
     Healthy() chan error
     // Stop all the nodes.
-    // Calling Stop after the first call does nothing
-    // and returns nil.
+    // Returns ErrStopped if Stop() was previously called.
     Stop(context.Context) error
     // Start a new node with the given config.
-    // Returns an error if Stop() was previously called.
+    // Returns ErrStopped if Stop() was previously called.
     AddNode(node.Config) (node.Node, error)
     // Stop the node with this name.
-    // Returns an error if Stop() was previously called.
+    // Returns ErrStopped if Stop() was previously called.
     RemoveNode(name string) error
     // Return the node with this name.
-    // Returns an error if Stop() was previously called.
+    // Returns ErrStopped if Stop() was previously called.
     GetNode(name string) (node.Node, error)
     // Returns the names of all nodes in this network.
-    // Returns nil if Stop() was previously called.
-    GetNodesNames() []string
+    // Returns ErrStopped if Stop() was previously called.
+    GetNodesNames() ([]string, error)
+    // TODO add methods
 }
 ```
 

@@ -21,10 +21,7 @@ type Config struct {
 	StakingKey []byte
 	// Must not be nil
 	StakingCert []byte
-	// Must not be empty
-	NodeID ids.ShortID
 	// Must not be nil.
-	// TODO what if network ID here doesn't match that in genesis?
 	ConfigFile []byte
 	// May be nil.
 	CChainConfigFile []byte

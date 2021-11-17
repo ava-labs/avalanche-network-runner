@@ -4,10 +4,10 @@ go 1.16
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
-	github.com/ava-labs/avalanchego v1.6.3
-	github.com/ava-labs/avalanchego-operator v0.0.0-20211103120206-926f99318243
-	github.com/ava-labs/coreth v0.7.2-rc.1
-	github.com/ethereum/go-ethereum v1.10.9
+	github.com/ava-labs/avalanchego v1.6.5
+	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
+	github.com/ava-labs/coreth v0.7.4-rc.1
+	github.com/ethereum/go-ethereum v1.10.12
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/hashicorp/go-hclog v0.15.0 // indirect

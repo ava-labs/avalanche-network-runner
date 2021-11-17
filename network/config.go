@@ -36,11 +36,6 @@ type AddrAndBalance struct {
 
 // Config that defines a network when it is created.
 type Config struct {
-	// Must not be the ID of Mainnet, Testnet or Localnet.
-	// If any nodes are given a config file, the network ID
-	// in the config file will be over-ridden by this network ID.
-	// This network ID must match the one in [Genesis].
-	NetworkID uint32
 	// Configuration specific to a particular implementation of a network.
 	ImplSpecificConfig interface{}
 	// Must not be nil
@@ -58,6 +53,7 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
+	var someNodeIsBeacon bool
 	switch {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
@@ -72,6 +68,12 @@ func (c *Config) Validate() error {
 			}
 			return fmt.Errorf("node %q config failed validation: %w", nodeName, err)
 		}
+		if nodeConfig.IsBeacon {
+			someNodeIsBeacon = true
+		}
+	}
+	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+		return errors.New("beacon nodes not given")
 	}
 	return nil
 }
