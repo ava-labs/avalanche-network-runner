@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -32,27 +31,22 @@ var (
 
 // Blocks until a signal is received on [signalChan], upon which
 // [n.Stop()] is called. If [signalChan] is closed, does nothing.
-// All calls to this function should use the same [shutdownOnce].
+// Closes [closedOnShutdownChan] amd [signalChan] when done shutting down network.
+// This function should only be called once.
 func shutdownOnSignal(
 	log logging.Logger,
 	n network.Network,
-	shutdownOnce *sync.Once,
 	signalChan chan os.Signal,
+	closedOnShutdownChan chan struct{},
 ) {
-	sig, open := <-signalChan
-	if !open {
-		// [signalChan] was closed in a previous run of
-		// this function so we already shut down.
-		return
+	sig := <-signalChan
+	log.Info("got OS signal %s", sig)
+	if err := n.Stop(context.Background()); err != nil {
+		log.Debug("error while stopping network: %s", err)
 	}
-	shutdownOnce.Do(func() {
-		log.Info("got OS signal %s", sig)
-		if err := n.Stop(context.Background()); err != nil {
-			log.Debug("error while stopping network: %s", err)
-		}
-		// Make sure we only close [signalChan] once
-		close(signalChan)
-	})
+	signal.Reset()
+	close(signalChan)
+	close(closedOnShutdownChan)
 }
 
 // Example:
@@ -104,13 +98,13 @@ func run(log logging.Logger, binaryPath string) error {
 		}
 	}()
 
-	// When we get a SIGINT or SIGTERM, stop the network.
-	shutdownOnce := &sync.Once{}
-	signalsCh := make(chan os.Signal, 1)
-	signal.Notify(signalsCh, syscall.SIGINT)
-	signal.Notify(signalsCh, syscall.SIGTERM)
+	// When we get a SIGINT or SIGTERM, stop the network and close [closedOnShutdownCh]
+	signalsChan := make(chan os.Signal, 1)
+	signal.Notify(signalsChan, syscall.SIGINT)
+	signal.Notify(signalsChan, syscall.SIGTERM)
+	closedOnShutdownCh := make(chan struct{})
 	go func() {
-		shutdownOnSignal(log, nw, shutdownOnce, signalsCh)
+		shutdownOnSignal(log, nw, signalsChan, closedOnShutdownCh)
 	}()
 
 	// Wait until the nodes in the network are ready
@@ -185,8 +179,8 @@ func run(log logging.Logger, binaryPath string) error {
 	// Will have the new node but not the removed one
 	log.Info("updated network's nodes: %s", nodeNames)
 	log.Info("Network will run until you CTRL + C to exit...")
-	// Wait until SIGINT/SIGTERM
-	shutdownOnSignal(log, nw, shutdownOnce, signalsCh)
+	// Wait until done shutting down network after SIGINT/SIGTERM
+	<-closedOnShutdownCh
 	return nil
 }
 
