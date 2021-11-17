@@ -1,7 +1,6 @@
 name: runK8s 
 
-on:
-  workflow_dispatch: {}
+on: push
   
 jobs:
   test:

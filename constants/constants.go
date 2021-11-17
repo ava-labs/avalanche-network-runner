@@ -6,4 +6,5 @@ const (
 	HealthCheckInterval = 3 * time.Second
 	APITimeoutDuration  = 10 * time.Second
 	DefaultPort         = 9650
+	DefaultNetworkID    = uint32(1337)
 )

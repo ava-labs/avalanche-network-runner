@@ -159,7 +159,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"empty nodeID": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
@@ -173,7 +174,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"no Genesis": {
 			config: network.Config{
 				NodeConfigs: []node.Config{
@@ -186,7 +188,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
@@ -199,7 +202,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingKey: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
@@ -212,7 +216,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"no beacon node": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
@@ -225,7 +230,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 		"repeated name": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
@@ -249,7 +255,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingCert: []byte("nonempty"),
 					},
 				},
-			}},
+			},
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {

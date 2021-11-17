@@ -13,7 +13,7 @@ type Config struct {
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
-	Name string
+	Name string `json:"name"`
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
 	IsBeacon bool
