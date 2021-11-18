@@ -68,7 +68,6 @@ func (zr *zeroReader) Read(dst []byte) (n int, err error) {
 // Deterministically based on a given Reader
 // Returns the PEM byte representations of both.
 func NewDeterministicCertAndKeyBytes(random io.Reader) ([]byte, []byte, error) {
-
 	// Create key to sign cert
 	// Both RSA and ECDSA use a non deterministic Reader to change the state
 	// of the deterministic one. But RSA golang implementation does it before key
