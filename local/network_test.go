@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -305,12 +306,33 @@ func TestGeneratedNodesNames(t *testing.T) {
 	assert.EqualValues(len(nodeNameMap), len(networkConfig.NodeConfigs))
 }
 
-func TestDefaultNetwork(t *testing.T) {
+// TestGenerateDefaultNetwork create a default network with GenerateDefaultNetwork and
+// check expected number of nodes, node names, and avalanchego node ids
+func TestGenerateDefaultNetwork(t *testing.T) {
 	assert := assert.New(t)
 	binaryPath := "pepito"
 	net, err := GenerateDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	names, err := net.GetNodesNames()
+	assert.NoError(err)
+	assert.Len(names, 5)
+	for _, nodeInfo := range []struct {
+		name string
+		ID   string
+	}{
+		{
+			"node0",
+			"NodeID-BX9eWzCuirVhjQwiRkJkqPXbjP8yshr2m",
+		},
+	} {
+		node, err := net.GetNode(nodeInfo.name)
+		assert.NoError(err)
+		expectedID, err := ids.ShortFromPrefixedString(nodeInfo.ID, constants.NodeIDPrefix)
+		assert.NoError(err)
+		assert.EqualValues(expectedID, node.GetNodeID())
+		assert.EqualValues(nodeInfo.name, node.GetName())
+	}
 }
 
 // TODO add byzantine node to conf
