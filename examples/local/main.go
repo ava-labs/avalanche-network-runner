@@ -2,16 +2,13 @@ package main
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -23,8 +20,6 @@ const (
 )
 
 var (
-	//go:embed configs
-	embeddedConfigsDir embed.FS
 	goPath             = os.ExpandEnv("$GOPATH")
 )
 
@@ -55,17 +50,11 @@ func main() {
 }
 
 func run(log logging.Logger, binaryPath string) error {
-	// Read configs to create network config
-	networkConfig, err := readConfigs(binaryPath)
-	if err != nil {
-		return fmt.Errorf("couldn't read configs: %w", err)
-	}
-
 	// Create the network
-	nw, err := local.NewNetwork(
+    nw, err := local.GenerateDefaultNetwork(
 		log,
-		networkConfig,
-	)
+        binaryPath,
+    )
 	if err != nil {
 		return err
 	}
@@ -159,42 +148,4 @@ func run(log logging.Logger, binaryPath string) error {
 		log.Warn("error while stopping network: %s", err)
 	}
 	return nil
-}
-
-func readConfigs(binaryPath string) (network.Config, error) {
-	configsDir, err := fs.Sub(embeddedConfigsDir, "configs")
-	if err != nil {
-		return network.Config{}, err
-	}
-
-	config := network.Config{
-		Name:        "my network",
-		NodeConfigs: make([]node.Config, numNodes),
-		LogLevel:    "INFO",
-	}
-
-	config.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
-	if err != nil {
-		return network.Config{}, err
-	}
-
-	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
-		if err != nil {
-			return network.Config{}, fmt.Errorf("couldn't read node %d config.json: %w", i, err)
-		}
-		config.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
-		if err != nil {
-			return network.Config{}, fmt.Errorf("couldn't read node %d staker.key: %w", i, err)
-		}
-		config.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
-		if err != nil {
-			return network.Config{}, fmt.Errorf("couldn't read node %d staker.crt: %w", i, err)
-		}
-		config.NodeConfigs[i].ImplSpecificConfig = local.NodeConfig{
-			BinaryPath: binaryPath,
-		}
-		config.NodeConfigs[i].IsBeacon = true
-	}
-	return config, nil
 }

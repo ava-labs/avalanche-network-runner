@@ -3,7 +3,6 @@ package local
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"embed"
+	"io/fs"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
@@ -18,14 +19,9 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/ids"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/crypto"
-	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	"github.com/ava-labs/coreth/plugin/evm"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,6 +33,7 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 	stopTimeout           = 30 * time.Second
+	defaultNumNodes       = 5
 )
 
 // interface compliance
@@ -66,6 +63,48 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+}
+
+var (
+    //go:embed default
+    embeddedDefaultNetworkConfigDir embed.FS
+    // prepopulated network config, only lacking binaryPath info
+    defaultNetworkConfig network.Config
+)
+
+// populate default network config from embedded default directory
+func init() {
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+        panic(err)
+	}
+
+	defaultNetworkConfig = network.Config{
+		Name:        "my network",
+		NodeConfigs: make([]node.Config, defaultNumNodes),
+		LogLevel:    "INFO",
+	}
+
+	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	if err != nil {
+        panic(err)
+	}
+
+	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
+		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		if err != nil {
+            panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		if err != nil {
+            panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		if err != nil {
+            panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
+	}
 }
 
 type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, error)
@@ -187,83 +226,12 @@ func generateDefaultNetwork(
 	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
-	random := rand.New(rand.NewSource(0))
-	networkID := uint32(1337)
-	var nodeConfigs []node.Config
-	var genesisValidators []ids.ShortID
-	for i := 0; i < 5; i++ {
-		stakingCert, stakingKey, err := utils.NewDeterministicCertAndKeyBytes(random)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
+	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
+		defaultNetworkConfig.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
+			BinaryPath: binaryPath,
 		}
-		nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create node ID: %w", err)
-		}
-		nodeConfig := node.Config{
-			Name:        fmt.Sprintf("node%d", i),
-			IsBeacon:    true,
-			StakingCert: stakingCert,
-			StakingKey:  stakingKey,
-			ImplSpecificConfig: NodeConfig{
-				BinaryPath: binaryPath,
-			},
-		}
-		genesisValidators = append(genesisValidators, nodeID)
-		nodeConfigs = append(nodeConfigs, nodeConfig)
-	}
-
-	// get private key
-	privateKey := "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
-	trimmedPrivateKey := strings.TrimPrefix(privateKey, avalancheconstants.SecretKeyPrefix)
-	privKeyBytes, err := formatting.Decode(formatting.CB58, trimmedPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("unable to decode private key string: %w", err)
-	}
-	factory := crypto.FactorySECP256K1R{}
-	skIntf, err := factory.ToPrivateKey(privKeyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get private key: %w", err)
-	}
-	sk := skIntf.(*crypto.PrivateKeySECP256K1R)
-
-	// get x chain addr short id
-	xChainAddrShortID := sk.PublicKey().Address()
-
-	// get c chain addr short id
-	ethAddr := evm.GetEthAddress(sk)
-	cChainAddrShortID, err := ids.ToShortID(ethAddr.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("unable to get short id from c chain addr bytes: %w", err)
-	}
-
-	genesis, err := network.NewAvalancheGoGenesis(
-		log,
-		networkID,
-		[]network.AddrAndBalance{ // X-Chain Balances
-			{
-				Addr:    xChainAddrShortID,
-				Balance: units.KiloAvax,
-			},
-		},
-		[]network.AddrAndBalance{ // C-Chain Balances
-			{
-				Addr:    cChainAddrShortID,
-				Balance: units.KiloAvax,
-			},
-		},
-		genesisValidators,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't generate default genesis: %w", err)
-	}
-	networkConfig := network.Config{
-		LogLevel:    "DEBUG",
-		Name:        "Default Network",
-		Genesis:     genesis,
-		NodeConfigs: nodeConfigs,
-	}
-	return newNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
+    }
+	return newNetwork(log, defaultNetworkConfig, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network
