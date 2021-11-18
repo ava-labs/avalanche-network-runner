@@ -325,13 +325,29 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 			"node0",
 			"NodeID-BX9eWzCuirVhjQwiRkJkqPXbjP8yshr2m",
 		},
+		{
+			"node1",
+			"NodeID-EPDdoczEit32q3Eyq7pwryM4rnZcMp9gQ",
+		},
+		{
+			"node2",
+			"NodeID-kXNjqhnRNp3rudeLS7YwCkLrTNW5Xyg4",
+		},
+		{
+			"node3",
+			"NodeID-Dd3JbFafJo2aXNCBSNvHCXfxwUtYpY7ES",
+		},
+		{
+			"node4",
+			"NodeID-HwXvrzaMv2h8HB31ic6MzUdab5CFEChRD",
+		},
 	} {
 		node, err := net.GetNode(nodeInfo.name)
 		assert.NoError(err)
+		assert.EqualValues(nodeInfo.name, node.GetName())
 		expectedID, err := ids.ShortFromPrefixedString(nodeInfo.ID, constants.NodeIDPrefix)
 		assert.NoError(err)
 		assert.EqualValues(expectedID, node.GetNodeID())
-		assert.EqualValues(nodeInfo.name, node.GetName())
 	}
 }
 
