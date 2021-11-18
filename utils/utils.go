@@ -72,7 +72,7 @@ func NewDeterministicCertAndKeyBytes(random io.Reader) ([]byte, []byte, error) {
 	// Create key to sign cert
 	// Both RSA and ECDSA use a non deterministic Reader to change the state
 	// of the deterministic one. But RSA golang implementation does it before key
-	// generation, is not useful
+	// generation, so is not useful
 	key, err := ecdsa.GenerateKey(elliptic.P256(), random)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't generate ecdsa key: %w", err)
