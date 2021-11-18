@@ -29,6 +29,26 @@ var (
 	goPath             = os.ExpandEnv("$GOPATH")
 )
 
+// Blocks until a signal is received on [signalChan], upon which
+// [n.Stop()] is called. If [signalChan] is closed, does nothing.
+// Closes [closedOnShutdownChan] amd [signalChan] when done shutting down network.
+// This function should only be called once.
+func shutdownOnSignal(
+	log logging.Logger,
+	n network.Network,
+	signalChan chan os.Signal,
+	closedOnShutdownChan chan struct{},
+) {
+	sig := <-signalChan
+	log.Info("got OS signal %s", sig)
+	if err := n.Stop(context.Background()); err != nil {
+		log.Debug("error while stopping network: %s", err)
+	}
+	signal.Reset()
+	close(signalChan)
+	close(closedOnShutdownChan)
+}
+
 // Example:
 // - start some nodes
 // - wait for them to become healthy
@@ -72,17 +92,19 @@ func run(log logging.Logger, binaryPath string) error {
 	if err != nil {
 		return err
 	}
-
-	// When we get a SIGINT or SIGTERM, stop the network.
-	signalsCh := make(chan os.Signal, 1)
-	signal.Notify(signalsCh, syscall.SIGINT)
-	signal.Notify(signalsCh, syscall.SIGTERM)
-	go func() {
-		sig := <-signalsCh
-		log.Info("got OS signal %s", sig)
+	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Warn("error while stopping network: %s", err)
+			log.Debug("error stopping network: %w", err)
 		}
+	}()
+
+	// When we get a SIGINT or SIGTERM, stop the network and close [closedOnShutdownCh]
+	signalsChan := make(chan os.Signal, 1)
+	signal.Notify(signalsChan, syscall.SIGINT)
+	signal.Notify(signalsChan, syscall.SIGTERM)
+	closedOnShutdownCh := make(chan struct{})
+	go func() {
+		shutdownOnSignal(log, nw, signalsChan, closedOnShutdownCh)
 	}()
 
 	// Wait until the nodes in the network are ready
@@ -156,11 +178,9 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 	// Will have the new node but not the removed one
 	log.Info("updated network's nodes: %s", nodeNames)
-
-	log.Info("example program done")
-	if err := nw.Stop(context.Background()); err != nil {
-		log.Warn("error while stopping network: %s", err)
-	}
+	log.Info("Network will run until you CTRL + C to exit...")
+	// Wait until done shutting down network after SIGINT/SIGTERM
+	<-closedOnShutdownCh
 	return nil
 }
 
