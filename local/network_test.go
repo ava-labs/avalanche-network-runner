@@ -342,6 +342,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 			"NodeID-HwXvrzaMv2h8HB31ic6MzUdab5CFEChRD",
 		},
 	} {
+		assert.Contains(names, nodeInfo.name)
 		node, err := net.GetNode(nodeInfo.name)
 		assert.NoError(err)
 		assert.EqualValues(nodeInfo.name, node.GetName())
