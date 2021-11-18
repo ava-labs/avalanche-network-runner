@@ -87,7 +87,7 @@ func NewDeterministicCertAndKeyBytes(random io.Reader) ([]byte, []byte, error) {
 		BasicConstraintsValid: true,
 	}
 	// a zeroReader is used to avoid ECDSA signing to change the state of the deterministic reader
-	certBytes, err := x509.CreateCertificate(zeroReader{}, certTemplate, certTemplate, &key.PublicKey, key)
+	certBytes, err := x509.CreateCertificate(&zeroReader{}, certTemplate, certTemplate, &key.PublicKey, key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't create certificate: %w", err)
 	}
