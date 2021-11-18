@@ -323,23 +323,23 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	}{
 		{
 			"node-0",
-            "NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
+			"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
 		},
 		{
 			"node-1",
-            "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
+			"NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
 		},
 		{
 			"node-2",
-            "NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
+			"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
 		},
 		{
 			"node-3",
-            "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
+			"NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
 		},
 		{
 			"node-4",
-            "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
+			"NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
 		},
 	} {
 		assert.Contains(names, nodeInfo.name)

@@ -2,7 +2,9 @@ package local
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -10,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"embed"
-	"io/fs"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
@@ -66,17 +66,17 @@ type localNetwork struct {
 }
 
 var (
-    //go:embed default
-    embeddedDefaultNetworkConfigDir embed.FS
-    // prepopulated network config, only lacking binaryPath info
-    defaultNetworkConfig network.Config
+	//go:embed default
+	embeddedDefaultNetworkConfigDir embed.FS
+	// prepopulated network config, only lacking binaryPath info
+	defaultNetworkConfig network.Config
 )
 
 // populate default network config from embedded default directory
 func init() {
 	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 
 	defaultNetworkConfig = network.Config{
@@ -87,21 +87,21 @@ func init() {
 
 	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
 		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
 		if err != nil {
-            panic(err)
+			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
 		if err != nil {
-            panic(err)
+			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
 		if err != nil {
-            panic(err)
+			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
@@ -230,7 +230,7 @@ func generateDefaultNetwork(
 		defaultNetworkConfig.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
 			BinaryPath: binaryPath,
 		}
-    }
+	}
 	return newNetwork(log, defaultNetworkConfig, newAPIClientF, newNodeProcessF)
 }
 
