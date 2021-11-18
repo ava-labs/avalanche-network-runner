@@ -218,6 +218,8 @@ func GenerateDefaultNetwork(
 // Pre-funded addresses:
 // X chain X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
 // privateKey PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// X chain X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+// privateKey PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
 // C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
 // privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
 func generateDefaultNetwork(
