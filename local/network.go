@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -170,11 +171,12 @@ func GenerateDefaultNetwork(
 	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
+	random := rand.New(rand.NewSource(0))
 	networkID := uint32(1337)
 	var nodeConfigs []node.Config
 	var genesisValidators []ids.ShortID
 	for i := 0; i < 5; i++ {
-		stakingCert, stakingKey, err := utils.NewDeterministicCertAndKeyBytes(int64(i))
+		stakingCert, stakingKey, err := utils.NewDeterministicCertAndKeyBytes(random)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
 		}

@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -53,20 +53,26 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 	return uint32(networkID), nil
 }
 
-// Creates a new staking private key / staking certificate pair.
-// Deterministically based on a given seed.
-// Returns the PEM byte representations of both.
-func NewDeterministicCertAndKeyBytes(seed int64) ([]byte, []byte, error) {
-	// Generate deterministic Reader
-	// Both RSA and ECDSA use a non deterministic Reader to change the state
-	// of the deterministic one. As RSA golang implementation does it before key
-	// generation, is not useful for this function
-	// ECDSA does it after key generation so can be used, but
-	// needs a reset of the deterministic reader before generating a
-	// the new key.
-	random := rand.New(rand.NewSource(seed))
+type zeroReader struct {
+}
 
-	// Create key to sign cert using ECDSA
+// Read replaces the contents of dst with zeros.
+func (zr *zeroReader) Read(dst []byte) (n int, err error) {
+	for i := range dst {
+		dst[i] = 0
+	}
+	return len(dst), nil
+}
+
+// Creates a new staking private key / staking certificate pair.
+// Deterministically based on a given Reader
+// Returns the PEM byte representations of both.
+func NewDeterministicCertAndKeyBytes(random io.Reader) ([]byte, []byte, error) {
+
+	// Create key to sign cert
+	// Both RSA and ECDSA use a non deterministic Reader to change the state
+	// of the deterministic one. But RSA golang implementation does it before key
+	// generation, is not useful
 	key, err := ecdsa.GenerateKey(elliptic.P256(), random)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't generate ecdsa key: %w", err)
@@ -80,7 +86,8 @@ func NewDeterministicCertAndKeyBytes(seed int64) ([]byte, []byte, error) {
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment,
 		BasicConstraintsValid: true,
 	}
-	certBytes, err := x509.CreateCertificate(random, certTemplate, certTemplate, &key.PublicKey, key)
+	// a zeroReader is used to avoid ECDSA signing to change the state of the deterministic reader
+	certBytes, err := x509.CreateCertificate(zeroReader{}, certTemplate, certTemplate, &key.PublicKey, key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't create certificate: %w", err)
 	}
