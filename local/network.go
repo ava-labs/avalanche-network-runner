@@ -69,7 +69,7 @@ var (
 	//go:embed default
 	embeddedDefaultNetworkConfigDir embed.FS
 	// prepopulated network config, only lacking binaryPath info
-	defaultNetworkConfig network.Config
+	DefaultNetworkConfig network.Config
 )
 
 // populate default network config from embedded default directory
@@ -79,31 +79,31 @@ func init() {
 		panic(err)
 	}
 
-	defaultNetworkConfig = network.Config{
+	DefaultNetworkConfig = network.Config{
 		Name:        "my network",
 		NodeConfigs: make([]node.Config, defaultNumNodes),
 		LogLevel:    "INFO",
 	}
 
-	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	DefaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
 		panic(err)
 	}
 
-	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+	for i := 0; i < len(DefaultNetworkConfig.NodeConfigs); i++ {
+		DefaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		DefaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		DefaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
+		DefaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 }
 
@@ -226,12 +226,12 @@ func generateDefaultNetwork(
 	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
-	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		defaultNetworkConfig.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
+	for i := 0; i < len(DefaultNetworkConfig.NodeConfigs); i++ {
+		DefaultNetworkConfig.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
 			BinaryPath: binaryPath,
 		}
 	}
-	return newNetwork(log, defaultNetworkConfig, newAPIClientF, newNodeProcessF)
+	return newNetwork(log, DefaultNetworkConfig, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network
