@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -66,8 +65,6 @@ func run(log logging.Logger, binaryPath string) error {
 	nw, err := local.NewNetwork(
 		log,
 		networkConfig,
-		api.NewAPIClient,
-		local.NewNodeProcess,
 	)
 	if err != nil {
 		return err

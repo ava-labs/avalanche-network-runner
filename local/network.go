@@ -105,8 +105,16 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork creates a network from given configuration and map of node kinds to binaries
+// NewNetwork creates a network from given configuration
 func NewNetwork(
+	log logging.Logger,
+	networkConfig network.Config,
+) (network.Network, error) {
+	return newNetwork(log, networkConfig, api.NewAPIClient, NewNodeProcess)
+}
+
+// newNetwork generalizes NewNetwork with mock definitions
+func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
@@ -166,6 +174,14 @@ func NewNetwork(
 // C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
 // privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027 =>
 func GenerateDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error) {
+	return generateDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
+}
+
+// generateDefaultNetwork generalizes GenerateDefaultNetwork with mock definitions
+func generateDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 	newAPIClientF api.NewAPIClientF,
@@ -247,7 +263,7 @@ func GenerateDefaultNetwork(
 		Genesis:     genesis,
 		NodeConfigs: nodeConfigs,
 	}
-	return NewNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
+	return newNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network
