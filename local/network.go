@@ -105,7 +105,7 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork creates a network from given configuration
+// NewNetwork call newNetwork with no mocking
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
@@ -113,7 +113,7 @@ func NewNetwork(
 	return newNetwork(log, networkConfig, api.NewAPIClient, NewNodeProcess)
 }
 
-// newNetwork generalizes NewNetwork with mock definitions
+// newNetwork creates a network from given configuration
 func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
@@ -167,12 +167,7 @@ func newNetwork(
 	return net, nil
 }
 
-// GenerateDefaultNetwork creates a default network of 5 validator nodes
-// Pre-funded addresses:
-// X chain X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
-// privateKey PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
-// C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
-// privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027 =>
+// GenerateDefaultNetwork call generateDefaultNetwork with no mocking
 func GenerateDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
@@ -180,7 +175,12 @@ func GenerateDefaultNetwork(
 	return generateDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
 }
 
-// generateDefaultNetwork generalizes GenerateDefaultNetwork with mock definitions
+// generateDefaultNetwork creates a default network of 5 validator nodes
+// Pre-funded addresses:
+// X chain X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// privateKey PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027 =>
 func generateDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
