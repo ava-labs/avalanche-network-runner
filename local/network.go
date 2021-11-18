@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+    "math/rand"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
@@ -18,7 +19,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/staking"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
@@ -171,11 +171,12 @@ func GenerateDefaultNetwork(
 	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
+    random := rand.New(rand.NewSource(0))
 	networkID := uint32(1337)
 	var nodeConfigs []node.Config
 	var genesisValidators []ids.ShortID
 	for i := 0; i < 5; i++ {
-		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+		stakingCert, stakingKey, err := utils.NewCertAndKeyBytes(random)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
 		}
@@ -240,7 +241,6 @@ func GenerateDefaultNetwork(
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate default genesis: %w", err)
 	}
-	fmt.Println(string(genesis))
 	networkConfig := network.Config{
 		LogLevel:    "DEBUG",
 		Name:        "Default Network",
