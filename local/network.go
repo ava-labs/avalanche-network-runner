@@ -180,7 +180,7 @@ func GenerateDefaultNetwork(
 // X chain X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
 // privateKey PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
 // C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
-// privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027 =>
+// privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
 func generateDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
