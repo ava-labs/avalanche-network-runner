@@ -2,14 +2,15 @@ package utils
 
 import (
 	"bytes"
-	"crypto/rsa"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"math/big"
+	"math/rand"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -53,20 +54,29 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 }
 
 // Creates a new staking private key / staking certificate pair.
+// Deterministically based on a given seed.
 // Returns the PEM byte representations of both.
-// TODO: PR to avalanchego to add random parameter
-func NewCertAndKeyBytes(random io.Reader) ([]byte, []byte, error) {
-	// Create key to sign cert with
-	key, err := rsa.GenerateKey(random, 4096)
+func NewDeterministicCertAndKeyBytes(seed int64) ([]byte, []byte, error) {
+	// Generate deterministic Reader
+	// Both RSA and ECDSA use a non deterministic Reader to change the state
+	// of the deterministic one. As RSA golang implementation does it before key
+	// generation, is not useful for this function
+	// ECDSA does it after key generation so can be used, but
+	// needs a reset of the deterministic reader before generating a
+	// the new key.
+	random := rand.New(rand.NewSource(seed))
+
+	// Create key to sign cert using ECDSA
+	key, err := ecdsa.GenerateKey(elliptic.P256(), random)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't generate rsa key: %w", err)
+		return nil, nil, fmt.Errorf("couldn't generate ecdsa key: %w", err)
 	}
 
 	// Create self-signed staking cert
 	certTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(0),
 		NotBefore:             time.Date(2000, time.January, 0, 0, 0, 0, 0, time.UTC),
-		NotAfter:              time.Now().AddDate(100, 0, 0),
+		NotAfter:              time.Date(3000, time.January, 0, 0, 0, 0, 0, time.UTC),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment,
 		BasicConstraintsValid: true,
 	}
