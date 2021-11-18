@@ -13,15 +13,19 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
-	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/staking"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/coreth/plugin/evm"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -155,7 +159,12 @@ func NewNetwork(
 	return net, nil
 }
 
-// GenerateDefaultNetwork creates a default network
+// GenerateDefaultNetwork creates a default network of 5 validator nodes
+// Pre-funded addresses:
+// X chain X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// privateKey PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// C chain 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// privateKey 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027 =>
 func GenerateDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
@@ -163,42 +172,67 @@ func GenerateDefaultNetwork(
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
 	networkID := uint32(1337)
-    var nodeConfigs []node.Config
+	var nodeConfigs []node.Config
 	var genesisValidators []ids.ShortID
 	for i := 0; i < 5; i++ {
-        stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-        if err != nil {
-            return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
-        }
-        nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
-        if err != nil {
-            return nil, fmt.Errorf("couldn't create node ID: %w", err)
-        }
+		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create node staking cert, key: %w", err)
+		}
+		nodeID, err := utils.ToNodeID(stakingKey, stakingCert)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create node ID: %w", err)
+		}
 		nodeConfig := node.Config{
-			Name: fmt.Sprintf("node%d", i),
-            IsBeacon: true,
-            StakingCert: stakingCert,
-            StakingKey: stakingKey,
+			Name:        fmt.Sprintf("node%d", i),
+			IsBeacon:    true,
+			StakingCert: stakingCert,
+			StakingKey:  stakingKey,
 			ImplSpecificConfig: NodeConfig{
 				BinaryPath: binaryPath,
 			},
 		}
-	    genesisValidators = append(genesisValidators, nodeID)
+		genesisValidators = append(genesisValidators, nodeID)
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 	}
+
+	// get private key
+	privateKey := "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
+	trimmedPrivateKey := strings.TrimPrefix(privateKey, avalancheconstants.SecretKeyPrefix)
+	privKeyBytes, err := formatting.Decode(formatting.CB58, trimmedPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode private key string: %w", err)
+	}
+	factory := crypto.FactorySECP256K1R{}
+	skIntf, err := factory.ToPrivateKey(privKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get private key: %w", err)
+	}
+	sk := skIntf.(*crypto.PrivateKeySECP256K1R)
+
+	// get x chain addr short id
+	xChainAddrShortID := sk.PublicKey().Address()
+
+	// get c chain addr short id
+	ethAddr := evm.GetEthAddress(sk)
+	cChainAddrShortID, err := ids.ToShortID(ethAddr.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("unable to get short id from c chain addr bytes: %w", err)
+	}
+
 	genesis, err := network.NewAvalancheGoGenesis(
 		log,
 		networkID,
-		[]network.AddrAndBalance{
+		[]network.AddrAndBalance{ // X-Chain Balances
 			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: 1,
+				Addr:    xChainAddrShortID,
+				Balance: units.KiloAvax,
 			},
 		},
-		[]network.AddrAndBalance{
+		[]network.AddrAndBalance{ // C-Chain Balances
 			{
-				Addr:    ids.GenerateTestShortID(),
-				Balance: 1,
+				Addr:    cChainAddrShortID,
+				Balance: units.KiloAvax,
 			},
 		},
 		genesisValidators,
@@ -206,13 +240,14 @@ func GenerateDefaultNetwork(
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate default genesis: %w", err)
 	}
-    networkConfig := network.Config{
-		LogLevel: "DEBUG",
-		Name:     "Default Network",
-        Genesis: genesis,
-        NodeConfigs: nodeConfigs,
+	fmt.Println(string(genesis))
+	networkConfig := network.Config{
+		LogLevel:    "DEBUG",
+		Name:        "Default Network",
+		Genesis:     genesis,
+		NodeConfigs: nodeConfigs,
 	}
-    return NewNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
+	return NewNetwork(log, networkConfig, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network

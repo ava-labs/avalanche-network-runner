@@ -307,8 +307,8 @@ func TestGeneratedNodesNames(t *testing.T) {
 
 func TestDefaultNetwork(t *testing.T) {
 	assert := assert.New(t)
-    binaryPath := "pepito"
-    net, err := GenerateDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
+	binaryPath := "pepito"
+	net, err := GenerateDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
