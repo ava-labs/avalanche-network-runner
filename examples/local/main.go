@@ -150,6 +150,7 @@ func run(log logging.Logger, binaryPath string) error {
 		StakingKey:  stakingKey,
 		StakingCert: stakingCert,
 	}
+	log.Info("adding node %q", nodeConfig.Name)
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err
 	}
