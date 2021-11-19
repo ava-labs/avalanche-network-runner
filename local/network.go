@@ -217,30 +217,26 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Tell the node to put the database in [tmpDir], unless overwritten in config
 	dbPath := tmpDir
-	dbPathFromConfig, ok := configFile[config.DBPathKey].(string)
-	if ok {
+	if dbPathFromConfig, ok := configFile[config.DBPathKey].(string); ok {
 		dbPath = dbPathFromConfig
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath))
 
 	// Tell the node to put the log directory in [tmpDir], unless overwritten in config
 	logsDir := filepath.Join(tmpDir, "logs")
-	logsDirFromConfig, ok := configFile[config.LogsDirKey].(string)
-	if ok {
+	if logsDirFromConfig, ok := configFile[config.LogsDirKey].(string); ok {
 		logsDir = logsDirFromConfig
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir))
 
 	// Use generated api port, unless overwritten in config
-	apiPortFromConfig, ok := configFile[config.HTTPPortKey].(float64)
-	if ok {
+	if apiPortFromConfig, ok := configFile[config.HTTPPortKey].(float64); ok {
 		apiPort = int(apiPortFromConfig)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort))
 
 	// Use generated P2P (staking) port, unless overwritten in config
-	p2pPortFromConfig, ok := configFile[config.StakingPortKey].(float64)
-	if ok {
+	if p2pPortFromConfig, ok := configFile[config.StakingPortKey].(float64); ok {
 		p2pPort = int(p2pPortFromConfig)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort))
