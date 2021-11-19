@@ -243,6 +243,38 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
+        "wrong http port type in config": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"http-port\": \"0\"}"),
+					},
+				},
+			},
+		},
+        "wrong staking port type in config": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"staking-port\": \"0\"}"),
+					},
+				},
+			},
+		},
         "network id mismatch": {
 			config: network.Config{
                 Genesis: []byte("{\"networkID\": 0}"),
