@@ -195,7 +195,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
-        "config file network id type": {
+        "wrong network id type in config file": {
 			config: network.Config{
                 Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
@@ -207,6 +207,38 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
                         ConfigFile: []byte("{\"network-id\": \"0\"}"),
+					},
+				},
+			},
+		},
+        "wrong db dir type in config": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"db-dir\": 0}"),
+					},
+				},
+			},
+		},
+        "wrong log dir type in config": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"log-dir\": 0}"),
 					},
 				},
 			},

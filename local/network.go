@@ -230,15 +230,33 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
     }
     flags = append(flags, fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID))
 
-	flags = []string{
-		// Tell the node its network ID
-		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		// Tell the node to put the database in [tmpDir]
-		// TODO allow user to specify different database directory
-		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
+    var dbPath string
+	dbPathIntf, ok := configFile[config.DBPathKey]
+    if ok {
+        dbPath, ok = dbPathIntf.(string)
+        if !ok {
+		    return nil, fmt.Errorf("wrong type for field %q in config expected string got %T", config.DBPathKey, dbPathIntf)
+        }
+    } else {
+        // Tell the node to put the database in [tmpDir]
+        dbPath = tmpDir
+    }
+    fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath)
+
+    var logsDir string
+	logsDirIntf, ok := configFile[config.LogsDirKey]
+    if ok {
+        logsDir, ok = logsDirIntf.(string)
+        if !ok {
+		    return nil, fmt.Errorf("wrong type for field %q in config expected string got %T", config.LogsDirKey, logsDirIntf)
+        }
+    } else {
 		// Tell the node to put the log directory in [tmpDir]
-		// TODO allow user to specify different logs directory
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
+        logsDir = filepath.Join(tmpDir, "logs")
+    }
+    fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir)
+
+	flags = append(flags,
 		// Tell the node to use this API port
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		// Tell the node to use this P2P (staking) port
@@ -246,7 +264,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		// Tell the node which nodes to bootstrap from
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
-	}
+	)
 
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
