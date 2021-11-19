@@ -264,7 +264,7 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig := defaultNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
-	_, err := NewNetwork(networkConfig, logging.NoLog{})
+	_, err := newNetwork(networkConfig, logging.NoLog{}, newFakeK8sClient)
 	assert.Error(err)
 }
 
