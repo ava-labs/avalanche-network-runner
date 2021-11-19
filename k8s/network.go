@@ -194,7 +194,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 		return nil, err
 	}
 	a.log.Debug("Adding new node %s to network...", cfg.Name)
-	if err := a.k8scli.Create(context.TODO(), node); err != nil {
+	if err := a.k8scli.Create(context.Background(), node); err != nil {
 		return nil, err
 	}
 
@@ -272,13 +272,13 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 			n.Spec.BootstrapperURL = a.beaconURL
 		}
 		// Create a Kubernetes pod for this node
-		if err := a.k8scli.Create(context.TODO(), n); err != nil {
+		if err := a.k8scli.Create(context.Background(), n); err != nil {
 			return err
 		}
 
 		a.log.Debug("Waiting for pod to be created...")
 		for len(n.Status.NetworkMembersURI) != 1 {
-			err := a.k8scli.Get(context.TODO(), types.NamespacedName{
+			err := a.k8scli.Get(context.Background(), types.NamespacedName{
 				Name:      n.Name,
 				Namespace: n.Namespace,
 			}, n)
