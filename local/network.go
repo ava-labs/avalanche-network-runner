@@ -244,7 +244,6 @@ func newDefaultNetwork(
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i] = defaultNetworkConfig.NodeConfigs[i]
 		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
 			BinaryPath: binaryPath,
 		}
