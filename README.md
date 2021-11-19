@@ -106,21 +106,32 @@ The function that returns a new network may have additional configuration fields
 
 ## Default Network Creation
 
-A default network config is provided: `DefaultNetworkConfig`. It consist of 5 validation nodes, and a set of prefunded addresses. It can be used as a base for configuration and network execution. Requires to set some specifics previous to beign used (eg `avalanchego` version to execute).
+The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
+This allows users to create a new network without needing to define any configurations. 
 
-Pre-funded addresses:
-
-- X chain
-    * X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
-    * PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
-- X chain
-    * X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
-    * PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
-- C chain
-    * 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
-    * privateKey: 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
-
-For each backend, `GenerateDefaultNetwork` function is available to easy the task of filling out `DefaultNetworkConfig` and then create the default network.
+```
+// NewDefaultNetwork returns a new network using a pre-defined
+// network configuration.
+// The following addresses are pre-funded:
+// X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// X-Chain Address 2:     X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+// X-Chain Address 2 Key: PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
+// C-Chain Address:       0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// C-Chain Address Key:   56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// The following nodes are validators:
+// * NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
+// * NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
+// * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
+// * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
+// * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error) {
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
+}
+```
 
 ## Network Interaction
 
