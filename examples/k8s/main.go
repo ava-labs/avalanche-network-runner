@@ -76,17 +76,16 @@ func main() {
 	defer cancel()
 
 	network, err := k8s.NewNetwork(networkConfig, log)
+	if err != nil {
+		log.Fatal("Error creating network: %s", err)
+		return
+	}
 	defer func() {
 		if err := network.Stop(ctx); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
 			os.Exit(1)
 		}
 	}()
-
-	if err != nil {
-		log.Fatal("Error creating network: %s", err)
-		return
-	}
 
 	log.Info("Network created. Booting...")
 

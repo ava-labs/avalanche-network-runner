@@ -92,6 +92,13 @@ func newNetwork(conf network.Config, log logging.Logger, newClientFunc func() (k
 	}
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := net.k8scli.DeleteAllOf(ctx, &k8sapi.Avalanchego{}, &k8scli.DeleteAllOfOptions{}); err != nil {
+			net.log.Error("Error clearing all of the k8s objects: %s", err)
+		}
+	}()
 	if err := net.launchNodes(beacons); err != nil {
 		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
