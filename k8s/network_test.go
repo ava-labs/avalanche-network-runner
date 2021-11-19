@@ -44,7 +44,7 @@ func cleanup(n network.Network) {
 func TestNewNetworkEmpty(t *testing.T) {
 	conf := network.Config{}
 
-	_, err := NewNetwork(conf, logging.NoLog{})
+	_, err := newNetwork(conf, logging.NoLog{}, newFakeK8sClient)
 	assert.Error(t, err)
 }
 
