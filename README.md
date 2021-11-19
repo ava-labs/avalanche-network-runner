@@ -109,7 +109,7 @@ The function that returns a new network may have additional configuration fields
 The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
 This allows users to create a new network without needing to define any configurations. 
 
-```
+```go
 // NewDefaultNetwork returns a new network using a pre-defined
 // network configuration.
 // The following addresses are pre-funded:
