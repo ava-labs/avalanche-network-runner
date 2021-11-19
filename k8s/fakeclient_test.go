@@ -31,19 +31,19 @@ type fakeOperatorClient struct {
 // root serves / HTTP requests
 func root(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 // healthCheck serves the health API endpoint
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte(`{"jsonrpc":"2.0","result":{"healthy":true},"id":1}`))
+	_, _ = w.Write([]byte(`{"jsonrpc":"2.0","result":{"healthy":true},"id":1}`))
 }
 
 // info serves the info API endpoint
 func info(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","result":{"nodeID":"NodeID-%s"},"id":1}`, ids.GenerateTestShortID().String())))
+	_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","result":{"nodeID":"NodeID-%s"},"id":1}`, ids.GenerateTestShortID().String())))
 }
 
 // runHTTPServer runs a HTTP server which fakes real avalanchego API calls
@@ -63,7 +63,7 @@ func (f *fakeOperatorClient) runHTTPServer() {
 
 	go func() {
 		if err := f.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Println(fmt.Sprintf("error on server listen: %s\n", err))
+			fmt.Printf("error on server listen: %s\n", err)
 		}
 	}()
 
@@ -78,7 +78,7 @@ func (f *fakeOperatorClient) runHTTPServer() {
 	}()
 
 	if err := f.srv.Shutdown(ctx); err != nil {
-		fmt.Println(fmt.Sprintf("error on server shutdown: %s\n", err))
+		fmt.Printf("error on server shutdown: %s\n", err)
 	}
 	fmt.Println("HTTP server exited properly")
 	f.wg.Done()
@@ -114,7 +114,7 @@ func (f *fakeOperatorClient) RESTMapper() meta.RESTMapper {
 func (f *fakeOperatorClient) Get(ctx context.Context, key k8scli.ObjectKey, obj k8scli.Object) error {
 	for _, n := range f.nodes {
 		if n.Name == key.Name && n.Namespace == key.Namespace {
-			obj = n
+			// obj = n.DeepCopy()
 			return nil
 		}
 	}
