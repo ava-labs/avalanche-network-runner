@@ -422,7 +422,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
 			_, err := NewNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, newMockProcessSuccessful)
-			fmt.Println(err)
 			assert.Error(err)
 		})
 	}
