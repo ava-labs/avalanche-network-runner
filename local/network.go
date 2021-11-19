@@ -210,42 +210,39 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		_ = json.Unmarshal(nodeConfig.ConfigFile, &configFile)
 	}
 
-	// Flags for AvalancheGo
-	flags := []string{
-		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-	}
-
 	// Tell the node to put the database in [tmpDir], unless overwritten in config
 	dbPath := tmpDir
 	if dbPathFromConfig, ok := configFile[config.DBPathKey].(string); ok {
 		dbPath = dbPathFromConfig
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath))
 
 	// Tell the node to put the log directory in [tmpDir], unless overwritten in config
 	logsDir := filepath.Join(tmpDir, "logs")
 	if logsDirFromConfig, ok := configFile[config.LogsDirKey].(string); ok {
 		logsDir = logsDirFromConfig
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir))
 
 	// Use generated api port, unless overwritten in config
 	if apiPortFromConfig, ok := configFile[config.HTTPPortKey].(float64); ok {
 		apiPort = int(apiPortFromConfig)
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort))
 
 	// Use generated P2P (staking) port, unless overwritten in config
 	if p2pPortFromConfig, ok := configFile[config.StakingPortKey].(float64); ok {
 		p2pPort = int(p2pPortFromConfig)
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort))
 
-	// Tell the node which nodes to bootstrap from
-	flags = append(flags,
+	// Flags for AvalancheGo
+	flags := []string{
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
+		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
+		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
+		// Tell the node which nodes to bootstrap from
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
-	)
+	}
 
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
