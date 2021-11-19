@@ -361,6 +361,21 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
+		"invalid staking cert/key": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
+						StakingCert: []byte("nonempty"),
+					},
+				},
+			},
+		},
 		"no beacon node": {
 			config: network.Config{
 				Genesis: []byte("{\"networkID\": 0}"),
