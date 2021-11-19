@@ -112,10 +112,8 @@ func NewNetwork(
 	}
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 
-	networkID, err := utils.NetworkIDFromGenesis(networkConfig.Genesis)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
-	}
+	networkID, _ := utils.NetworkIDFromGenesis(networkConfig.Genesis)
+
 	// Create the network
 	net := &localNetwork{
 		networkID:       networkID,
@@ -209,73 +207,46 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// and prioritize its settings
 	var configFile map[string]interface{}
 	if len(nodeConfig.ConfigFile) != 0 {
-		if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
-			return nil, fmt.Errorf("could not unmarshall config file: %w", err)
-		}
+		_ = json.Unmarshal(nodeConfig.ConfigFile, &configFile)
 	}
 
 	// Flags for AvalancheGo
-	flags := []string{}
-
-	// network id cross check
-	networkIDIntf, ok := configFile[config.NetworkNameKey]
-	if ok {
-		networkID, ok := networkIDIntf.(float64)
-		if !ok {
-			return nil, fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.NetworkNameKey, networkIDIntf)
-		}
-		if uint32(networkID) != ln.networkID {
-			return nil, fmt.Errorf("config file network id %v differs from genesis network id %v", networkID, ln.networkID)
-		}
+	flags := []string{
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID))
 
 	// Tell the node to put the database in [tmpDir], unless overwritten in config
 	dbPath := tmpDir
-	dbPathIntf, ok := configFile[config.DBPathKey]
+	dbPathFromConfig, ok := configFile[config.DBPathKey].(string)
 	if ok {
-		dbPath, ok = dbPathIntf.(string)
-		if !ok {
-			return nil, fmt.Errorf("wrong type for field %q in config expected string got %T", config.DBPathKey, dbPathIntf)
-		}
+		dbPath = dbPathFromConfig
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath))
 
 	// Tell the node to put the log directory in [tmpDir], unless overwritten in config
 	logsDir := filepath.Join(tmpDir, "logs")
-	logsDirIntf, ok := configFile[config.LogsDirKey]
+	logsDirFromConfig, ok := configFile[config.LogsDirKey].(string)
 	if ok {
-		logsDir, ok = logsDirIntf.(string)
-		if !ok {
-			return nil, fmt.Errorf("wrong type for field %q in config expected string got %T", config.LogsDirKey, logsDirIntf)
-		}
+		logsDir = logsDirFromConfig
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir))
 
 	// Use generated api port, unless overwritten in config
-	apiPortIntf, ok := configFile[config.HTTPPortKey]
+	apiPortFromConfig, ok := configFile[config.HTTPPortKey].(float64)
 	if ok {
-		apiPortF, ok := apiPortIntf.(float64)
-		if !ok {
-			return nil, fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.HTTPPortKey, apiPortIntf)
-		}
-		apiPort = int(apiPortF)
+		apiPort = int(apiPortFromConfig)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort))
 
 	// Use generated P2P (staking) port, unless overwritten in config
-	p2pPortIntf, ok := configFile[config.StakingPortKey]
+	p2pPortFromConfig, ok := configFile[config.StakingPortKey].(float64)
 	if ok {
-		p2pPortF, ok := p2pPortIntf.(float64)
-		if !ok {
-			return nil, fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.StakingPortKey, p2pPortIntf)
-		}
-		p2pPort = int(p2pPortF)
+		p2pPort = int(p2pPortFromConfig)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort))
 
+	// Tell the node which nodes to bootstrap from
 	flags = append(flags,
-		// Tell the node which nodes to bootstrap from
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	)

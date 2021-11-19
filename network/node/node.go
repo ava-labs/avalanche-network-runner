@@ -1,9 +1,12 @@
 package node
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -28,7 +31,51 @@ type Config struct {
 }
 
 // Returns an error if this config is invalid
-func (c *Config) Validate() error {
+func (c *Config) Validate(genesisNetworkID uint32) error {
+	var configFile map[string]interface{}
+	if len(c.ConfigFile) != 0 {
+		if err := json.Unmarshal(c.ConfigFile, &configFile); err != nil {
+			return fmt.Errorf("could not unmarshall config file: %w", err)
+		}
+	}
+	networkIDIntf, ok := configFile[config.NetworkNameKey]
+	if ok {
+		networkID, ok := networkIDIntf.(float64)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.NetworkNameKey, networkIDIntf)
+		}
+		if uint32(networkID) != genesisNetworkID {
+			return fmt.Errorf("config file network id %v differs from genesis network id %v", networkID, genesisNetworkID)
+		}
+	}
+	dbPathIntf, ok := configFile[config.DBPathKey]
+	if ok {
+		_, ok = dbPathIntf.(string)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.DBPathKey, dbPathIntf)
+		}
+	}
+	logsDirIntf, ok := configFile[config.LogsDirKey]
+	if ok {
+		_, ok = logsDirIntf.(string)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.LogsDirKey, logsDirIntf)
+		}
+	}
+	apiPortIntf, ok := configFile[config.HTTPPortKey]
+	if ok {
+		_, ok := apiPortIntf.(float64)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	}
+	p2pPortIntf, ok := configFile[config.StakingPortKey]
+	if ok {
+		_, ok := p2pPortIntf.(float64)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.StakingPortKey, p2pPortIntf)
+		}
+	}
 	switch {
 	case c.ImplSpecificConfig == nil:
 		return errors.New("implementation-specific node config not given")
