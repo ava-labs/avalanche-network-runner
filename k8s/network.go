@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -46,16 +45,13 @@ const (
 	envVarNetworkID = "AVAGO_NETWORK_ID"
 )
 
-var (
-	errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
-)
+var errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 
 // networkImpl is the kubernetes data type representing a kubernetes network adapter.
 // It implements the network.Network interface
 type networkImpl struct {
-	config  network.Config
-	k8scli  k8scli.Client
-	kconfig *rest.Config
+	config network.Config
+	k8scli k8scli.Client
 	// Node name --> The node
 	nodes     map[string]*Node
 	beaconURL string
@@ -64,15 +60,18 @@ type networkImpl struct {
 	log            logging.Logger
 }
 
-// NewNetwork returns a new network whose initial state is specified in the config
-func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
+func newK8sClient() (k8scli.Client, error) {
 	// init k8s client
 	scheme := runtime.NewScheme()
 	if err := k8sapi.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
 	kubeconfig := ctrl.GetConfigOrDie()
-	kubeClient, err := k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
+	return k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
+}
+
+func newNetwork(conf network.Config, log logging.Logger, newClientFunc func() (k8scli.Client, error)) (network.Network, error) {
+	kubeClient, err := newClientFunc()
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +86,11 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 	net := &networkImpl{
 		config:         conf,
 		k8scli:         kubeClient,
-		kconfig:        kubeconfig,
 		closedOnStopCh: make(chan struct{}),
 		log:            log,
 		nodes:          make(map[string]*Node, len(conf.NodeConfigs)),
 	}
+	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
 	if err := net.launchNodes(beacons); err != nil {
 		return nil, fmt.Errorf("error launching beacons: %w", err)
@@ -115,6 +114,11 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 
 	net.log.Info("network: %s", net)
 	return net, nil
+}
+
+// NewNetwork returns a new network whose initial state is specified in the config
+func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
+	return newNetwork(conf, log, newK8sClient)
 }
 
 // GetNodesNames returns an array of node names
@@ -200,7 +204,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	}
 
 	uri := node.Status.NetworkMembersURI[0]
-	cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
+	cli := api.NewAPIClient(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
 	nodeIDStr, err := cli.InfoAPI().GetNodeID()
 	if err != nil {
 		return nil, err
@@ -210,13 +214,15 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not convert node id from string: %s", err)
 	}
-	return &Node{
+	n := &Node{
 		uri:    uri,
 		client: cli,
 		name:   node.Spec.DeploymentName,
 		nodeID: nodeID,
 		k8sObj: node,
-	}, nil
+	}
+	a.nodes[n.name] = n
+	return n, nil
 }
 
 // RemoveNode stops the node with this ID.
@@ -229,6 +235,7 @@ func (a *networkImpl) RemoveNode(id string) error {
 			return err
 		}
 		a.log.Info("Removed node %s", p)
+		delete(a.nodes, id)
 		return nil
 	}
 	return errNodeDoesNotExist
@@ -292,7 +299,7 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 		// so using the API Client too early results in an error.
 		node := n
 		errGr.Go(func() error {
-			fmturi := fmt.Sprintf("http://%s:%d", node.Status.NetworkMembersURI[0], constants.DefaultPort)
+			fmturi := fmt.Sprintf("http://%s:%d", node.Status.NetworkMembersURI[0], constants.DefaultAPIPort)
 			for {
 				select {
 				case <-ctx.Done():
@@ -396,6 +403,9 @@ func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 // Given a node's config and genesis, returns the environment
 // variables (i.e. config flags) to give to the node
 func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
+	if c.ConfigFile == nil {
+		return []corev1.EnvVar{}, nil
+	}
 	var avagoConf map[string]interface{} // AvalancheGo config file as a map
 	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
 		return nil, err
@@ -437,7 +447,7 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	for _, n := range nodes {
 		uri := n.Status.NetworkMembersURI[0]
 		a.log.Debug("creating network node and client for %s", uri)
-		cli := api.NewAPIClient(uri, constants.DefaultPort, constants.APITimeoutDuration)
+		cli := api.NewAPIClient(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
 		nodeIDStr, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err

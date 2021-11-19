@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.12
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
+	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-hclog v0.15.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.0 // indirect
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce // indirect
@@ -25,6 +26,6 @@ require (
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	k8s.io/api v0.22.3
 	k8s.io/apimachinery v0.22.3
-	k8s.io/client-go v0.22.3
+	k8s.io/client-go v0.22.3 // indirect
 	sigs.k8s.io/controller-runtime v0.10.2
 )
