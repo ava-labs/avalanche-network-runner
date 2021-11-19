@@ -146,22 +146,88 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 
 // Check configs that are expected to be invalid at network creation time
 func TestWrongNetworkConfigs(t *testing.T) {
+	refNetworkConfig := defaultNetworkConfig(t)
 	tests := map[string]struct {
 		config network.Config
 	}{
+        /*
+        "pepe": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+        },
+        */
 		"no ImplSpecificConfig": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+                Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
-		"empty nodeID": {
+        "config file unmarshall": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+				        ConfigFile: []byte("nonempty"),
+					},
+				},
+			},
+		},
+        "config file network id type": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"network-id\": \"0\"}"),
+					},
+				},
+			},
+		},
+        "network id mismatch": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+                        ConfigFile: []byte("{\"network-id\": 1}"),
+					},
+				},
+			},
+		},
+        "genesis unmarshall": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
@@ -170,8 +236,38 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+		},
+        "no network id in genesis": {
+			config: network.Config{
+                Genesis: []byte("{}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+		},
+        "wrong network id type in genesis": {
+			config: network.Config{
+                Genesis: []byte("{\"networkID\": \"0\"}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
@@ -184,57 +280,57 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+                Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
 						IsBeacon:   true,
-						StakingKey: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 					},
 				},
 			},
 		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+                Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingCert: []byte("nonempty"),
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
 		"no beacon node": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+                Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
 		"repeated name": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+                Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						Name: "node0",
@@ -242,8 +338,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 					{
 						Name: "node0",
@@ -251,8 +347,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[1].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[1].StakingCert,
 					},
 				},
 			},
@@ -262,6 +358,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
 			_, err := NewNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, newMockProcessSuccessful)
+            fmt.Println(err)
 			assert.Error(err)
 		})
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+    "encoding/json"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
@@ -204,11 +205,32 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// Flags for AvalancheGo that point to the files
-	// we're about to create.
-	// Note that these flags will overwrite the values of these
-	// config options in the config file, if applicable.
-	flags := []string{
+    // if config file for node is given, parse contents to do cross checks
+    // and prioritize its settings
+    var configFile map[string]interface{}
+	if len(nodeConfig.ConfigFile) != 0 {
+	    if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
+		    return nil, fmt.Errorf("could not unmarshall config file: %w", err)
+	    }
+    }
+
+	// Flags for AvalancheGo 
+	flags := []string{}
+
+    // network id cross check
+	networkIDIntf, ok := configFile[config.NetworkNameKey]
+    if ok {
+        networkID, ok := networkIDIntf.(float64)
+        if !ok {
+		    return nil, fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.NetworkNameKey, networkIDIntf)
+        }
+        if uint32(networkID) != ln.networkID {
+		    return nil, fmt.Errorf("config file network id %v differs from genesis network id %v", networkID, ln.networkID)
+        }
+    }
+    flags = append(flags, fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID))
+
+	flags = []string{
 		// Tell the node its network ID
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 		// Tell the node to put the database in [tmpDir]
