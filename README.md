@@ -80,9 +80,8 @@ Note that both genesis and network conf should contain the same network id.
 
 ## Network Creation
 
-Each network runner implementation (local/Kubernetes) has a function that returns a new network.
-
-Each is parameterized on `network.Config`:
+Each network runner implementation (local/Kubernetes) has a function `NewNetwork` that returns a new network,
+parameterized on `network.Config`:
 
 ```go
 type Config struct {
@@ -104,6 +103,24 @@ type Config struct {
 ```
 
 The function that returns a new network may have additional configuration fields.
+
+## Default Network Creation
+
+A default network config is provided: `DefaultNetworkConfig`. It consist of 5 validation nodes, and a set of prefunded addresses. It can be used as a base for configuration and network execution. Requires to set some specifics previous to beign used (eg `avalanchego` version to execute).
+
+Pre-funded addresses:
+
+- X chain
+    * X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+    * PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+- X chain
+    * X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+    * PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
+- C chain
+    * 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+    * privateKey: 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+
+For each backend, `GenerateDefaultNetwork` function is available to easy the task of filling out `DefaultNetworkConfig` and then create the default network.
 
 ## Network Interaction
 
