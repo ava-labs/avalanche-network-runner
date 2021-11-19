@@ -76,15 +76,17 @@ func main() {
 	defer cancel()
 
 	network, err := k8s.NewNetwork(networkConfig, log)
-	if err != nil {
-		log.Fatal("Error creating network: %s", err)
-		os.Exit(1)
-	}
 	defer func() {
 		if err := network.Stop(ctx); err != nil {
 			log.Error("Error stopping network (ignored): %s", err)
+			os.Exit(1)
 		}
 	}()
+
+	if err != nil {
+		log.Fatal("Error creating network: %s", err)
+		return
+	}
 
 	log.Info("Network created. Booting...")
 
@@ -93,11 +95,11 @@ func main() {
 	select {
 	case <-ctx.Done():
 		log.Fatal("Timed out waiting for network to boot. Exiting.")
-		os.Exit(1)
+		return
 	case err := <-errCh:
 		if err != nil {
 			log.Fatal("Error booting network: %s", err)
-			os.Exit(1)
+			return
 		}
 	}
 	log.Info("Network created!!!")
