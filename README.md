@@ -42,12 +42,8 @@ type Config struct {
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
 The following node configuration fields will be overwritten, even if provided:
 
-- API port
-- P2P (staking) port
-- Paths to files such as the genesis, node config, etc.
-- Log/database directories
+- Paths to files such as the genesis, cert/key files, node config, etc.
 - Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
-- Network ID (any network id info in avalanchego confs will be overwritten by the user specified network id at network conf)
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
@@ -55,7 +51,7 @@ whereas a node running locally has a config field that specifies the path of the
 
 ## Genesis Generation
 
-Given network id, desired genesis balances, and validators, automatic genesis generation 
+Given network id, desired genesis accout balances, and validators, automatic genesis generation
 can be obtained by using `network.NewAvalancheGoGenesis`:
 
 ```go
@@ -75,8 +71,6 @@ func NewAvalancheGoGenesis(
 ```
 
 Later on the genesis contents can be used in network creation.
-
-Note that both genesis and network conf should contain the same network id.
 
 ## Network Creation
 
