@@ -72,10 +72,8 @@ func (f *fakeOperatorClient) runHTTPServer() {
 	case <-done:
 	case <-f.quit:
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	if err := f.srv.Shutdown(ctx); err != nil {
 		fmt.Printf("error on server shutdown: %s\n", err)

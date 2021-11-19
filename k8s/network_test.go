@@ -31,6 +31,11 @@ func newFakeK8sClient() (k8scli.Client, error) {
 // cleanup closes the channel to shutdown the HTTP server
 func cleanup(n network.Network) {
 	nn := n.(*networkImpl)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := n.Stop(ctx); err != nil {
+		fmt.Printf("Error stopping network: %s\n", err)
+	}
 	cli := nn.k8scli.(*fakeOperatorClient)
 	cli.Close()
 }
@@ -48,8 +53,8 @@ func TestNewNetwork(t *testing.T) {
 	conf := defaultNetworkConfig(t)
 
 	n, err := newNetwork(conf, logging.NoLog{}, newFakeK8sClient)
+	defer cleanup(n)
 	assert.NoError(t, err)
-	cleanup(n)
 }
 
 // TestHealthy tests that a default network can be created and becomes healthy
@@ -127,10 +132,6 @@ func TestNetworkDefault(t *testing.T) {
 	if len(names) != netSize {
 		t.Fatalf("Expected net size of %d, but got %d", netSize, len(names))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err = n.Stop(ctx)
-	assert.NoError(t, err)
 }
 
 // TestWrongNetworkConfigs checks configs that are expected to be invalid at network creation time
@@ -465,12 +466,14 @@ func awaitHealthy(t *testing.T, conf network.Config) (network.Network, error) {
 	defer cancel()
 	errCh := n.Healthy(ctx)
 	select {
-	case <-errCh:
+	case err := <-errCh:
+		if err != nil {
+			return nil, err
+		}
+		return n, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	assert.NoError(t, err)
-	return n, nil
 }
 
 // defaultNetworkConfig creates a default size network for testing
