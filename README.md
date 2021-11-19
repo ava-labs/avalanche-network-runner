@@ -128,9 +128,7 @@ This allows users to create a new network without needing to define any configur
 func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
-) (network.Network, error) {
-	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
-}
+) (network.Network, error)
 ```
 
 ## Network Interaction
