@@ -252,7 +252,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			_, err := NewNetwork(tt.config, logging.NoLog{})
+			_, err := newNetwork(tt.config, logging.NoLog{}, newFakeK8sClient)
 			assert.Error(err)
 		})
 	}
