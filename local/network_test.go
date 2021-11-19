@@ -150,23 +150,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	tests := map[string]struct {
 		config network.Config
 	}{
-		/*
-			        "pepe": {
-						config: network.Config{
-			                Genesis: []byte("{\"networkID\": 0}"),
-							NodeConfigs: []node.Config{
-								{
-									ImplSpecificConfig: NodeConfig{
-										BinaryPath: "pepe",
-									},
-									IsBeacon:    true,
-									StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
-									StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-								},
-							},
-						},
-			        },
-		*/
 		"no ImplSpecificConfig": {
 			config: network.Config{
 				Genesis: []byte("{\"networkID\": 0}"),
