@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
 const (
-	numNodes       = 5
 	healthyTimeout = 2 * time.Minute
 )
 
