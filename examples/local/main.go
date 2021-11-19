@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	goPath             = os.ExpandEnv("$GOPATH")
+	goPath = os.ExpandEnv("$GOPATH")
 )
 
 // Example:
@@ -51,10 +51,10 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-    nw, err := local.GenerateDefaultNetwork(
+	nw, err := local.NewDefaultNetwork(
 		log,
-        binaryPath,
-    )
+		binaryPath,
+	)
 	if err != nil {
 		return err
 	}
