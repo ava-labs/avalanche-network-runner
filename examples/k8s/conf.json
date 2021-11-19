@@ -1,0 +1,48 @@
+{
+  "networkConfig": {
+    "name": "custom-test-net",
+    "logLevel": "DEBUG"
+  },
+  "k8sConfig": [
+    {
+      "namespace": "dev",
+      "identifier": "avalanchego-test-validator-0",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "namespace": "dev",
+      "identifier": "avalanchego-test-validator-1",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "namespace": "dev",
+      "identifier": "avalanchego-test-validator-2",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "namespace": "dev",
+      "identifier": "avalanchego-test-validator-3",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    },
+    {
+      "namespace": "dev",
+      "identifier": "avalanchego-test-validator-4",
+      "kind": "Avalanchego",
+      "apiVersion": "chain.avax.network/v1alpha1",
+      "image": "avaplatform/avalanchego",
+      "tag": "v1.6.4"
+    }
+  ]
+}

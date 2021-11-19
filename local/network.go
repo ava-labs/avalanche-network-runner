@@ -145,9 +145,9 @@ func NewNetwork(
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
 				// Clean up nodes already created
-				log.Warn("error while stopping network: %s", err)
+				log.Debug("error stopping network: %s", err)
 			}
-			return nil, fmt.Errorf("errored on adding node %s: %s", nodeConfig.Name, err)
+			return nil, fmt.Errorf("error adding node %s: %s", nodeConfig.Name, err)
 		}
 	}
 	return net, nil
@@ -240,7 +240,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
-	ln.log.Info("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
+	ln.log.Debug("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
 
 	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
@@ -290,7 +290,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
-	ln.log.Info("starting node %q with \"%s %s\"", nodeConfig.Name, localNodeConfig.BinaryPath, flags) // TODO lower log level
+	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, localNodeConfig.BinaryPath, flags)
 	if err := nodeProcess.Start(); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", localNodeConfig.BinaryPath, flags, err)
 	}
@@ -342,7 +342,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
-						net.log.Info("node %q became healthy", node.name)
+						net.log.Debug("node %q became healthy", node.name)
 						return nil
 					}
 				}
@@ -404,7 +404,6 @@ func (net *localNetwork) stop(ctx context.Context) error {
 		net.log.Debug("stop() called multiple times")
 		return network.ErrStopped
 	}
-	net.log.Info("stopping network")
 	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
 	errs := wrappers.Errs{}
@@ -424,7 +423,7 @@ func (net *localNetwork) stop(ctx context.Context) error {
 		}
 	}
 	close(net.closedOnStopCh)
-	net.log.Info("done stopping network") // todo remove / lower level
+	net.log.Info("done stopping network")
 	return errs.Err
 }
 
