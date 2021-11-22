@@ -51,8 +51,7 @@ whereas a node running locally has a config field that specifies the path of the
 
 ## Genesis Generation
 
-Given network id, desired genesis accout balances, and validators, automatic genesis generation
-can be obtained by using `network.NewAvalancheGoGenesis`:
+You can create a custom AvalancheGo genesis with function `network.NewAvalancheGoGenesis`:
 
 ```go
 // Return a genesis JSON where:

@@ -170,7 +170,10 @@ func newNetwork(
 	}
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 
-	networkID, _ := utils.NetworkIDFromGenesis(networkConfig.Genesis)
+	networkID, err := utils.NetworkIDFromGenesis(networkConfig.Genesis)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
 
 	// Create the network
 	net := &localNetwork{
@@ -270,27 +273,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
 		ln.nextNodeSuffix++
 	}
+	ln.log.Debug("adding node %q", nodeConfig.Name)
 
 	// Enforce name uniqueness
 	if _, ok := ln.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
-
-	// Get a free port to use as the P2P port
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free port: %w", err)
-	}
-	p2pPort := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
-
-	// Get a free port for the API port
-	l, err = net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free port: %w", err)
-	}
-	apiPort := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
 
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
@@ -301,33 +289,69 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// if config file for node is given, parse contents to do cross checks
-	// and prioritize its settings
+	// If config file is given, don't overwrite API port, P2P port,
+	// db path, logs path
 	var configFile map[string]interface{}
 	if len(nodeConfig.ConfigFile) != 0 {
-		_ = json.Unmarshal(nodeConfig.ConfigFile, &configFile)
+		if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
+			return nil, fmt.Errorf("couldn't unmarshal config file: %w", err)
+		}
 	}
 
-	// Tell the node to put the database in [tmpDir], unless overwritten in config
+	// Tell the node to put the database in [tmpDir], unless given in config file
 	dbPath := tmpDir
-	if dbPathFromConfig, ok := configFile[config.DBPathKey].(string); ok {
-		dbPath = dbPathFromConfig
+	if dbPathIntf, ok := configFile[config.DBPathKey]; ok {
+		if dbPathFromConfig, ok := dbPathIntf.(string); ok {
+			dbPath = dbPathFromConfig
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.DBPathKey, dbPathIntf)
+		}
 	}
 
-	// Tell the node to put the log directory in [tmpDir], unless overwritten in config
+	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
 	logsDir := filepath.Join(tmpDir, "logs")
-	if logsDirFromConfig, ok := configFile[config.LogsDirKey].(string); ok {
-		logsDir = logsDirFromConfig
+	if logsDirIntf, ok := configFile[config.LogsDirKey]; ok {
+		if logsDirFromConfig, ok := logsDirIntf.(string); ok {
+			logsDir = logsDirFromConfig
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.LogsDirKey, logsDirIntf)
+		}
 	}
 
 	// Use generated api port, unless overwritten in config
-	if apiPortFromConfig, ok := configFile[config.HTTPPortKey].(float64); ok {
-		apiPort = int(apiPortFromConfig)
+	var apiPort int
+	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
+		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
+			apiPort = int(apiPortFromConfig)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	} else {
+		// Get a free port for the API port
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, fmt.Errorf("could not get free port: %w", err)
+		}
+		apiPort = l.Addr().(*net.TCPAddr).Port
+		_ = l.Close()
 	}
 
 	// Use generated P2P (staking) port, unless overwritten in config
-	if p2pPortFromConfig, ok := configFile[config.StakingPortKey].(float64); ok {
-		p2pPort = int(p2pPortFromConfig)
+	var p2pPort int
+	if p2pPortIntf, ok := configFile[config.HTTPPortKey]; ok {
+		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
+			p2pPort = int(p2pPortFromConfig)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.HTTPPortKey, p2pPortIntf)
+		}
+	} else {
+		// Get a free port to use as the P2P port
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, fmt.Errorf("could not get free port: %w", err)
+		}
+		p2pPort = l.Addr().(*net.TCPAddr).Port
+		_ = l.Close()
 	}
 
 	// Flags for AvalancheGo
