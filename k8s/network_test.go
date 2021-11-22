@@ -10,7 +10,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
-	"github.com/ava-labs/avalanche-network-runner/constants"
+	"github.com/ava-labs/avalanche-network-runner/constants/testconstants"
 	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -154,8 +154,8 @@ func TestNetworkDefault(t *testing.T) {
 	names, err := n.GetNodesNames()
 	assert.NoError(t, err)
 	netSize := len(names)
-	if netSize != constants.DefaultNetworkSize {
-		t.Fatalf("Expected default network size of %d, but got %d", constants.DefaultNetworkSize, netSize)
+	if netSize != testconstants.DefaultNetworkSize {
+		t.Fatalf("Expected default network size of %d, but got %d", testconstants.DefaultNetworkSize, netSize)
 	}
 	for _, name := range names {
 		if name == "" {
@@ -408,8 +408,8 @@ func TestCreateDeploymentConfig(t *testing.T) {
 	assert.Equal(t, n.Spec.BootstrapperURL, "")
 	assert.Equal(t, b.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
 	assert.Equal(t, n.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
-	assert.Equal(t, b.Spec.Env[0].Value, fmt.Sprint(constants.DefaultNetworkID))
-	assert.Equal(t, n.Spec.Env[0].Value, fmt.Sprint(constants.DefaultNetworkID))
+	assert.Equal(t, b.Spec.Env[0].Value, fmt.Sprint(testconstants.DefaultNetworkID))
+	assert.Equal(t, n.Spec.Env[0].Value, fmt.Sprint(testconstants.DefaultNetworkID))
 	assert.Equal(t, b.Spec.NodeCount, 1)
 	assert.Equal(t, n.Spec.NodeCount, 1)
 	assert.Equal(t, b.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("fooCert")))
@@ -452,7 +452,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		},
 		{
 			Name:  "AVAGO_NETWORK_ID",
-			Value: fmt.Sprint(constants.DefaultNetworkID),
+			Value: fmt.Sprint(testconstants.DefaultNetworkID),
 		},
 	}
 
@@ -481,8 +481,8 @@ func TestBuildNodeMapping(t *testing.T) {
 		nodes:         make(map[string]*Node),
 		apiClientFunc: newMockAPISuccessful,
 	}
-	controlSet := make([]*k8sapi.Avalanchego, constants.DefaultNetworkSize)
-	for i := 0; i < constants.DefaultNetworkSize; i++ {
+	controlSet := make([]*k8sapi.Avalanchego, testconstants.DefaultNetworkSize)
+	for i := 0; i < testconstants.DefaultNetworkSize; i++ {
 		name := "localhost"
 		avago := &k8sapi.Avalanchego{
 			Status: k8sapi.AvalanchegoStatus{
@@ -524,7 +524,7 @@ func TestExtractNetworkID(t *testing.T) {
 	assert.NoError(t, err)
 	netID, err := getNetworkID(genesis)
 	assert.NoError(t, err)
-	assert.Equal(t, netID, float64(constants.DefaultNetworkID))
+	assert.Equal(t, netID, float64(testconstants.DefaultNetworkID))
 }
 
 // awaitHealthy creates a new network from a config and waits until it's healthy
@@ -549,7 +549,7 @@ func awaitHealthy(t *testing.T, conf network.Config) (network.Network, error) {
 func defaultNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
 	networkConfig := network.Config{}
-	for i := 0; i < constants.DefaultNetworkSize; i++ {
+	for i := 0; i < testconstants.DefaultNetworkSize; i++ {
 		crt, key, err := staking.NewCertAndKeyBytes()
 		assert.NoError(err)
 		nodeConfig := node.Config{
