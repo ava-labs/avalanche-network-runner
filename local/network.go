@@ -2,8 +2,10 @@ package local
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -32,6 +34,7 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 	stopTimeout           = 30 * time.Second
+	defaultNumNodes       = 5
 )
 
 // interface compliance
@@ -61,6 +64,53 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+}
+
+var (
+	//go:embed default
+	embeddedDefaultNetworkConfigDir embed.FS
+	// Pre-defined network configuration. The ImplSpecificConfig
+	// field of each node in [defaultNetworkConfig.NodeConfigs]
+	// is not defined.
+	// [defaultNetworkConfig] should not be modified.
+	// TODO add method Copy() to network.Config to prevent
+	// accidental overwriting
+	defaultNetworkConfig network.Config
+)
+
+// populate default network config from embedded default directory
+func init() {
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+		panic(err)
+	}
+
+	defaultNetworkConfig = network.Config{
+		Name:        "my network",
+		NodeConfigs: make([]node.Config, defaultNumNodes),
+		LogLevel:    "INFO",
+	}
+
+	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
+		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
+	}
 }
 
 type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, error)
@@ -100,8 +150,16 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork creates a network from given configuration and map of node kinds to binaries
+// NewNetwork call newNetwork with no mocking
 func NewNetwork(
+	log logging.Logger,
+	networkConfig network.Config,
+) (network.Network, error) {
+	return newNetwork(log, networkConfig, api.NewAPIClient, NewNodeProcess)
+}
+
+// newNetwork creates a network from given configuration
+func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
@@ -150,6 +208,46 @@ func NewNetwork(
 		}
 	}
 	return net, nil
+}
+
+// NewDefaultNetwork returns a new network using a pre-defined
+// network configuration.
+// The following addresses are pre-funded:
+// X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// X-Chain Address 2:     X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+// X-Chain Address 2 Key: PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
+// C-Chain Address:       0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// C-Chain Address Key:   56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// The following nodes are validators:
+// * NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
+// * NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
+// * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
+// * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
+// * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error) {
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
+}
+
+func newDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+	newAPIClientF api.NewAPIClientF,
+	newNodeProcessF NewNodeProcessF,
+) (network.Network, error) {
+	config := defaultNetworkConfig
+	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
+	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
+	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
+	for i := 0; i < len(config.NodeConfigs); i++ {
+		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
+			BinaryPath: binaryPath,
+		}
+	}
+	return newNetwork(log, config, newAPIClientF, newNodeProcessF)
 }
 
 // See network.Network
