@@ -31,8 +31,27 @@ import (
 var (
 	_ api.NewAPIClientF = newMockAPISuccessful
 	_ api.NewAPIClientF = newMockAPIUnhealthy
+	_ newClientFunc     = newMockK8sClient
 )
 
+// newMockK8sClient creates a new mock client
+func newMockK8sClient() (k8scli.Client, error) {
+	client := &mocks.Client{}
+	client.On("Get", mock.Anything, mock.Anything, mock.Anything).Run(
+		func(args mock.Arguments) {
+			arg := args.Get(2).(*k8sapi.Avalanchego)
+			arg.Status.NetworkMembersURI = []string{"localhost"}
+		}).Return(nil)
+	client.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	client.On("DeleteAllOf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	client.On("Create", mock.Anything, mock.Anything).Return(nil)
+	client.On("Status").Return(nil)
+	client.On("Scheme").Return(nil)
+	client.On("RESTMapper").Return(nil)
+	return client, nil
+}
+
+// newDNSChecker creates a mock for checking the DNS (really just a http.Get mock)
 func newDNSChecker() dnsCheck {
 	dnsChecker := &mocks.DNSCheck{}
 	dnsChecker.On("Reachable", mock.AnythingOfType("string")).Return(nil)
@@ -80,27 +99,19 @@ func newTestNetworkWithConfig(conf network.Config) (network.Network, error) {
 	return newNetwork(networkParams{
 		conf:          conf,
 		log:           logging.NoLog{},
-		newClientFunc: newFakeK8sClient,
+		newClientFunc: newMockK8sClient,
 		dnsChecker:    newDNSChecker(),
 		apiClientFunc: newMockAPISuccessful,
 	})
 }
 
-// newFakeK8sClient creates a new fake (mock) client
-func newFakeK8sClient() (k8scli.Client, error) {
-	return newFakeOperatorClient()
-}
-
 // cleanup closes the channel to shutdown the HTTP server
 func cleanup(n network.Network) {
-	nn := n.(*networkImpl)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := n.Stop(ctx); err != nil {
 		fmt.Printf("Error stopping network: %s\n", err)
 	}
-	cli := nn.k8scli.(*fakeOperatorClient)
-	cli.Close()
 }
 
 // TestNewNetworkEmpty tests that an empty config results in an error
@@ -451,10 +462,7 @@ func TestBuildNodeEnv(t *testing.T) {
 // TestBuildNodeMapping tests the internal buildNodeMapping which acts as mapping between
 // the user facing interface and the k8s world
 func TestBuildNodeMapping(t *testing.T) {
-	f, err := newFakeOperatorClient()
 	dnsChecker := newDNSChecker()
-	assert.NoError(t, err)
-	defer f.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for {
@@ -487,7 +495,7 @@ func TestBuildNodeMapping(t *testing.T) {
 		controlSet[i] = avago
 	}
 
-	err = net.buildNodeMapping(controlSet)
+	err := net.buildNodeMapping(controlSet)
 	assert.NoError(t, err)
 
 	i := 0
