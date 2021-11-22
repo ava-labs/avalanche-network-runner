@@ -4,24 +4,87 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/api"
+	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
 	"github.com/ava-labs/avalanche-network-runner/constants"
+	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	v1 "k8s.io/api/core/v1"
 
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var (
+	_ api.NewAPIClientF = newMockAPISuccessful
+	_ api.NewAPIClientF = newMockAPIUnhealthy
+)
+
+func newDNSChecker() dnsCheck {
+	dnsChecker := &mocks.DNSCheck{}
+	dnsChecker.On("Reachable", mock.AnythingOfType("string")).Return(nil)
+	return dnsChecker
+}
+
+// Returns an API client where:
+// * The Health API's Health method always returns healthy
+// * The CChainEthAPI's Close method may be called
+// * Only the above 2 methods may be called
+// TODO have this method return an API Client that has all
+// APIs and methods implemented
+func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+	healthReply := &health.APIHealthClientReply{Healthy: true}
+	healthClient := &apimocks.HealthClient{}
+	healthClient.On("Health").Return(healthReply, nil)
+
+	id := ids.GenerateTestShortID().String()
+	infoReply := fmt.Sprintf("%s%s", avagoconst.NodeIDPrefix, id)
+	infoClient := &apimocks.InfoClient{}
+	infoClient.On("GetNodeID").Return(infoReply, nil)
+
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	client.On("InfoAPI").Return(infoClient)
+	return client
+}
+
+// Returns an API client where the Health API's Health method always returns unhealthy
+func newMockAPIUnhealthy(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+	healthReply := &health.APIHealthClientReply{Healthy: false}
+	healthClient := &apimocks.HealthClient{}
+	healthClient.On("Health").Return(healthReply, nil)
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	return client
+}
+
+func newDefaultTestNetwork(t *testing.T) (network.Network, error) {
+	conf := defaultNetworkConfig(t)
+	return newTestNetworkWithConfig(conf)
+}
+
+func newTestNetworkWithConfig(conf network.Config) (network.Network, error) {
+	return newNetwork(networkParams{
+		conf:          conf,
+		log:           logging.NoLog{},
+		newClientFunc: newFakeK8sClient,
+		dnsChecker:    newDNSChecker(),
+		apiClientFunc: newMockAPISuccessful,
+	})
+}
 
 // newFakeK8sClient creates a new fake (mock) client
 func newFakeK8sClient() (k8scli.Client, error) {
@@ -43,16 +106,13 @@ func cleanup(n network.Network) {
 // TestNewNetworkEmpty tests that an empty config results in an error
 func TestNewNetworkEmpty(t *testing.T) {
 	conf := network.Config{}
-
-	_, err := newNetwork(conf, logging.NoLog{}, newFakeK8sClient)
+	_, err := newTestNetworkWithConfig(conf)
 	assert.Error(t, err)
 }
 
 // TestNewNetwork tests that a default network can be created
 func TestNewNetwork(t *testing.T) {
-	conf := defaultNetworkConfig(t)
-
-	n, err := newNetwork(conf, logging.NoLog{}, newFakeK8sClient)
+	n, err := newDefaultTestNetwork(t)
 	defer cleanup(n)
 	assert.NoError(t, err)
 }
@@ -252,7 +312,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			_, err := newNetwork(tt.config, logging.NoLog{}, newFakeK8sClient)
+			_, err := newTestNetworkWithConfig(tt.config)
 			assert.Error(err)
 		})
 	}
@@ -264,7 +324,7 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig := defaultNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
-	_, err := newNetwork(networkConfig, logging.NoLog{}, newFakeK8sClient)
+	_, err := newTestNetworkWithConfig(networkConfig)
 	assert.Error(err)
 }
 
@@ -392,6 +452,7 @@ func TestBuildNodeEnv(t *testing.T) {
 // the user facing interface and the k8s world
 func TestBuildNodeMapping(t *testing.T) {
 	f, err := newFakeOperatorClient()
+	dnsChecker := newDNSChecker()
 	assert.NoError(t, err)
 	defer f.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -402,15 +463,15 @@ func TestBuildNodeMapping(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		}
-		_, err := http.Get("http://localhost:9650")
-		if err == nil {
+		if err := dnsChecker.Reachable("localhost"); err == nil {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
 	net := &networkImpl{
-		log:   logging.NoLog{},
-		nodes: make(map[string]*Node),
+		log:           logging.NoLog{},
+		nodes:         make(map[string]*Node),
+		apiClientFunc: newMockAPISuccessful,
 	}
 	controlSet := make([]*k8sapi.Avalanchego, constants.DefaultNetworkSize)
 	for i := 0; i < constants.DefaultNetworkSize; i++ {
@@ -460,7 +521,7 @@ func TestExtractNetworkID(t *testing.T) {
 
 // awaitHealthy creates a new network from a config and waits until it's healthy
 func awaitHealthy(t *testing.T, conf network.Config) (network.Network, error) {
-	n, err := newNetwork(conf, logging.NoLog{}, newFakeK8sClient)
+	n, err := newTestNetworkWithConfig(conf)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

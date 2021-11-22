@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -47,6 +46,16 @@ const (
 
 var errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 
+type newClientFunc func() (k8scli.Client, error)
+
+type networkParams struct {
+	conf          network.Config
+	log           logging.Logger
+	newClientFunc newClientFunc
+	dnsChecker    dnsCheck
+	apiClientFunc api.NewAPIClientF
+}
+
 // networkImpl is the kubernetes data type representing a kubernetes network adapter.
 // It implements the network.Network interface
 type networkImpl struct {
@@ -58,6 +67,8 @@ type networkImpl struct {
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	log            logging.Logger
+	dnsChecker     dnsCheck
+	apiClientFunc  api.NewAPIClientF
 }
 
 func newK8sClient() (k8scli.Client, error) {
@@ -70,13 +81,13 @@ func newK8sClient() (k8scli.Client, error) {
 	return k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
 }
 
-func newNetwork(conf network.Config, log logging.Logger, newClientFunc func() (k8scli.Client, error)) (network.Network, error) {
-	kubeClient, err := newClientFunc()
+func newNetwork(params networkParams) (network.Network, error) {
+	kubeClient, err := params.newClientFunc()
 	if err != nil {
 		return nil, err
 	}
-	log.Info("K8s client initialized")
-	beacons, nonBeacons, err := createDeploymentFromConfig(conf.Genesis, conf.NodeConfigs)
+	params.log.Info("K8s client initialized")
+	beacons, nonBeacons, err := createDeploymentFromConfig(params.conf.Genesis, params.conf.NodeConfigs)
 	if err != nil {
 		return nil, err
 	}
@@ -84,11 +95,13 @@ func newNetwork(conf network.Config, log logging.Logger, newClientFunc func() (k
 		return nil, errors.New("NodeConfigs don't describe any beacon nodes")
 	}
 	net := &networkImpl{
-		config:         conf,
+		config:         params.conf,
 		k8scli:         kubeClient,
 		closedOnStopCh: make(chan struct{}),
-		log:            log,
-		nodes:          make(map[string]*Node, len(conf.NodeConfigs)),
+		log:            params.log,
+		nodes:          make(map[string]*Node, len(params.conf.NodeConfigs)),
+		dnsChecker:     params.dnsChecker,
+		apiClientFunc:  params.apiClientFunc,
 	}
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
@@ -125,7 +138,13 @@ func newNetwork(conf network.Config, log logging.Logger, newClientFunc func() (k
 
 // NewNetwork returns a new network whose initial state is specified in the config
 func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
-	return newNetwork(conf, log, newK8sClient)
+	return newNetwork(networkParams{
+		conf:          conf,
+		log:           log,
+		newClientFunc: newK8sClient,
+		dnsChecker:    NewDefaultDNSChecker(),
+		apiClientFunc: api.NewAPIClient,
+	})
 }
 
 // GetNodesNames returns an array of node names
@@ -211,7 +230,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	}
 
 	uri := node.Status.NetworkMembersURI[0]
-	cli := api.NewAPIClient(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
+	cli := a.apiClientFunc(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
 	nodeIDStr, err := cli.InfoAPI().GetNodeID()
 	if err != nil {
 		return nil, err
@@ -314,7 +333,7 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 				default:
 					a.log.Debug("checking if %s is reachable...", fmturi)
 					// TODO is there a better way to wait until the node is reachable?
-					if _, err := http.Get(fmturi); err == nil {
+					if err := a.dnsChecker.Reachable(fmturi); err == nil {
 						a.log.Debug("%s has become reachable", fmturi)
 						return nil
 					}
@@ -454,7 +473,7 @@ func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
 	for _, n := range nodes {
 		uri := n.Status.NetworkMembersURI[0]
 		a.log.Debug("creating network node and client for %s", uri)
-		cli := api.NewAPIClient(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
+		cli := a.apiClientFunc(uri, constants.DefaultAPIPort, constants.APITimeoutDuration)
 		nodeIDStr, err := cli.InfoAPI().GetNodeID()
 		if err != nil {
 			return err

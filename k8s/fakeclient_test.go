@@ -3,16 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/gorilla/mux"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,63 +15,7 @@ import (
 // and implements the k8s client.Client interface
 type fakeOperatorClient struct {
 	nodes []*k8sapi.Avalanchego
-	srv   *http.Server
 	quit  chan struct{}
-	wg    sync.WaitGroup
-}
-
-// root serves / HTTP requests
-func root(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
-	_, _ = w.Write([]byte("OK"))
-}
-
-// healthCheck serves the health API endpoint
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
-	_, _ = w.Write([]byte(`{"jsonrpc":"2.0","result":{"healthy":true},"id":1}`))
-}
-
-// info serves the info API endpoint
-func info(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
-	_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","result":{"nodeID":"NodeID-%s"},"id":1}`, ids.GenerateTestShortID().String())))
-}
-
-// runHTTPServer runs a HTTP server which fakes real avalanchego API calls
-func (f *fakeOperatorClient) runHTTPServer() {
-	router := mux.NewRouter()
-	router.HandleFunc("/ext/health", healthCheck).Methods("POST")
-	router.HandleFunc("/ext/info", info).Methods("POST")
-	router.HandleFunc("/", root).Methods("GET")
-
-	f.srv = &http.Server{
-		Addr:    ":9650",
-		Handler: router,
-	}
-
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		if err := f.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("error on server listen: %s\n", err)
-		}
-	}()
-
-	f.wg.Add(1)
-	select {
-	case <-done:
-	case <-f.quit:
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := f.srv.Shutdown(ctx); err != nil {
-		fmt.Printf("error on server shutdown: %s\n", err)
-	}
-	fmt.Println("HTTP server exited properly")
-	f.wg.Done()
 }
 
 // newFakeOperatorClient creates a new mock k8s interface
@@ -88,14 +24,12 @@ func newFakeOperatorClient() (*fakeOperatorClient, error) {
 		nodes: make([]*k8sapi.Avalanchego, 0),
 		quit:  make(chan struct{}),
 	}
-	go f.runHTTPServer()
 	return f, nil
 }
 
 // Close (so that the HTTP server can shut down)
 func (f *fakeOperatorClient) Close() {
 	close(f.quit)
-	f.wg.Wait()
 }
 
 // Scheme implements client.Client
