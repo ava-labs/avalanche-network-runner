@@ -11,6 +11,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/constants"
+	"github.com/ava-labs/avalanche-network-runner/constants/testconstants"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
@@ -46,8 +47,10 @@ const (
 
 var errNodeDoesNotExist = errors.New("Node with given NodeID does not exist")
 
+// this is the func type for creating a new kubernetes client (allows mocking)
 type newClientFunc func() (k8scli.Client, error)
 
+// networkParams encapsulate params to create a network
 type networkParams struct {
 	conf          network.Config
 	log           logging.Logger
@@ -60,6 +63,7 @@ type networkParams struct {
 // It implements the network.Network interface
 type networkImpl struct {
 	config network.Config
+	// the kubernetes client
 	k8scli k8scli.Client
 	// Node name --> The node
 	nodes     map[string]*Node
@@ -67,8 +71,10 @@ type networkImpl struct {
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	log            logging.Logger
-	dnsChecker     dnsCheck
-	apiClientFunc  api.NewAPIClientF
+	// dnsChecker to check if a node is already reachable via DNS
+	dnsChecker dnsCheck
+	// this represents the function to create the API client (allows mocking)
+	apiClientFunc api.NewAPIClientF
 }
 
 func newK8sClient() (k8scli.Client, error) {
@@ -106,7 +112,7 @@ func newNetwork(params networkParams) (network.Network, error) {
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), testconstants.StopTimeout)
 		defer cancel()
 		if err := net.k8scli.DeleteAllOf(ctx, &k8sapi.Avalanchego{}, &k8scli.DeleteAllOfOptions{}); err != nil {
 			net.log.Error("Error clearing all of the k8s objects: %s", err)
@@ -253,7 +259,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 
 // RemoveNode stops the node with this ID.
 func (a *networkImpl) RemoveNode(id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testconstants.RemoveTimeout)
 	defer cancel()
 
 	if p, ok := a.nodes[id]; ok {
@@ -312,7 +318,7 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 				return err
 			}
 			select {
-			case <-time.After(5 * time.Second):
+			case <-time.After(testconstants.PollTimeout):
 			case <-ctx.Done():
 				return ctx.Err()
 			}

@@ -62,10 +62,10 @@ func (n *Node) GetK8sObject() *k8sapi.Avalanchego {
 
 // GetStakingURL
 func (n *Node) GetStakingURL() string {
-	return fmt.Sprintf("%s:%d", n.k8sObj.Status.NetworkMembersURI[0], constants.DefaultStakingPort)
+	return fmt.Sprintf("%s:%d", n.uri, constants.DefaultStakingPort)
 }
 
 // GetAPIURL
 func (n *Node) GetAPIURL() string {
-	return fmt.Sprintf("%s:%d", n.k8sObj.Status.NetworkMembersURI[0], constants.DefaultAPIPort)
+	return fmt.Sprintf("%s:%d", n.uri, constants.DefaultAPIPort)
 }
