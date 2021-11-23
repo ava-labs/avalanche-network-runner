@@ -39,15 +39,6 @@ type Config struct {
 }
 ```
 
-		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
-		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
-		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		// Tell the node which nodes to bootstrap from
-		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
-		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
-
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
 Bootstrap IPs/ IDs will be overwritten even if provided.
 
