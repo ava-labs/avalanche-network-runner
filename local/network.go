@@ -338,7 +338,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Use generated P2P (staking) port, unless overwritten in config
 	var p2pPort int
-	if p2pPortIntf, ok := configFile[config.HTTPPortKey]; ok {
+	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
 		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
 			p2pPort = int(p2pPortFromConfig)
 		} else {
