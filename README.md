@@ -39,11 +39,18 @@ type Config struct {
 }
 ```
 
-As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
-The following node configuration fields will be overwritten, even if provided:
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
+		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
+		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
+		// Tell the node which nodes to bootstrap from
+		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
+		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 
-- Paths to files such as the genesis, cert/key files, node config, etc.
-- Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
+As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
+Bootstrap IPs/ IDs will be overwritten even if provided.
+
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,

@@ -163,7 +163,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
-		"config file unmarshall": {
+		"config file unmarshal": {
 			config: network.Config{
 				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{

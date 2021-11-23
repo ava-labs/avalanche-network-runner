@@ -289,8 +289,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// If config file is given, don't overwrite API port, P2P port,
-	// db path, logs path
+	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
 	var configFile map[string]interface{}
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
@@ -318,13 +317,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Use generated api port, unless overwritten in config
+	// Use random free API port, unless given in config
 	var apiPort int
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
 		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
 			apiPort = int(apiPortFromConfig)
 		} else {
-			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.HTTPPortKey, apiPortIntf)
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
 		// Get a free port for the API port
@@ -336,13 +335,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		_ = l.Close()
 	}
 
-	// Use generated P2P (staking) port, unless overwritten in config
+	// Use a random free P2P (staking) port, unless given in config
 	var p2pPort int
 	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
 		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
 			p2pPort = int(p2pPortFromConfig)
 		} else {
-			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.HTTPPortKey, p2pPortIntf)
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
 		}
 	} else {
 		// Get a free port to use as the P2P port
@@ -361,7 +360,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		// Tell the node which nodes to bootstrap from
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
@@ -380,7 +378,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
-	ln.log.Debug("adding node %q with logs at %s, db at %s. P2P port %d. API port %d", nodeConfig.Name, logsDir, dbPath, p2pPort, apiPort)
+	ln.log.Debug(
+		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		tmpDir, nodeConfig.Name, logsDir, dbPath, p2pPort, apiPort,
+	)
 
 	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)

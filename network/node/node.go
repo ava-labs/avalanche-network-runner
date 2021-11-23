@@ -31,51 +31,7 @@ type Config struct {
 }
 
 // Returns an error if this config is invalid
-func (c *Config) Validate(genesisNetworkID uint32) error {
-	var configFile map[string]interface{}
-	if len(c.ConfigFile) != 0 {
-		if err := json.Unmarshal(c.ConfigFile, &configFile); err != nil {
-			return fmt.Errorf("could not unmarshall config file: %w", err)
-		}
-	}
-	networkIDIntf, ok := configFile[config.NetworkNameKey]
-	if ok {
-		networkID, ok := networkIDIntf.(float64)
-		if !ok {
-			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.NetworkNameKey, networkIDIntf)
-		}
-		if uint32(networkID) != genesisNetworkID {
-			return fmt.Errorf("config file network id %v differs from genesis network id %v", networkID, genesisNetworkID)
-		}
-	}
-	dbPathIntf, ok := configFile[config.DBPathKey]
-	if ok {
-		_, ok = dbPathIntf.(string)
-		if !ok {
-			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.DBPathKey, dbPathIntf)
-		}
-	}
-	logsDirIntf, ok := configFile[config.LogsDirKey]
-	if ok {
-		_, ok = logsDirIntf.(string)
-		if !ok {
-			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.LogsDirKey, logsDirIntf)
-		}
-	}
-	apiPortIntf, ok := configFile[config.HTTPPortKey]
-	if ok {
-		_, ok := apiPortIntf.(float64)
-		if !ok {
-			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.HTTPPortKey, apiPortIntf)
-		}
-	}
-	p2pPortIntf, ok := configFile[config.StakingPortKey]
-	if ok {
-		_, ok := p2pPortIntf.(float64)
-		if !ok {
-			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.StakingPortKey, p2pPortIntf)
-		}
-	}
+func (c *Config) Validate(expectedNetworkID uint32) error {
 	switch {
 	case c.ImplSpecificConfig == nil:
 		return errors.New("implementation-specific node config not given")
@@ -84,8 +40,53 @@ func (c *Config) Validate(genesisNetworkID uint32) error {
 	case len(c.StakingCert) == 0:
 		return errors.New("staking cert not given")
 	default:
+		return validateConfigFile(c.ConfigFile, expectedNetworkID)
+	}
+}
+
+// Returns an error if config file [configFile] is invalid.
+// If len([configFile]) == 0, returns nil.
+func validateConfigFile(configFile []byte, expectedNetworkID uint32) error {
+	if len(configFile) == 0 {
+		// No config file given. Skip.
 		return nil
 	}
+	// Validate that values given in the config file,
+	// if any, are the correct type.
+	var configMap map[string]interface{}
+	if err := json.Unmarshal(configFile, &configMap); err != nil {
+		return fmt.Errorf("could not unmarshal config file: %w", err)
+	}
+	if networkIDIntf, ok := configMap[config.NetworkNameKey]; ok {
+		networkID, ok := networkIDIntf.(float64)
+		if !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.NetworkNameKey, networkIDIntf)
+		}
+		if uint32(networkID) != expectedNetworkID {
+			return fmt.Errorf("config file network id %d differs from genesis network id %d", int(networkID), expectedNetworkID)
+		}
+	}
+	if dbPathIntf, ok := configMap[config.DBPathKey]; ok {
+		if _, ok := dbPathIntf.(string); !ok {
+			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.DBPathKey, dbPathIntf)
+		}
+	}
+	if logsDirIntf, ok := configMap[config.LogsDirKey]; ok {
+		if _, ok := logsDirIntf.(string); !ok {
+			return fmt.Errorf("wrong type for field %q in config expected string got %T", config.LogsDirKey, logsDirIntf)
+		}
+	}
+	if apiPortIntf, ok := configMap[config.HTTPPortKey]; ok {
+		if _, ok := apiPortIntf.(float64); !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	}
+	if p2pPortIntf, ok := configMap[config.StakingPortKey]; ok {
+		if _, ok := p2pPortIntf.(float64); !ok {
+			return fmt.Errorf("wrong type for field %q in config expected float64 got %T", config.StakingPortKey, p2pPortIntf)
+		}
+	}
+	return nil
 }
 
 // An AvalancheGo node
