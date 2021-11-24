@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -58,8 +59,12 @@ func (c *Config) Validate() error {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
 	}
+	networkID, err := utils.NetworkIDFromGenesis(c.Genesis)
+	if err != nil {
+		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
 	for i, nodeConfig := range c.NodeConfigs {
-		if err := nodeConfig.Validate(); err != nil {
+		if err := nodeConfig.Validate(networkID); err != nil {
 			var nodeName string
 			if len(nodeConfig.Name) > 0 {
 				nodeName = nodeConfig.Name

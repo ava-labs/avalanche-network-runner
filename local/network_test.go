@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -85,9 +86,9 @@ func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs = nil
-	net, err := NewNetwork(
+	net, err := newNetwork(
 		logging.NoLog{},
 		networkConfig,
 		newMockAPISuccessful,
@@ -103,7 +104,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 // Start a network with one node.
 func TestNewNetworkOneNode(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs = networkConfig.NodeConfigs[:1]
 	// Assert that the node's config is being passed correctly
 	// to the function that starts the node process.
@@ -112,7 +113,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 		assert.EqualValues(networkConfig.NodeConfigs[0], config)
 		return newMockProcessSuccessful(config)
 	}
-	net, err := NewNetwork(
+	net, err := newNetwork(
 		logging.NoLog{},
 		networkConfig,
 		newMockAPISuccessful,
@@ -134,8 +135,8 @@ func TestNewNetworkOneNode(t *testing.T) {
 // starting a node returns an error
 func TestNewNetworkFailToStartNode(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
-	_, err := NewNetwork(
+	networkConfig := testNetworkConfig(t)
+	_, err := newNetwork(
 		logging.NoLog{},
 		networkConfig,
 		newMockAPISuccessful,
@@ -146,22 +147,135 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 
 // Check configs that are expected to be invalid at network creation time
 func TestWrongNetworkConfigs(t *testing.T) {
+	refNetworkConfig := testNetworkConfig(t)
 	tests := map[string]struct {
 		config network.Config
 	}{
 		"no ImplSpecificConfig": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
-		"empty nodeID": {
+		"config file unmarshal": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("nonempty"),
+					},
+				},
+			},
+		},
+		"wrong network id type in config file": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"network-id\": \"0\"}"),
+					},
+				},
+			},
+		},
+		"wrong db dir type in config": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"db-dir\": 0}"),
+					},
+				},
+			},
+		},
+		"wrong log dir type in config": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"log-dir\": 0}"),
+					},
+				},
+			},
+		},
+		"wrong http port type in config": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"http-port\": \"0\"}"),
+					},
+				},
+			},
+		},
+		"wrong staking port type in config": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"staking-port\": \"0\"}"),
+					},
+				},
+			},
+		},
+		"network id mismatch": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+						ConfigFile:  []byte("{\"network-id\": 1}"),
+					},
+				},
+			},
+		},
+		"genesis unmarshall": {
 			config: network.Config{
 				Genesis: []byte("nonempty"),
 				NodeConfigs: []node.Config{
@@ -170,8 +284,38 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+		},
+		"no network id in genesis": {
+			config: network.Config{
+				Genesis: []byte("{}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+		},
+		"wrong network id type in genesis": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": \"0\"}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
@@ -184,35 +328,50 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
 						IsBeacon:   true,
-						StakingKey: []byte("nonempty"),
+						StakingKey: refNetworkConfig.NodeConfigs[0].StakingKey,
 					},
 				},
 			},
 		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
+					},
+				},
+			},
+		},
+		"invalid staking cert/key": {
+			config: network.Config{
+				Genesis: []byte("{\"networkID\": 0}"),
+				NodeConfigs: []node.Config{
+					{
+						ImplSpecificConfig: NodeConfig{
+							BinaryPath: "pepe",
+						},
+						IsBeacon:    true,
+						StakingKey:  []byte("nonempty"),
 						StakingCert: []byte("nonempty"),
 					},
 				},
@@ -220,21 +379,21 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"no beacon node": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 				},
 			},
 		},
 		"repeated name": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: []byte("{\"networkID\": 0}"),
 				NodeConfigs: []node.Config{
 					{
 						Name: "node0",
@@ -242,8 +401,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 					{
 						Name: "node0",
@@ -251,17 +410,17 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  refNetworkConfig.NodeConfigs[1].StakingKey,
+						StakingCert: refNetworkConfig.NodeConfigs[1].StakingCert,
 					},
 				},
 			},
 		},
 	}
+	assert := assert.New(t)
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert := assert.New(t)
-			_, err := NewNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, newMockProcessSuccessful)
+			_, err := newNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, newMockProcessSuccessful)
 			assert.Error(err)
 		})
 	}
@@ -270,9 +429,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 // Give incorrect type to interface{} ImplSpecificConfig
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
-	_, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	_, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.Error(err)
 }
 
@@ -280,8 +439,8 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 // error when all nodes' Health API return unhealthy
 func TestUnhealthyNetwork(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
-	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, newMockProcessSuccessful)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, newMockProcessSuccessful)
 	assert.NoError(err)
 	assert.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
@@ -290,11 +449,11 @@ func TestUnhealthyNetwork(t *testing.T) {
 // Checks that the generated names are the correct number and unique.
 func TestGeneratedNodesNames(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := testNetworkConfig(t)
 	for i := range networkConfig.NodeConfigs {
 		networkConfig.NodeConfigs[i].Name = ""
 	}
-	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	nodeNameMap := make(map[string]bool)
 	nodeNames, err := net.GetNodesNames()
@@ -305,13 +464,59 @@ func TestGeneratedNodesNames(t *testing.T) {
 	assert.EqualValues(len(nodeNameMap), len(networkConfig.NodeConfigs))
 }
 
+// TestGenerateDefaultNetwork create a default network with GenerateDefaultNetwork and
+// check expected number of nodes, node names, and avalanchego node ids
+func TestGenerateDefaultNetwork(t *testing.T) {
+	assert := assert.New(t)
+	binaryPath := "pepito"
+	net, err := newDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	names, err := net.GetNodesNames()
+	assert.NoError(err)
+	assert.Len(names, 5)
+	for _, nodeInfo := range []struct {
+		name string
+		ID   string
+	}{
+		{
+			"node-0",
+			"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
+		},
+		{
+			"node-1",
+			"NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
+		},
+		{
+			"node-2",
+			"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
+		},
+		{
+			"node-3",
+			"NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
+		},
+		{
+			"node-4",
+			"NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
+		},
+	} {
+		assert.Contains(names, nodeInfo.name)
+		node, err := net.GetNode(nodeInfo.name)
+		assert.NoError(err)
+		assert.EqualValues(nodeInfo.name, node.GetName())
+		expectedID, err := ids.ShortFromPrefixedString(nodeInfo.ID, constants.NodeIDPrefix)
+		assert.NoError(err)
+		assert.EqualValues(expectedID, node.GetNodeID())
+	}
+}
+
 // TODO add byzantine node to conf
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes can be accessed
 func TestNetworkFromConfig(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
-	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	runningNodes := make(map[string]struct{})
@@ -332,12 +537,12 @@ func TestNetworkNodeOps(t *testing.T) {
 	// Start a new, empty network
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	runningNodes := make(map[string]struct{})
 
 	// Add nodes to the network one by one
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := testNetworkConfig(t)
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		_, err := net.AddNode(nodeConfig)
 		assert.NoError(err)
@@ -366,8 +571,8 @@ func TestNodeNotFound(t *testing.T) {
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	networkConfig := defaultNetworkConfig(t)
-	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -396,8 +601,8 @@ func TestStoppedNetwork(t *testing.T) {
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	networkConfig := defaultNetworkConfig(t)
-	net, err := NewNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -486,7 +691,7 @@ func emptyNetworkConfig() (network.Config, error) {
 // Returns a config for a three node network,
 // where the nodes have randomly generated staking
 // kets and certificates.
-func defaultNetworkConfig(t *testing.T) network.Config {
+func testNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
 	networkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)

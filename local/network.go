@@ -2,7 +2,10 @@ package local
 
 import (
 	"context"
+	"embed"
+	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -31,6 +34,7 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 	stopTimeout           = 30 * time.Second
+	defaultNumNodes       = 5
 )
 
 // interface compliance
@@ -60,6 +64,53 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+}
+
+var (
+	//go:embed default
+	embeddedDefaultNetworkConfigDir embed.FS
+	// Pre-defined network configuration. The ImplSpecificConfig
+	// field of each node in [defaultNetworkConfig.NodeConfigs]
+	// is not defined.
+	// [defaultNetworkConfig] should not be modified.
+	// TODO add method Copy() to network.Config to prevent
+	// accidental overwriting
+	defaultNetworkConfig network.Config
+)
+
+// populate default network config from embedded default directory
+func init() {
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+		panic(err)
+	}
+
+	defaultNetworkConfig = network.Config{
+		Name:        "my network",
+		NodeConfigs: make([]node.Config, defaultNumNodes),
+		LogLevel:    "INFO",
+	}
+
+	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
+		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
+	}
 }
 
 type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, error)
@@ -99,8 +150,16 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork creates a network from given configuration and map of node kinds to binaries
+// NewNetwork call newNetwork with no mocking
 func NewNetwork(
+	log logging.Logger,
+	networkConfig network.Config,
+) (network.Network, error) {
+	return newNetwork(log, networkConfig, api.NewAPIClient, NewNodeProcess)
+}
+
+// newNetwork creates a network from given configuration
+func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
@@ -115,6 +174,7 @@ func NewNetwork(
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
+
 	// Create the network
 	net := &localNetwork{
 		networkID:       networkID,
@@ -153,6 +213,46 @@ func NewNetwork(
 	return net, nil
 }
 
+// NewDefaultNetwork returns a new network using a pre-defined
+// network configuration.
+// The following addresses are pre-funded:
+// X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// X-Chain Address 2:     X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+// X-Chain Address 2 Key: PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
+// C-Chain Address:       0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// C-Chain Address Key:   56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// The following nodes are validators:
+// * NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
+// * NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
+// * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
+// * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
+// * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error) {
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, NewNodeProcess)
+}
+
+func newDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+	newAPIClientF api.NewAPIClientF,
+	newNodeProcessF NewNodeProcessF,
+) (network.Network, error) {
+	config := defaultNetworkConfig
+	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
+	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
+	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
+	for i := 0; i < len(config.NodeConfigs); i++ {
+		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
+			BinaryPath: binaryPath,
+		}
+	}
+	return newNetwork(log, config, newAPIClientF, newNodeProcessF)
+}
+
 // See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
@@ -173,27 +273,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
 		ln.nextNodeSuffix++
 	}
+	ln.log.Debug("adding node %q", nodeConfig.Name)
 
 	// Enforce name uniqueness
 	if _, ok := ln.nodes[nodeConfig.Name]; ok {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
-
-	// Get a free port to use as the P2P port
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free port: %w", err)
-	}
-	p2pPort := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
-
-	// Get a free port for the API port
-	l, err = net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("could not get free port: %w", err)
-	}
-	apiPort := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
 
 	// [tmpDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
@@ -204,24 +289,77 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
-	// Flags for AvalancheGo that point to the files
-	// we're about to create.
-	// Note that these flags will overwrite the values of these
-	// config options in the config file, if applicable.
+	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
+	var configFile map[string]interface{}
+	if len(nodeConfig.ConfigFile) != 0 {
+		if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
+			return nil, fmt.Errorf("couldn't unmarshal config file: %w", err)
+		}
+	}
+
+	// Tell the node to put the database in [tmpDir], unless given in config file
+	dbPath := tmpDir
+	if dbPathIntf, ok := configFile[config.DBPathKey]; ok {
+		if dbPathFromConfig, ok := dbPathIntf.(string); ok {
+			dbPath = dbPathFromConfig
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.DBPathKey, dbPathIntf)
+		}
+	}
+
+	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
+	logsDir := filepath.Join(tmpDir, "logs")
+	if logsDirIntf, ok := configFile[config.LogsDirKey]; ok {
+		if logsDirFromConfig, ok := logsDirIntf.(string); ok {
+			logsDir = logsDirFromConfig
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.LogsDirKey, logsDirIntf)
+		}
+	}
+
+	// Use random free API port, unless given in config
+	var apiPort int
+	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
+		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
+			apiPort = int(apiPortFromConfig)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	} else {
+		// Get a free port for the API port
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, fmt.Errorf("could not get free port: %w", err)
+		}
+		apiPort = l.Addr().(*net.TCPAddr).Port
+		_ = l.Close()
+	}
+
+	// Use a random free P2P (staking) port, unless given in config
+	var p2pPort int
+	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
+		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
+			p2pPort = int(p2pPortFromConfig)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
+		}
+	} else {
+		// Get a free port to use as the P2P port
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, fmt.Errorf("could not get free port: %w", err)
+		}
+		p2pPort = l.Addr().(*net.TCPAddr).Port
+		_ = l.Close()
+	}
+
+	// Flags for AvalancheGo
 	flags := []string{
-		// Tell the node its network ID
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		// Tell the node to put the database in [tmpDir]
-		// TODO allow user to specify different database directory
-		fmt.Sprintf("--%s=%s", config.DBPathKey, tmpDir),
-		// Tell the node to put the log directory in [tmpDir]
-		// TODO allow user to specify different logs directory
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, filepath.Join(tmpDir, "logs")),
-		// Tell the node to use this API port
+		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
-		// Tell the node to use this P2P (staking) port
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		// Tell the node which nodes to bootstrap from
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
@@ -240,7 +378,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
-	ln.log.Debug("adding node %q with files at %s. P2P port %d. API port %d", nodeConfig.Name, tmpDir, p2pPort, apiPort)
+	ln.log.Debug(
+		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		tmpDir, nodeConfig.Name, logsDir, dbPath, p2pPort, apiPort,
+	)
 
 	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)

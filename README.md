@@ -40,14 +40,8 @@ type Config struct {
 ```
 
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
-The following node configuration fields will be overwritten, even if provided:
+Bootstrap IPs/ IDs will be overwritten even if provided.
 
-- API port
-- P2P (staking) port
-- Paths to files such as the genesis, node config, etc.
-- Log/database directories
-- Bootstrap IPs/IDs (the user specifies which nodes are beacons, but doesn't directly provide bootstrap IPs/IDs.)
-- Network ID (any network id info in avalanchego confs will be overwritten by the user specified network id at network conf)
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
@@ -55,8 +49,7 @@ whereas a node running locally has a config field that specifies the path of the
 
 ## Genesis Generation
 
-Given network id, desired genesis balances, and validators, automatic genesis generation 
-can be obtained by using `network.NewAvalancheGoGenesis`:
+You can create a custom AvalancheGo genesis with function `network.NewAvalancheGoGenesis`:
 
 ```go
 // Return a genesis JSON where:
@@ -76,13 +69,10 @@ func NewAvalancheGoGenesis(
 
 Later on the genesis contents can be used in network creation.
 
-Note that both genesis and network conf should contain the same network id.
-
 ## Network Creation
 
-Each network runner implementation (local/Kubernetes) has a function that returns a new network.
-
-Each is parameterized on `network.Config`:
+Each network runner implementation (local/Kubernetes) has a function `NewNetwork` that returns a new network,
+parameterized on `network.Config`:
 
 ```go
 type Config struct {
@@ -104,6 +94,33 @@ type Config struct {
 ```
 
 The function that returns a new network may have additional configuration fields.
+
+## Default Network Creation
+
+The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
+This allows users to create a new network without needing to define any configurations. 
+
+```go
+// NewDefaultNetwork returns a new network using a pre-defined
+// network configuration.
+// The following addresses are pre-funded:
+// X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
+// X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
+// X-Chain Address 2:     X-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
+// X-Chain Address 2 Key: PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
+// C-Chain Address:       0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// C-Chain Address Key:   56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// The following nodes are validators:
+// * NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
+// * NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
+// * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
+// * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
+// * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error)
+```
 
 ## Network Interaction
 
