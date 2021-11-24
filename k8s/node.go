@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"fmt"
+
 	"github.com/ava-labs/avalanche-network-runner/api"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/ids"
@@ -50,6 +52,16 @@ func (n *Node) GetNodeID() ids.ShortID {
 // GetURI returns the k8s URI to talk to the node
 func (n *Node) GetURI() string {
 	return n.uri
+}
+
+// Return API access url
+func (n *Node) GetAPIURL() string {
+	return fmt.Sprintf("%s:%d", n.uri, defaultAPIPort)
+}
+
+// Return staking url
+func (n *Node) GetStakingURL() string {
+	return fmt.Sprintf("%s:%d", n.uri, defaultStakingPort)
 }
 
 // GetK8sObject returns the kubernetes object representing a node in the kubernetes cluster

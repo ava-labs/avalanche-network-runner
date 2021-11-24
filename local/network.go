@@ -442,6 +442,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		nodeID:  nodeID,
 		client:  ln.newAPIClientF("localhost", uint(apiPort), apiTimeout),
 		process: nodeProcess,
+		apiPort: uint(apiPort),
+		p2pPort: uint(p2pPort),
 	}
 	ln.nodes[node.name] = node
 	return node, nil
