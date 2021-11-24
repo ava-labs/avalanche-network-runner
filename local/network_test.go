@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -283,7 +284,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 	networkConfig := defaultNetworkConfig(t)
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, newMockProcessSuccessful)
 	assert.NoError(err)
-	assert.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	assert.Error(utils.AwaitNetworkHealthy(net, defaultHealthyTimeout))
 }
 
 // Create a network without giving names to nodes.
@@ -313,7 +314,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	networkConfig := defaultNetworkConfig(t)
 	net, err := NewNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
-	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	assert.NoError(utils.AwaitNetworkHealthy(net, defaultHealthyTimeout))
 	runningNodes := make(map[string]struct{})
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		runningNodes[nodeConfig.Name] = struct{}{}
@@ -345,7 +346,7 @@ func TestNetworkNodeOps(t *testing.T) {
 		checkNetwork(t, net, runningNodes, nil)
 	}
 	// Wait for all nodes to be healthy
-	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
+	assert.NoError(utils.AwaitNetworkHealthy(net, defaultHealthyTimeout))
 
 	// Remove nodes one by one
 	removedNodes := make(map[string]struct{})
@@ -420,7 +421,7 @@ func TestStoppedNetwork(t *testing.T) {
 	// RemoveNode failure
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
-	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
+	assert.EqualValues(utils.AwaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
@@ -441,20 +442,6 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]str
 		_, err := net.GetNode(nodeName)
 		assert.Error(err)
 	}
-}
-
-// Returns nil when all the nodes in [net] are healthy,
-// or an error if one doesn't become healthy within
-// the timeout.
-func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	healthyCh := net.Healthy(ctx)
-	err, ok := <-healthyCh
-	if ok {
-		return err
-	}
-	return nil
 }
 
 // Return a network config that has no nodes

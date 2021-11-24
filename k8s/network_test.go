@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	v1 "k8s.io/api/core/v1"
 
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 
@@ -135,7 +133,7 @@ func newMockK8sClient() (k8scli.Client, error) {
 }
 
 // newDNSChecker creates a mock for checking the DNS (really just a http.Get mock)
-func newDNSChecker() dnsReachableChecker {
+func newDNSChecker() *mocks.DNSCheck {
 	dnsChecker := &mocks.DNSCheck{}
 	dnsChecker.On("Reachable", mock.AnythingOfType("string")).Return(nil)
 	return dnsChecker
@@ -204,20 +202,12 @@ func TestNewNetworkEmpty(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestNewNetwork tests that a default network can be created
-func TestNewNetwork(t *testing.T) {
-	n, err := newDefaultTestNetwork(t)
-	defer cleanup(n)
-	assert.NoError(t, err)
-}
-
 // TestHealthy tests that a default network can be created and becomes healthy
 func TestHealthy(t *testing.T) {
-	conf := defaultTestNetworkConfig(t)
-	n, err := newTestNetworkWithConfig(conf)
+	n, err := newDefaultTestNetwork(t)
 	assert.NoError(t, err)
 	defer cleanup(n)
-	err = awaitHealthy(n)
+	err = utils.AwaitNetworkHealthy(n, 30*time.Second)
 	assert.NoError(t, err)
 }
 
@@ -234,7 +224,7 @@ func TestNetworkDefault(t *testing.T) {
 	n, err := newTestNetworkWithConfig(conf)
 	assert.NoError(err)
 	defer cleanup(n)
-	err = awaitHealthy(n)
+	err = utils.AwaitNetworkHealthy(n, 30*time.Second)
 	assert.NoError(err)
 
 	names, err := n.GetNodesNames()
@@ -242,7 +232,7 @@ func TestNetworkDefault(t *testing.T) {
 	netSize := len(names)
 	assert.EqualValues(defaultTestNetworkSize, netSize)
 	for _, name := range names {
-		assert.True(len(name) > 0)
+		assert.Greater(len(name), 0)
 	}
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	assert.NoError(err)
@@ -413,205 +403,6 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
 	_, err := newTestNetworkWithConfig(networkConfig)
 	assert.Error(err)
-}
-
-// TestCreateDeploymentConfig tests the internal createDeploymentFromConfig method which creates the k8s objects
-func TestCreateDeploymentConfig(t *testing.T) {
-	assert := assert.New(t)
-	genesis := defaultTestGenesis
-
-	nodeConfigs := []node.Config{
-		{
-			Name:        "test1",
-			IsBeacon:    true,
-			StakingKey:  []byte("fooKey"),
-			StakingCert: []byte("fooCert"),
-			ConfigFile:  []byte("{}"),
-			ImplSpecificConfig: ObjectSpec{
-				Namespace:  "test01",
-				Identifier: "test11",
-				Kind:       "kinda",
-				APIVersion: "v1",
-				Image:      "img1",
-				Tag:        "t1",
-				Genesis:    "gen1",
-			},
-		},
-		{
-			Name:        "test2",
-			IsBeacon:    false,
-			StakingKey:  []byte("barKey"),
-			StakingCert: []byte("barCert"),
-			ConfigFile:  []byte("{}"),
-			ImplSpecificConfig: ObjectSpec{
-				Namespace:  "test02",
-				Identifier: "test22",
-				Kind:       "kindb",
-				APIVersion: "v2",
-				Image:      "img2",
-				Tag:        "t2",
-				Genesis:    "gen2",
-			},
-		},
-	}
-	beacons, nonBeacons, err := createDeploymentFromConfig(genesis, nodeConfigs)
-	assert.NoError(err)
-	assert.Len(beacons, 1)
-	assert.Len(nonBeacons, 1)
-
-	b := beacons[0]
-	n := nonBeacons[0]
-
-	assert.Equal(b.Name, "test11")
-	assert.Equal(n.Name, "test22")
-	assert.Equal(b.Kind, "kinda")
-	assert.Equal(n.Kind, "kindb")
-	assert.Equal(b.APIVersion, "v1")
-	assert.Equal(n.APIVersion, "v2")
-	assert.Equal(b.Namespace, "test01")
-	assert.Equal(n.Namespace, "test02")
-	assert.Equal(b.Spec.DeploymentName, "test1")
-	assert.Equal(n.Spec.DeploymentName, "test2")
-	assert.Equal(b.Spec.Image, "img1")
-	assert.Equal(n.Spec.Image, "img2")
-	assert.Equal(b.Spec.Tag, "t1")
-	assert.Equal(n.Spec.Tag, "t2")
-	assert.Equal(b.Spec.BootstrapperURL, "")
-	assert.Equal(n.Spec.BootstrapperURL, "")
-	assert.Equal(b.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
-	assert.Equal(n.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
-	assert.Equal(b.Spec.Env[0].Value, fmt.Sprint(defaultTestNetworkID))
-	assert.Equal(n.Spec.Env[0].Value, fmt.Sprint(defaultTestNetworkID))
-	assert.Equal(b.Spec.NodeCount, 1)
-	assert.Equal(n.Spec.NodeCount, 1)
-	assert.Equal(b.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("fooCert")))
-	assert.Equal(b.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("fooKey")))
-	assert.Equal(n.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("barCert")))
-	assert.Equal(n.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("barKey")))
-	assert.Equal(n.Spec.NodeCount, 1)
-	assert.Equal(b.Spec.Genesis, string(genesis))
-	assert.Equal(n.Spec.Genesis, string(genesis))
-}
-
-// TestBuildNodeEnv tests the internal buildNodeEnv method which creates the env vars for the avalanche nodes
-func TestBuildNodeEnv(t *testing.T) {
-	genesis := defaultTestGenesis
-	testConfig := `
-	{
-		"network-peer-list-gossip-frequency": "250ms",
-		"network-max-reconnect-delay": "1s",
-		"health-check-frequency": "2s"
-	}`
-	c := node.Config{
-		ConfigFile: []byte(testConfig),
-	}
-
-	envVars, err := buildNodeEnv(genesis, c)
-	assert.NoError(t, err)
-	controlVars := []v1.EnvVar{
-		{
-			Name:  "AVAGO_NETWORK_PEER_LIST_GOSSIP_FREQUENCY",
-			Value: "250ms",
-		},
-		{
-			Name:  "AVAGO_NETWORK_MAX_RECONNECT_DELAY",
-			Value: "1s",
-		},
-		{
-			Name:  "AVAGO_HEALTH_CHECK_FREQUENCY",
-			Value: "2s",
-		},
-		{
-			Name:  "AVAGO_NETWORK_ID",
-			Value: fmt.Sprint(defaultTestNetworkID),
-		},
-	}
-
-	assert.ElementsMatch(t, envVars, controlVars)
-}
-
-// TestBuildNodeMapping tests the internal buildNodeMapping which acts as mapping between
-// the user facing interface and the k8s world
-func TestBuildNodeMapping(t *testing.T) {
-	assert := assert.New(t)
-	dnsChecker := newDNSChecker()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		default:
-		}
-		if err := dnsChecker.Reachable("localhost"); err == nil {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	net := &networkImpl{
-		log:           logging.NoLog{},
-		nodes:         make(map[string]*Node),
-		apiClientFunc: newMockAPISuccessful,
-	}
-	controlSet := make([]*k8sapi.Avalanchego, defaultTestNetworkSize)
-	for i := 0; i < defaultTestNetworkSize; i++ {
-		name := "localhost"
-		avago := &k8sapi.Avalanchego{
-			Status: k8sapi.AvalanchegoStatus{
-				NetworkMembersURI: []string{name},
-			},
-			Spec: k8sapi.AvalanchegoSpec{
-				DeploymentName: name,
-			},
-		}
-		controlSet[i] = avago
-	}
-
-	err := net.buildNodeMapping(controlSet)
-	assert.NoError(err)
-
-	i := 0
-	for k, v := range net.nodes {
-		assert.Equal(controlSet[i], v.k8sObj)
-		assert.Equal(k, v.name)
-		assert.Equal(v.uri, "localhost")
-		assert.NotNil(v.client)
-		assert.NotEqual(ids.ShortEmpty, v.nodeID)
-	}
-}
-
-// TestConvertKey tests the internal convertKey method which is used
-// to convert from the avalanchego config file format to env vars
-func TestConvertKey(t *testing.T) {
-	testKey := "network-peer-list-gossip-frequency"
-	controlKey := "AVAGO_NETWORK_PEER_LIST_GOSSIP_FREQUENCY"
-	convertedKey := convertKey(testKey)
-	assert.Equal(t, convertedKey, controlKey)
-}
-
-// TestExtractNetworkID tests the internal getNetworkID method which
-// extracts the NetworkID from the genesis file
-func TestExtractNetworkID(t *testing.T) {
-	genesis := defaultTestGenesis
-	netID, err := utils.NetworkIDFromGenesis(genesis)
-	assert.NoError(t, err)
-	assert.Equal(t, netID, defaultTestNetworkID)
-}
-
-// awaitHealthy creates a new network from a config and waits until it's healthy
-func awaitHealthy(n network.Network) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	errCh := n.Healthy(ctx)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return err
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 // defaultTestNetworkConfig creates a default size network for testing
