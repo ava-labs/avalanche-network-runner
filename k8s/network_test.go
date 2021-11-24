@@ -4,20 +4,19 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
-	"github.com/ava-labs/avalanche-network-runner/constants/testconstants"
 	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
-	avagoconst "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	v1 "k8s.io/api/core/v1"
 
@@ -28,10 +27,94 @@ import (
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	defaultTestNetworkID   = uint32(1337)
+	defaultTestNetworkSize = 5
+)
+
 var (
-	_ api.NewAPIClientF = newMockAPISuccessful
-	_ api.NewAPIClientF = newMockAPIUnhealthy
-	_ newClientFunc     = newMockK8sClient
+	_                  api.NewAPIClientF = newMockAPISuccessful
+	_                  api.NewAPIClientF = newMockAPIUnhealthy
+	_                  newClientFunc     = newMockK8sClient
+	defaultTestGenesis []byte            = []byte(
+		`{
+			"networkID": 1337,
+			"allocations": [
+			  {
+				"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
+				"avaxAddr": "X-local1g65uqn6t77p656w64023nh8nd9updzmxyymev2",
+				"initialAmount": 0,
+				"unlockSchedule": [
+				  {
+					"amount": 10000000000000000,
+					"locktime": 1633824000
+				  }
+				]
+			  },
+			  {
+				"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
+				"avaxAddr": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"initialAmount": 300000000000000000,
+				"unlockSchedule": [
+				  {
+					"amount": 20000000000000000
+				  },
+				  {
+					"amount": 10000000000000000,
+					"locktime": 1633824000
+				  }
+				]
+			  },
+			  {
+				"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
+				"avaxAddr": "X-custom1ur873jhz9qnaqv5qthk5sn3e8nj3e0kmzpjrhp",
+				"initialAmount": 10000000000000000,
+				"unlockSchedule": [
+				  {
+					"amount": 10000000000000000,
+					"locktime": 1633824000
+				  }
+				]
+			  }
+			],
+			"startTime": 1630987200,
+			"initialStakeDuration": 31536000,
+			"initialStakeDurationOffset": 5400,
+			"initialStakedFunds": [
+			  "X-custom1g65uqn6t77p656w64023nh8nd9updzmxwd59gh"
+			],
+			"initialStakers": [
+			  {
+				"nodeID": "NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
+				"rewardAddress": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"delegationFee": 1000000
+			  },
+			  {
+				"nodeID": "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
+				"rewardAddress": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"delegationFee": 500000
+			  },
+			  {
+				"nodeID": "NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
+				"rewardAddress": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"delegationFee": 250000
+			  },
+			  {
+				"nodeID": "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
+				"rewardAddress": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"delegationFee": 125000
+			  },
+			  {
+				"nodeID": "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
+				"rewardAddress": "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p",
+				"delegationFee": 62500
+			  }
+			],
+			"cChainGenesis": "{\"config\":{\"chainId\":43112,\"homesteadBlock\":0,\"daoForkBlock\":0,\"daoForkSupport\":true,\"eip150Block\":0,\"eip150Hash\":\"0x2086799aeebeae135c246c65021c82b4e15a2c451340993aacfd2751886514f0\",\"eip155Block\":0,\"eip158Block\":0,\"byzantiumBlock\":0,\"constantinopleBlock\":0,\"petersburgBlock\":0,\"istanbulBlock\":0,\"muirGlacierBlock\":0,\"apricotPhase1BlockTimestamp\":0,\"apricotPhase2BlockTimestamp\":0},\"nonce\":\"0x0\",\"timestamp\":\"0x0\",\"extraData\":\"0x00\",\"gasLimit\":\"0x5f5e100\",\"difficulty\":\"0x0\",\"mixHash\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"coinbase\":\"0x0000000000000000000000000000000000000000\",\"alloc\":{\"8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC\":{\"balance\":\"0x295BE96E64066972000000\"}},\"number\":\"0x0\",\"gasUsed\":\"0x0\",\"parentHash\":\"0x0000000000000000000000000000000000000000000000000000000000000000\"}",
+			"message": "{{ fun_quote }}"
+		  }
+		  `,
+	)
 )
 
 // newMockK8sClient creates a new mock client
@@ -52,7 +135,7 @@ func newMockK8sClient() (k8scli.Client, error) {
 }
 
 // newDNSChecker creates a mock for checking the DNS (really just a http.Get mock)
-func newDNSChecker() dnsCheck {
+func newDNSChecker() dnsReachableChecker {
 	dnsChecker := &mocks.DNSCheck{}
 	dnsChecker.On("Reachable", mock.AnythingOfType("string")).Return(nil)
 	return dnsChecker
@@ -70,7 +153,7 @@ func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration
 	healthClient.On("Health").Return(healthReply, nil)
 
 	id := ids.GenerateTestShortID().String()
-	infoReply := fmt.Sprintf("%s%s", avagoconst.NodeIDPrefix, id)
+	infoReply := fmt.Sprintf("%s%s", constants.NodeIDPrefix, id)
 	infoClient := &apimocks.InfoClient{}
 	infoClient.On("GetNodeID").Return(infoReply, nil)
 
@@ -91,7 +174,7 @@ func newMockAPIUnhealthy(ipAddr string, port uint, requestTimeout time.Duration)
 }
 
 func newDefaultTestNetwork(t *testing.T) (network.Network, error) {
-	conf := defaultNetworkConfig(t)
+	conf := defaultTestNetworkConfig(t)
 	return newTestNetworkWithConfig(conf)
 }
 
@@ -107,7 +190,7 @@ func newTestNetworkWithConfig(conf network.Config) (network.Network, error) {
 
 // cleanup closes the channel to shutdown the HTTP server
 func cleanup(n network.Network) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 	defer cancel()
 	if err := n.Stop(ctx); err != nil {
 		fmt.Printf("Error stopping network: %s\n", err)
@@ -130,10 +213,11 @@ func TestNewNetwork(t *testing.T) {
 
 // TestHealthy tests that a default network can be created and becomes healthy
 func TestHealthy(t *testing.T) {
-	conf := defaultNetworkConfig(t)
-
-	n, err := awaitHealthy(t, conf)
+	conf := defaultTestNetworkConfig(t)
+	n, err := newTestNetworkWithConfig(conf)
+	assert.NoError(t, err)
 	defer cleanup(n)
+	err = awaitHealthy(n)
 	assert.NoError(t, err)
 }
 
@@ -145,27 +229,25 @@ func TestHealthy(t *testing.T) {
 // * it removes a node
 // * it stops the network
 func TestNetworkDefault(t *testing.T) {
-	conf := defaultNetworkConfig(t)
-
-	n, err := awaitHealthy(t, conf)
+	assert := assert.New(t)
+	conf := defaultTestNetworkConfig(t)
+	n, err := newTestNetworkWithConfig(conf)
+	assert.NoError(err)
 	defer cleanup(n)
-	assert.NoError(t, err)
+	err = awaitHealthy(n)
+	assert.NoError(err)
 
 	names, err := n.GetNodesNames()
-	assert.NoError(t, err)
+	assert.NoError(err)
 	netSize := len(names)
-	if netSize != testconstants.DefaultNetworkSize {
-		t.Fatalf("Expected default network size of %d, but got %d", testconstants.DefaultNetworkSize, netSize)
-	}
+	assert.EqualValues(defaultTestNetworkSize, netSize)
 	for _, name := range names {
-		if name == "" {
-			t.Fatal("Got invalid empty name")
-		}
+		assert.True(len(name) > 0)
 	}
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-	assert.NoError(t, err)
+	assert.NoError(err)
 
-	nnode := node.Config{
+	newNodeConfig := node.Config{
 		Name:        "new-node",
 		IsBeacon:    false,
 		StakingKey:  stakingKey,
@@ -179,30 +261,24 @@ func TestNetworkDefault(t *testing.T) {
 			Tag:        "1.9.99",
 		},
 	}
-	newNode, err := n.AddNode(nnode)
-	assert.NoError(t, err)
+	newNode, err := n.AddNode(newNodeConfig)
+	assert.NoError(err)
 	names, err = n.GetNodesNames()
-	assert.NoError(t, err)
-	if len(names) != netSize+1 {
-		t.Fatalf("Expected net size of %d, but got %d", netSize+1, len(names))
-	}
+	assert.NoError(err)
+	assert.Len(names, netSize+1)
 
-	nn, err := n.GetNode(nnode.Name)
-	assert.NoError(t, err)
-	if nn.GetName() != nnode.Name {
-		t.Fatalf("Expected node %s, but got %s", nn.GetName(), nnode.Name)
-	}
+	nn, err := n.GetNode(newNodeConfig.Name)
+	assert.NoError(err)
+	assert.Equal(newNodeConfig.Name, nn.GetName())
 
 	_, err = n.GetNode("this does not exist")
-	assert.Error(t, err)
+	assert.Error(err)
 
 	err = n.RemoveNode(newNode.GetName())
-	assert.NoError(t, err)
+	assert.NoError(err)
 	names, err = n.GetNodesNames()
-	assert.NoError(t, err)
-	if len(names) != netSize {
-		t.Fatalf("Expected net size of %d, but got %d", netSize, len(names))
-	}
+	assert.NoError(err)
+	assert.Len(names, netSize)
 }
 
 // TestWrongNetworkConfigs checks configs that are expected to be invalid at network creation time
@@ -320,9 +396,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 			},
 		},
 	}
+	assert := assert.New(t)
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert := assert.New(t)
 			_, err := newTestNetworkWithConfig(tt.config)
 			assert.Error(err)
 		})
@@ -333,7 +409,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 // This is adapted from the local test suite
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
-	networkConfig := defaultNetworkConfig(t)
+	networkConfig := defaultTestNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
 	_, err := newTestNetworkWithConfig(networkConfig)
 	assert.Error(err)
@@ -341,8 +417,8 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 
 // TestCreateDeploymentConfig tests the internal createDeploymentFromConfig method which creates the k8s objects
 func TestCreateDeploymentConfig(t *testing.T) {
-	genesis, err := os.ReadFile("genesis_test.json")
-	assert.NoError(t, err)
+	assert := assert.New(t)
+	genesis := defaultTestGenesis
 
 	nodeConfigs := []node.Config{
 		{
@@ -378,53 +454,48 @@ func TestCreateDeploymentConfig(t *testing.T) {
 			},
 		},
 	}
-	beacons, non, err := createDeploymentFromConfig(genesis, nodeConfigs)
-	assert.NoError(t, err)
-	if len(beacons) != 1 {
-		t.Fatalf("Expected 1 beacon, got %d", len(beacons))
-	}
-	if len(non) != 1 {
-		t.Fatalf("Expected 1 non-beacon, got %d", len(non))
-	}
+	beacons, nonBeacons, err := createDeploymentFromConfig(genesis, nodeConfigs)
+	assert.NoError(err)
+	assert.Len(beacons, 1)
+	assert.Len(nonBeacons, 1)
 
 	b := beacons[0]
-	n := non[0]
+	n := nonBeacons[0]
 
-	assert.Equal(t, b.Name, "test11")
-	assert.Equal(t, n.Name, "test22")
-	assert.Equal(t, b.Kind, "kinda")
-	assert.Equal(t, n.Kind, "kindb")
-	assert.Equal(t, b.APIVersion, "v1")
-	assert.Equal(t, n.APIVersion, "v2")
-	assert.Equal(t, b.Namespace, "test01")
-	assert.Equal(t, n.Namespace, "test02")
-	assert.Equal(t, b.Spec.DeploymentName, "test1")
-	assert.Equal(t, n.Spec.DeploymentName, "test2")
-	assert.Equal(t, b.Spec.Image, "img1")
-	assert.Equal(t, n.Spec.Image, "img2")
-	assert.Equal(t, b.Spec.Tag, "t1")
-	assert.Equal(t, n.Spec.Tag, "t2")
-	assert.Equal(t, b.Spec.BootstrapperURL, "")
-	assert.Equal(t, n.Spec.BootstrapperURL, "")
-	assert.Equal(t, b.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
-	assert.Equal(t, n.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
-	assert.Equal(t, b.Spec.Env[0].Value, fmt.Sprint(testconstants.DefaultNetworkID))
-	assert.Equal(t, n.Spec.Env[0].Value, fmt.Sprint(testconstants.DefaultNetworkID))
-	assert.Equal(t, b.Spec.NodeCount, 1)
-	assert.Equal(t, n.Spec.NodeCount, 1)
-	assert.Equal(t, b.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("fooCert")))
-	assert.Equal(t, b.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("fooKey")))
-	assert.Equal(t, n.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("barCert")))
-	assert.Equal(t, n.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("barKey")))
-	assert.Equal(t, n.Spec.NodeCount, 1)
-	assert.Equal(t, b.Spec.Genesis, string(genesis))
-	assert.Equal(t, n.Spec.Genesis, string(genesis))
+	assert.Equal(b.Name, "test11")
+	assert.Equal(n.Name, "test22")
+	assert.Equal(b.Kind, "kinda")
+	assert.Equal(n.Kind, "kindb")
+	assert.Equal(b.APIVersion, "v1")
+	assert.Equal(n.APIVersion, "v2")
+	assert.Equal(b.Namespace, "test01")
+	assert.Equal(n.Namespace, "test02")
+	assert.Equal(b.Spec.DeploymentName, "test1")
+	assert.Equal(n.Spec.DeploymentName, "test2")
+	assert.Equal(b.Spec.Image, "img1")
+	assert.Equal(n.Spec.Image, "img2")
+	assert.Equal(b.Spec.Tag, "t1")
+	assert.Equal(n.Spec.Tag, "t2")
+	assert.Equal(b.Spec.BootstrapperURL, "")
+	assert.Equal(n.Spec.BootstrapperURL, "")
+	assert.Equal(b.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
+	assert.Equal(n.Spec.Env[0].Name, "AVAGO_NETWORK_ID")
+	assert.Equal(b.Spec.Env[0].Value, fmt.Sprint(defaultTestNetworkID))
+	assert.Equal(n.Spec.Env[0].Value, fmt.Sprint(defaultTestNetworkID))
+	assert.Equal(b.Spec.NodeCount, 1)
+	assert.Equal(n.Spec.NodeCount, 1)
+	assert.Equal(b.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("fooCert")))
+	assert.Equal(b.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("fooKey")))
+	assert.Equal(n.Spec.Certificates[0].Cert, base64.StdEncoding.EncodeToString([]byte("barCert")))
+	assert.Equal(n.Spec.Certificates[0].Key, base64.StdEncoding.EncodeToString([]byte("barKey")))
+	assert.Equal(n.Spec.NodeCount, 1)
+	assert.Equal(b.Spec.Genesis, string(genesis))
+	assert.Equal(n.Spec.Genesis, string(genesis))
 }
 
 // TestBuildNodeEnv tests the internal buildNodeEnv method which creates the env vars for the avalanche nodes
 func TestBuildNodeEnv(t *testing.T) {
-	genesis, err := os.ReadFile("genesis_test.json")
-	assert.NoError(t, err)
+	genesis := defaultTestGenesis
 	testConfig := `
 	{
 		"network-peer-list-gossip-frequency": "250ms",
@@ -452,7 +523,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		},
 		{
 			Name:  "AVAGO_NETWORK_ID",
-			Value: fmt.Sprint(testconstants.DefaultNetworkID),
+			Value: fmt.Sprint(defaultTestNetworkID),
 		},
 	}
 
@@ -462,14 +533,15 @@ func TestBuildNodeEnv(t *testing.T) {
 // TestBuildNodeMapping tests the internal buildNodeMapping which acts as mapping between
 // the user facing interface and the k8s world
 func TestBuildNodeMapping(t *testing.T) {
+	assert := assert.New(t)
 	dnsChecker := newDNSChecker()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for {
 		select {
-		default:
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
+		default:
 		}
 		if err := dnsChecker.Reachable("localhost"); err == nil {
 			break
@@ -481,8 +553,8 @@ func TestBuildNodeMapping(t *testing.T) {
 		nodes:         make(map[string]*Node),
 		apiClientFunc: newMockAPISuccessful,
 	}
-	controlSet := make([]*k8sapi.Avalanchego, testconstants.DefaultNetworkSize)
-	for i := 0; i < testconstants.DefaultNetworkSize; i++ {
+	controlSet := make([]*k8sapi.Avalanchego, defaultTestNetworkSize)
+	for i := 0; i < defaultTestNetworkSize; i++ {
 		name := "localhost"
 		avago := &k8sapi.Avalanchego{
 			Status: k8sapi.AvalanchegoStatus{
@@ -496,15 +568,15 @@ func TestBuildNodeMapping(t *testing.T) {
 	}
 
 	err := net.buildNodeMapping(controlSet)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	i := 0
 	for k, v := range net.nodes {
-		assert.Equal(t, controlSet[i], v.k8sObj)
-		assert.Equal(t, k, v.name)
-		assert.Equal(t, v.uri, "localhost")
-		assert.NotNil(t, v.client)
-		assert.NotEqual(t, ids.ShortEmpty, v.nodeID)
+		assert.Equal(controlSet[i], v.k8sObj)
+		assert.Equal(k, v.name)
+		assert.Equal(v.uri, "localhost")
+		assert.NotNil(v.client)
+		assert.NotEqual(ids.ShortEmpty, v.nodeID)
 	}
 }
 
@@ -520,36 +592,33 @@ func TestConvertKey(t *testing.T) {
 // TestExtractNetworkID tests the internal getNetworkID method which
 // extracts the NetworkID from the genesis file
 func TestExtractNetworkID(t *testing.T) {
-	genesis, err := os.ReadFile("genesis_test.json")
+	genesis := defaultTestGenesis
+	netID, err := utils.NetworkIDFromGenesis(genesis)
 	assert.NoError(t, err)
-	netID, err := getNetworkID(genesis)
-	assert.NoError(t, err)
-	assert.Equal(t, netID, float64(testconstants.DefaultNetworkID))
+	assert.Equal(t, netID, defaultTestNetworkID)
 }
 
 // awaitHealthy creates a new network from a config and waits until it's healthy
-func awaitHealthy(t *testing.T, conf network.Config) (network.Network, error) {
-	n, err := newTestNetworkWithConfig(conf)
-	assert.NoError(t, err)
+func awaitHealthy(n network.Network) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	errCh := n.Healthy(ctx)
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return nil, err
+			return err
 		}
-		return n, nil
+		return nil
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
 }
 
-// defaultNetworkConfig creates a default size network for testing
-func defaultNetworkConfig(t *testing.T) network.Config {
+// defaultTestNetworkConfig creates a default size network for testing
+func defaultTestNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
 	networkConfig := network.Config{}
-	for i := 0; i < testconstants.DefaultNetworkSize; i++ {
+	for i := 0; i < defaultTestNetworkSize; i++ {
 		crt, key, err := staking.NewCertAndKeyBytes()
 		assert.NoError(err)
 		nodeConfig := node.Config{
