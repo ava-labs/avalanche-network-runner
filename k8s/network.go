@@ -100,30 +100,41 @@ func newNetwork(params networkParams) (network.Network, error) {
 	}
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
-	defer func() {
+	cleanup := func(net *networkImpl) {
+		namespace := beacons[0].Namespace
 		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 		defer cancel()
-		if err := net.k8scli.DeleteAllOf(ctx, &k8sapi.Avalanchego{}, &k8scli.DeleteAllOfOptions{}); err != nil {
-			net.log.Error("Error clearing all of the k8s objects: %s", err)
+		if err := net.k8scli.DeleteAllOf(
+			ctx,
+			&k8sapi.Avalanchego{},
+			&k8scli.DeleteAllOfOptions{
+				ListOptions: k8scli.ListOptions{Namespace: namespace},
+			},
+		); err != nil {
+			net.log.Warn("Error deleting objects during network cleanup function: %s", err)
 		}
-	}()
+	}
 	if err := net.launchNodes(beacons); err != nil {
+		cleanup(net)
 		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
 	// Tell future nodes the IP of the beacon node
 	// TODO add support for multiple beacons
 	net.beaconURL = beacons[0].Status.NetworkMembersURI[0]
 	if net.beaconURL == "" {
+		cleanup(net)
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
 	net.log.Info("Beacon node started")
 	// Start the non-beacon nodes
 	if err := net.launchNodes(nonBeacons); err != nil {
+		cleanup(net)
 		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
 	net.log.Info("All nodes started")
 	// Build a mapping from k8s URIs to names/ids
 	if err := net.buildNodeMapping(append(beacons, nonBeacons...)); err != nil {
+		cleanup(net)
 		return nil, err
 	}
 
