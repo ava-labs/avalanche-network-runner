@@ -33,7 +33,6 @@ const (
 var (
 	_                  api.NewAPIClientF = newMockAPISuccessful
 	_                  api.NewAPIClientF = newMockAPIUnhealthy
-	_                  newClientFunc     = newMockK8sClient
 	defaultTestGenesis []byte            = []byte(
 		`{
 			"networkID": 1337,
@@ -116,7 +115,7 @@ var (
 )
 
 // newMockK8sClient creates a new mock client
-func newMockK8sClient() (k8scli.Client, error) {
+func newMockK8sClient() k8scli.Client {
 	client := &mocks.Client{}
 	client.On("Get", mock.Anything, mock.Anything, mock.Anything).Run(
 		func(args mock.Arguments) {
@@ -129,7 +128,7 @@ func newMockK8sClient() (k8scli.Client, error) {
 	client.On("Status").Return(nil)
 	client.On("Scheme").Return(nil)
 	client.On("RESTMapper").Return(nil)
-	return client, nil
+	return client
 }
 
 // newDNSChecker creates a mock for checking the DNS (really just a http.Get mock)
@@ -180,7 +179,7 @@ func newTestNetworkWithConfig(conf network.Config) (network.Network, error) {
 	return newNetwork(networkParams{
 		conf:          conf,
 		log:           logging.NoLog{},
-		newClientFunc: newMockK8sClient,
+		k8sClient:     newMockK8sClient(),
 		dnsChecker:    newDNSChecker(),
 		apiClientFunc: newMockAPISuccessful,
 	})
