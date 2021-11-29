@@ -47,60 +47,6 @@ func TestBuildNodeEnv(t *testing.T) {
 	assert.ElementsMatch(t, envVars, controlVars)
 }
 
-/* TODO fix test
-// TestBuildNodeMapping tests the internal buildNodeMapping which acts as mapping between
-// the user facing interface and the k8s world
-func TestBuildNodeMapping(t *testing.T) {
-	assert := assert.New(t)
-	dnsChecker := newDNSChecker()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		default:
-		}
-		if err := dnsChecker.Reachable("localhost"); err == nil {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	net := &networkImpl{
-		log:           logging.NoLog{},
-		nodes:         make(map[string]*Node),
-		apiClientFunc: newMockAPISuccessful,
-	}
-	controlSet := make(map[string]*k8sapi.Avalanchego, defaultTestNetworkSize)
-	for i := 0; i < defaultTestNetworkSize; i++ {
-		name := fmt.Sprintf("localhost-%d", i)
-		avago := &k8sapi.Avalanchego{
-			Status: k8sapi.AvalanchegoStatus{
-				NetworkMembersURI: []string{"localhost"},
-			},
-			Spec: k8sapi.AvalanchegoSpec{
-				DeploymentName: name,
-			},
-		}
-		net.nodes[name] = &Node{
-			name:       name,
-			k8sObjSpec: avago,
-		}
-		err := net.buildNodeMapping(avago)
-		assert.NoError(err)
-		controlSet[name] = avago
-	}
-
-	for k, v := range net.nodes {
-		assert.Equal(controlSet[k], v.k8sObjSpec)
-		assert.Equal(k, v.name)
-		assert.Equal(v.uri, "localhost")
-		assert.NotNil(v.apiClient)
-		assert.NotEqual(ids.ShortEmpty, v.nodeID)
-	}
-}
-*/
-
 // TestConvertKey tests the internal convertKey method which is used
 // to convert from the avalanchego config file format to env vars
 func TestConvertKey(t *testing.T) {

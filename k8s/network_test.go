@@ -226,6 +226,17 @@ func TestNetworkDefault(t *testing.T) {
 	err = utils.AwaitNetworkHealthy(n, 30*time.Second)
 	assert.NoError(err)
 
+	net, ok := n.(*networkImpl)
+	assert.True(ok)
+	assert.Len(net.nodes, len(conf.NodeConfigs))
+	for _, node := range net.nodes {
+		assert.NotNil(node.apiClient)
+		assert.NotNil(node.k8sObjSpec)
+		assert.True(len(node.name) > 0)
+		assert.True(len(node.uri) > 0)
+		assert.NotEqualValues(ids.ShortEmpty, node.nodeID)
+	}
+
 	names, err := n.GetNodesNames()
 	assert.NoError(err)
 	netSize := len(names)
