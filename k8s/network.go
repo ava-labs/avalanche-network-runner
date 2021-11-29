@@ -33,15 +33,11 @@ const (
 
 var _ network.Network = (*networkImpl)(nil)
 
-// Returns a new K8s client.
-// We define this type so we can mock the K8s client.
-type newClientFunc func() (k8scli.Client, error)
-
 // networkParams encapsulate params to create a network
 type networkParams struct {
 	conf          network.Config
 	log           logging.Logger
-	newClientFunc newClientFunc
+	k8sClient     k8scli.Client
 	dnsChecker    dnsReachableChecker
 	apiClientFunc api.NewAPIClientF
 }
@@ -77,11 +73,6 @@ func newK8sClient() (k8scli.Client, error) {
 }
 
 func newNetwork(params networkParams) (network.Network, error) {
-	kubeClient, err := params.newClientFunc()
-	if err != nil {
-		return nil, err
-	}
-	params.log.Info("K8s client initialized")
 	beacons, nonBeacons, err := createDeploymentFromConfig(params.conf.Genesis, params.conf.NodeConfigs)
 	if err != nil {
 		return nil, err
@@ -91,7 +82,7 @@ func newNetwork(params networkParams) (network.Network, error) {
 	}
 	net := &networkImpl{
 		config:         params.conf,
-		k8scli:         kubeClient,
+		k8scli:         params.k8sClient,
 		closedOnStopCh: make(chan struct{}),
 		log:            params.log,
 		nodes:          make(map[string]*Node, len(params.conf.NodeConfigs)),
@@ -120,10 +111,14 @@ func newNetwork(params networkParams) (network.Network, error) {
 
 // NewNetwork returns a new network whose initial state is specified in the config
 func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error) {
+	k8sClient, err := newK8sClient()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create k8s client: %w", err)
+	}
 	return newNetwork(networkParams{
 		conf:          conf,
 		log:           log,
-		newClientFunc: newK8sClient,
+		k8sClient:     k8sClient,
 		dnsChecker:    &defaultDNSReachableChecker{},
 		apiClientFunc: api.NewAPIClient,
 	})
