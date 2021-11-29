@@ -157,8 +157,6 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 	}
 
 	go func() {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
 		errGr, ctx := errgroup.WithContext(ctx)
 		for _, node := range nodes {
 			node := node
