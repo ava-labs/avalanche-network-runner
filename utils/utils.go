@@ -1,14 +1,11 @@
 package utils
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/hashing"
 )
@@ -47,14 +44,4 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 		return 0, fmt.Errorf("expected float64 but got %T", networkIDIntf)
 	}
 	return uint32(networkID), nil
-}
-
-// Returns nil when all the nodes in [net] are healthy,
-// or an error if one doesn't become healthy within
-// the timeout.
-func AwaitNetworkHealthy(net network.Network, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	healthyCh := net.Healthy(ctx)
-	return <-healthyCh
 }
