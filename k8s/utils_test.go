@@ -75,26 +75,28 @@ func TestBuildNodeMapping(t *testing.T) {
 		nodes:         make(map[string]*Node),
 		apiClientFunc: newMockAPISuccessful,
 	}
-	controlSet := make([]*k8sapi.Avalanchego, defaultTestNetworkSize)
+	controlSet := make(map[string]*k8sapi.Avalanchego, defaultTestNetworkSize)
 	for i := 0; i < defaultTestNetworkSize; i++ {
-		name := "localhost"
+		name := fmt.Sprintf("localhost-%d", i)
 		avago := &k8sapi.Avalanchego{
 			Status: k8sapi.AvalanchegoStatus{
-				NetworkMembersURI: []string{name},
+				NetworkMembersURI: []string{"localhost"},
 			},
 			Spec: k8sapi.AvalanchegoSpec{
 				DeploymentName: name,
 			},
 		}
-		controlSet[i] = avago
+		net.nodes[name] = &Node{
+			name:   name,
+			k8sObj: avago,
+		}
+		err := net.buildNodeMapping(avago)
+		assert.NoError(err)
+		controlSet[name] = avago
 	}
 
-	err := net.buildNodeMapping(controlSet)
-	assert.NoError(err)
-
-	i := 0
 	for k, v := range net.nodes {
-		assert.Equal(controlSet[i], v.k8sObj)
+		assert.Equal(controlSet[k], v.k8sObj)
 		assert.Equal(k, v.name)
 		assert.Equal(v.uri, "localhost")
 		assert.NotNil(v.client)

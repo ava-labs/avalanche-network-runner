@@ -100,45 +100,21 @@ func newNetwork(params networkParams) (network.Network, error) {
 	}
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes
-	cleanup := func(net *networkImpl) {
-		namespace := beacons[0].Namespace
-		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-		defer cancel()
-		if err := net.k8scli.DeleteAllOf(
-			ctx,
-			&k8sapi.Avalanchego{},
-			&k8scli.DeleteAllOfOptions{
-				ListOptions: k8scli.ListOptions{Namespace: namespace},
-			},
-		); err != nil {
-			net.log.Warn("Error deleting objects during network cleanup function: %s", err)
-		}
-	}
 	if err := net.launchNodes(beacons); err != nil {
-		cleanup(net)
 		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
 	// Tell future nodes the IP of the beacon node
 	// TODO add support for multiple beacons
 	net.beaconURL = beacons[0].Status.NetworkMembersURI[0]
 	if net.beaconURL == "" {
-		cleanup(net)
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
 	net.log.Info("Beacon node started")
 	// Start the non-beacon nodes
 	if err := net.launchNodes(nonBeacons); err != nil {
-		cleanup(net)
 		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
-	net.log.Info("All nodes started")
-	// Build a mapping from k8s URIs to names/ids
-	if err := net.buildNodeMapping(append(beacons, nonBeacons...)); err != nil {
-		cleanup(net)
-		return nil, err
-	}
-
-	net.log.Info("network: %s", net)
+	net.log.Info("All nodes started. Network: %s", net)
 	return net, nil
 }
 
@@ -224,36 +200,17 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.log.Debug("Adding new node %s to network...", cfg.Name)
-	if err := a.k8scli.Create(context.Background(), node); err != nil {
-		return nil, err
-	}
 
 	a.log.Debug("Launching new node %s to network...", cfg.Name)
 	if err := a.launchNodes([]*k8sapi.Avalanchego{node}); err != nil {
 		return nil, err
 	}
 
-	uri := node.Status.NetworkMembersURI[0]
-	cli := a.apiClientFunc(uri, defaultAPIPort, apiTimeout)
-	nodeIDStr, err := cli.InfoAPI().GetNodeID()
-	if err != nil {
+	if err := a.buildNodeMapping(node); err != nil {
 		return nil, err
 	}
-	a.log.Debug("Successful. NodeID for this node is %s", nodeIDStr)
-	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, constants.NodeIDPrefix)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert node id from string: %s", err)
-	}
-	n := &Node{
-		uri:    uri,
-		client: cli,
-		name:   node.Spec.DeploymentName,
-		nodeID: nodeID,
-		k8sObj: node,
-	}
-	a.nodes[n.name] = n
-	return n, nil
+
+	return a.nodes[node.Name], nil
 }
 
 // See network.Network
@@ -306,6 +263,12 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 		if err := a.k8scli.Create(context.Background(), n); err != nil {
 			return err
 		}
+		// we're going to add the node representation already to the network, so that in case
+		// any of the following calls fails, we can run net.Stop() and do a proper cleanup
+		a.nodes[n.Spec.DeploymentName] = &Node{
+			name:   n.Spec.DeploymentName,
+			k8sObj: n,
+		}
 
 		a.log.Debug("Waiting for pod to be created...")
 		for len(n.Status.NetworkMembersURI) != 1 {
@@ -351,6 +314,10 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 				}
 			}
 		})
+		// complete the node setup
+		if err := a.buildNodeMapping(node); err != nil {
+			return err
+		}
 	}
 	// Wait until all nodes are ready or timeout
 	if err := errGr.Wait(); err != nil {
@@ -359,32 +326,30 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 	return nil
 }
 
-// Updates [a.nodes] to include [nodes]
-// It also establishes connection via the API client.
-func (a *networkImpl) buildNodeMapping(nodes []*k8sapi.Avalanchego) error {
-	for _, n := range nodes {
-		uri := n.Status.NetworkMembersURI[0]
-		a.log.Debug("creating network node and client for %s", uri)
-		cli := a.apiClientFunc(uri, defaultAPIPort, apiTimeout)
-		nodeIDStr, err := cli.InfoAPI().GetNodeID()
-		if err != nil {
-			return err
-		}
-		a.log.Debug("NodeID for this node is %s", nodeIDStr)
-		nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, constants.NodeIDPrefix)
-		if err != nil {
-			return fmt.Errorf("could not convert node id from string: %s", err)
-		}
-		// Map node name to the node
-		a.nodes[n.Spec.DeploymentName] = &Node{
-			uri:    uri,
-			client: cli,
-			name:   n.Spec.DeploymentName,
-			nodeID: nodeID,
-			k8sObj: n,
-		}
-		a.log.Debug("Name: %s, NodeID: %s, URI: %s", n.Spec.DeploymentName, nodeID, uri)
+// buildNodeMapping establishes connection via the API client and completes the node setup.
+// Expects the k8s.Node object to already have been created
+func (a *networkImpl) buildNodeMapping(node *k8sapi.Avalanchego) error {
+	if _, ok := a.nodes[node.Spec.DeploymentName]; !ok {
+		return fmt.Errorf("The node %s has not yet been added to the network", node.Spec.DeploymentName)
 	}
+	uri := node.Status.NetworkMembersURI[0]
+	a.log.Debug("creating network node and client for %s", uri)
+	cli := a.apiClientFunc(uri, defaultAPIPort, apiTimeout)
+	nodeIDStr, err := cli.InfoAPI().GetNodeID()
+	if err != nil {
+		return err
+	}
+	a.log.Debug("NodeID for this node is %s", nodeIDStr)
+	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, constants.NodeIDPrefix)
+	if err != nil {
+		return fmt.Errorf("could not convert node id from string: %s", err)
+	}
+	// Map node name to the node
+	a.nodes[node.Spec.DeploymentName].uri = uri
+	a.nodes[node.Spec.DeploymentName].client = cli
+	a.nodes[node.Spec.DeploymentName].nodeID = nodeID
+
+	a.log.Debug("Name: %s, NodeID: %s, URI: %s", node.Spec.DeploymentName, nodeID, uri)
 	return nil
 }
 
