@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
-	"github.com/ava-labs/avalanche-network-runner/constants"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -31,6 +30,7 @@ const (
 	genesisFileName       = "genesis.json"
 	apiTimeout            = 5 * time.Second
 	stopTimeout           = 30 * time.Second
+	healthCheckFreq       = 3 * time.Second
 )
 
 // interface compliance
@@ -336,7 +336,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 						return network.ErrStopped
 					case <-ctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
-					case <-time.After(constants.HealthCheckInterval):
+					case <-time.After(healthCheckFreq):
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {

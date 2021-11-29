@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
-	"github.com/ava-labs/avalanche-network-runner/constants"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/ids"
 )
@@ -60,12 +59,10 @@ func (n *Node) GetK8sObject() *k8sapi.Avalanchego {
 	return n.k8sObj
 }
 
-// GetStakingURL
 func (n *Node) GetStakingURL() string {
-	return fmt.Sprintf("%s:%d", n.uri, constants.DefaultStakingPort)
+	return fmt.Sprintf("%s:%d", n.uri, defaultStakingPort)
 }
 
-// GetAPIURL
 func (n *Node) GetAPIURL() string {
-	return fmt.Sprintf("%s:%d", n.uri, constants.DefaultAPIPort)
+	return fmt.Sprintf("%s:%d", n.uri, defaultAPIPort)
 }
