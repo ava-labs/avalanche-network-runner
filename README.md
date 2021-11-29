@@ -196,7 +196,7 @@ When run, it starts a local network with 5 nodes, waits until the nodes are heal
 
 It assumes:
 
-1. You have the latest AvalancheGo binaries at `$GOPATH/src/github.com/ava-labs/avalanchego/build`. For detail instruction, see (avalanchego project)[https://github.com/ava-labs/avalanchego].
+1. You have the latest AvalancheGo binaries at `$GOPATH/src/github.com/ava-labs/avalanchego/build`. For instructions on setting up AvalancheGo, see [here.](https://github.com/ava-labs/avalanchego)
 2. The network runner direcory is at `$GOPATH/src/github.com/ava-labs/avalanche-network-runner`.
 
 To run the demo:
