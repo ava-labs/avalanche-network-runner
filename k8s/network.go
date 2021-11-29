@@ -274,7 +274,7 @@ func (a *networkImpl) launchNodes(nodeSpecs []*k8sapi.Avalanchego) error {
 		nodeSpec := nodeSpec
 		errGr.Go(func() error {
 			if err := a.launchNode(ctx, nodeSpec); err != nil {
-				return fmt.Errorf("error launching node %q", nodeSpec.Spec.DeploymentName)
+				return fmt.Errorf("error launching node %q: %w", nodeSpec.Spec.DeploymentName, err)
 			}
 			return nil
 		})
