@@ -273,7 +273,10 @@ func (a *networkImpl) launchNodes(nodeSpecs []*k8sapi.Avalanchego) error {
 	for _, nodeSpec := range nodeSpecs {
 		nodeSpec := nodeSpec
 		errGr.Go(func() error {
-			return a.launchNode(ctx, nodeSpec)
+			if err := a.launchNode(ctx, nodeSpec); err != nil {
+				return fmt.Errorf("error launching node %q", nodeSpec.Spec.DeploymentName)
+			}
+			return nil
 		})
 	}
 	return errGr.Wait()
@@ -298,7 +301,7 @@ func (a *networkImpl) launchNode(ctx context.Context, nodeSpec *k8sapi.Avalanche
 	err := a.k8scli.Create(ctx, nodeSpec)
 	a.nodesLock.Unlock()
 	if err != nil {
-		return err
+		return fmt.Errorf("k8scli.Create failed: %w", err)
 	}
 
 	a.log.Debug("Waiting for pod to be created for node %q...", nodeSpec.Spec.DeploymentName)
@@ -307,7 +310,7 @@ func (a *networkImpl) launchNode(ctx context.Context, nodeSpec *k8sapi.Avalanche
 			Name:      nodeSpec.Name,
 			Namespace: nodeSpec.Namespace,
 		}, nodeSpec); err != nil {
-			return err
+			return fmt.Errorf("k8scli.Get failed: %w", err)
 		}
 		select {
 		case <-time.After(nodeReachableCheckFreq):
@@ -350,7 +353,7 @@ reachableLoop:
 	// TODO should we get this by parsing the key/cert?
 	nodeIDStr, err := apiClient.InfoAPI().GetNodeID()
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't get node ID: %w", err)
 	}
 	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, constants.NodeIDPrefix)
 	if err != nil {
