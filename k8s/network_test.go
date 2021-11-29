@@ -11,7 +11,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -207,7 +206,7 @@ func TestHealthy(t *testing.T) {
 	n, err := newDefaultTestNetwork(t)
 	assert.NoError(t, err)
 	defer cleanup(n)
-	err = utils.AwaitNetworkHealthy(n, 30*time.Second)
+	err = awaitNetworkHealthy(n, 30*time.Second)
 	assert.NoError(t, err)
 }
 
@@ -224,7 +223,7 @@ func TestNetworkDefault(t *testing.T) {
 	n, err := newTestNetworkWithConfig(conf)
 	assert.NoError(err)
 	defer cleanup(n)
-	err = utils.AwaitNetworkHealthy(n, 30*time.Second)
+	err = awaitNetworkHealthy(n, 30*time.Second)
 	assert.NoError(err)
 
 	names, err := n.GetNodesNames()
@@ -425,4 +424,14 @@ func defaultTestNetworkConfig(t *testing.T) network.Config {
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
 	return networkConfig
+}
+
+// Returns nil when all the nodes in [net] are healthy,
+// or an error if one doesn't become healthy within
+// the timeout.
+func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	healthyCh := net.Healthy(ctx)
+	return <-healthyCh
 }
