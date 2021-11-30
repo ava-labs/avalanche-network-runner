@@ -47,6 +47,10 @@ func run() error {
 		fmt.Println(err)
 		return err
 	}
+	if err := logFactory.SetLogLevel("main", logging.Debug); err != nil {
+		fmt.Println(err)
+		return err
+	}
 
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", goPath)
 	if goPath == "" {
@@ -80,7 +84,6 @@ func run() error {
 	// 	return err
 	// }
 	// log.SetLogLevel(level)
-	log.SetLogLevel(logging.Debug) // TODO remove
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
