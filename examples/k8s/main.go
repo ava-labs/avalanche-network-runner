@@ -41,13 +41,10 @@ func run() error {
 		fmt.Println(err)
 		return err
 	}
+	loggingConfig.LogLevel = logging.Debug
 	logFactory := logging.NewFactory(loggingConfig)
 	log, err := logFactory.Make("main")
 	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	if err := logFactory.SetLogLevel("main", logging.Debug); err != nil {
 		fmt.Println(err)
 		return err
 	}
