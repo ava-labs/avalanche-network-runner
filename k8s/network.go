@@ -375,6 +375,13 @@ reachableLoop:
 		}
 	}
 
+	// TODO remove this
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(5 * time.Second):
+	}
+
 	// Create an API client
 	a.log.Debug("creating network node and client for %s", url)
 	apiClient := a.apiClientFunc(url, defaultAPIPort, apiTimeout)
