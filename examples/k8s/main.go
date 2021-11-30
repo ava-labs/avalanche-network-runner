@@ -42,6 +42,7 @@ func run() error {
 		return err
 	}
 	loggingConfig.LogLevel = logging.Debug
+	loggingConfig.DisplayLevel = logging.Debug
 	logFactory := logging.NewFactory(loggingConfig)
 	log, err := logFactory.Make("main")
 	if err != nil {
