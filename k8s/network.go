@@ -333,7 +333,6 @@ func (a *networkImpl) launchNode(ctx context.Context, nodeSpec *k8sapi.Avalanche
 	}
 
 	a.log.Debug("Waiting for pod to be created for node %q...", nodeSpec.Spec.DeploymentName)
-	a.log.Debug("nodeSpec: %+v", nodeSpec) // todo remove
 	for len(nodeSpec.Status.NetworkMembersURI) != 1 {
 		if err := a.k8scli.Get(ctx, types.NamespacedName{
 			Name:      nodeSpec.Name,
@@ -376,11 +375,11 @@ reachableLoop:
 	}
 
 	// TODO remove this
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(5 * time.Second):
-	}
+	// select {
+	// case <-ctx.Done():
+	// 	return ctx.Err()
+	// case <-time.After(5 * time.Second):
+	// }
 
 	// Create an API client
 	a.log.Debug("creating network node and client for %s", url)
