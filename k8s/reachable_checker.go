@@ -19,6 +19,10 @@ type dnsReachableChecker interface {
 type defaultDNSReachableChecker struct{}
 
 func (d *defaultDNSReachableChecker) Reachable(url string) error {
-	_, err := http.Get(url)
-	return err
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
