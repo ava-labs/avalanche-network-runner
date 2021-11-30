@@ -73,12 +73,14 @@ func run() error {
 	}
 	networkConfig.ImplSpecificConfig = allConfig.K8sConfig
 
-	level, err := logging.ToLevel(networkConfig.LogLevel)
-	if err != nil {
-		log.Fatal("couldn't parse log: %s", err)
-		return err
-	}
-	log.SetLogLevel(level)
+	// TODO uncomment
+	// level, err := logging.ToLevel(networkConfig.LogLevel)
+	// if err != nil {
+	// 	log.Fatal("couldn't parse log: %s", err)
+	// 	return err
+	// }
+	// log.SetLogLevel(level)
+	log.SetLogLevel(logging.Debug) // TODO remove
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
