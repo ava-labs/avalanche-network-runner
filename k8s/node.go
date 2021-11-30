@@ -29,14 +29,14 @@ type Node struct {
 	// URI of this node from Kubernetes
 	uri string
 	// Use to send API calls to this node
-	client api.Client
+	apiClient api.Client
 	// K8s description of this node
-	k8sObj *k8sapi.Avalanchego
+	k8sObjSpec *k8sapi.Avalanchego
 }
 
 // GetAPIClient returns the client to access the avalanchego API
 func (n *Node) GetAPIClient() api.Client {
-	return n.client
+	return n.apiClient
 }
 
 // GetName returns the string representation of this node
@@ -54,9 +54,10 @@ func (n *Node) GetURI() string {
 	return n.uri
 }
 
-// GetK8sObject returns the kubernetes object representing a node in the kubernetes cluster
-func (n *Node) GetK8sObject() *k8sapi.Avalanchego {
-	return n.k8sObj
+// GetK8sObjSpec returns the kubernetes object spec
+// representation of this node
+func (n *Node) GetK8sObjSpec() *k8sapi.Avalanchego {
+	return n.k8sObjSpec
 }
 
 func (n *Node) GetStakingURL() string {

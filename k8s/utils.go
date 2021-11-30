@@ -67,9 +67,8 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 	return env, nil
 }
 
-// Takes a node's config and genesis and returns the node
-// as a Kubernetes spec
-func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
+// Takes a node's config and genesis and returns the node as a k8s object spec
+func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 	env, err := buildNodeEnv(genesis, c)
 	if err != nil {
 		return nil, err
@@ -125,7 +124,7 @@ func buildK8sObj(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
 func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
 	var beacons, nonBeacons []*k8sapi.Avalanchego
 	for _, c := range nodeConfigs {
-		spec, err := buildK8sObj(genesis, c)
+		spec, err := buildK8sObjSpec(genesis, c)
 		if err != nil {
 			return nil, nil, err
 		}

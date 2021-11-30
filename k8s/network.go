@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -49,7 +50,10 @@ type networkImpl struct {
 	config network.Config
 	// the kubernetes client
 	k8scli k8scli.Client
-	// Node name --> The node
+	// Must be held when [nodes.lock] is accessed
+	nodesLock sync.RWMutex
+	// Node name --> The node.
+	// If there is a running k8s pod for a node, it's in [nodes]
 	nodes map[string]*Node
 	// URI of the beacon node
 	// TODO allow multiple beacons
@@ -72,6 +76,9 @@ func newK8sClient() (k8scli.Client, error) {
 	return k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
 }
 
+// If this function returns a nil error, you *must* eventually call
+// Stop() on the returned network. Failure to do so will cause old
+// state to linger in k8s.
 func newNetwork(params networkParams) (network.Network, error) {
 	beacons, nonBeacons, err := createDeploymentFromConfig(params.conf.Genesis, params.conf.NodeConfigs)
 	if err != nil {
@@ -90,19 +97,36 @@ func newNetwork(params networkParams) (network.Network, error) {
 		apiClientFunc:  params.apiClientFunc,
 	}
 	net.log.Debug("launching beacon nodes...")
-	// Start the beacon nodes
+	// Start the beacon nodes and wait until they're reachable
 	if err := net.launchNodes(beacons); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
 	// Tell future nodes the IP of the beacon node
 	// TODO add support for multiple beacons
+	// TODO don't rely on [beacons] being updated in launchNodes.
+	//      It's not a very clean pattern.
 	net.beaconURL = beacons[0].Status.NetworkMembersURI[0]
 	if net.beaconURL == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
 	net.log.Info("Beacon node started")
-	// Start the non-beacon nodes
+	// Start the non-beacon nodes and wait until they're reachable
 	if err := net.launchNodes(nonBeacons); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
 	net.log.Info("All nodes started. Network: %s", net)
@@ -116,9 +140,10 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 		return nil, fmt.Errorf("couldn't create k8s client: %w", err)
 	}
 	return newNetwork(networkParams{
-		conf:          conf,
-		log:           log,
-		k8sClient:     k8sClient,
+		conf:      conf,
+		log:       log,
+		k8sClient: k8sClient,
+		// TODO is there a better way to wait until the node is reachable?
 		dnsChecker:    &defaultDNSReachableChecker{},
 		apiClientFunc: api.NewAPIClient,
 	})
@@ -126,6 +151,9 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 
 // See network.Network
 func (a *networkImpl) GetNodesNames() ([]string, error) {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	nodes := make([]string, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
@@ -137,11 +165,18 @@ func (a *networkImpl) GetNodesNames() ([]string, error) {
 
 // See network.Network
 func (a *networkImpl) Healthy(ctx context.Context) chan error {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	errCh := make(chan error, 1)
+	nodes := make([]*Node, 0, len(a.nodes))
+	for _, node := range a.nodes {
+		nodes = append(nodes, node)
+	}
 
 	go func() {
-		errGr, ctx := errgroup.WithContext(context.Background())
-		for _, node := range a.nodes {
+		errGr, ctx := errgroup.WithContext(ctx)
+		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
 				// Every constants.HealthCheckInterval, query node for health status.
@@ -154,7 +189,7 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health()
+					health, err := node.apiClient.HealthAPI().Health()
 					if err == nil && health.Healthy {
 						a.log.Info("node %q became healthy", node.GetName())
 						return nil
@@ -173,13 +208,17 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 
 // See network.Network
 func (a *networkImpl) Stop(ctx context.Context) error {
+	a.nodesLock.Lock()
+	defer a.nodesLock.Unlock()
+
 	failCount := 0
-	for s, n := range a.nodes {
-		a.log.Debug("Shutting down node %s...", s)
-		if err := a.k8scli.Delete(ctx, n.k8sObj); err != nil {
-			a.log.Error("error while stopping node %s: %s", n.name, err)
+	for nodeName, node := range a.nodes {
+		a.log.Debug("Shutting down node %q...", nodeName)
+		if err := a.k8scli.Delete(ctx, node.k8sObjSpec); err != nil {
+			a.log.Error("error while stopping node %s: %s", node.name, err)
 			failCount++
 		}
+		delete(a.nodes, nodeName)
 	}
 	close(a.closedOnStopCh)
 	if failCount > 0 {
@@ -189,32 +228,35 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 	return nil
 }
 
-// AddNode starts a new node with the given config
+// AddNode starts a new node with the given config and blocks
+// until it is reachable.
+// Assumes [a.nodesLock] isn't held.
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
-	node, err := buildK8sObj(a.config.Genesis, cfg)
+	nodeSpec, err := buildK8sObjSpec(a.config.Genesis, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	a.log.Debug("Launching new node %s to network...", cfg.Name)
-	if err := a.launchNodes([]*k8sapi.Avalanchego{node}); err != nil {
+	if err := a.launchNodes([]*k8sapi.Avalanchego{nodeSpec}); err != nil {
 		return nil, err
 	}
 
-	if err := a.buildNodeMapping(node); err != nil {
-		return nil, err
-	}
-
-	return a.nodes[node.Name], nil
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+	return a.nodes[nodeSpec.Name], nil
 }
 
 // See network.Network
 func (a *networkImpl) RemoveNode(name string) error {
+	a.nodesLock.Lock()
+	defer a.nodesLock.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), removeTimeout)
 	defer cancel()
 
 	if p, ok := a.nodes[name]; ok {
-		if err := a.k8scli.Delete(ctx, p.k8sObj); err != nil {
+		if err := a.k8scli.Delete(ctx, p.k8sObjSpec); err != nil {
 			return err
 		}
 		a.log.Info("Removed node %s", p)
@@ -226,6 +268,9 @@ func (a *networkImpl) RemoveNode(name string) error {
 
 // GetAllNodes returns all nodes
 func (a *networkImpl) GetAllNodes() []node.Node {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	nodes := make([]node.Node, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
@@ -237,119 +282,133 @@ func (a *networkImpl) GetAllNodes() []node.Node {
 
 // See network.Network
 func (a *networkImpl) GetNode(name string) (node.Node, error) {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	if n, ok := a.nodes[name]; ok {
 		return n, nil
 	}
 	return nil, fmt.Errorf("node %q not found", name)
 }
 
-// Create Kubernetes pods running AvalancheGo and wait until
-// they are reachable
-func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
-	ctx, cancel := context.WithTimeout(context.Background(), nodeReachableTimeout)
+// Creates the given nodes and blocks until they're all reachable.
+// Assumes [a.nodesLock] isn't held.
+func (a *networkImpl) launchNodes(nodeSpecs []*k8sapi.Avalanchego) error {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	errGr, ctx := errgroup.WithContext(ctx)
-	for _, n := range nodes {
-		if a.beaconURL != "" {
-			n.Spec.BootstrapperURL = a.beaconURL
-		}
-		// Create a Kubernetes pod for this node
-		if err := a.k8scli.Create(context.Background(), n); err != nil {
-			return err
-		}
-		// we're going to add the node representation already to the network, so that in case
-		// any of the following calls fails, we can run net.Stop() and do a proper cleanup
-		a.nodes[n.Spec.DeploymentName] = &Node{
-			name:   n.Spec.DeploymentName,
-			k8sObj: n,
-		}
-
-		a.log.Debug("Waiting for pod to be created...")
-		for len(n.Status.NetworkMembersURI) != 1 {
-			err := a.k8scli.Get(context.Background(), types.NamespacedName{
-				Name:      n.Name,
-				Namespace: n.Namespace,
-			}, n)
-			if err != nil {
-				return err
-			}
-			select {
-			case <-time.After(nodeReachableCheckFreq):
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-
-		a.log.Debug("pod created. Waiting to be reachable...")
-		// Try connecting to nodes until the DNS resolves,
-		// otherwise we have to sleep indiscriminately, we can't just use the API right away:
-		// the kubernetes cluster has already created the pod(s) but not the DNS names,
-		// so using the API Client too early results in an error.
-		node := n
+	for _, nodeSpec := range nodeSpecs {
+		nodeSpec := nodeSpec
 		errGr.Go(func() error {
-			fmturi := fmt.Sprintf("http://%s:%d", node.Status.NetworkMembersURI[0], defaultAPIPort)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				default:
-					a.log.Debug("checking if %s is reachable...", fmturi)
-					// TODO is there a better way to wait until the node is reachable?
-					if err := a.dnsChecker.Reachable(fmturi); err == nil {
-						if err := a.buildNodeMapping(node); err != nil {
-							return err
-						}
-						a.log.Debug("%s has become reachable", fmturi)
-						return nil
-					}
-					// Wait before checking again
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					case <-time.After(nodeReachableRetryFreq):
-					}
-				}
+			if err := a.launchNode(ctx, nodeSpec); err != nil {
+				return fmt.Errorf("error launching node %q: %w", nodeSpec.Spec.DeploymentName, err)
 			}
+			return nil
 		})
-		// complete the node setup
 	}
-	// Wait until all nodes are ready or timeout
-	if err := errGr.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return errGr.Wait()
 }
 
-// buildNodeMapping establishes connection via the API client and completes the node setup.
-// Expects the k8s.Node object to already have been created
-func (a *networkImpl) buildNodeMapping(node *k8sapi.Avalanchego) error {
-	if _, ok := a.nodes[node.Spec.DeploymentName]; !ok {
-		return fmt.Errorf("The node %s has not yet been added to the network", node.Spec.DeploymentName)
+// Create the given node in k8s and block until it's reachable.
+// Assumes [a.nodesLock] isn't held.
+func (a *networkImpl) launchNode(ctx context.Context, nodeSpec *k8sapi.Avalanchego) error {
+	ctx, cancel := context.WithTimeout(ctx, nodeReachableTimeout)
+	defer cancel()
+
+	a.nodesLock.Lock()
+	if a.beaconURL != "" {
+		nodeSpec.Spec.BootstrapperURL = a.beaconURL
 	}
-	uri := node.Status.NetworkMembersURI[0]
-	a.log.Debug("creating network node and client for %s", uri)
-	cli := a.apiClientFunc(uri, defaultAPIPort, apiTimeout)
-	nodeIDStr, err := cli.InfoAPI().GetNodeID()
+	// Update [a.nodes] so that we'll delete this node on stop
+	a.nodes[nodeSpec.Spec.DeploymentName] = &Node{
+		name:       nodeSpec.Spec.DeploymentName,
+		k8sObjSpec: nodeSpec,
+	}
+	// Create a Kubernetes pod for this node
+	err := a.k8scli.Create(ctx, nodeSpec)
+	a.nodesLock.Unlock()
 	if err != nil {
-		return err
+		return fmt.Errorf("k8scli.Create failed: %w", err)
 	}
-	a.log.Debug("NodeID for this node is %s", nodeIDStr)
+
+	a.log.Debug("Waiting for pod to be created for node %q...", nodeSpec.Spec.DeploymentName)
+	for len(nodeSpec.Status.NetworkMembersURI) != 1 {
+		if err := a.k8scli.Get(ctx, types.NamespacedName{
+			Name:      nodeSpec.Name,
+			Namespace: nodeSpec.Namespace,
+		}, nodeSpec); err != nil {
+			return fmt.Errorf("k8scli.Get failed: %w", err)
+		}
+		select {
+		case <-time.After(nodeReachableCheckFreq):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	a.log.Debug("pod created. Waiting to be reachable...")
+	// Try connecting to nodes until the DNS resolves,
+	// otherwise we have to sleep indiscriminately, we can't just use the API right away:
+	// the kubernetes cluster has already created the pod(s) but not the DNS names,
+	// so using the API Client too early results in an error.
+	url := nodeSpec.Status.NetworkMembersURI[0]
+	apiURL := fmt.Sprintf("http://%s:%d", url, defaultAPIPort)
+reachableLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			a.log.Debug("checking if %q is reachable at %s...", nodeSpec.Spec.DeploymentName, apiURL)
+			if err := a.dnsChecker.Reachable(apiURL); err == nil {
+				a.log.Debug("%q has become reachable", nodeSpec.Spec.DeploymentName)
+				break reachableLoop
+			}
+			// Wait before checking again
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(nodeReachableRetryFreq):
+			}
+		}
+	}
+
+	// TODO remove this
+	// select {
+	// case <-ctx.Done():
+	// 	return ctx.Err()
+	// case <-time.After(5 * time.Second):
+	// }
+
+	// Create an API client
+	a.log.Debug("creating network node and client for %s", url)
+	apiClient := a.apiClientFunc(url, defaultAPIPort, apiTimeout)
+	// Get this node's ID
+	// TODO should we get this by parsing the key/cert?
+	nodeIDStr, err := apiClient.InfoAPI().GetNodeID()
+	if err != nil {
+		return fmt.Errorf("couldn't get node ID: %w", err)
+	}
 	nodeID, err := ids.ShortFromPrefixedString(nodeIDStr, constants.NodeIDPrefix)
 	if err != nil {
-		return fmt.Errorf("could not convert node id from string: %s", err)
+		return fmt.Errorf("could not parse node ID %q from string: %s", nodeIDStr, err)
 	}
-	// Map node name to the node
-	a.nodes[node.Spec.DeploymentName].uri = uri
-	a.nodes[node.Spec.DeploymentName].client = cli
-	a.nodes[node.Spec.DeploymentName].nodeID = nodeID
-
-	a.log.Debug("Name: %s, NodeID: %s, URI: %s", node.Spec.DeploymentName, nodeID, uri)
+	// Update node info
+	a.nodesLock.Lock()
+	a.nodes[nodeSpec.Spec.DeploymentName].uri = url
+	a.nodes[nodeSpec.Spec.DeploymentName].apiClient = apiClient
+	a.nodes[nodeSpec.Spec.DeploymentName].nodeID = nodeID
+	a.nodesLock.Unlock()
+	a.log.Debug("Name: %s, NodeID: %s, URI: %s", nodeSpec.Spec.DeploymentName, nodeID, url)
 	return nil
 }
 
 // String returns a string representing the network nodes
 func (a *networkImpl) String() string {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	s := strings.Builder{}
 	_, _ = s.WriteString("\n****************************************************************************************************\n")
 	_, _ = s.WriteString("     List of nodes in the network: \n")

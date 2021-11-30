@@ -1,16 +1,11 @@
 package k8s
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -50,58 +45,6 @@ func TestBuildNodeEnv(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, envVars, controlVars)
-}
-
-// TestBuildNodeMapping tests the internal buildNodeMapping which acts as mapping between
-// the user facing interface and the k8s world
-func TestBuildNodeMapping(t *testing.T) {
-	assert := assert.New(t)
-	dnsChecker := newDNSChecker()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		default:
-		}
-		if err := dnsChecker.Reachable("localhost"); err == nil {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	net := &networkImpl{
-		log:           logging.NoLog{},
-		nodes:         make(map[string]*Node),
-		apiClientFunc: newMockAPISuccessful,
-	}
-	controlSet := make(map[string]*k8sapi.Avalanchego, defaultTestNetworkSize)
-	for i := 0; i < defaultTestNetworkSize; i++ {
-		name := fmt.Sprintf("localhost-%d", i)
-		avago := &k8sapi.Avalanchego{
-			Status: k8sapi.AvalanchegoStatus{
-				NetworkMembersURI: []string{"localhost"},
-			},
-			Spec: k8sapi.AvalanchegoSpec{
-				DeploymentName: name,
-			},
-		}
-		net.nodes[name] = &Node{
-			name:   name,
-			k8sObj: avago,
-		}
-		err := net.buildNodeMapping(avago)
-		assert.NoError(err)
-		controlSet[name] = avago
-	}
-
-	for k, v := range net.nodes {
-		assert.Equal(controlSet[k], v.k8sObj)
-		assert.Equal(k, v.name)
-		assert.Equal(v.uri, "localhost")
-		assert.NotNil(v.client)
-		assert.NotEqual(ids.ShortEmpty, v.nodeID)
-	}
 }
 
 // TestConvertKey tests the internal convertKey method which is used

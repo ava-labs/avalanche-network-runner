@@ -52,6 +52,7 @@ func run() error {
 	if goPath == "" {
 		configDir = "./examples/k8s"
 	}
+	log.Info("reading config file...")
 	confFile, err := os.ReadFile(configDir + confFileName)
 	if err != nil {
 		log.Fatal("%s", err)
@@ -66,6 +67,7 @@ func run() error {
 	}
 
 	// TODO maybe do networkConfig validation
+	log.Info("parsing config...")
 	networkConfig, err := readConfig(allConfig)
 	if err != nil {
 		log.Fatal("error reading configs: %s", err)
@@ -79,6 +81,7 @@ func run() error {
 		return err
 	}
 	log.SetLogLevel(level)
+	log.SetDisplayLevel(level)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 

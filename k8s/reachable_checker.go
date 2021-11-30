@@ -1,6 +1,12 @@
 package k8s
 
-import "net/http"
+import (
+	"net/http"
+)
+
+const (
+	consecutiveReachableSuccess = 5
+)
 
 var _ dnsReachableChecker = &defaultDNSReachableChecker{}
 
@@ -18,7 +24,18 @@ type dnsReachableChecker interface {
 // It just uses http.Get.
 type defaultDNSReachableChecker struct{}
 
+// It seems that sometimes, we are able to send a GET request to [url]
+// but then an immediately subsequent HTTP request to [url] fails.
+// This method only returns true if [consecutiveReachableSuccess]
+// consecutive GET requests to [url] succeed, in order to ensure
+// that [url] is stably reachable.
 func (d *defaultDNSReachableChecker) Reachable(url string) error {
-	_, err := http.Get(url)
-	return err
+	for i := 0; i < consecutiveReachableSuccess; i++ {
+		if resp, err := http.Get(url); err != nil {
+			return err
+		} else {
+			_ = resp.Body.Close()
+		}
+	}
+	return nil
 }
