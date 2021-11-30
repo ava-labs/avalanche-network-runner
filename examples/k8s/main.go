@@ -41,15 +41,12 @@ func run() error {
 		fmt.Println(err)
 		return err
 	}
-	loggingConfig.LogLevel = logging.Debug
-	loggingConfig.DisplayLevel = logging.Debug
 	logFactory := logging.NewFactory(loggingConfig)
 	log, err := logFactory.Make("main")
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	log.Info("log display level/level: %s/%s", log.GetDisplayLevel(), log.GetLogLevel()) // todo remove
 
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", goPath)
 	if goPath == "" {
@@ -78,13 +75,13 @@ func run() error {
 	}
 	networkConfig.ImplSpecificConfig = allConfig.K8sConfig
 
-	// TODO uncomment
-	// level, err := logging.ToLevel(networkConfig.LogLevel)
-	// if err != nil {
-	// 	log.Fatal("couldn't parse log: %s", err)
-	// 	return err
-	// }
-	// log.SetLogLevel(level)
+	level, err := logging.ToLevel(networkConfig.LogLevel)
+	if err != nil {
+		log.Fatal("couldn't parse log: %s", err)
+		return err
+	}
+	log.SetLogLevel(level)
+	log.SetDisplayLevel(level)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
