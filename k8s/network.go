@@ -200,6 +200,7 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 			a.log.Error("error while stopping node %s: %s", node.name, err)
 			failCount++
 		}
+		delete(a.nodes, nodeName)
 	}
 	close(a.closedOnStopCh)
 	if failCount > 0 {
@@ -230,6 +231,9 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 
 // See network.Network
 func (a *networkImpl) RemoveNode(name string) error {
+	a.nodesLock.Lock()
+	defer a.nodesLock.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), removeTimeout)
 	defer cancel()
 
@@ -246,6 +250,9 @@ func (a *networkImpl) RemoveNode(name string) error {
 
 // GetAllNodes returns all nodes
 func (a *networkImpl) GetAllNodes() []node.Node {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	nodes := make([]node.Node, len(a.nodes))
 	i := 0
 	for _, n := range a.nodes {
@@ -257,6 +264,9 @@ func (a *networkImpl) GetAllNodes() []node.Node {
 
 // See network.Network
 func (a *networkImpl) GetNode(name string) (node.Node, error) {
+	a.nodesLock.RLock()
+	defer a.nodesLock.RUnlock()
+
 	if n, ok := a.nodes[name]; ok {
 		return n, nil
 	}
