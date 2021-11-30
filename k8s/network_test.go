@@ -131,9 +131,9 @@ func newMockK8sClient() k8scli.Client {
 }
 
 // newDNSChecker creates a mock for checking the DNS (really just a http.Get mock)
-func newDNSChecker() *mocks.DNSCheck {
-	dnsChecker := &mocks.DNSCheck{}
-	dnsChecker.On("Reachable", mock.AnythingOfType("string")).Return(nil)
+func newDNSChecker() *mocks.DnsReachableChecker {
+	dnsChecker := &mocks.DnsReachableChecker{}
+	dnsChecker.On("Reachable", mock.Anything, mock.AnythingOfType("string")).Return(true)
 	return dnsChecker
 }
 

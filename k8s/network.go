@@ -361,7 +361,7 @@ reachableLoop:
 			return ctx.Err()
 		default:
 			a.log.Debug("checking if %q is reachable at %s...", nodeSpec.Spec.DeploymentName, apiURL)
-			if err := a.dnsChecker.Reachable(apiURL); err == nil {
+			if reachable := a.dnsChecker.Reachable(ctx, apiURL); reachable {
 				a.log.Debug("%q has become reachable", nodeSpec.Spec.DeploymentName)
 				break reachableLoop
 			}
