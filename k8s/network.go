@@ -297,6 +297,9 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 					a.log.Debug("checking if %s is reachable...", fmturi)
 					// TODO is there a better way to wait until the node is reachable?
 					if err := a.dnsChecker.Reachable(fmturi); err == nil {
+						if err := a.buildNodeMapping(node); err != nil {
+							return err
+						}
 						a.log.Debug("%s has become reachable", fmturi)
 						return nil
 					}
@@ -310,9 +313,6 @@ func (a *networkImpl) launchNodes(nodes []*k8sapi.Avalanchego) error {
 			}
 		})
 		// complete the node setup
-		if err := a.buildNodeMapping(node); err != nil {
-			return err
-		}
 	}
 	// Wait until all nodes are ready or timeout
 	if err := errGr.Wait(); err != nil {
