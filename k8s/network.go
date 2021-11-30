@@ -53,7 +53,7 @@ type networkImpl struct {
 	// Must be held when [nodes.lock] is accessed
 	nodesLock sync.RWMutex
 	// Node name --> The node.
-	// If a node is in this map, it should be deleted in Stop().
+	// If there is a running k8s pod for a node, it's in [nodes]
 	nodes map[string]*Node
 	// URI of the beacon node
 	// TODO allow multiple beacons
@@ -76,6 +76,9 @@ func newK8sClient() (k8scli.Client, error) {
 	return k8scli.New(kubeconfig, k8scli.Options{Scheme: scheme})
 }
 
+// If this function returns a nil error, you *must* eventually call
+// Stop() on the returned network. Failure to do so will cause old
+// state to linger in k8s.
 func newNetwork(params networkParams) (network.Network, error) {
 	beacons, nonBeacons, err := createDeploymentFromConfig(params.conf.Genesis, params.conf.NodeConfigs)
 	if err != nil {
@@ -96,6 +99,11 @@ func newNetwork(params networkParams) (network.Network, error) {
 	net.log.Debug("launching beacon nodes...")
 	// Start the beacon nodes and wait until they're reachable
 	if err := net.launchNodes(beacons); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, fmt.Errorf("error launching beacons: %w", err)
 	}
 	// Tell future nodes the IP of the beacon node
@@ -104,11 +112,21 @@ func newNetwork(params networkParams) (network.Network, error) {
 	//      It's not a very clean pattern.
 	net.beaconURL = beacons[0].Status.NetworkMembersURI[0]
 	if net.beaconURL == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, errors.New("Bootstrap URI is set to empty")
 	}
 	net.log.Info("Beacon node started")
 	// Start the non-beacon nodes and wait until they're reachable
 	if err := net.launchNodes(nonBeacons); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		if err := net.Stop(ctx); err != nil {
+			net.log.Warn("error stopping network: %s", err)
+		}
 		return nil, fmt.Errorf("Error launching non-beacons: %s", err)
 	}
 	net.log.Info("All nodes started. Network: %s", net)
