@@ -1,12 +1,13 @@
 package k8s
 
 import (
-	"fmt"
-
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/ids"
 )
+
+var _ node.Node = &Node{}
 
 // ObjectSpec is the K8s-specifc object config. This is the "implementation-specic config"
 // for the K8s-based network runner. See struct Config in network/node/node.go.
@@ -34,36 +35,39 @@ type Node struct {
 	k8sObjSpec *k8sapi.Avalanchego
 }
 
-// GetAPIClient returns the client to access the avalanchego API
+// See node.Node
 func (n *Node) GetAPIClient() api.Client {
 	return n.apiClient
 }
 
-// GetName returns the string representation of this node
+// See node.Node
 func (n *Node) GetName() string {
 	return n.name
 }
 
-// GetNodeID returns the ShortID for this node
+// See node.Node
 func (n *Node) GetNodeID() ids.ShortID {
 	return n.nodeID
 }
 
-// GetURI returns the k8s URI to talk to the node
-func (n *Node) GetURI() string {
+// See node.Node
+func (n *Node) GetURL() string {
 	return n.uri
+}
+
+// See node.Node
+func (n *Node) GetP2PPort() uint16 {
+	// TODO don't hard-code this
+	return defaultP2PPort
+}
+
+func (n *Node) GetAPIPort() uint16 {
+	// TODO don't hard-code this
+	return defaultAPIPort
 }
 
 // GetK8sObjSpec returns the kubernetes object spec
 // representation of this node
 func (n *Node) GetK8sObjSpec() *k8sapi.Avalanchego {
 	return n.k8sObjSpec
-}
-
-func (n *Node) GetStakingURL() string {
-	return fmt.Sprintf("%s:%d", n.uri, defaultStakingPort)
-}
-
-func (n *Node) GetAPIURL() string {
-	return fmt.Sprintf("%s:%d", n.uri, defaultAPIPort)
 }

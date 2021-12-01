@@ -38,17 +38,17 @@ type APIClient struct {
 }
 
 // Returns a new API client for a node at [ipAddr]:[port].
-type NewAPIClientF func(ipAddr string, port uint, requestTimeout time.Duration) Client
+type NewAPIClientF func(ipAddr string, port uint16, requestTimeout time.Duration) Client
 
 // NewAPIClient initialize most of avalanchego apis
-func NewAPIClient(ipAddr string, port uint, requestTimeout time.Duration) Client {
+func NewAPIClient(ipAddr string, port uint16, requestTimeout time.Duration) Client {
 	uri := fmt.Sprintf("http://%s:%d", ipAddr, port)
 	return &APIClient{
 		platform:     platformvm.NewClient(uri, requestTimeout),
 		xChain:       avm.NewClient(uri, "X", requestTimeout),
 		xChainWallet: avm.NewWalletClient(uri, "X", requestTimeout),
 		cChain:       evm.NewCChainClient(uri, requestTimeout),
-		cChainEth:    NewEthClient(ipAddr, port), // wrapper over ethclient.Client
+		cChainEth:    NewEthClient(ipAddr, uint(port)), // wrapper over ethclient.Client
 		info:         info.NewClient(uri, requestTimeout),
 		health:       health.NewClient(uri, requestTimeout),
 		ipcs:         ipcs.NewClient(uri, requestTimeout),

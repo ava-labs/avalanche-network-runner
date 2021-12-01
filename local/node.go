@@ -1,7 +1,6 @@
 package local
 
 import (
-	"fmt"
 	"io"
 	"os/exec"
 	"syscall"
@@ -67,32 +66,37 @@ type localNode struct {
 	// The process running this node.
 	process NodeProcess
 	// The API port
-	apiPort uint
-	// The P2P staking port
-	p2pPort uint
+	apiPort uint16
+	// The P2P (staking) port
+	p2pPort uint16
 }
 
-// Return this node's unique name
+// See node.Node
 func (node *localNode) GetName() string {
 	return node.name
 }
 
-// Returns this node's avalanchego node ID
+// See node.Node
 func (node *localNode) GetNodeID() ids.ShortID {
 	return node.nodeID
 }
 
-// Returns access to avalanchego apis
+// See node.Node
 func (node *localNode) GetAPIClient() api.Client {
 	return node.client
 }
 
-// Return API access url
-func (node *localNode) GetAPIURL() string {
-	return fmt.Sprintf("http://localhost:%d", node.apiPort)
+// See node.Node
+func (node *localNode) GetURL() string {
+	return "localhost"
 }
 
-// Return staking url
-func (node *localNode) GetStakingURL() string {
-	return fmt.Sprintf("http://localhost:%d", node.p2pPort)
+// See node.Node
+func (node *localNode) GetP2PPort() uint16 {
+	return node.p2pPort
+}
+
+// See node.Node
+func (node *localNode) GetAPIPort() uint16 {
+	return node.apiPort
 }
