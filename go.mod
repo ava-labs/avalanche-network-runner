@@ -25,6 +25,6 @@ require (
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	k8s.io/api v0.22.3
 	k8s.io/apimachinery v0.22.3
-	k8s.io/client-go v0.22.3
+	k8s.io/client-go v0.22.3 // indirect
 	sigs.k8s.io/controller-runtime v0.10.2
 )

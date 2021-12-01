@@ -648,20 +648,6 @@ func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]str
 	}
 }
 
-// Returns nil when all the nodes in [net] are healthy,
-// or an error if one doesn't become healthy within
-// the timeout.
-func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	healthyCh := net.Healthy(ctx)
-	err, ok := <-healthyCh
-	if ok {
-		return err
-	}
-	return nil
-}
-
 // Return a network config that has no nodes
 func emptyNetworkConfig() (network.Config, error) {
 	networkID := uint32(1337)
@@ -708,4 +694,14 @@ func testNetworkConfig(t *testing.T) network.Config {
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
 	return networkConfig
+}
+
+// Returns nil when all the nodes in [net] are healthy,
+// or an error if one doesn't become healthy within
+// the timeout.
+func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	healthyCh := net.Healthy(ctx)
+	return <-healthyCh
 }

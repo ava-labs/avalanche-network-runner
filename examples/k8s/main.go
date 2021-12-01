@@ -29,56 +29,66 @@ type allConfig struct {
 }
 
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	logFactory := logging.NewFactory(loggingConfig)
 	log, err := logFactory.Make("main")
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", goPath)
 	if goPath == "" {
 		configDir = "./examples/k8s"
 	}
+	log.Info("reading config file...")
 	confFile, err := os.ReadFile(configDir + confFileName)
 	if err != nil {
 		log.Fatal("%s", err)
-		os.Exit(1)
+		return err
 	}
 
 	// Network and node configs
 	var allConfig allConfig
 	if err := json.Unmarshal(confFile, &allConfig); err != nil {
 		log.Fatal("%s", err)
-		os.Exit(1)
+		return err
 	}
 
 	// TODO maybe do networkConfig validation
+	log.Info("parsing config...")
 	networkConfig, err := readConfig(allConfig)
 	if err != nil {
 		log.Fatal("error reading configs: %s", err)
-		os.Exit(1)
+		return err
 	}
 	networkConfig.ImplSpecificConfig = allConfig.K8sConfig
 
 	level, err := logging.ToLevel(networkConfig.LogLevel)
 	if err != nil {
-		log.Warn("Invalid log level configured: %s", err)
+		log.Fatal("couldn't parse log: %s", err)
+		return err
 	}
 	log.SetLogLevel(level)
+	log.SetDisplayLevel(level)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
 	network, err := k8s.NewNetwork(networkConfig, log)
 	if err != nil {
 		log.Fatal("Error creating network: %s", err)
-		os.Exit(1)
+		return err
 	}
 	defer func() {
 		if err := network.Stop(ctx); err != nil {
@@ -93,14 +103,15 @@ func main() {
 	select {
 	case <-ctx.Done():
 		log.Fatal("Timed out waiting for network to boot. Exiting.")
-		os.Exit(1)
+		return ctx.Err()
 	case err := <-errCh:
 		if err != nil {
 			log.Fatal("Error booting network: %s", err)
-			os.Exit(1)
+			return err
 		}
 	}
 	log.Info("Network created!!!")
+	return nil
 }
 
 func readConfig(rconfig allConfig) (network.Config, error) {
