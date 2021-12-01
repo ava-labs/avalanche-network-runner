@@ -5,7 +5,7 @@
   },
   "k8sConfig": [
     {
-      "namespace": "dev",
+      "namespace": "ci-avalanchego",
       "identifier": "avalanchego-test-validator-0",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
@@ -13,7 +13,7 @@
       "tag": "v1.6.4"
     },
     {
-      "namespace": "dev",
+      "namespace": "ci-avalanchego",
       "identifier": "avalanchego-test-validator-1",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
@@ -21,7 +21,7 @@
       "tag": "v1.6.4"
     },
     {
-      "namespace": "dev",
+      "namespace": "ci-avalanchego",
       "identifier": "avalanchego-test-validator-2",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
@@ -29,7 +29,7 @@
       "tag": "v1.6.4"
     },
     {
-      "namespace": "dev",
+      "namespace": "ci-avalanchego",
       "identifier": "avalanchego-test-validator-3",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
@@ -37,7 +37,7 @@
       "tag": "v1.6.4"
     },
     {
-      "namespace": "dev",
+      "namespace": "ci-avalanchego",
       "identifier": "avalanchego-test-validator-4",
       "kind": "Avalanchego",
       "apiVersion": "chain.avax.network/v1alpha1",
