@@ -252,7 +252,7 @@ func TestNetworkDefault(t *testing.T) {
 		StakingKey:  stakingKey,
 		StakingCert: stakingCert,
 		ImplSpecificConfig: ObjectSpec{
-			Namespace:  "dev",
+			Namespace:  "ci-avalanchego",
 			Kind:       "Avalanchego",
 			APIVersion: "chain.avax.network/v1alpha1",
 			Identifier: "new-node",
@@ -425,7 +425,7 @@ func defaultTestNetworkConfig(t *testing.T) network.Config {
 			Name: fmt.Sprintf("node%d", i),
 			ImplSpecificConfig: ObjectSpec{
 				Identifier: fmt.Sprintf("test-node-%d", i),
-				Namespace:  "dev",
+				Namespace:  "ci-avalanchego",
 			},
 			StakingKey:  key,
 			StakingCert: crt,

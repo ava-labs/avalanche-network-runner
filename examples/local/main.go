@@ -95,8 +95,7 @@ func run(log logging.Logger, binaryPath string) error {
 	defer cancel()
 	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
-	err, gotErr := <-healthyChan
-	if gotErr {
+	if err := <-healthyChan; err != nil {
 		return err
 	}
 
@@ -149,8 +148,7 @@ func run(log logging.Logger, binaryPath string) error {
 	defer cancel()
 	healthyChan = nw.Healthy(ctx)
 	log.Info("waiting for updated network to report healthy...")
-	err, gotErr = <-healthyChan
-	if gotErr {
+	if err := <-healthyChan; err != nil {
 		return err
 	}
 
