@@ -38,7 +38,7 @@ var (
 // * Only the above 2 methods may be called
 // TODO have this method return an API Client that has all
 // APIs and methods implemented
-func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+func newMockAPISuccessful(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
 	healthReply := &health.APIHealthClientReply{Healthy: true}
 	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health").Return(healthReply, nil)
@@ -52,7 +52,7 @@ func newMockAPISuccessful(ipAddr string, port uint, requestTimeout time.Duration
 }
 
 // Returns an API client where the Health API's Health method always returns unhealthy
-func newMockAPIUnhealthy(ipAddr string, port uint, requestTimeout time.Duration) api.Client {
+func newMockAPIUnhealthy(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
 	healthReply := &health.APIHealthClientReply{Healthy: false}
 	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health").Return(healthReply, nil)

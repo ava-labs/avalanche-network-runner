@@ -98,9 +98,12 @@ type Node interface {
 	GetNodeID() ids.ShortID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
-	// Return API access url
-	GetAPIURL() string
-	// Return staking url
-	GetStakingURL() string
-	// TODO add methods
+	// Return this node's URL.
+	// For a local network, this is the node's IP (e.g. 127.0.0.1).
+	// For a k8s network, this is the DNS name of the pod hosting the node.
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTP API port.
+	GetAPIPort() uint16
 }

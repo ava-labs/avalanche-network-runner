@@ -16,6 +16,6 @@ const (
 	// TODO export these default ports from the
 	// AvalancheGo operator and use the imported
 	// values instead of re-defining them below.
-	defaultAPIPort     = 9650
-	defaultStakingPort = 9651
+	defaultAPIPort = uint16(9650)
+	defaultP2PPort = uint16(9651)
 )

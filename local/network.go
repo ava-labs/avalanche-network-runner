@@ -318,10 +318,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Use random free API port, unless given in config
-	var apiPort int
+	var apiPort uint16
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
 		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
-			apiPort = int(apiPortFromConfig)
+			apiPort = uint16(apiPortFromConfig)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
@@ -331,15 +331,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not get free port: %w", err)
 		}
-		apiPort = l.Addr().(*net.TCPAddr).Port
+		apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
 		_ = l.Close()
 	}
 
 	// Use a random free P2P (staking) port, unless given in config
-	var p2pPort int
+	var p2pPort uint16
 	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
 		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
-			p2pPort = int(p2pPortFromConfig)
+			p2pPort = uint16(p2pPortFromConfig)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
 		}
@@ -349,7 +349,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not get free port: %w", err)
 		}
-		p2pPort = l.Addr().(*net.TCPAddr).Port
+		p2pPort = uint16(l.Addr().(*net.TCPAddr).Port)
 		_ = l.Close()
 	}
 
@@ -440,10 +440,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	node := &localNode{
 		name:    nodeConfig.Name,
 		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", uint(apiPort), apiTimeout),
+		client:  ln.newAPIClientF("localhost", apiPort, apiTimeout),
 		process: nodeProcess,
-		apiPort: uint(apiPort),
-		p2pPort: uint(p2pPort),
+		apiPort: apiPort,
+		p2pPort: p2pPort,
 	}
 	ln.nodes[node.name] = node
 	return node, nil
