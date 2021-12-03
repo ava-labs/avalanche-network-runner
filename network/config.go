@@ -48,9 +48,6 @@ type Config struct {
 	LogLevel string
 	// Name for the network
 	Name string
-	// How many nodes in the network.
-	// TODO move to k8s package?
-	NodeCount int
 }
 
 func (c *Config) Validate() error {
