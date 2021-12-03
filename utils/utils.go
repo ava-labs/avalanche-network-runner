@@ -30,9 +30,9 @@ func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
 }
 
 // Returns the network ID in the given genesis
-func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
+func NetworkIDFromGenesis(genesis string) (uint32, error) {
 	genesisMap := map[string]interface{}{}
-	if err := json.Unmarshal(genesis, &genesisMap); err != nil {
+	if err := json.Unmarshal([]byte(genesis), &genesisMap); err != nil {
 		return 0, fmt.Errorf("couldn't unmarshal genesis: %w", err)
 	}
 	networkIDIntf, ok := genesisMap[genesisNetworkIDKey]

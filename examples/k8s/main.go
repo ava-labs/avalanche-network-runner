@@ -121,7 +121,7 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 		return network.Config{}, err
 	}
 	netcfg := rconfig.NetworkConfig
-	netcfg.Genesis = genesisFile
+	netcfg.Genesis = string(genesisFile)
 	netcfg.NodeConfigs = make([]node.Config, 0)
 	for i, k := range rconfig.K8sConfig {
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
@@ -139,9 +139,9 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 		}
 		c := node.Config{
 			Name:               fmt.Sprintf("validator-%d", i),
-			StakingCert:        cert,
-			StakingKey:         key,
-			ConfigFile:         configFile,
+			StakingCert:        string(cert),
+			StakingKey:         string(key),
+			ConfigFile:         string(configFile),
 			ImplSpecificConfig: k,
 			IsBeacon:           i == 0,
 		}

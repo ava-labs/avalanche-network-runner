@@ -28,12 +28,12 @@ func convertKey(key string) string {
 
 // Given a node's config and genesis, returns the environment
 // variables (i.e. config flags) to give to the node
-func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
-	if c.ConfigFile == nil {
+func buildNodeEnv(genesis string, c node.Config) ([]corev1.EnvVar, error) {
+	if len(c.ConfigFile) == 0 {
 		return []corev1.EnvVar{}, nil
 	}
 	var avagoConf map[string]interface{} // AvalancheGo config file as a map
-	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
+	if err := json.Unmarshal([]byte(c.ConfigFile), &avagoConf); err != nil {
 		return nil, err
 	}
 	networkID, err := utils.NetworkIDFromGenesis(genesis)
@@ -68,15 +68,15 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 }
 
 // Takes a node's config and genesis and returns the node as a k8s object spec
-func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
+func buildK8sObjSpec(genesis string, c node.Config) (*k8sapi.Avalanchego, error) {
 	env, err := buildNodeEnv(genesis, c)
 	if err != nil {
 		return nil, err
 	}
 	certs := []k8sapi.Certificate{
 		{
-			Cert: base64.StdEncoding.EncodeToString(c.StakingCert),
-			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
+			Cert: base64.StdEncoding.EncodeToString([]byte(c.StakingCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(c.StakingKey)),
 		},
 	}
 	k8sConf, ok := c.ImplSpecificConfig.(ObjectSpec)
@@ -121,7 +121,7 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 // 2) The non-beacon nodes
 // as avalanchego-operator compatible descriptions.
 // May return nil slices.
-func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
+func createDeploymentFromConfig(genesis string, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
 	var beacons, nonBeacons []*k8sapi.Avalanchego
 	for _, c := range nodeConfigs {
 		spec, err := buildK8sObjSpec(genesis, c)

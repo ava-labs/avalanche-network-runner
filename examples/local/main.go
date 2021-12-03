@@ -129,8 +129,8 @@ func run(log logging.Logger, binaryPath string) error {
 		ImplSpecificConfig: local.NodeConfig{
 			BinaryPath: binaryPath,
 		},
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
+		StakingKey:  string(stakingKey),
+		StakingCert: string(stakingCert),
 	}
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err

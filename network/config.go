@@ -38,16 +38,16 @@ type AddrAndBalance struct {
 // Config that defines a network when it is created.
 type Config struct {
 	// Configuration specific to a particular implementation of a network.
-	ImplSpecificConfig interface{}
+	ImplSpecificConfig interface{} `json:"implSpecificConfig"`
 	// Must not be nil
-	Genesis []byte
+	Genesis string `json:"genesis"`
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
-	NodeConfigs []node.Config
+	NodeConfigs []node.Config `json:"nodeConfigs"`
 	// Log level for the whole network
-	LogLevel string
+	LogLevel string `json:"logLevel"`
 	// Name for the network
-	Name string
+	Name string `json:"name"`
 }
 
 func (c *Config) Validate() error {

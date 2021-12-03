@@ -20,11 +20,11 @@ var (
 // local implementation of a network / node.
 type NodeConfig struct {
 	// What type of node this is
-	BinaryPath string
+	BinaryPath string `json:"binarPath"`
 	// If non-nil, direct this node's stdout here
-	Stdout io.Writer
+	Stdout io.Writer `json:"-"`
 	// If non-nil, direct this node's stderr here
-	Stderr io.Writer
+	Stderr io.Writer `json:"-"`
 }
 
 // Use an interface so we can mock running

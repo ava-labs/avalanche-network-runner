@@ -20,7 +20,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		"health-check-frequency": "2s"
 	}`
 	c := node.Config{
-		ConfigFile: []byte(testConfig),
+		ConfigFile: testConfig,
 	}
 
 	envVars, err := buildNodeEnv(genesis, c)
@@ -65,9 +65,9 @@ func TestCreateDeploymentConfig(t *testing.T) {
 		{
 			Name:        "test1",
 			IsBeacon:    true,
-			StakingKey:  []byte("fooKey"),
-			StakingCert: []byte("fooCert"),
-			ConfigFile:  []byte("{}"),
+			StakingKey:  "fooKey",
+			StakingCert: "fooCert",
+			ConfigFile:  "{}",
 			ImplSpecificConfig: ObjectSpec{
 				Namespace:  "test01",
 				Identifier: "test11",
@@ -81,9 +81,9 @@ func TestCreateDeploymentConfig(t *testing.T) {
 		{
 			Name:        "test2",
 			IsBeacon:    false,
-			StakingKey:  []byte("barKey"),
-			StakingCert: []byte("barCert"),
-			ConfigFile:  []byte("{}"),
+			StakingKey:  "barKey",
+			StakingCert: "barCert",
+			ConfigFile:  "{}",
 			ImplSpecificConfig: ObjectSpec{
 				Namespace:  "test02",
 				Identifier: "test22",
