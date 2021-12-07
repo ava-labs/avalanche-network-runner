@@ -378,8 +378,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
+	ln.log.Info("adding node %q with API port: %d", nodeConfig.Name, apiPort)
+
 	ln.log.Debug(
-		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		"detailed node %q info: tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
 		tmpDir, nodeConfig.Name, logsDir, dbPath, p2pPort, apiPort,
 	)
 
