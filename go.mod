@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
-	github.com/ava-labs/avalanchego v1.7.1
+	github.com/ava-labs/avalanchego v1.7.2-0.20211130002823-c6973c153fa3
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
 	github.com/ava-labs/coreth v0.8.1-rc.0
 	github.com/ethereum/go-ethereum v1.10.12
