@@ -43,13 +43,15 @@ func shutdownOnSignal(
 	close(closedOnShutdownChan)
 }
 
-// Example:
-// - start some nodes
-// - wait for them to become healthy
-// - get a node and make an API call to it
-// - add a new node
-// - remove a node
-// - stop the network
+// Shows example usage of the Avalanche Network Runner.
+// Creates a local five node Avalanche network
+// and waits for all nodes to become healthy.
+// Then, we:
+// * print the names of the nodes
+// * print the node ID of one node
+// * start a new node
+// * remove an existing node
+// The network runs until the user provides a SIGINT or SIGTERM.
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()

@@ -189,10 +189,17 @@ Inside the directory cloned above:
 go test ./...
 ```
 
-### Run a Small Example
+### Run an Example
 
-As an example of how to use the network runner, we've included a small `main.go` that uses the local implementation of the network runner.
-When run, it starts a local network with 5 nodes, waits until the nodes are healthy, prints their names, then stops all the nodes.
+As an example of how to use the network runner, we've included a `main.go` that uses the local implementation of the network runner.
+When run, it:
+* Creates a local five node Avalanche network and waits for all nodes to become healthy.
+* Prints the names of the nodes
+* Prints the node ID of one node
+* Starts a new node
+* Removes an existing node
+
+The network runs until the user provides a SIGINT or SIGTERM.
 
 It assumes:
 
@@ -202,5 +209,7 @@ It assumes:
 To run the demo:
 
 ```sh
-go run examples/local/main.go
+go run examples/local/indepth/main.go
 ```
+
+We've also included another example at `examples/local/fivenodenetwork/main.go`, which just starts a local five node network, waits for the nodes to become healthy, and then runs until the user provides a SIGINT or SIGTERM.

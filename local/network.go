@@ -273,7 +273,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
 		ln.nextNodeSuffix++
 	}
-	ln.log.Debug("adding node %q", nodeConfig.Name)
 
 	// Enforce name uniqueness
 	if _, ok := ln.nodes[nodeConfig.Name]; ok {
@@ -378,9 +377,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
 	}
 
-	ln.log.Debug(
+	ln.log.Info(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		tmpDir, nodeConfig.Name, logsDir, dbPath, p2pPort, apiPort,
+		nodeConfig.Name, tmpDir, logsDir, dbPath, p2pPort, apiPort,
 	)
 
 	// Write this node's staking key/cert to disk.
