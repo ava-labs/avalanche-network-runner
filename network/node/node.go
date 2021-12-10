@@ -12,22 +12,22 @@ import (
 
 type Config struct {
 	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig interface{}
+	ImplSpecificConfig interface{} `json:"implSpecCfg"`
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
 	Name string `json:"name"`
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
-	IsBeacon bool
+	IsBeacon bool `json:"isBeacon"`
 	// Must not be nil.
-	StakingKey []byte
+	StakingKey string `json:"stakingKey"`
 	// Must not be nil.
-	StakingCert []byte
+	StakingCert string `json:"stakingCert"`
 	// May be nil.
-	ConfigFile []byte
+	ConfigFile string `json:"confFile"`
 	// May be nil.
-	CChainConfigFile []byte
+	CChainConfigFile string `json:"cchainConfFile"`
 }
 
 // Returns an error if this config is invalid
@@ -35,12 +35,12 @@ func (c *Config) Validate(expectedNetworkID uint32) error {
 	switch {
 	case c.ImplSpecificConfig == nil:
 		return errors.New("implementation-specific node config not given")
-	case len(c.StakingKey) == 0:
+	case c.StakingKey == "":
 		return errors.New("staking key not given")
-	case len(c.StakingCert) == 0:
+	case c.StakingCert == "":
 		return errors.New("staking cert not given")
 	default:
-		return validateConfigFile(c.ConfigFile, expectedNetworkID)
+		return validateConfigFile([]byte(c.ConfigFile), expectedNetworkID)
 	}
 }
 

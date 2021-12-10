@@ -91,24 +91,28 @@ func init() {
 		LogLevel:    "INFO",
 	}
 
-	defaultNetworkConfig.Genesis, err = fs.ReadFile(configsDir, "genesis.json")
+	gen, err := fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
 		panic(err)
 	}
+	defaultNetworkConfig.Genesis = string(gen)
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		defaultNetworkConfig.NodeConfigs[i].ConfigFile, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		conf, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingKey, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		defaultNetworkConfig.NodeConfigs[i].ConfigFile = string(conf)
+		key, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingCert, err = fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(key)
+		crt, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
 		if err != nil {
 			panic(err)
 		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(crt)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 }
@@ -170,7 +174,7 @@ func newNetwork(
 	}
 	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
 
-	networkID, err := utils.NetworkIDFromGenesis(networkConfig.Genesis)
+	networkID, err := utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
@@ -178,7 +182,7 @@ func newNetwork(
 	// Create the network
 	net := &localNetwork{
 		networkID:       networkID,
-		genesis:         networkConfig.Genesis,
+		genesis:         []byte(networkConfig.Genesis),
 		nodes:           map[string]*localNode{},
 		closedOnStopCh:  make(chan struct{}),
 		log:             log,
@@ -296,7 +300,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
 	var configFile map[string]interface{}
 	if len(nodeConfig.ConfigFile) != 0 {
-		if err := json.Unmarshal(nodeConfig.ConfigFile, &configFile); err != nil {
+		if err := json.Unmarshal([]byte(nodeConfig.ConfigFile), &configFile); err != nil {
 			return nil, fmt.Errorf("couldn't unmarshal config file: %w", err)
 		}
 	}
@@ -369,7 +373,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Parse this node's ID
-	nodeID, err := utils.ToNodeID(nodeConfig.StakingKey, nodeConfig.StakingCert)
+	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create node ID: %w", err)
 	}
@@ -389,12 +393,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Write this node's staking key/cert to disk.
 	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
-	if err := createFileAndWrite(stakingKeyFilePath, nodeConfig.StakingKey); err != nil {
+	if err := createFileAndWrite(stakingKeyFilePath, []byte(nodeConfig.StakingKey)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
 	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
-	if err := createFileAndWrite(stakingCertFilePath, nodeConfig.StakingCert); err != nil {
+	if err := createFileAndWrite(stakingCertFilePath, []byte(nodeConfig.StakingCert)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
@@ -402,7 +406,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Write this node's config file to disk if one is given.
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
-		if err := createFileAndWrite(configFilePath, nodeConfig.ConfigFile); err != nil {
+		if err := createFileAndWrite(configFilePath, []byte(nodeConfig.ConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing config file: %w", err)
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
@@ -418,7 +422,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Write this node's C-Chain file to disk if one is given.
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
-		if err := createFileAndWrite(cChainConfigFilePath, nodeConfig.CChainConfigFile); err != nil {
+		if err := createFileAndWrite(cChainConfigFilePath, []byte(nodeConfig.CChainConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))

@@ -19,9 +19,7 @@ const (
 	healthyTimeout = 2 * time.Minute
 )
 
-var (
-	goPath = os.ExpandEnv("$GOPATH")
-)
+var goPath = os.ExpandEnv("$GOPATH")
 
 // Blocks until a signal is received on [signalChan], upon which
 // [n.Stop()] is called. If [signalChan] is closed, does nothing.
@@ -131,8 +129,8 @@ func run(log logging.Logger, binaryPath string) error {
 		ImplSpecificConfig: local.NodeConfig{
 			BinaryPath: binaryPath,
 		},
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
+		StakingKey:  string(stakingKey),
+		StakingCert: string(stakingCert),
 	}
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err

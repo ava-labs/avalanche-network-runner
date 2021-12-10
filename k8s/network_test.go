@@ -249,8 +249,8 @@ func TestNetworkDefault(t *testing.T) {
 	newNodeConfig := node.Config{
 		Name:        "new-node",
 		IsBeacon:    false,
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
+		StakingKey:  string(stakingKey),
+		StakingCert: string(stakingCert),
 		ImplSpecificConfig: ObjectSpec{
 			Namespace:  "ci-avalanchego",
 			Kind:       "Avalanchego",
@@ -288,27 +288,27 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}{
 		"no ImplSpecificConfig": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
 		"empty nodeID": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: Node{
 							nodeID: ids.ShortEmpty,
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
@@ -321,57 +321,57 @@ func TestWrongNetworkConfigs(t *testing.T) {
 							nodeID: ids.GenerateTestShortID(),
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: Node{
 							nodeID: ids.GenerateTestShortID(),
 						},
 						IsBeacon:   true,
-						StakingKey: []byte("nonempty"),
+						StakingKey: "nonempty",
 					},
 				},
 			},
 		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: Node{
 							nodeID: ids.GenerateTestShortID(),
 						},
 						IsBeacon:    true,
-						StakingCert: []byte("nonempty"),
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
 		"no beacon node": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: Node{
 							nodeID: ids.GenerateTestShortID(),
 						},
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
 		"repeated name": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: Node{
@@ -379,8 +379,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						},
 						Name:        "node0",
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 					{
 						ImplSpecificConfig: Node{
@@ -388,8 +388,8 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						},
 						Name:        "node0",
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
@@ -427,8 +427,8 @@ func defaultTestNetworkConfig(t *testing.T) network.Config {
 				Identifier: fmt.Sprintf("test-node-%d", i),
 				Namespace:  "ci-avalanchego",
 			},
-			StakingKey:  key,
-			StakingCert: crt,
+			StakingKey:  string(key),
+			StakingCert: string(crt),
 		}
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}

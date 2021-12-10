@@ -153,7 +153,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}{
 		"no ImplSpecificConfig": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						IsBeacon:    true,
@@ -165,7 +165,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"config file unmarshal": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -174,14 +174,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("nonempty"),
+						ConfigFile:  "nonempty",
 					},
 				},
 			},
 		},
 		"wrong network id type in config file": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -190,14 +190,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"network-id\": \"0\"}"),
+						ConfigFile:  "{\"network-id\": \"0\"}",
 					},
 				},
 			},
 		},
 		"wrong db dir type in config": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -206,14 +206,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"db-dir\": 0}"),
+						ConfigFile:  "{\"db-dir\": 0}",
 					},
 				},
 			},
 		},
 		"wrong log dir type in config": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -222,14 +222,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"log-dir\": 0}"),
+						ConfigFile:  "{\"log-dir\": 0}",
 					},
 				},
 			},
 		},
 		"wrong http port type in config": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -238,14 +238,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"http-port\": \"0\"}"),
+						ConfigFile:  "{\"http-port\": \"0\"}",
 					},
 				},
 			},
 		},
 		"wrong staking port type in config": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -254,14 +254,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"staking-port\": \"0\"}"),
+						ConfigFile:  "{\"staking-port\": \"0\"}",
 					},
 				},
 			},
 		},
 		"network id mismatch": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -270,14 +270,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-						ConfigFile:  []byte("{\"network-id\": 1}"),
+						ConfigFile:  "{\"network-id\": 1}",
 					},
 				},
 			},
 		},
 		"genesis unmarshall": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -292,7 +292,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"no network id in genesis": {
 			config: network.Config{
-				Genesis: []byte("{}"),
+				Genesis: "{}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -307,7 +307,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"wrong network id type in genesis": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": \"0\"}"),
+				Genesis: "{\"networkID\": \"0\"}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -336,7 +336,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -350,7 +350,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -364,22 +364,22 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"invalid staking cert/key": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
 							BinaryPath: "pepe",
 						},
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
 		"no beacon node": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						ImplSpecificConfig: NodeConfig{
@@ -393,7 +393,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		},
 		"repeated name": {
 			config: network.Config{
-				Genesis: []byte("{\"networkID\": 0}"),
+				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
 						Name: "node0",
@@ -670,7 +670,7 @@ func emptyNetworkConfig() (network.Config, error) {
 	return network.Config{
 		LogLevel: "DEBUG",
 		Name:     "My Network",
-		Genesis:  genesis,
+		Genesis:  string(genesis),
 	}, nil
 }
 
@@ -688,8 +688,11 @@ func testNetworkConfig(t *testing.T) network.Config {
 				BinaryPath: "pepito",
 			},
 		}
-		nodeConfig.StakingCert, nodeConfig.StakingKey, err = staking.NewCertAndKeyBytes()
+		cert, key, err := staking.NewCertAndKeyBytes()
 		assert.NoError(err)
+		nodeConfig.StakingCert = string(cert)
+		nodeConfig.StakingKey = string(key)
+
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
