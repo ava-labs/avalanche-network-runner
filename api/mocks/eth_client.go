@@ -175,6 +175,29 @@ func (_m *EthClient) SendTransaction(_a0 context.Context, _a1 *types.Transaction
 	return r0
 }
 
+// SuggestGasPrice provides a mock function with given fields: _a0
+func (_m *EthClient) SuggestGasPrice(_a0 context.Context) (*big.Int, error) {
+	ret := _m.Called(_a0)
+
+	var r0 *big.Int
+	if rf, ok := ret.Get(0).(func(context.Context) *big.Int); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // TransactionReceipt provides a mock function with given fields: _a0, _a1
 func (_m *EthClient) TransactionReceipt(_a0 context.Context, _a1 common.Hash) (*types.Receipt, error) {
 	ret := _m.Called(_a0, _a1)
