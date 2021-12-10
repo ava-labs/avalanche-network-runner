@@ -241,6 +241,11 @@ func newDefaultNetwork(
 	newAPIClientF api.NewAPIClientF,
 	newNodeProcessF NewNodeProcessF,
 ) (network.Network, error) {
+	config := NewDefaultConfig(binaryPath)
+	return newNetwork(log, config, newAPIClientF, newNodeProcessF)
+}
+
+func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
@@ -250,7 +255,7 @@ func newDefaultNetwork(
 			BinaryPath: binaryPath,
 		}
 	}
-	return newNetwork(log, config, newAPIClientF, newNodeProcessF)
+	return config
 }
 
 // See network.Network

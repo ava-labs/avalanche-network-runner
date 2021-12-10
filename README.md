@@ -122,6 +122,8 @@ func NewDefaultNetwork(
 ) (network.Network, error)
 ```
 
+The associated pre-defined configuration is also available to users by calling `NewDefaultConfig` function.
+
 ## Network Interaction
 
 The network runner allows users to interact with an AvalancheGo network using the `network.Network` interface:
