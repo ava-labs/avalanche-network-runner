@@ -519,7 +519,7 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetNodesNames() ([]string, error) {
+func (net *localNetwork) GetNodeNames() ([]string, error) {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
 

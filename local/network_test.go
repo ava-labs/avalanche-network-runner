@@ -95,8 +95,8 @@ func TestNewNetworkEmpty(t *testing.T) {
 		newMockProcessUndef,
 	)
 	assert.NoError(err)
-	// Assert that GetNodesNames() returns an empty list
-	names, err := net.GetNodesNames()
+	// Assert that GetNodeNames() returns an empty list
+	names, err := net.GetNodeNames()
 	assert.NoError(err)
 	assert.Len(names, 0)
 }
@@ -121,8 +121,8 @@ func TestNewNetworkOneNode(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	// Assert that GetNodesNames() includes only the 1 node's name
-	names, err := net.GetNodesNames()
+	// Assert that GetNodeNames() includes only the 1 node's name
+	names, err := net.GetNodeNames()
 	assert.NoError(err)
 	assert.Contains(names, networkConfig.NodeConfigs[0].Name)
 	assert.Len(names, 1)
@@ -456,7 +456,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	nodeNameMap := make(map[string]bool)
-	nodeNames, err := net.GetNodesNames()
+	nodeNames, err := net.GetNodeNames()
 	assert.NoError(err)
 	for _, nodeName := range nodeNames {
 		nodeNameMap[nodeName] = true
@@ -472,7 +472,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	net, err := newDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
-	names, err := net.GetNodesNames()
+	names, err := net.GetNodeNames()
 	assert.NoError(err)
 	assert.Len(names, 5)
 	for _, nodeInfo := range []struct {
@@ -606,8 +606,8 @@ func TestStoppedNetwork(t *testing.T) {
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
-	// first GetNodesNames should return some nodes
-	_, err = net.GetNodesNames()
+	// first GetNodeNames should return some nodes
+	_, err = net.GetNodeNames()
 	assert.NoError(err)
 	err = net.Stop(context.TODO())
 	assert.NoError(err)
@@ -619,8 +619,8 @@ func TestStoppedNetwork(t *testing.T) {
 	// GetNode failure
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.EqualValues(err, network.ErrStopped)
-	// second GetNodesNames should return no nodes
-	_, err = net.GetNodesNames()
+	// second GetNodeNames should return no nodes
+	_, err = net.GetNodeNames()
 	assert.EqualValues(err, network.ErrStopped)
 	// RemoveNode failure
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
@@ -635,7 +635,7 @@ func TestStoppedNetwork(t *testing.T) {
 // - GetNode does fail for given stopped nodes
 func checkNetwork(t *testing.T, net network.Network, runningNodes map[string]struct{}, removedNodes map[string]struct{}) {
 	assert := assert.New(t)
-	nodeNames, err := net.GetNodesNames()
+	nodeNames, err := net.GetNodeNames()
 	assert.NoError(err)
 	assert.EqualValues(len(nodeNames), len(runningNodes))
 	for nodeName := range runningNodes {
