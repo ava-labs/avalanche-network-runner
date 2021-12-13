@@ -19,7 +19,6 @@ type Network interface {
 	// closes, all the nodes are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.
-	// [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
 	Healthy(context.Context) chan error
 	// Stop all the nodes.
 	// Returns ErrStopped if Stop() was previously called.
@@ -33,6 +32,10 @@ type Network interface {
 	// Return the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNode(name string) (node.Node, error)
+	// Return all the nodes in this network.
+	// Node name --> Node.
+	// Returns ErrStopped if Stop() was previously called.
+	GetAllNodes() (map[string]node.Node, error)
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
