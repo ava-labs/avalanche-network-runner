@@ -35,10 +35,15 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
+type Backend uint
+
+const (
+	Local Backend = iota
+	Kubernetes
+)
+
 // Config that defines a network when it is created.
 type Config struct {
-	// Configuration specific to a particular implementation of a network.
-	ImplSpecificConfig interface{} `json:"implSpecCfg"`
 	// Must not be nil
 	Genesis string `json:"genesis"`
 	// May have length 0
@@ -48,6 +53,8 @@ type Config struct {
 	LogLevel string `json:"logLevel"`
 	// Name for the network
 	Name string `json:"name"`
+	// Backend specifies the backend for the network
+	Backend Backend
 }
 
 func (c *Config) Validate() error {

@@ -79,9 +79,13 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 			Key:  base64.StdEncoding.EncodeToString([]byte(c.StakingKey)),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(ObjectSpec)
-	if !ok {
-		return nil, fmt.Errorf("expected ObjectSpec but got %T", c.ImplSpecificConfig)
+	var k8sConf ObjectSpec
+	if err := json.Unmarshal(c.ImplSpecificConfig, &k8sConf); err != nil {
+		return nil, fmt.Errorf("Unmarshalling an expected k8s.ObjectSpec failed: %w", err)
+	}
+
+	if err := validateObjectSpec(k8sConf); err != nil {
+		return nil, err
 	}
 
 	return &k8sapi.Avalanchego{
@@ -95,7 +99,7 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 		},
 		Spec: k8sapi.AvalanchegoSpec{
 			BootstrapperURL: "",
-			DeploymentName:  c.Name,
+			DeploymentName:  k8sConf.Identifier,
 			Image:           k8sConf.Image,
 			Tag:             k8sConf.Tag,
 			Env:             env,
@@ -116,6 +120,27 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 	}, nil
 }
 
+// validateObjectSpec
+// The tag value could probably be empty so not checked
+func validateObjectSpec(k8sobj ObjectSpec) error {
+	if k8sobj.Identifier == "" {
+		return fmt.Errorf("Name should not be empty")
+	}
+	if k8sobj.APIVersion == "" {
+		return fmt.Errorf("APIVersion should not be empty")
+	}
+	if k8sobj.Kind != "Avalanchego" {
+		return fmt.Errorf("Only kind \"Avalanchego\" is currently supported (mandated by avalanchego-operator)")
+	}
+	if k8sobj.Namespace == "" {
+		return fmt.Errorf("The Namespace should be defined to avoid unintended consequences")
+	}
+	if k8sobj.Image == "" || strings.Index(k8sobj.Image, "/") == 1 {
+		return fmt.Errorf("The image string %q is invalid, it can't be empty and must contain a %q to describe a valid image repo", k8sobj.Image, "/")
+	}
+	return nil
+}
+
 // Takes the genesis of a network and node configs and returns:
 // 1) The beacon nodes
 // 2) The non-beacon nodes
@@ -123,11 +148,16 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 // May return nil slices.
 func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
 	var beacons, nonBeacons []*k8sapi.Avalanchego
+	names := make(map[string]bool)
 	for _, c := range nodeConfigs {
 		spec, err := buildK8sObjSpec(genesis, c)
 		if err != nil {
 			return nil, nil, err
 		}
+		if _, exists := names[spec.Name]; exists {
+			return nil, nil, fmt.Errorf("The new name %s already exists: %v", spec.Name, names)
+		}
+		names[spec.Name] = true
 		if c.IsBeacon {
 			beacons = append(beacons, spec)
 			continue

@@ -10,6 +10,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/k8s"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -137,12 +138,17 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 			return network.Config{}, err
 		}
 		c := node.Config{
-			Name:               fmt.Sprintf("validator-%d", i),
-			StakingCert:        string(cert),
-			StakingKey:         string(key),
-			ConfigFile:         string(configFile),
-			ImplSpecificConfig: k,
-			IsBeacon:           i == 0,
+			Name:        fmt.Sprintf("validator-%d", i),
+			StakingCert: string(cert),
+			StakingKey:  string(key),
+			ConfigFile:  string(configFile),
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(k.APIVersion,
+				k.Identifier,
+				k.Image,
+				k.Kind,
+				k.Namespace,
+				k.Tag),
+			IsBeacon: i == 0,
 		}
 		netcfg.NodeConfigs = append(netcfg.NodeConfigs, c)
 	}

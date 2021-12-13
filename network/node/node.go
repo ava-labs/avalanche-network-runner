@@ -10,9 +10,28 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
+// An AvalancheGo node
+type Node interface {
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
+	// Return this node's Avalanche node ID.
+	GetNodeID() ids.ShortID
+	// Return a client that can be used to make API calls.
+	GetAPIClient() api.Client
+	// Return this node's URL.
+	// For a local network, this is the node's IP (e.g. 127.0.0.1).
+	// For a k8s network, this is the DNS name of the pod hosting the node.
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTP API port.
+	GetAPIPort() uint16
+}
+
 type Config struct {
 	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig interface{} `json:"implSpecCfg"`
+	ImplSpecificConfig json.RawMessage `json:"implSpecCfg"`
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
@@ -87,23 +106,4 @@ func validateConfigFile(configFile []byte, expectedNetworkID uint32) error {
 		}
 	}
 	return nil
-}
-
-// An AvalancheGo node
-type Node interface {
-	// Return this node's name, which is unique
-	// across all the nodes in its network.
-	GetName() string
-	// Return this node's Avalanche node ID.
-	GetNodeID() ids.ShortID
-	// Return a client that can be used to make API calls.
-	GetAPIClient() api.Client
-	// Return this node's URL.
-	// For a local network, this is the node's IP (e.g. 127.0.0.1).
-	// For a k8s network, this is the DNS name of the pod hosting the node.
-	GetURL() string
-	// Return this node's P2P (staking) port.
-	GetP2PPort() uint16
-	// Return this node's HTP API port.
-	GetAPIPort() uint16
 }

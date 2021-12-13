@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -125,12 +126,10 @@ func run(log logging.Logger, binaryPath string) error {
 		return err
 	}
 	nodeConfig := node.Config{
-		Name: "New Node",
-		ImplSpecificConfig: local.NodeConfig{
-			BinaryPath: binaryPath,
-		},
-		StakingKey:  string(stakingKey),
-		StakingCert: string(stakingCert),
+		Name:               "New Node",
+		ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw(binaryPath),
+		StakingKey:         string(stakingKey),
+		StakingCert:        string(stakingCert),
 	}
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err

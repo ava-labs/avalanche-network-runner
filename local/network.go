@@ -120,9 +120,10 @@ func init() {
 type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, error)
 
 func NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
-	localNodeConfig, ok := config.ImplSpecificConfig.(NodeConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected NodeConfig but got %T", config.ImplSpecificConfig)
+	var localNodeConfig NodeConfig
+	err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("Unmarshalling an expected local.NodeConfig object failed: %w", err)
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
@@ -255,9 +256,7 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
-			BinaryPath: binaryPath,
-		}
+		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config
 }
@@ -428,10 +427,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
 	}
 
-	// Get the local node-specific config
-	localNodeConfig, ok := nodeConfig.ImplSpecificConfig.(NodeConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected NodeConfig but got %T", nodeConfig.ImplSpecificConfig)
+	var localNodeConfig NodeConfig
+	if err := json.Unmarshal(nodeConfig.ImplSpecificConfig, &localNodeConfig); err != nil {
+		return nil, fmt.Errorf("Unmarshalling an expected local.NodeConfig object failed: %w", err)
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above

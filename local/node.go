@@ -20,7 +20,7 @@ var (
 // local implementation of a network / node.
 type NodeConfig struct {
 	// What type of node this is
-	BinaryPath string `json:"binary_path"`
+	BinaryPath string `json:"binaryPath"`
 	// If non-nil, direct this node's stdout here
 	Stdout io.Writer
 	// If non-nil, direct this node's stderr here
