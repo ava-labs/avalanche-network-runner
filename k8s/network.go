@@ -150,7 +150,7 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 }
 
 // See network.Network
-func (a *networkImpl) GetNodesNames() ([]string, error) {
+func (a *networkImpl) GetNodeNames() ([]string, error) {
 	a.nodesLock.RLock()
 	defer a.nodesLock.RUnlock()
 

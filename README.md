@@ -155,7 +155,7 @@ type Network interface {
 	GetNode(name string) (node.Node, error)
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
-	GetNodesNames() ([]string, error)
+	GetNodeNames() ([]string, error)
 	// TODO add methods
 }
 ```

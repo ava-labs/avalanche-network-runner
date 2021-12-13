@@ -102,7 +102,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 
 	// Print the node names
-	nodeNames, err := nw.GetNodesNames()
+	nodeNames, err := nw.GetNodeNames()
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 
 	// Print the node names
-	nodeNames, err = nw.GetNodesNames()
+	nodeNames, err = nw.GetNodeNames()
 	if err != nil {
 		return err
 	}
