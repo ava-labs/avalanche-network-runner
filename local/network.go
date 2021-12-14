@@ -540,6 +540,22 @@ func (net *localNetwork) GetNodeNames() ([]string, error) {
 	return names, nil
 }
 
+// See network.Network
+func (net *localNetwork) GetAllNodes() (map[string]node.Node, error) {
+	net.lock.RLock()
+	defer net.lock.RUnlock()
+
+	if net.isStopped() {
+		return nil, network.ErrStopped
+	}
+
+	nodesCopy := make(map[string]node.Node, len(net.nodes))
+	for name, node := range net.nodes {
+		nodesCopy[name] = node
+	}
+	return nodesCopy, nil
+}
+
 func (net *localNetwork) Stop(ctx context.Context) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()

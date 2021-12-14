@@ -609,10 +609,10 @@ func TestStoppedNetwork(t *testing.T) {
 	// first GetNodeNames should return some nodes
 	_, err = net.GetNodeNames()
 	assert.NoError(err)
-	err = net.Stop(context.TODO())
+	err = net.Stop(context.Background())
 	assert.NoError(err)
 	// Stop failure
-	assert.EqualValues(net.Stop(context.TODO()), network.ErrStopped)
+	assert.EqualValues(net.Stop(context.Background()), network.ErrStopped)
 	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
 	assert.EqualValues(err, network.ErrStopped)
@@ -626,6 +626,22 @@ func TestStoppedNetwork(t *testing.T) {
 	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
 	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
+	_, err = net.GetAllNodes()
+	assert.EqualValues(network.ErrStopped, err)
+}
+
+func TestGetAllNodes(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+
+	nodes, err := net.GetAllNodes()
+	assert.NoError(err)
+	assert.Len(nodes, len(net.(*localNetwork).nodes))
+	for name, node := range net.(*localNetwork).nodes {
+		assert.EqualValues(node, nodes[name])
+	}
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
