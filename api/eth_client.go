@@ -22,6 +22,7 @@ type EthClient interface {
 	TransactionReceipt(context.Context, common.Hash) (*types.Receipt, error)
 	BalanceAt(context.Context, common.Address, *big.Int) (*big.Int, error)
 	BlockByNumber(context.Context, *big.Int) (*types.Block, error)
+	BlockByHash(context.Context, common.Hash) (*types.Block, error)
 	BlockNumber(context.Context) (uint64, error)
 	CallContract(context.Context, interfaces.CallMsg, *big.Int) ([]byte, error)
 	NonceAt(context.Context, common.Address, *big.Int) (uint64, error)
@@ -104,6 +105,15 @@ func (c *ethClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.
 		return nil, err
 	}
 	return c.client.BlockByNumber(ctx, number)
+}
+
+func (c *ethClient) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.BlockByHash(ctx, hash)
 }
 
 func (c *ethClient) BlockNumber(ctx context.Context) (uint64, error) {
