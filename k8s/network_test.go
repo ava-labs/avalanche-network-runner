@@ -238,7 +238,7 @@ func TestNetworkDefault(t *testing.T) {
 		assert.NotEqualValues(ids.ShortEmpty, node.nodeID)
 	}
 
-	names, err := n.GetNodesNames()
+	names, err := n.GetNodeNames()
 	assert.NoError(err)
 	netSize := len(names)
 	assert.EqualValues(defaultTestNetworkSize, netSize)
@@ -264,7 +264,7 @@ func TestNetworkDefault(t *testing.T) {
 	}
 	newNode, err := n.AddNode(newNodeConfig)
 	assert.NoError(err)
-	names, err = n.GetNodesNames()
+	names, err = n.GetNodeNames()
 	assert.NoError(err)
 	assert.Len(names, netSize+1)
 
@@ -277,7 +277,7 @@ func TestNetworkDefault(t *testing.T) {
 
 	err = n.RemoveNode(newNode.GetName())
 	assert.NoError(err)
-	names, err = n.GetNodesNames()
+	names, err = n.GetNodeNames()
 	assert.NoError(err)
 	assert.Len(names, netSize)
 }

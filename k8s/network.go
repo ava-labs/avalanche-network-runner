@@ -150,9 +150,13 @@ func NewNetwork(conf network.Config, log logging.Logger) (network.Network, error
 }
 
 // See network.Network
-func (a *networkImpl) GetNodesNames() ([]string, error) {
+func (a *networkImpl) GetNodeNames() ([]string, error) {
 	a.nodesLock.RLock()
 	defer a.nodesLock.RUnlock()
+
+	if a.isStopped() {
+		return nil, network.ErrStopped
+	}
 
 	nodes := make([]string, len(a.nodes))
 	i := 0
@@ -169,6 +173,10 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 	defer a.nodesLock.RUnlock()
 
 	errCh := make(chan error, 1)
+	if a.isStopped() {
+		errCh <- network.ErrStopped
+		return errCh
+	}
 	nodes := make([]*Node, 0, len(a.nodes))
 	for _, node := range a.nodes {
 		nodes = append(nodes, node)
@@ -211,6 +219,10 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 	a.nodesLock.Lock()
 	defer a.nodesLock.Unlock()
 
+	if a.isStopped() {
+		return network.ErrStopped
+	}
+
 	failCount := 0
 	for nodeName, node := range a.nodes {
 		a.log.Debug("Shutting down node %q...", nodeName)
@@ -232,6 +244,20 @@ func (a *networkImpl) Stop(ctx context.Context) error {
 // until it is reachable.
 // Assumes [a.nodesLock] isn't held.
 func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
+	a.nodesLock.RLock()
+	isStopped := a.isStopped()
+	a.nodesLock.RUnlock()
+
+	// TODO fix this is race condition:
+	// Stop() can be called after the lock is released above.
+	// If that happens, we'll create the pod inside launchNodes
+	// and then never destroy it.
+	// launchNodes assumes [a.nodesLock] isn't held so we can't just
+	// hold the lock inside this method to fix this race condition.
+	if isStopped {
+		return nil, network.ErrStopped
+	}
+
 	nodeSpec, err := buildK8sObjSpec([]byte(a.config.Genesis), cfg)
 	if err != nil {
 		return nil, err
@@ -252,14 +278,18 @@ func (a *networkImpl) RemoveNode(name string) error {
 	a.nodesLock.Lock()
 	defer a.nodesLock.Unlock()
 
+	if a.isStopped() {
+		return network.ErrStopped
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), removeTimeout)
 	defer cancel()
 
-	if p, ok := a.nodes[name]; ok {
-		if err := a.k8scli.Delete(ctx, p.k8sObjSpec); err != nil {
+	if node, ok := a.nodes[name]; ok {
+		if err := a.k8scli.Delete(ctx, node.k8sObjSpec); err != nil {
 			return err
 		}
-		a.log.Info("Removed node %s", p)
+		a.log.Info("Removed node %q", name)
 		delete(a.nodes, name)
 		return nil
 	}
@@ -267,17 +297,19 @@ func (a *networkImpl) RemoveNode(name string) error {
 }
 
 // GetAllNodes returns all nodes
-func (a *networkImpl) GetAllNodes() []node.Node {
+func (a *networkImpl) GetAllNodes() (map[string]node.Node, error) {
 	a.nodesLock.RLock()
 	defer a.nodesLock.RUnlock()
 
-	nodes := make([]node.Node, len(a.nodes))
-	i := 0
-	for _, n := range a.nodes {
-		nodes[i] = n
-		i++
+	if a.isStopped() {
+		return nil, network.ErrStopped
 	}
-	return nodes
+
+	nodesCopy := make(map[string]node.Node, len(a.nodes))
+	for nodeName, node := range a.nodes {
+		nodesCopy[nodeName] = node
+	}
+	return nodesCopy, nil
 }
 
 // See network.Network
@@ -285,10 +317,23 @@ func (a *networkImpl) GetNode(name string) (node.Node, error) {
 	a.nodesLock.RLock()
 	defer a.nodesLock.RUnlock()
 
+	if a.isStopped() {
+		return nil, network.ErrStopped
+	}
 	if n, ok := a.nodes[name]; ok {
 		return n, nil
 	}
 	return nil, fmt.Errorf("node %q not found", name)
+}
+
+// Assumes [a.nodesLock] is held
+func (net *networkImpl) isStopped() bool {
+	select {
+	case <-net.closedOnStopCh:
+		return true
+	default:
+		return false
+	}
 }
 
 // Creates the given nodes and blocks until they're all reachable.
@@ -373,13 +418,6 @@ reachableLoop:
 			}
 		}
 	}
-
-	// TODO remove this
-	// select {
-	// case <-ctx.Done():
-	// 	return ctx.Err()
-	// case <-time.After(5 * time.Second):
-	// }
 
 	// Create an API client
 	a.log.Debug("creating network node and client for %s", url)
