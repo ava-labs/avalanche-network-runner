@@ -55,11 +55,11 @@ func NewLocalNodeConfigJsonRaw(binaryPath string) json.RawMessage {
 // NewK8sNodeConfigJsonRaw returns a JSON formatted string as json.RawMessage for a
 // kubernetes node config object (ImplSpecificConfig)
 func NewK8sNodeConfigJsonRaw(
-	api string,
-	id string,
-	image string,
-	kind string,
-	namespace string,
+	api,
+	id,
+	image,
+	kind,
+	namespace,
 	tag string,
 ) json.RawMessage {
 	return json.RawMessage(

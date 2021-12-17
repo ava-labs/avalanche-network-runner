@@ -44,9 +44,9 @@ type Config struct {
 	// Must not be nil.
 	StakingCert string `json:"stakingCert"`
 	// May be nil.
-	ConfigFile string `json:"confFile"`
+	ConfigFile string `json:"configFile"`
 	// May be nil.
-	CChainConfigFile string `json:"cchainConfFile"`
+	CChainConfigFile string `json:"cChainConfigFile"`
 }
 
 // Returns an error if this config is invalid

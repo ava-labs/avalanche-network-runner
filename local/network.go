@@ -91,28 +91,28 @@ func init() {
 		LogLevel:    "INFO",
 	}
 
-	gen, err := fs.ReadFile(configsDir, "genesis.json")
+	genesis, err := fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
 		panic(err)
 	}
-	defaultNetworkConfig.Genesis = string(gen)
+	defaultNetworkConfig.Genesis = string(genesis)
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		conf, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		configFile, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].ConfigFile = string(conf)
-		key, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		defaultNetworkConfig.NodeConfigs[i].ConfigFile = string(configFile)
+		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(key)
-		crt, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
+		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(crt)
+		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 }
@@ -121,9 +121,8 @@ type NewNodeProcessF func(config node.Config, args ...string) (NodeProcess, erro
 
 func NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	var localNodeConfig NodeConfig
-	err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("Unmarshalling an expected local.NodeConfig object failed: %w", err)
+	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)

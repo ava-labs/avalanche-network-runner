@@ -85,7 +85,7 @@ func newNetwork(params networkParams) (network.Network, error) {
 		return nil, err
 	}
 	if len(beacons) == 0 {
-		return nil, errors.New("NodeConfigs don't describe any beacon nodes")
+		return nil, errors.New("NodeConfigs don't have any beacon nodes")
 	}
 	net := &networkImpl{
 		config:         params.conf,

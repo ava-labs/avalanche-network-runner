@@ -13,8 +13,34 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMarshalling(t *testing.T) {
-	jsonNetcfg := "{\"implSpecificConfig\":\"\",\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/file/path\"},\"name\":\"node0\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"confFile\":\"config-file-blablabla1\",\"cchainConfFile\":\"cchain-config-file-blablabla1\"},{\"implSpecificConfig\":{\"apiVersion\":\"0.99.999\",\"identifier\":\"k8s-node-1\",\"image\":\"therepo/theimage\",\"kind\":\"imaginary\",\"namespace\":\"outer-space\",\"tag\":\"omega\"},\"name\":\"node1\",\"isBeacon\":false,\"stakingKey\":\"key456\",\"stakingCert\":\"cert456\",\"confFile\":\"config-file-blablabla2\",\"cchainConfFile\":\"cchain-config-file-blablabla2\"},{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/other/path\"},\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"confFile\":\"config-file-blablabla3\",\"cchainConfFile\":\"cchain-config-file-blablabla3\"}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\"}"
+func TestBackendMarshalJSON(t *testing.T) {
+	assert := assert.New(t)
+
+	backend := network.Local
+	backendJSON, err := json.Marshal(backend)
+	assert.NoError(err)
+	assert.Equal("\"local\"", string(backendJSON))
+	err = json.Unmarshal(backendJSON, &backend)
+	assert.NoError(err)
+	assert.EqualValues(network.Local, backend)
+
+	backend = network.Kubernetes
+	backendJSON, err = json.Marshal(backend)
+	assert.NoError(err)
+	assert.Equal("\"k8s\"", string(backendJSON))
+	err = json.Unmarshal(backendJSON, &backend)
+	assert.NoError(err)
+	assert.EqualValues(network.Kubernetes, backend)
+
+	backend = network.Backend(200) // non-existent backend
+	_, err = json.Marshal(backend)
+	assert.Error(err)
+	err = json.Unmarshal([]byte("invalid"), &backend)
+	assert.Error(err)
+}
+
+func TestConfigMarshalJSON(t *testing.T) {
+	jsonNetcfg := "{\"implSpecificConfig\":\"\",\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/file/path\"},\"name\":\"node0\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"configFile\":\"config-file-blablabla1\",\"cchainConfigFile\":\"cchain-config-file-blablabla1\"},{\"implSpecificConfig\":{\"apiVersion\":\"0.99.999\",\"identifier\":\"k8s-node-1\",\"image\":\"therepo/theimage\",\"kind\":\"imaginary\",\"namespace\":\"outer-space\",\"tag\":\"omega\"},\"name\":\"node1\",\"isBeacon\":false,\"stakingKey\":\"key456\",\"stakingCert\":\"cert456\",\"configFile\":\"config-file-blablabla2\",\"cchainConfigFile\":\"cchain-config-file-blablabla2\"},{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/other/path\"},\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"configFile\":\"config-file-blablabla3\",\"cchainConfigFile\":\"cchain-config-file-blablabla3\"}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\",\"backend\":\"k8s\"}"
 
 	control := network.Config{
 		Genesis: "in the beginning there was a token",
@@ -49,6 +75,7 @@ func TestMarshalling(t *testing.T) {
 		},
 		LogLevel: "DEBUG",
 		Name:     "abcxyz",
+		Backend:  network.Kubernetes,
 	}
 
 	var netcfg network.Config
