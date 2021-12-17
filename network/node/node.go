@@ -31,7 +31,7 @@ type Node interface {
 
 type Config struct {
 	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig json.RawMessage `json:"implSpecCfg"`
+	ImplSpecificConfig json.RawMessage `json:"implSpecificConfig"`
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
