@@ -1,5 +1,11 @@
 # Avalanche Network Runner
 
+## Note
+
+This tool is under heavy development and the documentation/code snippers below may vary slightly from the actual code in the repository.
+Updates to the documentation may happen some time after an update to the codebase. 
+Nonetheless, this README should provide valuable information about using this tool.
+
 ## Overview
 
 This is a tool to run and interact with an Avalanche network.
