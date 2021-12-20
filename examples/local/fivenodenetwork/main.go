@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +11,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/fatih/color"
 )
 
 const (
@@ -68,23 +66,7 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	config := local.NewDefaultConfig(binaryPath)
-	config.LogLevel = "ERROR"
-	for i := range config.NodeConfigs {
-		nodeName := fmt.Sprintf("node-%d", i)
-		config.NodeConfigs[i].Name = nodeName
-		wr := &writer{
-			col:  colors[i%len(config.NodeConfigs)],
-			name: nodeName,
-			w:    os.Stdout,
-		}
-		config.NodeConfigs[i].ImplSpecificConfig = local.NodeConfig{
-			BinaryPath: binaryPath,
-			Stdout:     wr,
-			Stderr:     wr,
-		}
-	}
-	nw, err := local.NewNetwork(log, config)
+	nw, err := local.NewDefaultNetwork(log, binaryPath)
 	if err != nil {
 		return err
 	}
@@ -116,23 +98,4 @@ func run(log logging.Logger, binaryPath string) error {
 	// Wait until done shutting down network after SIGINT/SIGTERM
 	<-closedOnShutdownCh
 	return nil
-}
-
-var colors = []*color.Color{
-	color.New(color.FgGreen),
-	color.New(color.FgYellow),
-	color.New(color.FgBlue),
-	color.New(color.FgMagenta),
-	color.New(color.FgCyan),
-}
-
-type writer struct {
-	col  *color.Color
-	name string
-	w    io.Writer
-}
-
-func (wr *writer) Write(p []byte) (n int, err error) {
-	wr.col.Fprintf(wr.w, "[%s]	", wr.name)
-	return wr.w.Write(p)
 }
