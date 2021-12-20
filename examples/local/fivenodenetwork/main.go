@@ -71,18 +71,11 @@ func run(log logging.Logger, binaryPath string) error {
 	config := local.NewDefaultConfig(binaryPath)
 	config.LogLevel = "ERROR"
 	for i := range config.NodeConfigs {
-		config.NodeConfigs[i].ConfigFile = []byte(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true
-}`)
+		nodeName := fmt.Sprintf("node-%d", i)
+		config.NodeConfigs[i].Name = nodeName
 		wr := &writer{
 			col:  colors[i%len(config.NodeConfigs)],
-			name: fmt.Sprintf("node%02d", i+1),
+			name: nodeName,
 			w:    os.Stdout,
 		}
 		config.NodeConfigs[i].ImplSpecificConfig = local.NodeConfig{
