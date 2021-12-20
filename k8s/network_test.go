@@ -385,7 +385,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig := defaultTestNetworkConfig(t)
-	networkConfig.NodeConfigs[0].ImplSpecificConfig = json.RawMessage("should not be string")
+	networkConfig.NodeConfigs[0].ImplSpecificConfig = json.RawMessage("should be a JSON")
 	_, err := newTestNetworkWithConfig(networkConfig)
 	assert.Error(err)
 }

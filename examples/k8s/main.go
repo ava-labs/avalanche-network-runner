@@ -17,7 +17,7 @@ import (
 const (
 	// defaultNetworkTimeout to wait network to come up until deemed failed
 	defaultNetworkTimeout = 120 * time.Second
-	confFileName          = "/conf.json"
+	configFileName        = "/conf.json"
 )
 
 // TODO: shouldn't we think of something like Viper for loading config file?
@@ -54,7 +54,7 @@ func run() error {
 		configDir = "./examples/k8s"
 	}
 	log.Info("reading config file...")
-	confFile, err := os.ReadFile(configDir + confFileName)
+	configFile, err := os.ReadFile(configDir + configFileName)
 	if err != nil {
 		log.Fatal("%s", err)
 		return err
@@ -62,7 +62,7 @@ func run() error {
 
 	// Network and node configs
 	var allConfig allConfig
-	if err := json.Unmarshal(confFile, &allConfig); err != nil {
+	if err := json.Unmarshal(configFile, &allConfig); err != nil {
 		log.Fatal("%s", err)
 		return err
 	}
@@ -142,12 +142,14 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 			StakingCert: string(cert),
 			StakingKey:  string(key),
 			ConfigFile:  string(configFile),
-			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(k.APIVersion,
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(
+				k.APIVersion,
 				k.Identifier,
 				k.Image,
 				k.Kind,
 				k.Namespace,
-				k.Tag),
+				k.Tag,
+			),
 			IsBeacon: i == 0,
 		}
 		netcfg.NodeConfigs = append(netcfg.NodeConfigs, c)

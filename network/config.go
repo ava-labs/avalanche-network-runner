@@ -35,12 +35,36 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
-type Backend uint
+type Backend byte
 
 const (
-	Local Backend = iota
+	Local Backend = iota + 1
 	Kubernetes
 )
+
+func (b Backend) MarshalJSON() ([]byte, error) {
+	switch b {
+	case Local:
+		return []byte("\"local\""), nil
+	case Kubernetes:
+		return []byte("\"k8s\""), nil
+	default:
+		return nil, fmt.Errorf("got unexpected backend %v", b)
+	}
+}
+
+func (b *Backend) UnmarshalJSON(bytes []byte) error {
+	switch string(bytes) {
+	case "\"local\"":
+		*b = Local
+		return nil
+	case "\"k8s\"":
+		*b = Kubernetes
+		return nil
+	default:
+		return fmt.Errorf("got unexpected backend %s", string(bytes))
+	}
+}
 
 // Config that defines a network when it is created.
 type Config struct {
@@ -54,7 +78,7 @@ type Config struct {
 	// Name for the network
 	Name string `json:"name"`
 	// Backend specifies the backend for the network
-	Backend Backend
+	Backend Backend `json:"backend"`
 }
 
 func (c *Config) Validate() error {
