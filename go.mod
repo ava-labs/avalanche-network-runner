@@ -8,7 +8,7 @@ require (
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
 	github.com/ava-labs/coreth v0.8.1-rc.0
 	github.com/ethereum/go-ethereum v1.10.12
-	github.com/fatih/color v1.10.0 // indirect
+	github.com/fatih/color v1.13.0
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/hashicorp/go-hclog v0.15.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.0 // indirect

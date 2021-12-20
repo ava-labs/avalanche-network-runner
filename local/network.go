@@ -47,6 +47,9 @@ var (
 type localNetwork struct {
 	lock sync.RWMutex
 	log  logging.Logger
+
+	networkConfig network.Config
+
 	// This network's ID.
 	networkID uint32
 	// This network's genesis file.
@@ -177,6 +180,7 @@ func newNetwork(
 
 	// Create the network
 	net := &localNetwork{
+		networkConfig:   networkConfig,
 		networkID:       networkID,
 		genesis:         networkConfig.Genesis,
 		nodes:           map[string]*localNode{},
@@ -365,6 +369,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	flags := []string{
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.LogLevelKey, ln.networkConfig.LogLevel),
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
