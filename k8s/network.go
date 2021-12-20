@@ -80,12 +80,12 @@ func newK8sClient() (k8scli.Client, error) {
 // Stop() on the returned network. Failure to do so will cause old
 // state to linger in k8s.
 func newNetwork(params networkParams) (network.Network, error) {
-	beacons, nonBeacons, err := createDeploymentFromConfig(params.conf.Genesis, params.conf.NodeConfigs)
+	beacons, nonBeacons, err := createDeploymentFromConfig([]byte(params.conf.Genesis), params.conf.NodeConfigs)
 	if err != nil {
 		return nil, err
 	}
 	if len(beacons) == 0 {
-		return nil, errors.New("NodeConfigs don't describe any beacon nodes")
+		return nil, errors.New("NodeConfigs don't have any beacon nodes")
 	}
 	net := &networkImpl{
 		config:         params.conf,
@@ -258,7 +258,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 		return nil, network.ErrStopped
 	}
 
-	nodeSpec, err := buildK8sObjSpec(a.config.Genesis, cfg)
+	nodeSpec, err := buildK8sObjSpec([]byte(a.config.Genesis), cfg)
 	if err != nil {
 		return nil, err
 	}

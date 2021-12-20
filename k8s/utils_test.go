@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -20,7 +21,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		"health-check-frequency": "2s"
 	}`
 	c := node.Config{
-		ConfigFile: []byte(testConfig),
+		ConfigFile: testConfig,
 	}
 
 	envVars, err := buildNodeEnv(genesis, c)
@@ -65,34 +66,32 @@ func TestCreateDeploymentConfig(t *testing.T) {
 		{
 			Name:        "test1",
 			IsBeacon:    true,
-			StakingKey:  []byte("fooKey"),
-			StakingCert: []byte("fooCert"),
-			ConfigFile:  []byte("{}"),
-			ImplSpecificConfig: ObjectSpec{
-				Namespace:  "test01",
-				Identifier: "test11",
-				Kind:       "kinda",
-				APIVersion: "v1",
-				Image:      "img1",
-				Tag:        "t1",
-				Genesis:    "gen1",
-			},
+			StakingKey:  "fooKey",
+			StakingCert: "fooCert",
+			ConfigFile:  "{}",
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(
+				"v1",
+				"test11",
+				"img1",
+				"Avalanchego",
+				"test01",
+				"t1",
+			),
 		},
 		{
 			Name:        "test2",
 			IsBeacon:    false,
-			StakingKey:  []byte("barKey"),
-			StakingCert: []byte("barCert"),
-			ConfigFile:  []byte("{}"),
-			ImplSpecificConfig: ObjectSpec{
-				Namespace:  "test02",
-				Identifier: "test22",
-				Kind:       "kindb",
-				APIVersion: "v2",
-				Image:      "img2",
-				Tag:        "t2",
-				Genesis:    "gen2",
-			},
+			StakingKey:  "barKey",
+			StakingCert: "barCert",
+			ConfigFile:  "{}",
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(
+				"v2",
+				"test22",
+				"img2",
+				"Avalanchego",
+				"test02",
+				"t2",
+			),
 		},
 	}
 	beacons, nonBeacons, err := createDeploymentFromConfig(genesis, nodeConfigs)
@@ -105,14 +104,14 @@ func TestCreateDeploymentConfig(t *testing.T) {
 
 	assert.Equal(b.Name, "test11")
 	assert.Equal(n.Name, "test22")
-	assert.Equal(b.Kind, "kinda")
-	assert.Equal(n.Kind, "kindb")
+	assert.Equal(b.Kind, "Avalanchego")
+	assert.Equal(n.Kind, "Avalanchego")
 	assert.Equal(b.APIVersion, "v1")
 	assert.Equal(n.APIVersion, "v2")
 	assert.Equal(b.Namespace, "test01")
 	assert.Equal(n.Namespace, "test02")
-	assert.Equal(b.Spec.DeploymentName, "test1")
-	assert.Equal(n.Spec.DeploymentName, "test2")
+	assert.Equal(b.Spec.DeploymentName, "test11")
+	assert.Equal(n.Spec.DeploymentName, "test22")
 	assert.Equal(b.Spec.Image, "img1")
 	assert.Equal(n.Spec.Image, "img2")
 	assert.Equal(b.Spec.Tag, "t1")

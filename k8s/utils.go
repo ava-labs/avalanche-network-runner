@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -29,11 +30,11 @@ func convertKey(key string) string {
 // Given a node's config and genesis, returns the environment
 // variables (i.e. config flags) to give to the node
 func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
-	if c.ConfigFile == nil {
+	if c.ConfigFile == "" {
 		return []corev1.EnvVar{}, nil
 	}
 	var avagoConf map[string]interface{} // AvalancheGo config file as a map
-	if err := json.Unmarshal(c.ConfigFile, &avagoConf); err != nil {
+	if err := json.Unmarshal([]byte(c.ConfigFile), &avagoConf); err != nil {
 		return nil, err
 	}
 	networkID, err := utils.NetworkIDFromGenesis(genesis)
@@ -75,13 +76,17 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 	}
 	certs := []k8sapi.Certificate{
 		{
-			Cert: base64.StdEncoding.EncodeToString(c.StakingCert),
-			Key:  base64.StdEncoding.EncodeToString(c.StakingKey),
+			Cert: base64.StdEncoding.EncodeToString([]byte(c.StakingCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(c.StakingKey)),
 		},
 	}
-	k8sConf, ok := c.ImplSpecificConfig.(ObjectSpec)
-	if !ok {
-		return nil, fmt.Errorf("expected ObjectSpec but got %T", c.ImplSpecificConfig)
+	var k8sConf ObjectSpec
+	if err := json.Unmarshal(c.ImplSpecificConfig, &k8sConf); err != nil {
+		return nil, fmt.Errorf("Unmarshalling an expected k8s.ObjectSpec failed: %w", err)
+	}
+
+	if err := validateObjectSpec(k8sConf); err != nil {
+		return nil, err
 	}
 
 	return &k8sapi.Avalanchego{
@@ -95,7 +100,7 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 		},
 		Spec: k8sapi.AvalanchegoSpec{
 			BootstrapperURL: "",
-			DeploymentName:  c.Name,
+			DeploymentName:  k8sConf.Identifier,
 			Image:           k8sConf.Image,
 			Tag:             k8sConf.Tag,
 			Env:             env,
@@ -116,6 +121,26 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 	}, nil
 }
 
+// Validates an ObjectSpec.
+// The tag value can be empty so not checked.
+func validateObjectSpec(k8sobj ObjectSpec) error {
+	switch {
+	case k8sobj.Identifier == "":
+		return errors.New("name should not be empty")
+	case k8sobj.APIVersion == "":
+		return errors.New("APIVersion should not be empty")
+	case k8sobj.Kind != "Avalanchego":
+		// only "AvalancheGo" currently supported -- mandated by avalanchego-operator
+		return fmt.Errorf("expected \"Avalanchego\" but got %q", k8sobj.Kind)
+	case k8sobj.Namespace == "":
+		return errors.New("namespace should be defined to avoid unintended consequences")
+	case k8sobj.Image == "" || strings.Index(k8sobj.Image, "/") == 1:
+		return fmt.Errorf("image string %q is invalid, it can't be empty and must contain a %q to describe a valid image repo", k8sobj.Image, "/")
+	default:
+		return nil
+	}
+}
+
 // Takes the genesis of a network and node configs and returns:
 // 1) The beacon nodes
 // 2) The non-beacon nodes
@@ -123,16 +148,21 @@ func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error)
 // May return nil slices.
 func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
 	var beacons, nonBeacons []*k8sapi.Avalanchego
+	names := make(map[string]struct{})
 	for _, c := range nodeConfigs {
 		spec, err := buildK8sObjSpec(genesis, c)
 		if err != nil {
 			return nil, nil, err
 		}
+		if _, exists := names[spec.Name]; exists {
+			return nil, nil, fmt.Errorf("node with name name %q already exists", spec.Name)
+		}
+		names[spec.Name] = struct{}{}
 		if c.IsBeacon {
 			beacons = append(beacons, spec)
-			continue
+		} else {
+			nonBeacons = append(nonBeacons, spec)
 		}
-		nonBeacons = append(nonBeacons, spec)
 	}
 	return beacons, nonBeacons, nil
 }

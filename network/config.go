@@ -35,19 +35,50 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
+type Backend byte
+
+const (
+	Local Backend = iota + 1
+	Kubernetes
+)
+
+func (b Backend) MarshalJSON() ([]byte, error) {
+	switch b {
+	case Local:
+		return []byte("\"local\""), nil
+	case Kubernetes:
+		return []byte("\"k8s\""), nil
+	default:
+		return nil, fmt.Errorf("got unexpected backend %v", b)
+	}
+}
+
+func (b *Backend) UnmarshalJSON(bytes []byte) error {
+	switch string(bytes) {
+	case "\"local\"":
+		*b = Local
+		return nil
+	case "\"k8s\"":
+		*b = Kubernetes
+		return nil
+	default:
+		return fmt.Errorf("got unexpected backend %s", string(bytes))
+	}
+}
+
 // Config that defines a network when it is created.
 type Config struct {
-	// Configuration specific to a particular implementation of a network.
-	ImplSpecificConfig interface{}
 	// Must not be nil
-	Genesis []byte
+	Genesis string `json:"genesis"`
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
-	NodeConfigs []node.Config
+	NodeConfigs []node.Config `json:"nodeConfigs"`
 	// Log level for the whole network
-	LogLevel string
+	LogLevel string `json:"logLevel"`
 	// Name for the network
-	Name string
+	Name string `json:"name"`
+	// Backend specifies the backend for the network
+	Backend Backend `json:"backend"`
 }
 
 func (c *Config) Validate() error {
@@ -56,7 +87,7 @@ func (c *Config) Validate() error {
 	case len(c.Genesis) == 0:
 		return errors.New("no genesis given")
 	}
-	networkID, err := utils.NetworkIDFromGenesis(c.Genesis)
+	networkID, err := utils.NetworkIDFromGenesis([]byte(c.Genesis))
 	if err != nil {
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}

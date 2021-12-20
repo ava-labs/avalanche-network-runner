@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -19,9 +20,7 @@ const (
 	healthyTimeout = 2 * time.Minute
 )
 
-var (
-	goPath = os.ExpandEnv("$GOPATH")
-)
+var goPath = os.ExpandEnv("$GOPATH")
 
 // Blocks until a signal is received on [signalChan], upon which
 // [n.Stop()] is called. If [signalChan] is closed, does nothing.
@@ -127,12 +126,10 @@ func run(log logging.Logger, binaryPath string) error {
 		return err
 	}
 	nodeConfig := node.Config{
-		Name: "New Node",
-		ImplSpecificConfig: local.NodeConfig{
-			BinaryPath: binaryPath,
-		},
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
+		Name:               "New Node",
+		ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw(binaryPath),
+		StakingKey:         string(stakingKey),
+		StakingCert:        string(stakingCert),
 	}
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err

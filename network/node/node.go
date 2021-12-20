@@ -10,24 +10,43 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
+// An AvalancheGo node
+type Node interface {
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
+	// Return this node's Avalanche node ID.
+	GetNodeID() ids.ShortID
+	// Return a client that can be used to make API calls.
+	GetAPIClient() api.Client
+	// Return this node's URL.
+	// For a local network, this is the node's IP (e.g. 127.0.0.1).
+	// For a k8s network, this is the DNS name of the pod hosting the node.
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTP API port.
+	GetAPIPort() uint16
+}
+
 type Config struct {
 	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig interface{}
+	ImplSpecificConfig json.RawMessage `json:"implSpecificConfig"`
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
 	Name string `json:"name"`
 	// True if other nodes should use this node
 	// as a bootstrap beacon.
-	IsBeacon bool
+	IsBeacon bool `json:"isBeacon"`
 	// Must not be nil.
-	StakingKey []byte
+	StakingKey string `json:"stakingKey"`
 	// Must not be nil.
-	StakingCert []byte
+	StakingCert string `json:"stakingCert"`
 	// May be nil.
-	ConfigFile []byte
+	ConfigFile string `json:"configFile"`
 	// May be nil.
-	CChainConfigFile []byte
+	CChainConfigFile string `json:"cChainConfigFile"`
 }
 
 // Returns an error if this config is invalid
@@ -35,12 +54,12 @@ func (c *Config) Validate(expectedNetworkID uint32) error {
 	switch {
 	case c.ImplSpecificConfig == nil:
 		return errors.New("implementation-specific node config not given")
-	case len(c.StakingKey) == 0:
+	case c.StakingKey == "":
 		return errors.New("staking key not given")
-	case len(c.StakingCert) == 0:
+	case c.StakingCert == "":
 		return errors.New("staking cert not given")
 	default:
-		return validateConfigFile(c.ConfigFile, expectedNetworkID)
+		return validateConfigFile([]byte(c.ConfigFile), expectedNetworkID)
 	}
 }
 
@@ -87,23 +106,4 @@ func validateConfigFile(configFile []byte, expectedNetworkID uint32) error {
 		}
 	}
 	return nil
-}
-
-// An AvalancheGo node
-type Node interface {
-	// Return this node's name, which is unique
-	// across all the nodes in its network.
-	GetName() string
-	// Return this node's Avalanche node ID.
-	GetNodeID() ids.ShortID
-	// Return a client that can be used to make API calls.
-	GetAPIClient() api.Client
-	// Return this node's URL.
-	// For a local network, this is the node's IP (e.g. 127.0.0.1).
-	// For a k8s network, this is the DNS name of the pod hosting the node.
-	GetURL() string
-	// Return this node's P2P (staking) port.
-	GetP2PPort() uint16
-	// Return this node's HTP API port.
-	GetAPIPort() uint16
 }

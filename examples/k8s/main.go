@@ -10,13 +10,14 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/k8s"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
 const (
 	// defaultNetworkTimeout to wait network to come up until deemed failed
 	defaultNetworkTimeout = 120 * time.Second
-	confFileName          = "/conf.json"
+	configFileName        = "/conf.json"
 )
 
 // TODO: shouldn't we think of something like Viper for loading config file?
@@ -53,7 +54,7 @@ func run() error {
 		configDir = "./examples/k8s"
 	}
 	log.Info("reading config file...")
-	confFile, err := os.ReadFile(configDir + confFileName)
+	configFile, err := os.ReadFile(configDir + configFileName)
 	if err != nil {
 		log.Fatal("%s", err)
 		return err
@@ -61,7 +62,7 @@ func run() error {
 
 	// Network and node configs
 	var allConfig allConfig
-	if err := json.Unmarshal(confFile, &allConfig); err != nil {
+	if err := json.Unmarshal(configFile, &allConfig); err != nil {
 		log.Fatal("%s", err)
 		return err
 	}
@@ -73,7 +74,6 @@ func run() error {
 		log.Fatal("error reading configs: %s", err)
 		return err
 	}
-	networkConfig.ImplSpecificConfig = allConfig.K8sConfig
 
 	level, err := logging.ToLevel(networkConfig.LogLevel)
 	if err != nil {
@@ -121,7 +121,7 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 		return network.Config{}, err
 	}
 	netcfg := rconfig.NetworkConfig
-	netcfg.Genesis = genesisFile
+	netcfg.Genesis = string(genesisFile)
 	netcfg.NodeConfigs = make([]node.Config, 0)
 	for i, k := range rconfig.K8sConfig {
 		nodeConfigDir := fmt.Sprintf("%s/node%d", configDir, i)
@@ -138,12 +138,19 @@ func readConfig(rconfig allConfig) (network.Config, error) {
 			return network.Config{}, err
 		}
 		c := node.Config{
-			Name:               fmt.Sprintf("validator-%d", i),
-			StakingCert:        cert,
-			StakingKey:         key,
-			ConfigFile:         configFile,
-			ImplSpecificConfig: k,
-			IsBeacon:           i == 0,
+			Name:        fmt.Sprintf("validator-%d", i),
+			StakingCert: string(cert),
+			StakingKey:  string(key),
+			ConfigFile:  string(configFile),
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(
+				k.APIVersion,
+				k.Identifier,
+				k.Image,
+				k.Kind,
+				k.Namespace,
+				k.Tag,
+			),
+			IsBeacon: i == 0,
 		}
 		netcfg.NodeConfigs = append(netcfg.NodeConfigs, c)
 	}

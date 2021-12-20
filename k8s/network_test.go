@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -249,16 +251,16 @@ func TestNetworkDefault(t *testing.T) {
 	newNodeConfig := node.Config{
 		Name:        "new-node",
 		IsBeacon:    false,
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
-		ImplSpecificConfig: ObjectSpec{
-			Namespace:  "ci-avalanchego",
-			Kind:       "Avalanchego",
-			APIVersion: "chain.avax.network/v1alpha1",
-			Identifier: "new-node",
-			Image:      "avaplatform/avalanchego",
-			Tag:        "1.9.99",
-		},
+		StakingKey:  string(stakingKey),
+		StakingCert: string(stakingCert),
+		ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw(
+			"chain.avax.network/v1alpha1",
+			"new-node",
+			"avaplatform/avalanchego",
+			"Avalanchego",
+			"ci-network-runner",
+			"9.99.9999",
+		),
 	}
 	newNode, err := n.AddNode(newNodeConfig)
 	assert.NoError(err)
@@ -288,108 +290,82 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}{
 		"no ImplSpecificConfig": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
 						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						StakingKey:  "nonempty",
+						StakingCert: "nonempty",
 					},
 				},
 			},
 		},
-		"empty nodeID": {
+		"empty name": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.ShortEmpty,
-						},
-						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
-					},
-				},
-			},
-		},
-		"no Genesis": {
-			config: network.Config{
-				NodeConfigs: []node.Config{
-					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						IsBeacon:           true,
+						StakingKey:         "nonempty",
+						StakingCert:        "nonempty",
 					},
 				},
 			},
 		},
 		"StakingKey but no StakingCert": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						IsBeacon:   true,
-						StakingKey: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						IsBeacon:           true,
+						StakingKey:         "nonempty",
 					},
 				},
 			},
 		},
 		"StakingCert but no StakingKey": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						IsBeacon:    true,
-						StakingCert: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						IsBeacon:           true,
+						StakingCert:        "nonempty",
 					},
 				},
 			},
 		},
 		"no beacon node": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						StakingKey:         "nonempty",
+						StakingCert:        "nonempty",
 					},
 				},
 			},
 		},
 		"repeated name": {
 			config: network.Config{
-				Genesis: []byte("nonempty"),
+				Genesis: "nonempty",
 				NodeConfigs: []node.Config{
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						Name:        "node0",
-						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						Name:               "node0",
+						IsBeacon:           true,
+						StakingKey:         "nonempty",
+						StakingCert:        "nonempty",
 					},
 					{
-						ImplSpecificConfig: Node{
-							nodeID: ids.GenerateTestShortID(),
-						},
-						Name:        "node0",
-						IsBeacon:    true,
-						StakingKey:  []byte("nonempty"),
-						StakingCert: []byte("nonempty"),
+						ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", "testnode", "somerepo/someimage", "anykind", "noname", "testingversion"),
+						Name:               "node0",
+						IsBeacon:           false,
+						StakingKey:         "nonempty",
+						StakingCert:        "nonempty",
 					},
 				},
 			},
@@ -409,7 +385,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 func TestImplSpecificConfigInterface(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig := defaultTestNetworkConfig(t)
-	networkConfig.NodeConfigs[0].ImplSpecificConfig = "should not be string"
+	networkConfig.NodeConfigs[0].ImplSpecificConfig = json.RawMessage("should be a JSON")
 	_, err := newTestNetworkWithConfig(networkConfig)
 	assert.Error(err)
 }
@@ -422,13 +398,10 @@ func defaultTestNetworkConfig(t *testing.T) network.Config {
 		crt, key, err := staking.NewCertAndKeyBytes()
 		assert.NoError(err)
 		nodeConfig := node.Config{
-			Name: fmt.Sprintf("node%d", i),
-			ImplSpecificConfig: ObjectSpec{
-				Identifier: fmt.Sprintf("test-node-%d", i),
-				Namespace:  "ci-avalanchego",
-			},
-			StakingKey:  key,
-			StakingCert: crt,
+			Name:               fmt.Sprintf("node%d", i),
+			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", fmt.Sprintf("testnode-%d", i), "somerepo/someimage", "Avalanchego", "ci-networkrunner", "testingversion"),
+			StakingKey:         string(key),
+			StakingCert:        string(crt),
 		}
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}

@@ -18,7 +18,6 @@ type ObjectSpec struct {
 	APIVersion string `json:"apiVersion"` // The APIVersion of the kubernetes object
 	Image      string `json:"image"`      // The docker image to use
 	Tag        string `json:"tag"`        // The docker tag to use
-	Genesis    string `json:"genesis"`    // The genesis conf file for all nodes
 }
 
 // Node is a Avalanchego representation on k8s
