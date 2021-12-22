@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/config"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -291,6 +292,42 @@ func NewDefaultConfig(binaryPath string) network.Config {
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config
+}
+
+func NewDefaultNetworkWithVm(
+	log logging.Logger,
+	binaryPath string,
+	vms []vms.CustomVM,
+) (network.Network, error) {
+	config, err := NewDefaultConfigWithVm(binaryPath, vms)
+	if err != nil {
+		return nil, err
+	}
+	return newNetwork(log, config, api.NewAPIClient, NewNodeProcess)
+}
+
+func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
+	for _, v := range customVms {
+		if _, err := os.Stat(v.Path); os.IsNotExist(err) {
+			return network.Config{}, fmt.Errorf("%s path does not exist", v.Path)
+		}
+		if _, err := os.Stat(v.Genesis); os.IsNotExist(err) {
+			return network.Config{}, fmt.Errorf("%s genesis does not exist", v.Genesis)
+		}
+		if err := utils.CopyFile(v.Path, fmt.Sprintf("%s/plugins/%s", binaryPath, v.Name)); err != nil {
+			return network.Config{}, fmt.Errorf("failed to copy binary to pluginsDir %s", v)
+		}
+	}
+	config := defaultNetworkConfig
+	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
+	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
+	for i := 0; i < len(config.NodeConfigs); i++ {
+		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
+			BinaryPath: binaryPath,
+			CustomVMs:  customVms,
+		}
+	}
+	return config, nil
 }
 
 // See network.Network

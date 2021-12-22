@@ -494,6 +494,25 @@ func TestNetworkFromConfig(t *testing.T) {
 	checkNetwork(t, net, runningNodes, nil)
 }
 
+func TestNetworkFromConfigWithVm(t *testing.T) {
+	assert := assert.New(t)
+	var vmPath, vmGenesis []string
+	_, err := NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
+	assert.Error(err)
+	vmPath = []string{"only/path/no/genesis"}
+	_, err = NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
+	assert.Error(err)
+	vmPath = []string{"one", "two"}
+	vmGenesis = []string{"equal", "length"}
+	a, err := NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
+	assert.NoError(err)
+	for _, cfg := range a.NodeConfigs {
+		c := cfg.ImplSpecificConfig.(*NodeConfig)
+		assert.EqualValues(c.VmPath, vmPath)
+		assert.EqualValues(c.VmGenesis, vmGenesis)
+	}
+}
+
 // TestNetworkNodeOps creates an empty network,
 // adds nodes one by one, then removes nodes one by one.
 // Setween all operations, a network check is performed

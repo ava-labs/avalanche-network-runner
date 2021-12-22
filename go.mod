@@ -7,11 +7,16 @@ require (
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
 	github.com/ava-labs/coreth v0.8.1-rc.0
 	github.com/ethereum/go-ethereum v1.10.12
+	github.com/fatih/color v1.13.0
+	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	k8s.io/api v0.22.3
 	k8s.io/apimachinery v0.22.3
 	sigs.k8s.io/controller-runtime v0.10.2
+)
+
+require (
 	github.com/AppsFlyer/go-sundheit v0.2.0 // indirect
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
@@ -25,7 +30,6 @@ require (
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200627015759-01fd2de07837 // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
-	github.com/fatih/color v1.13.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
@@ -91,7 +95,6 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.7.1 // indirect
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
