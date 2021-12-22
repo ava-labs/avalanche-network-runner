@@ -14,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -496,21 +497,28 @@ func TestNetworkFromConfig(t *testing.T) {
 
 func TestNetworkFromConfigWithVm(t *testing.T) {
 	assert := assert.New(t)
-	var vmPath, vmGenesis []string
-	_, err := NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
+	var customVms []vms.CustomVM
+	_, err := NewDefaultConfigWithVm("binary/path", customVms)
 	assert.Error(err)
-	vmPath = []string{"only/path/no/genesis"}
-	_, err = NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
-	assert.Error(err)
-	vmPath = []string{"one", "two"}
-	vmGenesis = []string{"equal", "length"}
-	a, err := NewDefaultConfigWithVm("binary/path", vmPath, vmGenesis)
-	assert.NoError(err)
-	for _, cfg := range a.NodeConfigs {
-		c := cfg.ImplSpecificConfig.(*NodeConfig)
-		assert.EqualValues(c.VmPath, vmPath)
-		assert.EqualValues(c.VmGenesis, vmGenesis)
+	customVms = []vms.CustomVM{
+		{
+			Path: "only/path/no/genesis",
+		},
 	}
+	_, err = NewDefaultConfigWithVm("binary/path", customVms)
+	assert.Error(err)
+	customVms = []vms.CustomVM{
+		{
+			Path:    "/path/one",
+			Genesis: "genone",
+		},
+		{
+			Path:    "/path/two",
+			Genesis: "gentwo",
+		},
+	}
+	_, err = NewDefaultConfigWithVm("binary/path", customVms)
+	assert.NoError(err)
 }
 
 // TestNetworkNodeOps creates an empty network,

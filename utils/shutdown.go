@@ -6,18 +6,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
-func WatchShutdownSignals(log logging.Logger, nw network.Network) chan struct{} {
+type ShutdownFunc func(ctx context.Context) error
+
+func WatchShutdownSignals(log logging.Logger, shutDownFunc ShutdownFunc) chan struct{} {
 	// When we get a SIGINT or SIGTERM, stop the network and close [closedOnShutdownCh]
 	signalsChan := make(chan os.Signal, 1)
 	signal.Notify(signalsChan, syscall.SIGINT)
 	signal.Notify(signalsChan, syscall.SIGTERM)
 	closedOnShutdownCh := make(chan struct{})
 	go func() {
-		shutdownOnSignal(log, nw, signalsChan, closedOnShutdownCh)
+		shutdownOnSignal(log, shutDownFunc, signalsChan, closedOnShutdownCh)
 	}()
 
 	log.Info("All nodes healthy. Network will run until you CTRL + C to exit...")
@@ -31,13 +32,13 @@ func WatchShutdownSignals(log logging.Logger, nw network.Network) chan struct{} 
 // This function should only be called once.
 func shutdownOnSignal(
 	log logging.Logger,
-	n network.Network,
+	shutDownFunc ShutdownFunc,
 	signalChan chan os.Signal,
 	closedOnShutdownChan chan struct{},
 ) {
 	sig := <-signalChan
 	log.Info("got OS signal %s", sig)
-	if err := n.Stop(context.Background()); err != nil {
+	if err := shutDownFunc(context.Background()); err != nil {
 		log.Debug("error while stopping network: %s", err)
 	}
 	signal.Reset()

@@ -101,6 +101,6 @@ func run(log logging.Logger, config customVMConfig) error {
 			return err
 		}
 	}
-	<-utils.WatchShutdownSignals(log, nw)
+	<-utils.WatchShutdownSignals(log, nw.Stop)
 	return nil
 }

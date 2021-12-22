@@ -322,10 +322,8 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i].ImplSpecificConfig = NodeConfig{
-			BinaryPath: binaryPath,
-			CustomVMs:  customVms,
-		}
+		// TODO can we use just binary path or do we need a customvm jsonraw
+		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config, nil
 }
