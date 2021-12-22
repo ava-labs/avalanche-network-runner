@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -507,17 +508,32 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 	}
 	_, err = NewDefaultConfigWithVm("binary/path", customVms)
 	assert.Error(err)
+	tmpDir, err := os.MkdirTemp("", "custom-vm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	pluginsDir := tmpDir + "/plugins"
+	err = os.Mkdir(pluginsDir, os.FileMode(0777))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpGen, err := os.CreateTemp(tmpDir, "temp-genesis")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpPath, err := os.CreateTemp(tmpDir, "temp-path")
+	if err != nil {
+		t.Fatal(err)
+	}
 	customVms = []vms.CustomVM{
 		{
-			Path:    "/path/one",
-			Genesis: "genone",
-		},
-		{
-			Path:    "/path/two",
-			Genesis: "gentwo",
+			Path:    tmpPath.Name(),
+			Genesis: tmpGen.Name(),
+			Name:    "TestVM",
 		},
 	}
-	_, err = NewDefaultConfigWithVm("binary/path", customVms)
+	_, err = NewDefaultConfigWithVm(tmpDir, customVms)
 	assert.NoError(err)
 }
 

@@ -307,6 +307,9 @@ func NewDefaultNetworkWithVm(
 }
 
 func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
+	if len(customVms) == 0 {
+		return network.Config{}, fmt.Errorf("No custom vm information has been provided - a default network should be created if this is intended")
+	}
 	for _, v := range customVms {
 		if _, err := os.Stat(v.Path); os.IsNotExist(err) {
 			return network.Config{}, fmt.Errorf("%s path does not exist", v.Path)
@@ -315,7 +318,7 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 			return network.Config{}, fmt.Errorf("%s genesis does not exist", v.Genesis)
 		}
 		if err := utils.CopyFile(v.Path, fmt.Sprintf("%s/plugins/%s", binaryPath, v.Name)); err != nil {
-			return network.Config{}, fmt.Errorf("failed to copy binary to pluginsDir %s", v)
+			return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, fmt.Sprintf("%s/plugins", binaryPath), err)
 		}
 	}
 	config := defaultNetworkConfig
