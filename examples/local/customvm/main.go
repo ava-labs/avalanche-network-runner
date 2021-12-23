@@ -11,12 +11,15 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 const (
 	healthyTimeout = 2 * time.Minute
 	binaryPathKey  = "binary-path"
+	vmPathKey      = "vm-path"
+	genesisPathKey = "genesis-path"
 )
 
 var (
@@ -51,10 +54,16 @@ func main() {
 	v := viper.New()
 	v.SetDefault(binaryPathKey, defaultBinaryPath)
 
-	var c customVMConfig
-	if err := viper.Unmarshal(&c); err != nil {
-		fmt.Print("Could not initialize configuration: %w\n", err)
-		os.Exit(1)
+	bp := pflag.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
+	vp := pflag.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
+	gp := pflag.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
+
+	pflag.Parse()
+
+	c := customVMConfig{
+		BinaryPath: *bp,
+		VmPath:     *vp,
+		VmGenesis:  *gp,
 	}
 
 	if err := run(log, c); err != nil {
@@ -76,6 +85,9 @@ func run(log logging.Logger, config customVMConfig) error {
 			Name:    filepath.Base(v),
 		}
 	}
+
+	log.SetDisplayLevel(logging.Debug)
+	log.SetLogLevel(logging.Debug)
 
 	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms)
 	if err != nil {

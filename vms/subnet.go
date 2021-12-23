@@ -27,12 +27,14 @@ const (
 	genesisKey   = "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
 	waitTime     = 1 * time.Second
 	longWaitTime = 10 * waitTime
+	protocol     = "http://"
 
 	validatorWeight    = 50
 	validatorStartDiff = 30 * time.Second
 	validatorEndDiff   = 30 * 24 * time.Hour // 30 days
 	HTTPTimeout        = 10 * time.Second
-	WhitelistedSubnets = "29uVeLPJB1eQJkzRemU8g8wZDw5uJRqpab5U2mX9euieVwiEbL"
+	WhitelistedSubnets = "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
+	vmID               = "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
 )
 
 func SetupSubnet(
@@ -57,8 +59,8 @@ func SetupSubnet(
 	nodeIDs := make([]string, len(allNodes))
 	i := 0
 	for _, n := range allNodes {
-		nodeURLs[i] = n.GetURL()
-		nodeIDs[i] = n.GetNodeID().String()
+		nodeURLs[i] = fmt.Sprintf("%s%s:%d", protocol, n.GetURL(), n.GetAPIPort())
+		nodeIDs[i] = "NodeID-" + n.GetNodeID().String()
 		i++
 	}
 	// Create user
@@ -151,7 +153,7 @@ func SetupSubnet(
 	}
 	txID, err := client.CreateBlockchain(
 		userPass, []string{fundedAddress}, fundedAddress, rSubnetID,
-		subnetIDTx.String(), []string{}, vm.Name, genesis,
+		vmID, []string{}, vm.Name, genesis,
 	)
 	if err != nil {
 		return fmt.Errorf("could not create blockchain: %w", err)
