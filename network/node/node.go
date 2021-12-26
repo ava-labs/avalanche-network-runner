@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanchego/config"
@@ -47,6 +48,10 @@ type Config struct {
 	ConfigFile string `json:"configFile"`
 	// May be nil.
 	CChainConfigFile string `json:"cChainConfigFile"`
+	// If non-nil, direct stdout here
+	Stdout io.Writer
+	// If non-nil, direct stderr here
+	Stderr io.Writer
 }
 
 // Returns an error if this config is invalid
