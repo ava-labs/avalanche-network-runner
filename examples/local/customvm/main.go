@@ -20,6 +20,8 @@ const (
 	binaryPathKey  = "binary-path"
 	vmPathKey      = "vm-path"
 	genesisPathKey = "genesis-path"
+	subnetIDKey    = "subnet-ids"
+	vmIDKey        = "vm-ids"
 )
 
 var (
@@ -31,6 +33,8 @@ type customVMConfig struct {
 	BinaryPath string
 	VmPath     []string
 	VmGenesis  []string
+	VmSubnets  []string
+	VmIDs      []string
 }
 
 // Shows example usage of the Avalanche Network Runner.
@@ -57,6 +61,8 @@ func main() {
 	bp := pflag.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
 	vp := pflag.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
 	gp := pflag.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
+	sp := pflag.StringSlice(subnetIDKey, []string{""}, "Comma-separated list of subnetIDs for whitelisting")
+	ip := pflag.StringSlice(vmIDKey, []string{""}, "Comma-separated list of VM IDs")
 
 	pflag.Parse()
 
@@ -64,6 +70,8 @@ func main() {
 		BinaryPath: *bp,
 		VmPath:     *vp,
 		VmGenesis:  *gp,
+		VmSubnets:  *sp,
+		VmIDs:      *ip,
 	}
 
 	if err := run(log, c); err != nil {
@@ -80,9 +88,10 @@ func run(log logging.Logger, config customVMConfig) error {
 	customVms := make([]vms.CustomVM, len(config.VmPath))
 	for i, v := range config.VmPath {
 		customVms[i] = vms.CustomVM{
-			Path:    v,
-			Genesis: config.VmGenesis[i],
-			Name:    filepath.Base(v),
+			Path:     v,
+			Genesis:  config.VmGenesis[i],
+			Name:     filepath.Base(v),
+			SubnetID: config.VmSubnets[i],
 		}
 	}
 
@@ -108,8 +117,10 @@ func run(log logging.Logger, config customVMConfig) error {
 		return err
 	}
 
+	subnetCtx, subnetCancel := context.WithTimeout(ctx, healthyTimeout)
+	defer subnetCancel()
 	for _, v := range customVms {
-		if err := vms.SetupSubnet(ctx, v, nw); err != nil {
+		if err := vms.SetupSubnet(subnetCtx, v, nw); err != nil {
 			return err
 		}
 	}

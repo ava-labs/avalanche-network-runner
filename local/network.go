@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -317,6 +318,9 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 		if _, err := os.Stat(v.Genesis); os.IsNotExist(err) {
 			return network.Config{}, fmt.Errorf("%s genesis does not exist", v.Genesis)
 		}
+		if _, err := ids.FromString(v.SubnetID); err != nil {
+			return network.Config{}, fmt.Errorf("the provided subnetID %s failed validation", v.SubnetID)
+		}
 		vmBinDir := filepath.Dir(v.Path)
 		binDir := filepath.Dir(binaryPath)
 		if binDir != vmBinDir {
@@ -331,8 +335,27 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 	for i := 0; i < len(config.NodeConfigs); i++ {
 		// TODO can we use just binary path or do we need a customvm jsonraw
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
+		config.NodeConfigs[i].ConfigFile = extendConfigFile(config.NodeConfigs[i], customVms)
 	}
 	return config, nil
+}
+
+func extendConfigFile(config node.Config, customVms []vms.CustomVM) string {
+	var ws strings.Builder
+	ws.WriteString(`"whitelisted-subnets":`)
+	for i, v := range customVms {
+		ws.WriteRune('"')
+		ws.WriteString(v.SubnetID)
+		ws.WriteRune('"')
+		if i < len(customVms) {
+			ws.WriteRune(',')
+		}
+	}
+	if config.ConfigFile == "" {
+		config.ConfigFile = "{"
+	}
+	start := strings.Index(config.ConfigFile, "{") + 1
+	return config.ConfigFile[:start] + ws.String() + config.ConfigFile[start:]
 }
 
 // See network.Network

@@ -18,23 +18,24 @@ import (
 )
 
 type CustomVM struct {
-	Path    string
-	Genesis string
-	Name    string
+	Path     string
+	Genesis  string
+	Name     string
+	SubnetID string
+	ID       string
 }
 
 const (
+	// TODO this also can't be hardcoded
 	genesisKey   = "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
 	waitTime     = 1 * time.Second
 	longWaitTime = 10 * waitTime
 	protocol     = "http://"
 
-	validatorWeight    = 50
+	validatorWeight    = 3000
 	validatorStartDiff = 30 * time.Second
 	validatorEndDiff   = 30 * 24 * time.Hour // 30 days
 	HTTPTimeout        = 10 * time.Second
-	WhitelistedSubnets = "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
-	vmID               = "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
 )
 
 func SetupSubnet(
@@ -43,8 +44,6 @@ func SetupSubnet(
 	network network.Network,
 ) error {
 	color.Cyan("creating subnet")
-	// nodeURLs = manager.NodeURLs()
-	// nodeIDs  = manager.NodeIDs()
 
 	userPass := api.UserPass{
 		Username: "test",
@@ -96,16 +95,18 @@ func SetupSubnet(
 		return fmt.Errorf("unable to create subnet: %w", err)
 	}
 
+CREATE_SUBNET:
 	for {
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			return ctx.Err()
+		case <-time.After(waitTime):
+			status, _ := client.GetTxStatus(subnetIDTx, true)
+			if status.Status == platformvm.Committed {
+				break CREATE_SUBNET
+			}
+			color.Yellow("waiting for subnet creation tx (%s) to be accepted", subnetIDTx)
 		}
-		status, _ := client.GetTxStatus(subnetIDTx, true)
-		if status.Status == platformvm.Committed {
-			break
-		}
-		color.Yellow("waiting for subnet creation tx (%s) to be accepted", subnetIDTx)
-		time.Sleep(waitTime)
 	}
 	color.Cyan("subnet creation tx (%s) accepted", subnetIDTx)
 
@@ -114,10 +115,18 @@ func SetupSubnet(
 	if err != nil {
 		return fmt.Errorf("cannot query subnets: %w", err)
 	}
-	rSubnetID := subnets[0].ID
-	subnetID := rSubnetID.String()
-	if subnetID != WhitelistedSubnets {
-		return fmt.Errorf("expected subnet %s but got %s", WhitelistedSubnets, subnetID)
+
+	var rSubnetID ids.ID
+	var subnetID string
+	for _, s := range subnets {
+		if s.ID.String() == vm.SubnetID {
+			rSubnetID = s.ID
+			subnetID = s.ID.String()
+			break
+		}
+	}
+	if subnetID != vm.SubnetID {
+		return fmt.Errorf("expected subnet %s but got %s", vm.SubnetID, subnetID)
 	}
 
 	// Add all validators to subnet with equal weight
@@ -133,17 +142,18 @@ func SetupSubnet(
 		}
 
 		for {
-			if ctx.Err() != nil {
+			select {
+			case <-ctx.Done():
 				return ctx.Err()
+			case <-time.After(waitTime):
+				status, _ := client.GetTxStatus(txID, true)
+				if status.Status == platformvm.Committed {
+					break
+				}
+				color.Yellow("waiting for add subnet validator (%s) tx (%s) to be accepted", nodeID, txID)
 			}
-			status, _ := client.GetTxStatus(txID, true)
-			if status.Status == platformvm.Committed {
-				break
-			}
-			color.Yellow("waiting for add subnet validator (%s) tx (%s) to be accepted", nodeID, txID)
-			time.Sleep(waitTime)
+			color.Cyan("add subnet validator (%s) tx (%s) accepted", nodeID, txID)
 		}
-		color.Cyan("add subnet validator (%s) tx (%s) accepted", nodeID, txID)
 	}
 
 	// Create blockchain
@@ -153,21 +163,23 @@ func SetupSubnet(
 	}
 	txID, err := client.CreateBlockchain(
 		userPass, []string{fundedAddress}, fundedAddress, rSubnetID,
-		vmID, []string{}, vm.Name, genesis,
+		vm.ID, []string{}, vm.Name, genesis,
 	)
 	if err != nil {
 		return fmt.Errorf("could not create blockchain: %w", err)
 	}
+STATUS:
 	for {
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			return ctx.Err()
+		case <-time.After(waitTime):
+			status, _ := client.GetTxStatus(txID, true)
+			if status.Status == platformvm.Committed {
+				break STATUS
+			}
+			color.Yellow("waiting for create blockchain tx (%s) to be accepted", txID)
 		}
-		status, _ := client.GetTxStatus(txID, true)
-		if status.Status == platformvm.Committed {
-			break
-		}
-		color.Yellow("waiting for create blockchain tx (%s) to be accepted", txID)
-		time.Sleep(waitTime)
 	}
 	color.Cyan("create blockchain tx (%s) accepted", txID)
 
@@ -191,35 +203,40 @@ func SetupSubnet(
 	for i, url := range nodeURLs {
 		nClient := platformvm.NewClient(url, HTTPTimeout)
 		for {
-			if ctx.Err() != nil {
+			select {
+			case <-ctx.Done():
 				return ctx.Err()
+			case <-time.After(longWaitTime):
+				status, err := nClient.GetBlockchainStatus(blockchainID.String())
+				if err != nil {
+					return fmt.Errorf("error querying blockchain status: %w", err)
+				}
+				if status == platformvm.Validating {
+					break
+				}
+				color.Yellow("waiting for validating status for %s", nodeIDs[i])
 			}
-			status, _ := nClient.GetBlockchainStatus(blockchainID.String())
-			if status == platformvm.Validating {
-				break
-			}
-			color.Yellow("waiting for validating status for %s", nodeIDs[i])
-			time.Sleep(longWaitTime)
 		}
-		color.Cyan("%s validating blockchain %s", nodeIDs[i], blockchainID)
 	}
+	color.Cyan("%s validating blockchain %s", nodeIDs[i], blockchainID)
 
 	// Ensure network bootstrapped
 	for i, url := range nodeURLs {
 		nClient := info.NewClient(url, HTTPTimeout)
 		for {
-			if ctx.Err() != nil {
+			select {
+			case <-ctx.Done():
 				return ctx.Err()
+			case <-time.After(waitTime):
+				bootstrapped, _ := nClient.IsBootstrapped(blockchainID.String())
+				if bootstrapped {
+					break
+				}
+				color.Yellow("waiting for %s to bootstrap %s", nodeIDs[i], blockchainID.String())
 			}
-			bootstrapped, _ := nClient.IsBootstrapped(blockchainID.String())
-			if bootstrapped {
-				break
-			}
-			color.Yellow("waiting for %s to bootstrap %s", nodeIDs[i], blockchainID.String())
-			time.Sleep(waitTime)
 		}
-		color.Cyan("%s bootstrapped %s", nodeIDs[i], blockchainID)
 	}
+	color.Cyan("%s bootstrapped %s", nodeIDs[i], blockchainID)
 
 	// Print endpoints where VM is accessible
 	color.Green("Custom VM endpoints now accessible at:")
