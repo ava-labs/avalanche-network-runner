@@ -27,6 +27,8 @@ import (
 )
 
 const (
+	DefaultNetworkFundedPrivateKey = "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
+
 	defaultNodeNamePrefix = "node-"
 	configFileName        = "config.json"
 	stakingKeyFileName    = "staking.key"

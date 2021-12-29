@@ -10,13 +10,13 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 
 	"github.com/ava-labs/avalanchego/api"
-	"github.com/ava-labs/avalanchego/api/info"
-	"github.com/ava-labs/avalanchego/api/keystore"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/fatih/color"
 )
 
+// CustomVM wraps data to create a custom VM
 type CustomVM struct {
 	Path     string
 	Genesis  string
@@ -26,24 +26,28 @@ type CustomVM struct {
 }
 
 const (
-	// TODO this also can't be hardcoded
-	genesisKey   = "PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN"
-	waitTime     = 1 * time.Second
-	longWaitTime = 10 * waitTime
-	protocol     = "http://"
+	loopTimeout         = 1 * time.Second
+	longTimeout         = 10 * loopTimeout
+	defaultKeyThreshold = 1
 
 	validatorWeight    = 3000
 	validatorStartDiff = 30 * time.Second
 	validatorEndDiff   = 30 * 24 * time.Hour // 30 days
-	HTTPTimeout        = 10 * time.Second
 )
 
+// SetupSubnet creates the necessary transactions to create a subnet for a given custom VM.
+// It then also waits until all these transactions are confirmed on all nodes.
+// Finally it creates a blockchain and makes sure all nodes of the given network
+// are validating this blockchain.
+// It requires a `privateKey` in order to issue the necessary transactions
 func SetupSubnet(
 	ctx context.Context,
+	log logging.Logger,
 	vm CustomVM,
 	network network.Network,
+	privateKey string,
 ) error {
-	color.Cyan("creating subnet")
+	log.Info("creating subnet")
 
 	userPass := api.UserPass{
 		Username: "test",
@@ -54,42 +58,39 @@ func SetupSubnet(
 	if err != nil {
 		return err
 	}
-	nodeURLs := make([]string, len(allNodes))
-	nodeIDs := make([]string, len(allNodes))
-	i := 0
-	for _, n := range allNodes {
-		nodeURLs[i] = fmt.Sprintf("%s%s:%d", protocol, n.GetURL(), n.GetAPIPort())
-		nodeIDs[i] = "NodeID-" + n.GetNodeID().String()
-		i++
+
+	txNodeNames, err := network.GetNodeNames()
+	if err != nil {
+		return err
 	}
-	// Create user
-	kclient := keystore.NewClient(nodeURLs[0], HTTPTimeout)
-	ok, err := kclient.CreateUser(userPass)
+	// txNode will be the node we issue all transactions on
+	txNode := allNodes[txNodeNames[0]]
+	txClient := txNode.GetAPIClient()
+	// we need to create a user for platformvm calls
+	ok, err := txClient.KeystoreAPI().CreateUser(userPass)
 	if !ok || err != nil {
 		return fmt.Errorf("could not create user: %w", err)
 	}
 
-	// Connect to local network
-	client := platformvm.NewClient(nodeURLs[0], HTTPTimeout)
-
+	txPChainClient := txClient.PChainAPI()
 	// Import genesis key
-	fundedAddress, err := client.ImportKey(userPass, genesisKey)
+	fundedAddress, err := txPChainClient.ImportKey(userPass, privateKey)
 	if err != nil {
 		return fmt.Errorf("unable to import genesis key: %w", err)
 	}
-	balance, err := client.GetBalance(fundedAddress)
+	balance, err := txPChainClient.GetBalance(fundedAddress)
 	if err != nil {
 		return fmt.Errorf("unable to get genesis key balance: %w", err)
 	}
-	color.Cyan("found %d on address %s", balance, fundedAddress)
+	log.Info("found %d on address %s", balance.Balance, fundedAddress)
 
 	// Create a subnet
-	subnetIDTx, err := client.CreateSubnet(
+	subnetIDTx, err := txPChainClient.CreateSubnet(
 		userPass,
 		[]string{fundedAddress},
 		fundedAddress,
 		[]string{fundedAddress},
-		1,
+		defaultKeyThreshold,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create subnet: %w", err)
@@ -100,18 +101,18 @@ CREATE_SUBNET:
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(waitTime):
-			status, _ := client.GetTxStatus(subnetIDTx, true)
+		case <-time.After(loopTimeout):
+			status, _ := txPChainClient.GetTxStatus(subnetIDTx, true)
 			if status.Status == platformvm.Committed {
 				break CREATE_SUBNET
 			}
-			color.Yellow("waiting for subnet creation tx (%s) to be accepted", subnetIDTx)
+			log.Debug("waiting for subnet creation tx (%s) to be accepted", subnetIDTx)
 		}
 	}
-	color.Cyan("subnet creation tx (%s) accepted", subnetIDTx)
+	log.Info("subnet creation tx (%s) accepted", subnetIDTx)
 
 	// Confirm created subnet appears in subnet list
-	subnets, err := client.GetSubnets([]ids.ID{})
+	subnets, err := txPChainClient.GetSubnets([]ids.ID{})
 	if err != nil {
 		return fmt.Errorf("cannot query subnets: %w", err)
 	}
@@ -130,8 +131,9 @@ CREATE_SUBNET:
 	}
 
 	// Add all validators to subnet with equal weight
-	for _, nodeID := range nodeIDs {
-		txID, err := client.AddSubnetValidator(
+	for _, n := range allNodes {
+		nodeID := n.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+		txID, err := txPChainClient.AddSubnetValidator(
 			userPass, []string{fundedAddress}, fundedAddress,
 			subnetID, nodeID, validatorWeight,
 			uint64(time.Now().Add(validatorStartDiff).Unix()),
@@ -141,18 +143,19 @@ CREATE_SUBNET:
 			return fmt.Errorf("unable to add subnet validator: %w", err)
 		}
 
+	ADD_VALIDATOR:
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(waitTime):
-				status, _ := client.GetTxStatus(txID, true)
+			case <-time.After(loopTimeout):
+				status, _ := txPChainClient.GetTxStatus(txID, true)
 				if status.Status == platformvm.Committed {
-					break
+					break ADD_VALIDATOR
 				}
-				color.Yellow("waiting for add subnet validator (%s) tx (%s) to be accepted", nodeID, txID)
+				log.Debug("waiting for add subnet validator (%s) tx (%s) to be accepted", nodeID, txID)
 			}
-			color.Cyan("add subnet validator (%s) tx (%s) accepted", nodeID, txID)
+			log.Info("add subnet validator (%s) tx (%s) accepted", nodeID, txID)
 		}
 	}
 
@@ -161,7 +164,7 @@ CREATE_SUBNET:
 	if err != nil {
 		return fmt.Errorf("could not read genesis file (%s): %w", vm.Genesis, err)
 	}
-	txID, err := client.CreateBlockchain(
+	txID, err := txPChainClient.CreateBlockchain(
 		userPass, []string{fundedAddress}, fundedAddress, rSubnetID,
 		vm.ID, []string{}, vm.Name, genesis,
 	)
@@ -173,18 +176,18 @@ STATUS:
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(waitTime):
-			status, _ := client.GetTxStatus(txID, true)
+		case <-time.After(loopTimeout):
+			status, _ := txPChainClient.GetTxStatus(txID, true)
 			if status.Status == platformvm.Committed {
 				break STATUS
 			}
-			color.Yellow("waiting for create blockchain tx (%s) to be accepted", txID)
+			log.Debug("waiting for create blockchain tx (%s) to be accepted", txID)
 		}
 	}
-	color.Cyan("create blockchain tx (%s) accepted", txID)
+	log.Info("create blockchain tx (%s) accepted", txID)
 
 	// Validate blockchain exists
-	blockchains, err := client.GetBlockchains()
+	blockchains, err := txPChainClient.GetBlockchains()
 	if err != nil {
 		return fmt.Errorf("could not query blockchains: %w", err)
 	}
@@ -199,49 +202,56 @@ STATUS:
 		return errors.New("could not find blockchain")
 	}
 
+	statusCheckTimeout := longTimeout
 	// Ensure all nodes are validating subnet
-	for i, url := range nodeURLs {
-		nClient := platformvm.NewClient(url, HTTPTimeout)
+	for _, n := range allNodes {
+		nodeID := n.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+		nClient := n.GetAPIClient().PChainAPI()
+	VALIDATING:
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(longWaitTime):
+			case <-time.After(statusCheckTimeout):
 				status, err := nClient.GetBlockchainStatus(blockchainID.String())
 				if err != nil {
 					return fmt.Errorf("error querying blockchain status: %w", err)
 				}
 				if status == platformvm.Validating {
-					break
+					// after the first acceptance, next nodes probably don't need to check that long anymore
+					statusCheckTimeout = loopTimeout
+					break VALIDATING
 				}
-				color.Yellow("waiting for validating status for %s", nodeIDs[i])
+				log.Debug("waiting for validating status for %s", nodeID)
 			}
 		}
+		log.Info("%s validating blockchain %s", nodeID, blockchainID)
 	}
-	color.Cyan("%s validating blockchain %s", nodeIDs[i], blockchainID)
 
 	// Ensure network bootstrapped
-	for i, url := range nodeURLs {
-		nClient := info.NewClient(url, HTTPTimeout)
+	for _, n := range allNodes {
+		nodeID := n.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+		nClient := n.GetAPIClient().InfoAPI()
+	BOOTSTRAPPED:
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(waitTime):
+			case <-time.After(loopTimeout):
 				bootstrapped, _ := nClient.IsBootstrapped(blockchainID.String())
 				if bootstrapped {
-					break
+					break BOOTSTRAPPED
 				}
-				color.Yellow("waiting for %s to bootstrap %s", nodeIDs[i], blockchainID.String())
+				log.Debug("waiting for %s to bootstrap %s", nodeID, blockchainID.String())
 			}
 		}
+		log.Info("%s bootstrapped %s", nodeID, blockchainID)
 	}
-	color.Cyan("%s bootstrapped %s", nodeIDs[i], blockchainID)
 
 	// Print endpoints where VM is accessible
-	color.Green("Custom VM endpoints now accessible at:")
-	for i, url := range nodeURLs {
-		color.Green("%s: %s/ext/bc/%s", nodeIDs[i], url, blockchainID.String())
+	log.Info("Custom VM endpoints now accessible at:")
+	for _, n := range allNodes {
+		log.Info("%s: %s:%d/ext/bc/%s", n.GetNodeID(), n.GetURL(), n.GetAPIPort(), blockchainID.String())
 	}
 	return nil
 }

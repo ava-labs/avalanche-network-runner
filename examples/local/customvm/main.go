@@ -41,6 +41,8 @@ type customVMConfig struct {
 // Creates a local five node Avalanche network
 // and waits for all nodes to become healthy.
 // The network runs until the user provides a SIGINT or SIGTERM.
+// Example of how to run this:
+// go run examples/local/customvm/main.go --vm-path "/path/to/vm/binary" --genesis-path "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
 func main() {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
@@ -92,6 +94,7 @@ func run(log logging.Logger, config customVMConfig) error {
 			Genesis:  config.VmGenesis[i],
 			Name:     filepath.Base(v),
 			SubnetID: config.VmSubnets[i],
+			ID:       config.VmIDs[i],
 		}
 	}
 
@@ -117,10 +120,16 @@ func run(log logging.Logger, config customVMConfig) error {
 		return err
 	}
 
+	// use a new timed context as we need to wait for the validators validation start time
 	subnetCtx, subnetCancel := context.WithTimeout(ctx, healthyTimeout)
 	defer subnetCancel()
 	for _, v := range customVms {
-		if err := vms.SetupSubnet(subnetCtx, v, nw); err != nil {
+		if err := vms.SetupSubnet(
+			subnetCtx,
+			log,
+			v,
+			nw,
+			local.DefaultNetworkFundedPrivateKey); err != nil {
 			return err
 		}
 	}
