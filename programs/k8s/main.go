@@ -49,9 +49,10 @@ func run() error {
 		return err
 	}
 
-	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/examples/k8s", goPath)
+	configDir := fmt.Sprintf("%s/src/github.com/ava-labs/avalanche-network-runner/programs/k8s", goPath)
+	// This is for docker based builds
 	if goPath == "" {
-		configDir = "./examples/k8s"
+		configDir = "./programs/k8s"
 	}
 	log.Info("reading config file...")
 	configFile, err := os.ReadFile(configDir + configFileName)
@@ -115,7 +116,7 @@ func run() error {
 }
 
 func readConfig(rconfig allConfig) (network.Config, error) {
-	configDir := "./examples/k8s/configs"
+	configDir := "./programs/k8s/configs"
 	genesisFile, err := os.ReadFile(fmt.Sprintf("%s/genesis.json", configDir))
 	if err != nil {
 		return network.Config{}, err

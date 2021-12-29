@@ -18,5 +18,5 @@ jobs:
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
     
       - name: Run the k8s app 
-        run: go run examples/k8s/main.go 
+        run: go run programs/k8s/main.go 
 

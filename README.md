@@ -221,7 +221,7 @@ It assumes:
 To run the demo:
 
 ```sh
-go run examples/local/indepth/main.go
+go run programs/local/indepth/main.go
 ```
 
-We've also included another example at `examples/local/fivenodenetwork/main.go`, which just starts a local five node network, waits for the nodes to become healthy, and then runs until the user provides a SIGINT or SIGTERM.
+We've also included another example at `programs/local/fivenodenetwork/main.go`, which just starts a local five node network, waits for the nodes to become healthy, and then runs until the user provides a SIGINT or SIGTERM.

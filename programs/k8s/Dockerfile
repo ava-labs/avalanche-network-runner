@@ -22,15 +22,15 @@ COPY api/ api/
 COPY k8s/ k8s/
 #COPY constants/ constants/
 COPY utils/ utils/
-COPY examples/ examples/
+COPY programs/ programs/
 
 # Build
-RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./examples/k8s/main.go
+RUN GOOS=linux GOARCH=amd64 go build -o simplenet ./programs/k8s/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/base-debian11
 COPY --from=builder /workspace/simplenet / 
-COPY --from=builder /workspace/examples/ /examples/
+COPY --from=builder /workspace/programs/ /programs/
 
 ENTRYPOINT ["/simplenet"]
