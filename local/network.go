@@ -326,8 +326,8 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 		vmBinDir := filepath.Dir(v.Path)
 		binDir := filepath.Dir(binaryPath)
 		if binDir != vmBinDir {
-			if err := utils.CopyFile(v.Path, fmt.Sprintf("%s/plugins/%s", binDir, v.Name)); err != nil {
-				return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, fmt.Sprintf("%s/plugins", binaryPath), err)
+			if err := utils.CopyFile(v.Path, filepath.Join(binDir, "plugins", v.Name)); err != nil {
+				return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, filepath.Join(binaryPath, "plugins"), err)
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -513,11 +514,6 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	pluginsDir := tmpDir + "/plugins"
-	err = os.Mkdir(pluginsDir, os.FileMode(0777))
-	if err != nil {
-		t.Fatal(err)
-	}
 	tmpGen, err := os.CreateTemp(tmpDir, "temp-genesis")
 	if err != nil {
 		t.Fatal(err)
@@ -526,14 +522,21 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pluginsDir := filepath.Join(tmpDir, "plugins")
+	err = os.Mkdir(pluginsDir, os.FileMode(0777))
+	if err != nil {
+		t.Fatal(err)
+	}
 	customVms = []vms.CustomVM{
 		{
-			Path:    tmpPath.Name(),
-			Genesis: tmpGen.Name(),
-			Name:    "TestVM",
+			Path:     tmpPath.Name(),
+			Genesis:  tmpGen.Name(),
+			Name:     filepath.Base(tmpPath.Name()),
+			SubnetID: "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
+			ID:       "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
 		},
 	}
-	_, err = NewDefaultConfigWithVm(tmpDir, customVms)
+	_, err = NewDefaultConfigWithVm(tmpPath.Name(), customVms)
 	assert.NoError(err)
 }
 
