@@ -112,6 +112,11 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
+		cChainConfig, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/cchain_config.json", i))
+		if err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].CChainConfigFile = string(cChainConfig)
 		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
