@@ -21,8 +21,6 @@ func WatchShutdownSignals(log logging.Logger, shutDownFunc ShutdownFunc) chan st
 		shutdownOnSignal(log, shutDownFunc, signalsChan, closedOnShutdownCh)
 	}()
 
-	log.Info("All nodes healthy. Network will run until you CTRL + C to exit...")
-	// Wait until done shutting down network after SIGINT/SIGTERM
 	return closedOnShutdownCh
 }
 

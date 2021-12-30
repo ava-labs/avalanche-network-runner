@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -20,8 +21,8 @@ const (
 	binaryPathKey  = "binary-path"
 	vmPathKey      = "vm-path"
 	genesisPathKey = "genesis-path"
-	subnetIDKey    = "subnet-ids"
-	vmIDKey        = "vm-ids"
+	subnetIDKey    = "subnet-id"
+	vmIDKey        = "vm-id"
 )
 
 var (
@@ -31,15 +32,15 @@ var (
 
 type customVMConfig struct {
 	BinaryPath string
-	VmPath     []string
-	VmGenesis  []string
-	VmSubnets  []string
-	VmIDs      []string
+	VMPath     []string
+	VMGenesis  []string
+	VMSubnets  []string
+	VMIDs      []string
 }
 
-// Shows example usage of the Avalanche Network Runner.
-// Creates a local five node Avalanche network
-// and waits for all nodes to become healthy.
+// Shows example usage of the Avalanche Network Runner with custom VMs.
+// Creates a local five node Avalanche network all starting an avalanchego binary
+// and a provided custom VM binary. Waits for all nodes to become healthy.
 // The network runs until the user provides a SIGINT or SIGTERM.
 // Example of how to run this:
 // go run programs/local/customvm/main.go --vm-path "/path/to/vm/binary" --genesis-path "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
@@ -70,10 +71,15 @@ func main() {
 
 	c := customVMConfig{
 		BinaryPath: *bp,
-		VmPath:     *vp,
-		VmGenesis:  *gp,
-		VmSubnets:  *sp,
-		VmIDs:      *ip,
+		VMPath:     *vp,
+		VMGenesis:  *gp,
+		VMSubnets:  *sp,
+		VMIDs:      *ip,
+	}
+
+	if err := checkSliceEqualLen(c.VMPath, c.VMGenesis, c.VMSubnets, c.VMIDs); err != nil {
+		pflag.Usage()
+		os.Exit(1)
 	}
 
 	if err := run(log, c); err != nil {
@@ -81,20 +87,34 @@ func main() {
 	}
 }
 
-func run(log logging.Logger, config customVMConfig) error {
-	// Create the network
-	if len(config.VmPath) < 1 || len(config.VmPath) != len(config.VmGenesis) {
-		return fmt.Errorf("Creating a network with VMs requires VmPath and VmGenesis args of equal length and > 0")
+func checkSliceEqualLen(ss ...[]string) error {
+	if len(ss) < 1 {
+		return fmt.Errorf("no arguments")
 	}
+	checkLen := len(ss[0])
+	if checkLen < 1 {
+		return fmt.Errorf("one or more arguments missing")
+	}
+	for _, s := range ss {
+		if s[0] == "" {
+			return fmt.Errorf("empty argument")
+		}
+		if len(s) != checkLen {
+			return fmt.Errorf("unequal length")
+		}
+	}
+	return nil
+}
 
-	customVms := make([]vms.CustomVM, len(config.VmPath))
-	for i, v := range config.VmPath {
+func run(log logging.Logger, config customVMConfig) error {
+	customVms := make([]vms.CustomVM, len(config.VMPath))
+	for i, v := range config.VMPath {
 		customVms[i] = vms.CustomVM{
 			Path:     v,
-			Genesis:  config.VmGenesis[i],
+			Genesis:  config.VMGenesis[i],
 			Name:     filepath.Base(v),
-			SubnetID: config.VmSubnets[i],
-			ID:       config.VmIDs[i],
+			SubnetID: config.VMSubnets[i],
+			ID:       config.VMIDs[i],
 		}
 	}
 
@@ -107,19 +127,23 @@ func run(log logging.Logger, config customVMConfig) error {
 	}
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Debug("error stopping network: %w", err)
+			if err != network.ErrStopped {
+				log.Debug("error stopping network: %w", err)
+			}
 		}
 	}()
 
 	// Wait until the nodes in the network are ready
 	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
 	defer cancel()
+
+	watchShutdown := utils.WatchShutdownSignals(log, nw.Stop)
+
 	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
 	if err := <-healthyChan; err != nil {
 		return err
 	}
-
 	// use a new timed context as we need to wait for the validators validation start time
 	subnetCtx, subnetCancel := context.WithTimeout(ctx, healthyTimeout)
 	defer subnetCancel()
@@ -133,6 +157,9 @@ func run(log logging.Logger, config customVMConfig) error {
 			return err
 		}
 	}
-	<-utils.WatchShutdownSignals(log, nw.Stop)
+	// Wait until done shutting down network after SIGINT/SIGTERM
+	log.Info("All nodes healthy, subnet created. Network will run until you CTRL + C to exit...")
+
+	<-watchShutdown
 	return nil
 }

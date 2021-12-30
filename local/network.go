@@ -326,8 +326,9 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 		vmBinDir := filepath.Dir(v.Path)
 		binDir := filepath.Dir(binaryPath)
 		if binDir != vmBinDir {
-			if err := utils.CopyFile(v.Path, filepath.Join(binDir, "plugins", v.Name)); err != nil {
-				return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, filepath.Join(binaryPath, "plugins"), err)
+			pluginDir := filepath.Join(binDir, "plugins", v.Name)
+			if err := utils.CopyFile(v.Path, pluginDir); err != nil {
+				return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, pluginDir, err)
 			}
 		}
 	}
@@ -343,6 +344,11 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 }
 
 func extendConfigFile(config node.Config, customVms []vms.CustomVM) string {
+	// TODO: if the user already provides whitelisted subnets, we're not going to mess it up
+	// However, in that case we should log this probably, but we don't have the logger here
+	if strings.Contains(config.ConfigFile, "whitelisted-subnets") {
+		return config.ConfigFile
+	}
 	var ws strings.Builder
 	ws.WriteString(`"whitelisted-subnets":`)
 	for i, v := range customVms {

@@ -513,7 +513,12 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	tmpGen, err := os.CreateTemp(tmpDir, "temp-genesis")
 	if err != nil {
 		t.Fatal(err)
@@ -532,10 +537,13 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 			Path:     tmpPath.Name(),
 			Genesis:  tmpGen.Name(),
 			Name:     filepath.Base(tmpPath.Name()),
-			SubnetID: "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
-			ID:       "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
+			SubnetID: "INVALID-SUBNET-ID-WITH-CORRECT-LENGTHqn8pq5NwYSYV1",
 		},
 	}
+	_, err = NewDefaultConfigWithVm(tmpPath.Name(), customVms)
+	assert.Error(err)
+
+	customVms[0].SubnetID = "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
 	_, err = NewDefaultConfigWithVm(tmpPath.Name(), customVms)
 	assert.NoError(err)
 }
