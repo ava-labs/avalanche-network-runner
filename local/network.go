@@ -132,11 +132,11 @@ func NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
 	// Optionally re-direct stdout and stderr
-	if localNodeConfig.Stdout != nil {
-		cmd.Stdout = localNodeConfig.Stdout
+	if localNodeConfig.RedirectStdout {
+		cmd.Stdout = os.Stdout
 	}
-	if localNodeConfig.Stderr != nil {
-		cmd.Stderr = localNodeConfig.Stderr
+	if localNodeConfig.RedirectStderr {
+		cmd.Stderr = os.Stderr
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }

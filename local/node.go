@@ -1,7 +1,6 @@
 package local
 
 import (
-	"io"
 	"os/exec"
 	"syscall"
 
@@ -21,10 +20,10 @@ var (
 type NodeConfig struct {
 	// What type of node this is
 	BinaryPath string `json:"binaryPath"`
-	// If non-nil, direct this node's stdout here
-	Stdout io.Writer
-	// If non-nil, direct this node's stderr here
-	Stderr io.Writer
+	// If non-nil, direct this node's Stdout to os.Stdout
+	RedirectStdout bool `json:"redirectStdout"`
+	// If non-nil, direct this node's Stderr to os.Stderr
+	RedirectStderr bool `json:"redirectStderr"`
 }
 
 // Use an interface so we can mock running
