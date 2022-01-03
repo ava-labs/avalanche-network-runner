@@ -85,7 +85,7 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNetworkTimeout)
 	defer cancel()
 
-	network, err := k8s.NewNetwork(networkConfig, log)
+	network, err := k8s.NewNetwork(log, networkConfig)
 	if err != nil {
 		log.Fatal("Error creating network: %s", err)
 		return err
