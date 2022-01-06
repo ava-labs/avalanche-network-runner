@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -40,8 +41,11 @@ const (
 
 // interface compliance
 var (
-	_ network.Network = (*localNetwork)(nil)
-	_ NewNodeProcessF = NewNodeProcess
+	_                     network.Network = (*localNetwork)(nil)
+	_                     NewNodeProcessF = NewNodeProcess
+	DefaultConfigPChainID ids.ID
+	DefaultConfigXChainID ids.ID
+	DefaultConfigCChainID ids.ID
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -81,6 +85,17 @@ var (
 
 // populate default network config from embedded default directory
 func init() {
+    var err error
+	DefaultConfigPChainID = ids.ID{0}
+	DefaultConfigXChainID, err = ids.FromString("qzfF3A11KzpcHkkqznEyQgupQrCNS6WV6fTUTwZpEKqhj1QE7")
+	if err != nil {
+		panic(err)
+	}
+	DefaultConfigCChainID, err = ids.FromString("BR28ypgLATNS6PbtHMiJ7NQ61vfpT27Hj8tAcZ1AHsfU5cz88")
+	if err != nil {
+		panic(err)
+	}
+
 	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
 	if err != nil {
 		panic(err)
