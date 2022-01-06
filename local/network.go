@@ -85,7 +85,7 @@ var (
 
 // populate default network config from embedded default directory
 func init() {
-    var err error
+	var err error
 	DefaultConfigPChainID = ids.ID{0}
 	DefaultConfigXChainID, err = ids.FromString("qzfF3A11KzpcHkkqznEyQgupQrCNS6WV6fTUTwZpEKqhj1QE7")
 	if err != nil {
