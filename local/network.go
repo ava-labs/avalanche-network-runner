@@ -26,15 +26,16 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix = "node-"
-	configFileName        = "config.json"
-	stakingKeyFileName    = "staking.key"
-	stakingCertFileName   = "staking.crt"
-	genesisFileName       = "genesis.json"
-	apiTimeout            = 5 * time.Second
-	stopTimeout           = 30 * time.Second
-	healthCheckFreq       = 3 * time.Second
-	defaultNumNodes       = 5
+	DefaultConfigNetworkID = 1337
+	defaultNodeNamePrefix  = "node-"
+	configFileName         = "config.json"
+	stakingKeyFileName     = "staking.key"
+	stakingCertFileName    = "staking.crt"
+	genesisFileName        = "genesis.json"
+	apiTimeout             = 5 * time.Second
+	stopTimeout            = 30 * time.Second
+	healthCheckFreq        = 3 * time.Second
+	defaultNumNodes        = 5
 )
 
 // interface compliance
