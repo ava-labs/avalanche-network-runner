@@ -624,7 +624,7 @@ func (net *localNetwork) removeNode(nodeName string) error {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
 	}
 	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("error waiting node %s to finish: %w", nodeName, err)
+		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
 	}
 	return nil
 }
