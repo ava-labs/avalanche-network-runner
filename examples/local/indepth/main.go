@@ -130,6 +130,12 @@ func run(log logging.Logger, binaryPath string) error {
 		ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw(binaryPath),
 		StakingKey:         string(stakingKey),
 		StakingCert:        string(stakingCert),
+		// example of adding custom flags to a node:
+		// these are canonical avalanchego flags, check the docs for more info
+		Flags: map[string]interface{}{
+			"log-level": "verbo",
+			"http-host": "0.0.0.0",
+		},
 	}
 	if _, err := nw.AddNode(nodeConfig); err != nil {
 		return err
