@@ -210,6 +210,18 @@ func newNetwork(
 		}
 	}
 
+	for flagName, flagVal := range networkConfig.Flags {
+		for _, nodeConfig := range networkConfig.NodeConfigs {
+			// Do not overwrite flags described in the nodeConfig
+			if len(nodeConfig.Flags) == 0 {
+				nodeConfig.Flags = make(map[string]interface{})
+			}
+			if _, ok := nodeConfig.Flags[flagName]; !ok {
+				nodeConfig.Flags[flagName] = flagVal
+			}
+		}
+	}
+
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -379,6 +391,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
 	}
 
+	for flagName, flagVal := range nodeConfig.Flags {
+		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
+	}
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
 	if err != nil {

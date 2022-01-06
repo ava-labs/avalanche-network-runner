@@ -79,6 +79,9 @@ type Config struct {
 	Name string `json:"name"`
 	// Backend specifies the backend for the network
 	Backend Backend `json:"backend"`
+	// Flags can hold additional flags for avalanchego nodes.
+	// It can be empty.
+	Flags map[string]interface{}`json:"flags"`
 }
 
 func (c *Config) Validate() error {

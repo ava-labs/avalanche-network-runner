@@ -380,6 +380,38 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 }
 
+// TestFlags tests that we can pass flags through the network.Config
+// but also via node.Config and that the latter overrides the former
+// if same keys exist.
+func TestFlags(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := defaultTestNetworkConfig(t)
+
+	networkConfig.Flags = map[string]interface{}{
+		"test-network-config-flag": "something",
+		"common-config-flag":       "should not be added",
+	}
+	for i := range networkConfig.NodeConfigs {
+		v := &networkConfig.NodeConfigs[i]
+		v.Flags = map[string]interface{}{
+			"test-node-config-flag":  "node",
+			"test2-node-config-flag": "config",
+			"common-config-flag":     "this should be added",
+		}
+	}
+	_, err := newTestNetworkWithConfig(networkConfig)
+	assert.NoError(err)
+	// after creating the network, one flag should have been overridden by the node configs
+	for _, n := range networkConfig.NodeConfigs {
+		assert.True(len(n.Flags) == 4)
+		assert.Contains(n.Flags, "test-network-config-flag")
+		assert.Contains(n.Flags, "common-config-flag")
+		assert.Equal(n.Flags["common-config-flag"], "this should be added")
+		assert.Contains(n.Flags, "test-node-config-flag")
+		assert.Contains(n.Flags, "test2-node-config-flag")
+	}
+}
+
 // TestImplSpecificConfigInterface checks incorrect type to interface{} ImplSpecificConfig
 // This is adapted from the local test suite
 func TestImplSpecificConfigInterface(t *testing.T) {

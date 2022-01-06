@@ -146,9 +146,23 @@ func validateObjectSpec(k8sobj ObjectSpec) error {
 // 2) The non-beacon nodes
 // as avalanchego-operator compatible descriptions.
 // May return nil slices.
-func createDeploymentFromConfig(genesis []byte, nodeConfigs []node.Config) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
+func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
+	genesis := []byte(params.conf.Genesis)
+	nodeConfigs := params.conf.NodeConfigs
 	var beacons, nonBeacons []*k8sapi.Avalanchego
 	names := make(map[string]struct{})
+
+	for flagName, flagVal := range params.conf.Flags {
+		for _, nodeConfig := range params.conf.NodeConfigs {
+			// Do not overwrite flags described in the nodeConfig
+			if len(nodeConfig.Flags) == 0 {
+				nodeConfig.Flags = make(map[string]interface{})
+			}
+			if _, ok := nodeConfig.Flags[flagName]; !ok {
+				nodeConfig.Flags[flagName] = flagVal
+			}
+		}
+	}
 	for _, c := range nodeConfigs {
 		spec, err := buildK8sObjSpec(genesis, c)
 		if err != nil {

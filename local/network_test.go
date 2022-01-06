@@ -612,6 +612,38 @@ func TestGetAllNodes(t *testing.T) {
 	}
 }
 
+// TestFlags tests that we can pass flags through the network.Config
+// but also via node.Config and that the latter overrides the former
+// if same keys exist.
+func TestFlags(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := testNetworkConfig(t)
+
+	networkConfig.Flags = map[string]interface{}{
+		"test-network-config-flag": "something",
+		"common-config-flag":       "should not be added",
+	}
+	for i := range networkConfig.NodeConfigs {
+		v := &networkConfig.NodeConfigs[i]
+		v.Flags = map[string]interface{}{
+			"test-node-config-flag":  "node",
+			"test2-node-config-flag": "config",
+			"common-config-flag":     "this should be added",
+		}
+	}
+	_, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+	// after creating the network, one flag should have been overridden by the node configs
+	for _, n := range networkConfig.NodeConfigs {
+		assert.True(len(n.Flags) == 4)
+		assert.Contains(n.Flags, "test-network-config-flag")
+		assert.Contains(n.Flags, "common-config-flag")
+		assert.Equal(n.Flags["common-config-flag"], "this should be added")
+		assert.Contains(n.Flags, "test-node-config-flag")
+		assert.Contains(n.Flags, "test2-node-config-flag")
+	}
+}
+
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
 // a set of removed nodes, checking:
 // - GetNodeNames retrieves the correct number of running nodes

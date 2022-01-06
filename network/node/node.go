@@ -47,6 +47,9 @@ type Config struct {
 	ConfigFile string `json:"configFile"`
 	// May be nil.
 	CChainConfigFile string `json:"cChainConfigFile"`
+	// Flags can hold additional flags for the node.
+	// It can be empty.
+	Flags map[string]interface{} `json:"flags"`
 }
 
 // Returns an error if this config is invalid

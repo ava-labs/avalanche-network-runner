@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/stretchr/testify/assert"
@@ -94,7 +95,14 @@ func TestCreateDeploymentConfig(t *testing.T) {
 			),
 		},
 	}
-	beacons, nonBeacons, err := createDeploymentFromConfig(genesis, nodeConfigs)
+	params := networkParams{
+		conf: network.Config{
+			Genesis:     string(genesis),
+			NodeConfigs: nodeConfigs,
+		},
+	}
+
+	beacons, nonBeacons, err := createDeploymentFromConfig(params)
 	assert.NoError(err)
 	assert.Len(beacons, 1)
 	assert.Len(nonBeacons, 1)
