@@ -619,6 +619,7 @@ func TestFlags(t *testing.T) {
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 
+	// submit both network.Config flags and node.Config
 	networkConfig.Flags = map[string]interface{}{
 		"test-network-config-flag": "something",
 		"common-config-flag":       "should not be added",
@@ -631,7 +632,7 @@ func TestFlags(t *testing.T) {
 			"common-config-flag":     "this should be added",
 		}
 	}
-	_, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	nw, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
 	assert.NoError(err)
 	// after creating the network, one flag should have been overridden by the node configs
 	for _, n := range networkConfig.NodeConfigs {
@@ -642,6 +643,53 @@ func TestFlags(t *testing.T) {
 		assert.Contains(n.Flags, "test-node-config-flag")
 		assert.Contains(n.Flags, "test2-node-config-flag")
 	}
+	err = nw.Stop(context.Background())
+	assert.NoError(err)
+
+	// submit only node.Config flags
+	networkConfig.Flags = nil
+	for i := range networkConfig.NodeConfigs {
+		v := &networkConfig.NodeConfigs[i]
+		v.Flags = map[string]interface{}{
+			"test-node-config-flag":  "node",
+			"test2-node-config-flag": "config",
+			"common-config-flag":     "this should be added",
+		}
+	}
+	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+	// after creating the network, only node configs should exist
+	for _, n := range networkConfig.NodeConfigs {
+		assert.True(len(n.Flags) == 3)
+		assert.NotContains(n.Flags, "test-network-config-flag")
+		assert.Contains(n.Flags, "common-config-flag")
+		assert.Equal(n.Flags["common-config-flag"], "this should be added")
+		assert.Contains(n.Flags, "test-node-config-flag")
+		assert.Contains(n.Flags, "test2-node-config-flag")
+	}
+	err = nw.Stop(context.Background())
+	assert.NoError(err)
+
+	// submit only network.Config flags
+	networkConfig.Flags = map[string]interface{}{
+		"test-network-config-flag": "something",
+		"common-config-flag":       "else",
+	}
+	for i := range networkConfig.NodeConfigs {
+		v := &networkConfig.NodeConfigs[i]
+		v.Flags = nil
+	}
+	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, newMockProcessSuccessful)
+	assert.NoError(err)
+	// after creating the network, only flags from the network config should exist
+	for _, n := range networkConfig.NodeConfigs {
+		assert.True(len(n.Flags) == 2)
+		assert.Contains(n.Flags, "test-network-config-flag")
+		assert.Contains(n.Flags, "common-config-flag")
+		assert.Equal(n.Flags["common-config-flag"], "else")
+	}
+	err = nw.Stop(context.Background())
+	assert.NoError(err)
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and

@@ -153,13 +153,14 @@ func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []
 	names := make(map[string]struct{})
 
 	for flagName, flagVal := range params.conf.Flags {
-		for _, nodeConfig := range params.conf.NodeConfigs {
+		for i := range params.conf.NodeConfigs {
+			n := &params.conf.NodeConfigs[i]
 			// Do not overwrite flags described in the nodeConfig
-			if len(nodeConfig.Flags) == 0 {
-				nodeConfig.Flags = make(map[string]interface{})
+			if len(n.Flags) == 0 {
+				n.Flags = make(map[string]interface{})
 			}
-			if _, ok := nodeConfig.Flags[flagName]; !ok {
-				nodeConfig.Flags[flagName] = flagVal
+			if _, ok := n.Flags[flagName]; !ok {
+				n.Flags[flagName] = flagVal
 			}
 		}
 	}

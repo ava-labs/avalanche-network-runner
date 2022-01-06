@@ -211,13 +211,14 @@ func newNetwork(
 	}
 
 	for flagName, flagVal := range networkConfig.Flags {
-		for _, nodeConfig := range networkConfig.NodeConfigs {
-			// Do not overwrite flags described in the nodeConfig
-			if len(nodeConfig.Flags) == 0 {
-				nodeConfig.Flags = make(map[string]interface{})
+		for i := range networkConfig.NodeConfigs {
+			n := &networkConfig.NodeConfigs[i]
+			if n.Flags == nil {
+				n.Flags = make(map[string]interface{})
 			}
-			if _, ok := nodeConfig.Flags[flagName]; !ok {
-				nodeConfig.Flags[flagName] = flagVal
+			// Do not overwrite flags described in the nodeConfig
+			if _, ok := n.Flags[flagName]; !ok {
+				n.Flags[flagName] = flagVal
 			}
 		}
 	}
