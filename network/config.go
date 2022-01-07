@@ -30,18 +30,23 @@ func init() {
 	}
 }
 
+// AddrAndBalance holds both an address and its balance
 type AddrAndBalance struct {
 	Addr    ids.ShortID
 	Balance uint64
 }
 
+// Backend enumerator type
 type Backend byte
 
 const (
+	// Local Backend enum type
 	Local Backend = iota + 1
+	// Kubernetes Backend enum type
 	Kubernetes
 )
 
+// MarshalJSON for JSON handling
 func (b Backend) MarshalJSON() ([]byte, error) {
 	switch b {
 	case Local:
@@ -53,6 +58,7 @@ func (b Backend) MarshalJSON() ([]byte, error) {
 	}
 }
 
+// UnmarshalJSON for JSON handling
 func (b *Backend) UnmarshalJSON(bytes []byte) error {
 	switch string(bytes) {
 	case "\"local\"":
@@ -81,9 +87,14 @@ type Config struct {
 	Backend Backend `json:"backend"`
 	// Flags can hold additional flags for avalanchego nodes.
 	// It can be empty.
-	Flags map[string]interface{}`json:"flags"`
+	// The precedence of flags handling is:
+	// 1. Flags defined in node.Config override
+	// 2. Flags defined in network.Config (this struct) override
+	// 3. Flags defined in the json config file
+	Flags map[string]interface{} `json:"flags"`
 }
 
+// Validate returns an error if this config is invalid
 func (c *Config) Validate() error {
 	var someNodeIsBeacon bool
 	switch {

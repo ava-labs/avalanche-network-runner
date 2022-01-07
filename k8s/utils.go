@@ -47,6 +47,7 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 	// e.g. bootstrap-ips --> AVAGO_BOOTSTRAP_IPS
 	// e.g. log-level --> AVAGO_LOG_LEVEL
 	env := make([]corev1.EnvVar, 0, len(avagoConf)+1)
+	addedKeys := make(map[string]*corev1.EnvVar)
 	for key, val := range avagoConf {
 		// we use the network id from genesis -- ignore the one in config
 		if key == config.NetworkNameKey {
@@ -58,6 +59,31 @@ func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
 			Value: val.(string),
 		}
 		env = append(env, v)
+		addedKeys[key] = &v
+	}
+	// Add flags as env vars to the node
+	// If a flag has already been set via config file,
+	// override it
+	for key, val := range c.Flags {
+		// we use the network id from genesis -- ignore the one in flags
+		if key == config.NetworkNameKey {
+			// We just override the network ID with the one from genesis after the iteration
+			continue
+		}
+		// override this one
+		if envVar, ok := addedKeys[key]; ok {
+			*envVar = corev1.EnvVar{
+				Name:  convertKey(key),
+				Value: val.(string),
+			}
+		} else {
+			// new var
+			v := corev1.EnvVar{
+				Name:  convertKey(key),
+				Value: val.(string),
+			}
+			env = append(env, v)
+		}
 	}
 	// Provide environment variable giving the network ID
 	v := corev1.EnvVar{
@@ -147,25 +173,25 @@ func validateObjectSpec(k8sobj ObjectSpec) error {
 // as avalanchego-operator compatible descriptions.
 // May return nil slices.
 func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
-	genesis := []byte(params.conf.Genesis)
-	nodeConfigs := params.conf.NodeConfigs
 	var beacons, nonBeacons []*k8sapi.Avalanchego
 	names := make(map[string]struct{})
 
 	for flagName, flagVal := range params.conf.Flags {
 		for i := range params.conf.NodeConfigs {
-			n := &params.conf.NodeConfigs[i]
-			// Do not overwrite flags described in the nodeConfig
-			if len(n.Flags) == 0 {
-				n.Flags = make(map[string]interface{})
+			nodeConfig := &params.conf.NodeConfigs[i]
+			if len(nodeConfig.Flags) == 0 {
+				nodeConfig.Flags = make(map[string]interface{})
 			}
-			if _, ok := n.Flags[flagName]; !ok {
-				n.Flags[flagName] = flagVal
+			// Do not overwrite flags described in the nodeConfig
+			if _, ok := nodeConfig.Flags[flagName]; !ok {
+				nodeConfig.Flags[flagName] = flagVal
+			} else {
+				params.log.Debug("found same flag %s in node config - skipping overwrite", flagName)
 			}
 		}
 	}
-	for _, c := range nodeConfigs {
-		spec, err := buildK8sObjSpec(genesis, c)
+	for _, c := range params.conf.NodeConfigs {
+		spec, err := buildK8sObjSpec([]byte(params.conf.Genesis), c)
 		if err != nil {
 			return nil, nil, err
 		}

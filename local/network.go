@@ -219,6 +219,8 @@ func newNetwork(
 			// Do not overwrite flags described in the nodeConfig
 			if _, ok := n.Flags[flagName]; !ok {
 				n.Flags[flagName] = flagVal
+			} else {
+				log.Debug("found same flag %s in node config - skipping overwrite", flagName)
 			}
 		}
 	}

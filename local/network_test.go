@@ -636,7 +636,7 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 	// after creating the network, one flag should have been overridden by the node configs
 	for _, n := range networkConfig.NodeConfigs {
-		assert.True(len(n.Flags) == 4)
+		assert.Len(n.Flags, 4)
 		assert.Contains(n.Flags, "test-network-config-flag")
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "this should be added")
@@ -660,7 +660,7 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 	// after creating the network, only node configs should exist
 	for _, n := range networkConfig.NodeConfigs {
-		assert.True(len(n.Flags) == 3)
+		assert.Len(n.Flags, 3)
 		assert.NotContains(n.Flags, "test-network-config-flag")
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "this should be added")
@@ -683,7 +683,7 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 	// after creating the network, only flags from the network config should exist
 	for _, n := range networkConfig.NodeConfigs {
-		assert.True(len(n.Flags) == 2)
+		assert.Len(n.Flags, 2)
 		assert.Contains(n.Flags, "test-network-config-flag")
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "else")

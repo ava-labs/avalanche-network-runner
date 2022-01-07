@@ -10,7 +10,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-// An AvalancheGo node
+// Node represents an AvalancheGo node
 type Node interface {
 	// Return this node's name, which is unique
 	// across all the nodes in its network.
@@ -29,6 +29,7 @@ type Node interface {
 	GetAPIPort() uint16
 }
 
+// Config encapsulates an avalanchego configuration
 type Config struct {
 	// Configuration specific to a particular implementation of a node.
 	ImplSpecificConfig json.RawMessage `json:"implSpecificConfig"`
@@ -49,10 +50,14 @@ type Config struct {
 	CChainConfigFile string `json:"cChainConfigFile"`
 	// Flags can hold additional flags for the node.
 	// It can be empty.
+	// The precedence of flags handling is:
+	// 1. Flags defined in node.Config (this struct) override
+	// 2. Flags defined in network.Config override
+	// 3. Flags defined in the json config file
 	Flags map[string]interface{} `json:"flags"`
 }
 
-// Returns an error if this config is invalid
+// Validate returns an error if this config is invalid
 func (c *Config) Validate(expectedNetworkID uint32) error {
 	switch {
 	case c.ImplSpecificConfig == nil:
