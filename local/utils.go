@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	maxPort          = math.MaxUint16
 	minPort          = 10000
