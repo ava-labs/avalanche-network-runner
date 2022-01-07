@@ -36,7 +36,7 @@ const (
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	defaultNumNodes       = 5
-	maxPort               = 65535
+	maxPort               = math.MaxUint16
 	minPort               = 10000
 )
 
