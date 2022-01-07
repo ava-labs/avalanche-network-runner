@@ -638,10 +638,13 @@ func TestFlags(t *testing.T) {
 	for _, n := range networkConfig.NodeConfigs {
 		assert.Len(n.Flags, 4)
 		assert.Contains(n.Flags, "test-network-config-flag")
+		assert.Equal(n.Flags["test-network-config-flag"], "something")
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "this should be added")
 		assert.Contains(n.Flags, "test-node-config-flag")
+		assert.Equal(n.Flags["test-node-config-flag"], "node")
 		assert.Contains(n.Flags, "test2-node-config-flag")
+		assert.Equal(n.Flags["test2-node-config-flag"], "config")
 	}
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
@@ -665,7 +668,9 @@ func TestFlags(t *testing.T) {
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "this should be added")
 		assert.Contains(n.Flags, "test-node-config-flag")
+		assert.Equal(n.Flags["test-node-config-flag"], "node")
 		assert.Contains(n.Flags, "test2-node-config-flag")
+		assert.Equal(n.Flags["test2-node-config-flag"], "config")
 	}
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
@@ -685,6 +690,7 @@ func TestFlags(t *testing.T) {
 	for _, n := range networkConfig.NodeConfigs {
 		assert.Len(n.Flags, 2)
 		assert.Contains(n.Flags, "test-network-config-flag")
+		assert.Equal(n.Flags["test-network-config-flag"], "something")
 		assert.Contains(n.Flags, "common-config-flag")
 		assert.Equal(n.Flags["common-config-flag"], "else")
 	}
