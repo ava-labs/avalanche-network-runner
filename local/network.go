@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -341,13 +340,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
-		// Get a free port for the API port
-		l, err := net.Listen("tcp", ":0")
+		// Use a random free port.
+		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+		apiPort, err = getFreePort()
 		if err != nil {
-			return nil, fmt.Errorf("could not get free port: %w", err)
+			return nil, fmt.Errorf("couldn't get free API port: %w", err)
 		}
-		apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
-		_ = l.Close()
 	}
 
 	// Use a random free P2P (staking) port, unless given in config
@@ -359,13 +357,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
 		}
 	} else {
-		// Get a free port to use as the P2P port
-		l, err := net.Listen("tcp", ":0")
+		// Use a random free port.
+		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+		p2pPort, err = getFreePort()
 		if err != nil {
-			return nil, fmt.Errorf("could not get free port: %w", err)
+			return nil, fmt.Errorf("couldn't get free P2P port: %w", err)
 		}
-		p2pPort = uint16(l.Addr().(*net.TCPAddr).Port)
-		_ = l.Close()
 	}
 
 	// Flags for AvalancheGo
