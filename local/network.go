@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -35,6 +36,8 @@ const (
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	defaultNumNodes       = 5
+	maxPort               = 65535
+	minPort               = 10000
 )
 
 // interface compliance
@@ -342,12 +345,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	} else {
 		// Get a free port for the API port
-		l, err := net.Listen("tcp", ":0")
-		if err != nil {
-			return nil, fmt.Errorf("could not get free port: %w", err)
+		for {
+			r := rand.Intn(maxPort-minPort) + minPort
+			l, err := net.Listen("tcp", fmt.Sprintf(":%d", r))
+			if err == nil {
+				apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
+				_ = l.Close()
+				break
+			}
 		}
-		apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
-		_ = l.Close()
 	}
 
 	// Use a random free P2P (staking) port, unless given in config
