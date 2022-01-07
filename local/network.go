@@ -346,7 +346,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	} else {
 		// Get a free port for the API port
 		for {
-			r := rand.Intn(maxPort-minPort) + minPort
+			port := rand.Intn(maxPort-minPort+1) + minPort
 			l, err := net.Listen("tcp", fmt.Sprintf(":%d", r))
 			if err == nil {
 				apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
