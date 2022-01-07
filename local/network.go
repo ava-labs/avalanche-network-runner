@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"math/rand"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,8 +34,6 @@ const (
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	defaultNumNodes       = 5
-	maxPort               = math.MaxUint16
-	minPort               = 10000
 )
 
 // interface compliance
@@ -344,15 +340,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
-		// Get a free port for the API port
-		for {
-			port := rand.Intn(maxPort-minPort+1) + minPort
-			l, err := net.Listen("tcp", fmt.Sprintf(":%d", r))
-			if err == nil {
-				apiPort = uint16(l.Addr().(*net.TCPAddr).Port)
-				_ = l.Close()
-				break
-			}
+		// At this point we are trying to assign a port already, but the node starts
+		// much later. Therefore that is the point when we really need the port to be free.
+		// Because of this asynchronicity, the same port can be assigned here, in which case
+		// the node will crash at start.
+		// We try minimizing this by assigning a random port number and also verifying that
+		// it actually is available.
+		apiPort, err = utils.AssignAvailablePort()
+		if err != nil {
+			return nil, fmt.Errorf("Timed out trying to get an available port")
 		}
 	}
 
@@ -365,13 +361,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
 		}
 	} else {
-		// Get a free port to use as the P2P port
-		l, err := net.Listen("tcp", ":0")
+		p2pPort, err = utils.AssignAvailablePort()
 		if err != nil {
-			return nil, fmt.Errorf("could not get free port: %w", err)
+			return nil, fmt.Errorf("Timed out trying to get an available port")
 		}
-		p2pPort = uint16(l.Addr().(*net.TCPAddr).Port)
-		_ = l.Close()
 	}
 
 	// Flags for AvalancheGo
