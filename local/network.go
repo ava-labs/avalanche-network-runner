@@ -340,15 +340,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
-		// At this point we are trying to assign a port already, but the node starts
-		// much later. Therefore that is the point when we really need the port to be free.
-		// Because of this asynchronicity, the same port can be assigned here, in which case
-		// the node will crash at start.
-		// We try minimizing this by assigning a random port number and also verifying that
-		// it actually is available.
-		apiPort, err = utils.AssignAvailablePort()
+		// Use a random free port.
+		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+		apiPort, err = getFreePort()
 		if err != nil {
-			return nil, fmt.Errorf("Timed out trying to get an available port")
+			return nil, fmt.Errorf("couldn't get free API port: %w", err)
 		}
 	}
 
@@ -361,9 +357,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
 		}
 	} else {
-		p2pPort, err = utils.AssignAvailablePort()
+		// Use a random free port.
+		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+		p2pPort, err = getFreePort()
 		if err != nil {
-			return nil, fmt.Errorf("Timed out trying to get an available port")
+			return nil, fmt.Errorf("couldn't get free P2P port: %w", err)
 		}
 	}
 
