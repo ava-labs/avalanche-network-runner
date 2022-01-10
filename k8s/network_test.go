@@ -478,7 +478,9 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 // defaultTestNetworkConfig creates a default size network for testing
 func defaultTestNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
-	networkConfig := network.Config{}
+	networkConfig := network.Config{
+		Genesis: string(defaultTestGenesis),
+	}
 	for i := 0; i < defaultTestNetworkSize; i++ {
 		crt, key, err := staking.NewCertAndKeyBytes()
 		assert.NoError(err)

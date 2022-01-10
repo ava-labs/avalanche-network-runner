@@ -8,6 +8,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -25,7 +26,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		ConfigFile: testConfig,
 	}
 
-	envVars, err := buildNodeEnv(genesis, c)
+	envVars, err := buildNodeEnv(logging.NoLog{}, genesis, c)
 	assert.NoError(t, err)
 	controlVars := []v1.EnvVar{
 		{
