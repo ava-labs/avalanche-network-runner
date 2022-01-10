@@ -65,7 +65,6 @@ func buildNodeEnv(log logging.Logger, genesis []byte, c node.Config) ([]corev1.E
 		}
 	}
 
-	// For each config key, convert it to the format
 	// AvalancheGo expects environment variable config keys in.
 	// e.g. bootstrap-ips --> AVAGO_BOOTSTRAP_IPS
 	// e.g. log-level --> AVAGO_LOG_LEVEL
@@ -77,6 +76,7 @@ func buildNodeEnv(log logging.Logger, genesis []byte, c node.Config) ([]corev1.E
 		},
 	}
 	for key, val := range conf {
+		// For each config key, convert it to the right format
 		env = append(env, corev1.EnvVar{
 			Name:  convertKey(key),
 			Value: fmt.Sprintf("%v", val),

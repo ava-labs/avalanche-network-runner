@@ -36,7 +36,7 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
-// The type of network runner
+// Backend is the type of network runner to use
 type Backend byte
 
 const (
@@ -94,7 +94,7 @@ type Config struct {
 	// For example, if a network.Config has flag W set to X,
 	// and a node within that network has flag W set to Y,
 	// and the node's config file has flag W set to Z,
-	// then the node will be started with flag W set to X.
+	// then the node will be started with flag W set to Y.
 	Flags map[string]interface{} `json:"flags"`
 }
 
