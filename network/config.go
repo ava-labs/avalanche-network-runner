@@ -36,17 +36,16 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
-// Backend enumerator type
+// Backend is the type of network runner to use
 type Backend byte
 
 const (
-	// Local Backend enum type
+	// Local network runner
 	Local Backend = iota + 1
-	// Kubernetes Backend enum type
+	// Kubernetes network runner
 	Kubernetes
 )
 
-// MarshalJSON for JSON handling
 func (b Backend) MarshalJSON() ([]byte, error) {
 	switch b {
 	case Local:
@@ -58,7 +57,6 @@ func (b Backend) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// UnmarshalJSON for JSON handling
 func (b *Backend) UnmarshalJSON(bytes []byte) error {
 	switch string(bytes) {
 	case "\"local\"":
@@ -85,12 +83,18 @@ type Config struct {
 	Name string `json:"name"`
 	// Backend specifies the backend for the network
 	Backend Backend `json:"backend"`
-	// Flags can hold additional flags for avalanchego nodes.
+	// Flags that will be passed to each node in this network.
 	// It can be empty.
-	// The precedence of flags handling is:
-	// 1. Flags defined in node.Config override
-	// 2. Flags defined in network.Config (this struct) override
-	// 3. Flags defined in the json config file
+	// Config flags may also be passed in a node's config struct
+	// or config file.
+	// The precedence of flags handling is, from highest to lowest:
+	// 1. Flags defined in a node's node.Config
+	// 2. Flags defined in a network's network.Config
+	// 3. Flags defined in a node's config file
+	// For example, if a network.Config has flag W set to X,
+	// and a node within that network has flag W set to Y,
+	// and the node's config file has flag W set to Z,
+	// then the node will be started with flag W set to Y.
 	Flags map[string]interface{} `json:"flags"`
 }
 

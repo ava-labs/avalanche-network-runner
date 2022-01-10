@@ -216,11 +216,15 @@ func newNetwork(
 			if n.Flags == nil {
 				n.Flags = make(map[string]interface{})
 			}
-			// Do not overwrite flags described in the nodeConfig
-			if _, ok := n.Flags[flagName]; !ok {
+			// If the same flag is given in network config and node config,
+			// the flag in the node config takes precedence
+			if val, ok := n.Flags[flagName]; !ok {
 				n.Flags[flagName] = flagVal
 			} else {
-				log.Debug("found same flag %s in node config - skipping overwrite", flagName)
+				log.Info(
+					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+					flagName, val, flagVal,
+				)
 			}
 		}
 	}
@@ -397,6 +401,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	for flagName, flagVal := range nodeConfig.Flags {
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}
+
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
 	if err != nil {
