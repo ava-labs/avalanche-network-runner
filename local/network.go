@@ -208,15 +208,17 @@ func newNetwork(
 	}
 
 	// Sort node configs so beacons start first
-	var nodeConfigs []node.Config
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if nodeConfig.IsBeacon {
-			nodeConfigs = append(nodeConfigs, nodeConfig)
+	var nodeConfigs []*node.Config
+	for i := range networkConfig.NodeConfigs {
+		nc := &networkConfig.NodeConfigs[i]
+		if nc.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nc)
 		}
 	}
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if !nodeConfig.IsBeacon {
-			nodeConfigs = append(nodeConfigs, nodeConfig)
+	for i := range networkConfig.NodeConfigs {
+		nc := &networkConfig.NodeConfigs[i]
+		if !nc.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nc)
 		}
 	}
 
@@ -240,7 +242,7 @@ func newNetwork(
 	}
 
 	for _, nodeConfig := range nodeConfigs {
-		if _, err := net.addNode(nodeConfig); err != nil {
+		if _, err := net.addNode(*nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
 				// Clean up nodes already created
 				log.Debug("error stopping network: %s", err)
@@ -302,12 +304,14 @@ func NewDefaultNetworkWithVm(
 	log logging.Logger,
 	binaryPath string,
 	vms []vms.CustomVM,
+	whitelistedSubnets string,
 ) (network.Network, error) {
-	config, err := NewDefaultConfigWithVm(binaryPath, vms)
+	conf, err := NewDefaultConfigWithVm(binaryPath, vms)
 	if err != nil {
 		return nil, err
 	}
-	return newNetwork(log, config, api.NewAPIClient, NewNodeProcess)
+	conf.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	return newNetwork(log, conf, api.NewAPIClient, NewNodeProcess)
 }
 
 func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
@@ -346,6 +350,7 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 		// TODO can we use just binary path or do we need a customvm jsonraw
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
+	config.Flags = make(map[string]interface{})
 	return config, nil
 }
 

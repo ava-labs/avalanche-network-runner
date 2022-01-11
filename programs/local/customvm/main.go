@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/vms"
+	avagoconfig "github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -19,11 +20,12 @@ import (
 const (
 	healthyTimeout = 2 * time.Minute
 	subnetTimeout  = 2 * time.Minute
-	binaryPathKey  = "binary-path"
-	vmPathKey      = "vm-path"
-	genesisPathKey = "genesis-path"
-	subnetIDKey    = "subnet-id"
-	vmIDKey        = "vm-id"
+	binaryPathKey  = "binaryPath"
+	vmPathKey      = "vmPaths"
+	genesisPathKey = "genesisPaths"
+	subnetIDKey    = "subnetIds"
+	vmIDKey        = "vmIds"
+	loglevelKey    = "logLevel"
 )
 
 var (
@@ -32,11 +34,11 @@ var (
 )
 
 type customVMConfig struct {
-	BinaryPath string
-	VMPath     []string
-	VMGenesis  []string
-	VMSubnets  []string
-	VMIDs      []string
+	BinaryPath   string   `json:"binaryPath"`
+	VMPaths      []string `json:"vmPaths"`
+	GenesisPaths []string `json:"genesisPaths"`
+	SubnetIDs    []string `json:"subnetIds"`
+	VMIDs        []string `json:"vmIds"`
 }
 
 // Shows example usage of the Avalanche Network Runner with custom VMs.
@@ -60,30 +62,46 @@ func main() {
 	}
 
 	v := viper.New()
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.AddConfigPath(".")      // path to look for the config file in
 	v.SetDefault(binaryPathKey, defaultBinaryPath)
 
-	bp := pflag.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
-	vp := pflag.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
-	gp := pflag.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
-	sp := pflag.StringSlice(subnetIDKey, []string{""}, "Comma-separated list of subnetIDs for whitelisting")
-	ip := pflag.StringSlice(vmIDKey, []string{""}, "Comma-separated list of VM IDs")
+	flagSet := pflag.NewFlagSet("customVMConfig", pflag.ExitOnError)
+	flagSet.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
+	flagSet.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
+	flagSet.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
+	flagSet.StringSlice(subnetIDKey, []string{""}, "Comma-separated list of subnetIDs for whitelisting")
+	flagSet.StringSlice(vmIDKey, []string{""}, "Comma-separated list of VM IDs")
+	flagSet.String(avagoconfig.WhitelistedSubnetsKey, "", "List of whitelisted subnets")
+	flagSet.String(loglevelKey, "info", "Log level for this program")
 
-	pflag.Parse()
-
-	c := customVMConfig{
-		BinaryPath: *bp,
-		VMPath:     *vp,
-		VMGenesis:  *gp,
-		VMSubnets:  *sp,
-		VMIDs:      *ip,
+	if err := v.BindPFlags(flagSet); err != nil {
+		log.Fatal("couldn't bind pflags: %s", err)
+		os.Exit(1)
 	}
-
-	if err := checkSliceEqualLen(c.VMPath, c.VMGenesis, c.VMSubnets, c.VMIDs); err != nil {
-		pflag.Usage()
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		log.Fatal("couldn't parse pflags: %s", err)
 		os.Exit(1)
 	}
 
-	if err := run(log, c); err != nil {
+	v.AutomaticEnv()
+
+	if err := v.ReadInConfig(); err != nil {
+		log.Warn("no config file provided")
+	}
+
+	var c customVMConfig
+	if err := v.Unmarshal(&c); err != nil {
+		log.Fatal("couldn't unmarshal config: %s", err)
+		os.Exit(1)
+	}
+
+	if err := checkSliceEqualLen(c.VMPaths, c.GenesisPaths, c.SubnetIDs, c.VMIDs); err != nil {
+		log.Fatal("error checking supplied params: %s", err)
+		os.Exit(1)
+	}
+
+	if err := run(log, c, v); err != nil {
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
@@ -112,22 +130,32 @@ func checkSliceEqualLen(ss ...[]string) error {
 	return nil
 }
 
-func run(log logging.Logger, config customVMConfig) error {
-	customVms := make([]vms.CustomVM, len(config.VMPath))
-	for i, v := range config.VMPath {
+func run(log logging.Logger, config customVMConfig, v *viper.Viper) error {
+	customVms := make([]vms.CustomVM, len(config.VMPaths))
+	for i, v := range config.VMPaths {
 		customVms[i] = vms.CustomVM{
 			Path:     v,
-			Genesis:  config.VMGenesis[i],
+			Genesis:  config.GenesisPaths[i],
 			Name:     filepath.Base(v),
-			SubnetID: config.VMSubnets[i],
+			SubnetID: config.SubnetIDs[i],
 			ID:       config.VMIDs[i],
 		}
 	}
 
-	log.SetDisplayLevel(logging.Debug)
-	log.SetLogLevel(logging.Debug)
+	var level logging.Level
+	var err error
+	if slevel := v.GetString(loglevelKey); slevel != "" {
+		level, err = logging.ToLevel(slevel)
+		if err != nil {
+			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
+		}
+	} else {
+		level = logging.Info
+	}
+	log.SetDisplayLevel(level)
+	log.SetLogLevel(level)
 
-	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms)
+	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms, v.GetString(avagoconfig.WhitelistedSubnetsKey))
 	if err != nil {
 		return err
 	}
