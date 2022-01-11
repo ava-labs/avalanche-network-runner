@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/ava-labs/avalanchego v1.7.3
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
-	github.com/ava-labs/coreth v0.8.1-rc.0
+	github.com/ava-labs/coreth v0.8.3-rc.1
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
