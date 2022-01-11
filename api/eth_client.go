@@ -29,6 +29,7 @@ type EthClient interface {
 	AssetBalanceAt(context.Context, common.Address, ids.ID, *big.Int) (*big.Int, error)
 	SuggestGasPrice(context.Context) (*big.Int, error)
 	AcceptedCodeAt(context.Context, common.Address) ([]byte, error)
+	AcceptedNonceAt(context.Context, common.Address) (uint64, error)
 }
 
 // ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
@@ -169,4 +170,13 @@ func (c *ethClient) AcceptedCodeAt(ctx context.Context, account common.Address) 
 		return nil, err
 	}
 	return c.client.AcceptedCodeAt(ctx, account)
+}
+
+func (c *ethClient) AcceptedNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return 0, err
+	}
+	return c.client.AcceptedNonceAt(ctx, account)
 }
