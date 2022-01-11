@@ -40,6 +40,12 @@ const (
 var (
 	_ network.Network = (*localNetwork)(nil)
 	_ NewNodeProcessF = NewNodeProcess
+
+	warnFlags = map[string]struct{}{
+		config.NetworkNameKey:  {},
+		config.BootstrapIPsKey: {},
+		config.BootstrapIDsKey: {},
+	}
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -209,6 +215,25 @@ func newNetwork(
 		}
 	}
 
+	for flagName, flagVal := range networkConfig.Flags {
+		for i := range networkConfig.NodeConfigs {
+			n := &networkConfig.NodeConfigs[i]
+			if n.Flags == nil {
+				n.Flags = make(map[string]interface{})
+			}
+			// If the same flag is given in network config and node config,
+			// the flag in the node config takes precedence
+			if val, ok := n.Flags[flagName]; !ok {
+				n.Flags[flagName] = flagVal
+			} else {
+				log.Info(
+					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+					flagName, val, flagVal,
+				)
+			}
+		}
+	}
+
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -374,6 +399,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
+	}
+
+	for flagName, flagVal := range nodeConfig.Flags {
+		if _, ok := warnFlags[flagName]; ok {
+			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}
 
 	// Parse this node's ID

@@ -30,15 +30,19 @@ func init() {
 	}
 }
 
+// AddrAndBalance holds both an address and its balance
 type AddrAndBalance struct {
 	Addr    ids.ShortID
 	Balance uint64
 }
 
+// Backend is the type of network runner to use
 type Backend byte
 
 const (
+	// Local network runner
 	Local Backend = iota + 1
+	// Kubernetes network runner
 	Kubernetes
 )
 
@@ -79,8 +83,22 @@ type Config struct {
 	Name string `json:"name"`
 	// Backend specifies the backend for the network
 	Backend Backend `json:"backend"`
+	// Flags that will be passed to each node in this network.
+	// It can be empty.
+	// Config flags may also be passed in a node's config struct
+	// or config file.
+	// The precedence of flags handling is, from highest to lowest:
+	// 1. Flags defined in a node's node.Config
+	// 2. Flags defined in a network's network.Config
+	// 3. Flags defined in a node's config file
+	// For example, if a network.Config has flag W set to X,
+	// and a node within that network has flag W set to Y,
+	// and the node's config file has flag W set to Z,
+	// then the node will be started with flag W set to Y.
+	Flags map[string]interface{} `json:"flags"`
 }
 
+// Validate returns an error if this config is invalid
 func (c *Config) Validate() error {
 	var someNodeIsBeacon bool
 	switch {

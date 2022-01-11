@@ -40,7 +40,7 @@ func TestBackendMarshalJSON(t *testing.T) {
 }
 
 func TestConfigMarshalJSON(t *testing.T) {
-	jsonNetcfg := "{\"implSpecificConfig\":\"\",\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/file/path\"},\"name\":\"node0\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"configFile\":\"config-file-blablabla1\",\"cchainConfigFile\":\"cchain-config-file-blablabla1\"},{\"implSpecificConfig\":{\"apiVersion\":\"0.99.999\",\"identifier\":\"k8s-node-1\",\"image\":\"therepo/theimage\",\"kind\":\"imaginary\",\"namespace\":\"outer-space\",\"tag\":\"omega\"},\"name\":\"node1\",\"isBeacon\":false,\"stakingKey\":\"key456\",\"stakingCert\":\"cert456\",\"configFile\":\"config-file-blablabla2\",\"cchainConfigFile\":\"cchain-config-file-blablabla2\"},{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/other/path\"},\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"configFile\":\"config-file-blablabla3\",\"cchainConfigFile\":\"cchain-config-file-blablabla3\"}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\",\"backend\":\"k8s\"}"
+	jsonNetcfg := "{\"implSpecificConfig\":\"\",\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/file/path\"},\"name\":\"node0\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"configFile\":\"config-file-blablabla1\",\"cchainConfigFile\":\"cchain-config-file-blablabla1\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}},{\"implSpecificConfig\":{\"apiVersion\":\"0.99.999\",\"identifier\":\"k8s-node-1\",\"image\":\"therepo/theimage\",\"kind\":\"imaginary\",\"namespace\":\"outer-space\",\"tag\":\"omega\"},\"name\":\"node1\",\"isBeacon\":false,\"stakingKey\":\"key456\",\"stakingCert\":\"cert456\",\"configFile\":\"config-file-blablabla2\",\"cchainConfigFile\":\"cchain-config-file-blablabla2\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}},{\"implSpecificConfig\":{\"binaryPath\":\"/tmp/some/other/path\"},\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"configFile\":\"config-file-blablabla3\",\"cchainConfigFile\":\"cchain-config-file-blablabla3\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\",\"backend\":\"k8s\",\"flags\":{\"flag-three\":\"val-three\"}}"
 
 	control := network.Config{
 		Genesis: "in the beginning there was a token",
@@ -53,15 +53,23 @@ func TestConfigMarshalJSON(t *testing.T) {
 				StakingCert:        "cert123",
 				ConfigFile:         "config-file-blablabla1",
 				CChainConfigFile:   "cchain-config-file-blablabla1",
+				Flags: map[string]interface{}{
+					"flag-one": "val-one",
+					"flag-two": float64(2),
+				},
 			},
 			{
-				ImplSpecificConfig: newTestK8sNodeConfigJsonRaw(),
+				ImplSpecificConfig: newTestK8sNodeConfigJSONRaw(),
 				Name:               "node1",
 				IsBeacon:           false,
 				StakingKey:         "key456",
 				StakingCert:        "cert456",
 				ConfigFile:         "config-file-blablabla2",
 				CChainConfigFile:   "cchain-config-file-blablabla2",
+				Flags: map[string]interface{}{
+					"flag-one": "val-one",
+					"flag-two": float64(2),
+				},
 			},
 			{
 				ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw("/tmp/some/other/path"),
@@ -71,11 +79,18 @@ func TestConfigMarshalJSON(t *testing.T) {
 				StakingCert:        "cert789",
 				ConfigFile:         "config-file-blablabla3",
 				CChainConfigFile:   "cchain-config-file-blablabla3",
+				Flags: map[string]interface{}{
+					"flag-one": "val-one",
+					"flag-two": float64(2),
+				},
 			},
 		},
 		LogLevel: "DEBUG",
 		Name:     "abcxyz",
 		Backend:  network.Kubernetes,
+		Flags: map[string]interface{}{
+			"flag-three": "val-three",
+		},
 	}
 
 	var netcfg network.Config
@@ -117,6 +132,6 @@ func TestConfigMarshalJSON(t *testing.T) {
 	assert.NotEmpty(k8scfg.APIVersion)
 }
 
-func newTestK8sNodeConfigJsonRaw() json.RawMessage {
+func newTestK8sNodeConfigJSONRaw() json.RawMessage {
 	return utils.NewK8sNodeConfigJsonRaw("0.99.999", "k8s-node-1", "therepo/theimage", "imaginary", "outer-space", "omega")
 }

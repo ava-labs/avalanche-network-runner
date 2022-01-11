@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -24,7 +26,7 @@ func TestBuildNodeEnv(t *testing.T) {
 		ConfigFile: testConfig,
 	}
 
-	envVars, err := buildNodeEnv(genesis, c)
+	envVars, err := buildNodeEnv(logging.NoLog{}, genesis, c)
 	assert.NoError(t, err)
 	controlVars := []v1.EnvVar{
 		{
@@ -94,7 +96,14 @@ func TestCreateDeploymentConfig(t *testing.T) {
 			),
 		},
 	}
-	beacons, nonBeacons, err := createDeploymentFromConfig(genesis, nodeConfigs)
+	params := networkParams{
+		conf: network.Config{
+			Genesis:     string(genesis),
+			NodeConfigs: nodeConfigs,
+		},
+	}
+
+	beacons, nonBeacons, err := createDeploymentFromConfig(params)
 	assert.NoError(err)
 	assert.Len(beacons, 1)
 	assert.Len(nonBeacons, 1)
