@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	FilePerms = 0777
+	filePerms = 0755
 )
 
+// CopyFile is a helper to copy a file from src to dst
 func CopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -23,12 +24,11 @@ func CopyFile(src, dst string) error {
 	defer out.Close()
 
 	// Grant permission to copy
-	if err := os.Chmod(dst, FilePerms); err != nil {
+	if err := os.Chmod(dst, filePerms); err != nil {
 		return err
 	}
 
-	_, err = io.Copy(out, in)
-	if err != nil {
+	if _, err = io.Copy(out, in); err != nil {
 		return err
 	}
 	return out.Close()

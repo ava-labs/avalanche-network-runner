@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -311,7 +312,7 @@ func NewDefaultNetworkWithVm(
 
 func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
 	if len(customVms) == 0 {
-		return network.Config{}, fmt.Errorf("No custom vm information has been provided - a default network should be created if this is intended")
+		return network.Config{}, errors.New("no custom vm information has been provided - a default network should be created if this is intended")
 	}
 	for _, v := range customVms {
 		if _, err := os.Stat(v.Path); os.IsNotExist(err) {
@@ -325,8 +326,14 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 		}
 		vmBinDir := filepath.Dir(v.Path)
 		binDir := filepath.Dir(binaryPath)
-		if binDir != vmBinDir {
-			pluginDir := filepath.Join(binDir, "plugins", v.Name)
+		pluginDir := filepath.Join(binDir, "plugins", v.Name)
+		// Compare the provided vm binary path directory with the avalanchego plugins binary path directory.
+		// If they are the same, we assume the user keeps it there, so we don't do nothing.
+		// Otherwise we copy the binary into the avalanchego plugins directory.
+		// TODO: This is a bit unstable:
+		// * no version control (needed?)
+		// * binaries just get overwritten
+		if pluginDir != vmBinDir {
 			if err := utils.CopyFile(v.Path, pluginDir); err != nil {
 				return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, pluginDir, err)
 			}
@@ -338,32 +345,8 @@ func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (networ
 	for i := 0; i < len(config.NodeConfigs); i++ {
 		// TODO can we use just binary path or do we need a customvm jsonraw
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
-		config.NodeConfigs[i].ConfigFile = extendConfigFile(config.NodeConfigs[i], customVms)
 	}
 	return config, nil
-}
-
-func extendConfigFile(config node.Config, customVms []vms.CustomVM) string {
-	// TODO: if the user already provides whitelisted subnets, we're not going to mess it up
-	// However, in that case we should log this probably, but we don't have the logger here
-	if strings.Contains(config.ConfigFile, "whitelisted-subnets") {
-		return config.ConfigFile
-	}
-	var ws strings.Builder
-	ws.WriteString(`"whitelisted-subnets":`)
-	for i, v := range customVms {
-		ws.WriteRune('"')
-		ws.WriteString(v.SubnetID)
-		ws.WriteRune('"')
-		if i < len(customVms) {
-			ws.WriteRune(',')
-		}
-	}
-	if config.ConfigFile == "" {
-		config.ConfigFile = "{"
-	}
-	start := strings.Index(config.ConfigFile, "{") + 1
-	return config.ConfigFile[:start] + ws.String() + config.ConfigFile[start:]
 }
 
 // See network.Network

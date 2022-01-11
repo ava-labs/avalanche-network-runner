@@ -18,6 +18,7 @@ import (
 
 const (
 	healthyTimeout = 2 * time.Minute
+	subnetTimeout  = 2 * time.Minute
 	binaryPathKey  = "binary-path"
 	vmPathKey      = "vm-path"
 	genesisPathKey = "genesis-path"
@@ -84,9 +85,14 @@ func main() {
 
 	if err := run(log, c); err != nil {
 		log.Fatal("%s", err)
+		os.Exit(1)
 	}
 }
 
+// checkSliceEqualLen compares the list of provided string arrays for its length
+// It returns an error if all the provided arrays are not of equal length.
+// It also returns an error if the arg list empty or if the arrays don't have
+// at least one element
 func checkSliceEqualLen(ss ...[]string) error {
 	if len(ss) < 1 {
 		return fmt.Errorf("no arguments")
@@ -145,7 +151,7 @@ func run(log logging.Logger, config customVMConfig) error {
 		return err
 	}
 	// use a new timed context as we need to wait for the validators validation start time
-	subnetCtx, subnetCancel := context.WithTimeout(ctx, healthyTimeout)
+	subnetCtx, subnetCancel := context.WithTimeout(ctx, subnetTimeout)
 	defer subnetCancel()
 	for _, v := range customVms {
 		if err := vms.SetupSubnet(
