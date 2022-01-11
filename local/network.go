@@ -41,6 +41,12 @@ const (
 var (
 	_ network.Network = (*localNetwork)(nil)
 	_ NewNodeProcessF = NewNodeProcess
+
+	warnFlags = map[string]struct{}{
+		config.NetworkNameKey:  {},
+		config.BootstrapIPsKey: {},
+		config.BootstrapIDsKey: {},
+	}
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -395,6 +401,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	for flagName, flagVal := range nodeConfig.Flags {
+		if _, ok := warnFlags[flagName]; ok {
+			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
+		}
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}
 	// Parse this node's ID
