@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,74 +30,64 @@ func convertKey(key string) string {
 
 // Given a node's config and genesis, returns the environment
 // variables (i.e. config flags) to give to the node
-func buildNodeEnv(genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
-	if c.ConfigFile == "" {
-		return []corev1.EnvVar{}, nil
+func buildNodeEnv(log logging.Logger, genesis []byte, c node.Config) ([]corev1.EnvVar, error) {
+	conf := map[string]interface{}{}
+
+	// Parse config from file if one given
+	if c.ConfigFile != "" {
+		if err := json.Unmarshal([]byte(c.ConfigFile), &conf); err != nil {
+			return nil, err
+		}
 	}
-	var avagoConf map[string]interface{} // AvalancheGo config file as a map
-	if err := json.Unmarshal([]byte(c.ConfigFile), &avagoConf); err != nil {
-		return nil, err
+
+	// If a key is in the config file and flags, the flag takes precedence.
+	for key, val := range c.Flags {
+		if _, ok := conf[key]; ok {
+			log.Info("overwriting key %s in config file with value given in flag", key)
+		}
+		conf[key] = val
 	}
+
+	// Parse network ID from genesis
 	networkID, err := utils.NetworkIDFromGenesis(genesis)
 	if err != nil {
 		return nil, err
 	}
 
-	// For each config flag, convert it to the format
-	// AvalancheGo expects environment variable config flags in.
+	// Make sure network ID in config file / flag, if given,
+	// matches genesis network ID
+	if gotNetworkID, ok := conf[config.NetworkNameKey]; ok {
+		if gotNetworkID, ok := gotNetworkID.(float64); ok && uint32(gotNetworkID) != networkID {
+			return nil, fmt.Errorf(
+				"network ID in config file / flag (%d) != network ID in genesis (%d)",
+				uint32(gotNetworkID), networkID,
+			)
+		}
+	}
+
+	// AvalancheGo expects environment variable config keys in.
 	// e.g. bootstrap-ips --> AVAGO_BOOTSTRAP_IPS
 	// e.g. log-level --> AVAGO_LOG_LEVEL
-	env := make([]corev1.EnvVar, 0, len(avagoConf)+1)
-	addedKeys := make(map[string]*corev1.EnvVar)
-	for key, val := range avagoConf {
-		// we use the network id from genesis -- ignore the one in config
-		if key == config.NetworkNameKey {
-			// We just override the network ID with the one from genesis after the iteration
-			continue
-		}
-		v := corev1.EnvVar{
+	env := []corev1.EnvVar{
+		{
+			// Provide environment variable giving the network ID
+			Name:  convertKey(config.NetworkNameKey),
+			Value: fmt.Sprint(networkID),
+		},
+	}
+	for key, val := range conf {
+		// For each config key, convert it to the right format
+		env = append(env, corev1.EnvVar{
 			Name:  convertKey(key),
-			Value: val.(string),
-		}
-		env = append(env, v)
-		addedKeys[key] = &v
+			Value: fmt.Sprintf("%v", val),
+		})
 	}
-	// Add flags as env vars to the node
-	// If a flag has already been set via config file,
-	// override it
-	for key, val := range c.Flags {
-		// we use the network id from genesis -- ignore the one in flags
-		if key == config.NetworkNameKey {
-			// We just override the network ID with the one from genesis after the iteration
-			continue
-		}
-		// override this one
-		if envVar, ok := addedKeys[key]; ok {
-			*envVar = corev1.EnvVar{
-				Name:  convertKey(key),
-				Value: val.(string),
-			}
-		} else {
-			// new var
-			v := corev1.EnvVar{
-				Name:  convertKey(key),
-				Value: val.(string),
-			}
-			env = append(env, v)
-		}
-	}
-	// Provide environment variable giving the network ID
-	v := corev1.EnvVar{
-		Name:  convertKey(config.NetworkNameKey),
-		Value: fmt.Sprint(networkID),
-	}
-	env = append(env, v)
 	return env, nil
 }
 
 // Takes a node's config and genesis and returns the node as a k8s object spec
-func buildK8sObjSpec(genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
-	env, err := buildNodeEnv(genesis, c)
+func buildK8sObjSpec(log logging.Logger, genesis []byte, c node.Config) (*k8sapi.Avalanchego, error) {
+	env, err := buildNodeEnv(log, genesis, c)
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +164,9 @@ func validateObjectSpec(k8sobj ObjectSpec) error {
 // as avalanchego-operator compatible descriptions.
 // May return nil slices.
 func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []*k8sapi.Avalanchego, error) {
-	var beacons, nonBeacons []*k8sapi.Avalanchego
-	names := make(map[string]struct{})
-
+	// Give each flag in the network config to each node's config.
+	// If a flag is defined in both the network config and the node config,
+	// the value given in the node config takes precedence.
 	for flagName, flagVal := range params.conf.Flags {
 		for i := range params.conf.NodeConfigs {
 			nodeConfig := &params.conf.NodeConfigs[i]
@@ -183,15 +174,21 @@ func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []
 				nodeConfig.Flags = make(map[string]interface{})
 			}
 			// Do not overwrite flags described in the nodeConfig
-			if _, ok := nodeConfig.Flags[flagName]; !ok {
+			if val, ok := nodeConfig.Flags[flagName]; !ok {
 				nodeConfig.Flags[flagName] = flagVal
 			} else {
-				params.log.Debug("found same flag %s in node config - skipping overwrite", flagName)
+				params.log.Info(
+					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+					flagName, val, flagVal,
+				)
 			}
 		}
 	}
-	for _, c := range params.conf.NodeConfigs {
-		spec, err := buildK8sObjSpec([]byte(params.conf.Genesis), c)
+
+	var beacons, nonBeacons []*k8sapi.Avalanchego
+	names := make(map[string]struct{})
+	for _, nodeConfig := range params.conf.NodeConfigs {
+		spec, err := buildK8sObjSpec(params.log, []byte(params.conf.Genesis), nodeConfig)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -199,7 +196,7 @@ func createDeploymentFromConfig(params networkParams) ([]*k8sapi.Avalanchego, []
 			return nil, nil, fmt.Errorf("node with name name %q already exists", spec.Name)
 		}
 		names[spec.Name] = struct{}{}
-		if c.IsBeacon {
+		if nodeConfig.IsBeacon {
 			beacons = append(beacons, spec)
 		} else {
 			nonBeacons = append(nonBeacons, spec)

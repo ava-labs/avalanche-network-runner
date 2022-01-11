@@ -258,7 +258,7 @@ func (a *networkImpl) AddNode(cfg node.Config) (node.Node, error) {
 		return nil, network.ErrStopped
 	}
 
-	nodeSpec, err := buildK8sObjSpec([]byte(a.config.Genesis), cfg)
+	nodeSpec, err := buildK8sObjSpec(a.log, []byte(a.config.Genesis), cfg)
 	if err != nil {
 		return nil, err
 	}
