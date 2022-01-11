@@ -8,9 +8,9 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
-	github.com/ava-labs/avalanchego v1.7.3
+	github.com/ava-labs/avalanchego v1.7.4-0.20211222191707-3163be793cc9
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
-	github.com/ava-labs/coreth v0.8.3-rc.1
+	github.com/ava-labs/coreth v0.8.3-rc.3
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
