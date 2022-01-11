@@ -30,7 +30,8 @@ type EthClient interface {
 	SuggestGasPrice(context.Context) (*big.Int, error)
 	AcceptedCodeAt(context.Context, common.Address) ([]byte, error)
 	AcceptedNonceAt(context.Context, common.Address) (uint64, error)
-    CodeAt(context.Context, common.Address, *big.Int) ([]byte, error)
+	CodeAt(context.Context, common.Address, *big.Int) ([]byte, error)
+	EstimateGas(context.Context, interfaces.CallMsg) (uint64, error)
 }
 
 // ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
@@ -189,4 +190,13 @@ func (c *ethClient) CodeAt(ctx context.Context, account common.Address, blockNum
 		return nil, err
 	}
 	return c.client.CodeAt(ctx, account, blockNumber)
+}
+
+func (c *ethClient) EstimateGas(ctx context.Context, msg interfaces.CallMsg) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return 0, err
+	}
+	return c.client.EstimateGas(ctx, msg)
 }
