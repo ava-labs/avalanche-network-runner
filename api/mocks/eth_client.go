@@ -207,6 +207,29 @@ func (_m *EthClient) Close() {
 	_m.Called()
 }
 
+// CodeAt provides a mock function with given fields: _a0, _a1, _a2
+func (_m *EthClient) CodeAt(_a0 context.Context, _a1 common.Address, _a2 *big.Int) ([]byte, error) {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, *big.Int) []byte); ok {
+		r0 = rf(_a0, _a1, _a2)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, *big.Int) error); ok {
+		r1 = rf(_a0, _a1, _a2)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NonceAt provides a mock function with given fields: _a0, _a1, _a2
 func (_m *EthClient) NonceAt(_a0 context.Context, _a1 common.Address, _a2 *big.Int) (uint64, error) {
 	ret := _m.Called(_a0, _a1, _a2)
