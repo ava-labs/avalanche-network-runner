@@ -32,6 +32,11 @@ type EthClient interface {
 	AcceptedNonceAt(context.Context, common.Address) (uint64, error)
 	CodeAt(context.Context, common.Address, *big.Int) ([]byte, error)
 	EstimateGas(context.Context, interfaces.CallMsg) (uint64, error)
+	AcceptedCallContract(context.Context, interfaces.CallMsg) ([]byte, error)
+	HeaderByNumber(context.Context, *big.Int) (*types.Header, error)
+	SuggestGasTipCap(context.Context) (*big.Int, error)
+	FilterLogs(context.Context, interfaces.FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(context.Context, interfaces.FilterQuery, chan<- types.Log) (interfaces.Subscription, error)
 }
 
 // ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
@@ -199,4 +204,49 @@ func (c *ethClient) EstimateGas(ctx context.Context, msg interfaces.CallMsg) (ui
 		return 0, err
 	}
 	return c.client.EstimateGas(ctx, msg)
+}
+
+func (c *ethClient) AcceptedCallContract(ctx context.Context, call interfaces.CallMsg) ([]byte, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.AcceptedCallContract(ctx, call)
+}
+
+func (c *ethClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.HeaderByNumber(ctx, number)
+}
+
+func (c *ethClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.SuggestGasTipCap(ctx)
+}
+
+func (c *ethClient) FilterLogs(ctx context.Context, query interfaces.FilterQuery) ([]types.Log, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.FilterLogs(ctx, query)
+}
+
+func (c *ethClient) SubscribeFilterLogs(ctx context.Context, query interfaces.FilterQuery, ch chan<- types.Log) (interfaces.Subscription, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.SubscribeFilterLogs(ctx, query, ch)
 }
