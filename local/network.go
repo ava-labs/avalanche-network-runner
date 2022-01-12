@@ -220,8 +220,8 @@ func newNetwork(
 	}
 
 	for flagName, flagVal := range networkConfig.Flags {
-		for i := range networkConfig.NodeConfigs {
-			n := &networkConfig.NodeConfigs[i]
+		for i := range nodeConfigs {
+			n := &nodeConfigs[i]
 			if n.Flags == nil {
 				n.Flags = make(map[string]interface{})
 			}
