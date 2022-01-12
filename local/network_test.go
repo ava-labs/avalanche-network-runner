@@ -63,7 +63,9 @@ type localTestFlagCheckProcessCreator struct {
 }
 
 func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	lt.assert.EqualValues(lt.expectedFlags, config.Flags)
+	if ok := lt.assert.EqualValues(lt.expectedFlags, config.Flags); !ok {
+		return nil, errors.New("assertion failed: flags not equal value")
+	}
 	return newMockProcessSuccessful(config, flags...)
 }
 
@@ -682,7 +684,9 @@ func TestFlags(t *testing.T) {
 		},
 		assert: assert,
 	})
-	assert.NoError(err)
+	if ok := assert.NoError(err); !ok {
+		t.Fatal("assertion failed")
+	}
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
 
@@ -702,7 +706,9 @@ func TestFlags(t *testing.T) {
 		expectedFlags: flags,
 		assert:        assert,
 	})
-	assert.NoError(err)
+	if ok := assert.NoError(err); !ok {
+		t.Fatal("assertion failed")
+	}
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
 
