@@ -27,25 +27,33 @@ const (
 )
 
 var (
-	_ api.NewAPIClientF = newMockAPISuccessful
-	_ api.NewAPIClientF = newMockAPIUnhealthy
+	_ NodeProcessCreator = &localTestSuccessfulNodeProcessCreator{}
+	_ NodeProcessCreator = &localTestFailedStartProcessCreator{}
+	_ NodeProcessCreator = &localTestProcessUndefNodeProcessCreator{}
+	_ NodeProcessCreator = &localTestFlagCheckProcessCreator{}
+	_ api.NewAPIClientF  = newMockAPISuccessful
+	_ api.NewAPIClientF  = newMockAPIUnhealthy
 )
 
 type localTestSuccessfulNodeProcessCreator struct{}
 
-func (lt *localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	return newMockProcessSuccessful(config, flags...)
 }
 
 type localTestFailedStartProcessCreator struct{}
 
-func (lt *localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	return newMockProcessFailedStart(config, flags...)
+func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+	process := &mocks.NodeProcess{}
+	process.On("Start").Return(errors.New("Start failed"))
+	process.On("Wait").Return(nil)
+	process.On("Stop").Return(nil)
+	return process, nil
 }
 
 type localTestProcessUndefNodeProcessCreator struct{}
 
-func (lt *localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	return newMockProcessUndef(config, flags...)
 }
 
@@ -55,9 +63,7 @@ type localTestFlagCheckProcessCreator struct {
 }
 
 func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	if ok := lt.assert.EqualValues(lt.expectedFlags, config.Flags); !ok {
-		return nil, errors.New("assertion failed: flags not equal value")
-	}
+	lt.assert.EqualValues(lt.expectedFlags, config.Flags)
 	return newMockProcessSuccessful(config, flags...)
 }
 
@@ -98,15 +104,6 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Start").Return(nil)
-	process.On("Wait").Return(nil)
-	process.On("Stop").Return(nil)
-	return process, nil
-}
-
-// Return a NodeProcess that returns an error when Start is called
-func newMockProcessFailedStart(node.Config, ...string) (NodeProcess, error) {
-	process := &mocks.NodeProcess{}
-	process.On("Start").Return(errors.New("Start failed"))
 	process.On("Wait").Return(nil)
 	process.On("Stop").Return(nil)
 	return process, nil
@@ -685,57 +682,46 @@ func TestFlags(t *testing.T) {
 		},
 		assert: assert,
 	})
-	if ok := assert.NoError(err); !ok {
-		t.Fatal("assertion failed")
-	}
+	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
 
 	// submit only node.Config flags
 	networkConfig.Flags = nil
+	flags := map[string]interface{}{
+		"test-node-config-flag":  "node",
+		"test2-node-config-flag": "config",
+		"common-config-flag":     "this should be added",
+	}
 	for i := range networkConfig.NodeConfigs {
 		v := &networkConfig.NodeConfigs[i]
-		v.Flags = map[string]interface{}{
-			"test-node-config-flag":  "node",
-			"test2-node-config-flag": "config",
-			"common-config-flag":     "this should be added",
-		}
+		v.Flags = flags
 	}
 	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only node configs should exist
-		expectedFlags: map[string]interface{}{
-			"common-config-flag":     "this should be added",
-			"test-node-config-flag":  "node",
-			"test2-node-config-flag": "config",
-		},
-		assert: assert,
+		expectedFlags: flags,
+		assert:        assert,
 	})
-	if ok := assert.NoError(err); !ok {
-		t.Fatal("assertion failed")
-	}
+	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
 
 	// submit only network.Config flags
-	networkConfig.Flags = map[string]interface{}{
+	flags = map[string]interface{}{
 		"test-network-config-flag": "something",
 		"common-config-flag":       "else",
 	}
+	networkConfig.Flags = flags
 	for i := range networkConfig.NodeConfigs {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = nil
 	}
 	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only flags from the network config should exist
-		expectedFlags: map[string]interface{}{
-			"test-network-config-flag": "something",
-			"common-config-flag":       "else",
-		},
-		assert: assert,
+		expectedFlags: flags,
+		assert:        assert,
 	})
-	if ok := assert.NoError(err); !ok {
-		t.Fatal("assertion failed")
-	}
+	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
 }

@@ -38,8 +38,8 @@ const (
 
 // interface compliance
 var (
-	_ network.Network       = (*localNetwork)(nil)
-	_ NewNodeProcessCreator = (*localNodeProcessCreator)(nil)
+	_ network.Network    = (*localNetwork)(nil)
+	_ NodeProcessCreator = (*nodeProcessCreator)(nil)
 
 	warnFlags = map[string]struct{}{
 		config.NetworkNameKey:  {},
@@ -60,7 +60,7 @@ type localNetwork struct {
 	// Used to create a new API client
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
-	newNodeProcessCreator NewNodeProcessCreator
+	nodeProcessCreator NodeProcessCreator
 	// Closed when network is done shutting down
 	closedOnStopCh chan struct{}
 	// For node name generation
@@ -127,13 +127,13 @@ func init() {
 	}
 }
 
-type NewNodeProcessCreator interface {
+type NodeProcessCreator interface {
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
-type localNodeProcessCreator struct{}
+type nodeProcessCreator struct{}
 
-func (n *localNodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+func (*nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	var localNodeConfig NodeConfig
 	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
@@ -173,7 +173,7 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 ) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &localNodeProcessCreator{})
+	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{})
 }
 
 // newNetwork creates a network from given configuration
@@ -181,7 +181,7 @@ func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
-	newNodeProcessCreator NewNodeProcessCreator,
+	nodeProcessCreator NodeProcessCreator,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
@@ -195,15 +195,15 @@ func newNetwork(
 
 	// Create the network
 	net := &localNetwork{
-		networkID:             networkID,
-		genesis:               []byte(networkConfig.Genesis),
-		nodes:                 map[string]*localNode{},
-		closedOnStopCh:        make(chan struct{}),
-		log:                   log,
-		bootstrapIPs:          make(beaconList),
-		bootstrapIDs:          make(beaconList),
-		newAPIClientF:         newAPIClientF,
-		newNodeProcessCreator: newNodeProcessCreator,
+		networkID:          networkID,
+		genesis:            []byte(networkConfig.Genesis),
+		nodes:              map[string]*localNode{},
+		closedOnStopCh:     make(chan struct{}),
+		log:                log,
+		bootstrapIPs:       make(beaconList),
+		bootstrapIDs:       make(beaconList),
+		newAPIClientF:      newAPIClientF,
+		nodeProcessCreator: nodeProcessCreator,
 	}
 
 	// Sort node configs so beacons start first
@@ -273,17 +273,17 @@ func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 ) (network.Network, error) {
-	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &localNodeProcessCreator{})
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{})
 }
 
 func newDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 	newAPIClientF api.NewAPIClientF,
-	newNodeProcessCreator NewNodeProcessCreator,
+	nodeProcessCreator NodeProcessCreator,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return newNetwork(log, config, newAPIClientF, newNodeProcessCreator)
+	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
 }
 
 func NewDefaultConfig(binaryPath string) network.Config {
@@ -474,7 +474,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.newNodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
