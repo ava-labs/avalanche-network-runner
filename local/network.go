@@ -69,6 +69,8 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+	// Flags to apply to all nodes if not present
+	flags map[string]interface{}
 }
 
 var (
@@ -204,6 +206,7 @@ func newNetwork(
 		bootstrapIDs:       make(beaconList),
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
+		flags:              networkConfig.Flags,
 	}
 
 	// Sort node configs so beacons start first
@@ -216,25 +219,6 @@ func newNetwork(
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		if !nodeConfig.IsBeacon {
 			nodeConfigs = append(nodeConfigs, nodeConfig)
-		}
-	}
-
-	for flagName, flagVal := range networkConfig.Flags {
-		for i := range nodeConfigs {
-			n := &nodeConfigs[i]
-			if n.Flags == nil {
-				n.Flags = make(map[string]interface{})
-			}
-			// If the same flag is given in network config and node config,
-			// the flag in the node config takes precedence
-			if val, ok := n.Flags[flagName]; !ok {
-				n.Flags[flagName] = flagVal
-			} else {
-				log.Info(
-					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
-					flagName, val, flagVal,
-				)
-			}
 		}
 	}
 
@@ -310,6 +294,22 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.isStopped() {
 		return nil, network.ErrStopped
+	}
+
+	for flagName, flagVal := range ln.flags {
+		if nodeConfig.Flags == nil {
+			nodeConfig.Flags = make(map[string]interface{})
+		}
+		// If the same flag is given in network config and node config,
+		// the flag in the node config takes precedence
+		if val, ok := nodeConfig.Flags[flagName]; !ok {
+			nodeConfig.Flags[flagName] = flagVal
+		} else {
+			ln.log.Info(
+				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+				flagName, val, flagVal,
+			)
+		}
 	}
 
 	// If no name was given, use default name pattern
