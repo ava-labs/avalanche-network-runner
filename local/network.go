@@ -1,6 +1,7 @@
 package local
 
 import (
+	"bufio"
 	"context"
 	"embed"
 	"encoding/json"
@@ -131,21 +132,53 @@ type NodeProcessCreator interface {
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
-type nodeProcessCreator struct{}
+type nodeProcessCreator struct {
+	color logging.Color
+}
 
-func (*nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	var localNodeConfig NodeConfig
 	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
 	}
+	localNodeConfig.RedirectStdout = true
+	localNodeConfig.RedirectStderr = true
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
 	// Optionally re-direct stdout and stderr
 	if localNodeConfig.RedirectStdout {
-		cmd.Stdout = os.Stdout
+		if npc.color == "" {
+		}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
+		}
+		stdoutscanner := bufio.NewScanner(stdout)
+		childColor := utils.ColorPicker.AssignNewColor()
+		npc.color = childColor
+		go func(scanner *bufio.Scanner) {
+			for scanner.Scan() {
+				txt := childColor.Wrap(fmt.Sprintf("[%s] %s\n", config.Name, scanner.Text()))
+				os.Stdout.Write([]byte(txt))
+			}
+		}(stdoutscanner)
+
 	}
 	if localNodeConfig.RedirectStderr {
-		cmd.Stderr = os.Stderr
+		if npc.color == "" {
+		}
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
+		}
+		stderrscanner := bufio.NewScanner(stderr)
+		go func(scanner *bufio.Scanner) {
+			for scanner.Scan() {
+				txt := npc.color.Wrap(fmt.Sprintf("[%s] %s\n", config.Name, scanner.Text()))
+				os.Stderr.Write([]byte(txt))
+			}
+		}(stderrscanner)
+
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
