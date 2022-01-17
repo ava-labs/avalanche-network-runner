@@ -133,6 +133,7 @@ func newNetwork(params networkParams) (network.Network, error) {
 	return net, nil
 }
 
+func NewDefaultNetwork(
 // NewNetwork returns a new network whose initial state is specified in the config
 func NewNetwork(log logging.Logger, conf network.Config) (network.Network, error) {
 	k8sClient, err := newK8sClient()
