@@ -9,6 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ava-labs/avalanchego/api"
@@ -37,19 +38,19 @@ type args struct {
 	rSubnetID      ids.ID
 }
 
-// SetupSubnet creates the necessary transactions to create a subnet for a given custom VM.
+// CreateSubnetAndBlockchain creates the necessary transactions to create a subnet for a given custom VM.
 // It then also waits until all these transactions are confirmed on all nodes.
 // Finally it creates a blockchain and makes sure all nodes of the given network
 // are validating this blockchain.
 // It requires a `privateKey` in order to issue the necessary transactions
-func SetupSubnet(
+func CreateSubnetAndBlockchain(
 	ctx context.Context,
 	log logging.Logger,
 	vm CustomVM,
 	network network.Network,
 	privateKey string,
 ) error {
-	log.Info("creating subnet")
+	log.Info("creating subnet and blockchain")
 
 	// initialize necessary args for the API calls
 	args, err := newArgs(log, vm, network, privateKey)
@@ -142,7 +143,7 @@ func newArgs(
 // createSubnet issues the CreateSubnet transaction and waits for
 // it to be accepted. It returns an error if the transaction failed
 // or there was a timout.
-func createSubnet(tctx context.Context, args *args) error {
+func createSubnet(ctx context.Context, args *args) error {
 	// Create a subnet
 	subnetIDTx, err := args.txPChainClient.CreateSubnet(
 		args.userPass,
@@ -155,37 +156,33 @@ func createSubnet(tctx context.Context, args *args) error {
 		return fmt.Errorf("unable to create subnet: %w", err)
 	}
 
-	g, ctx := errgroup.WithContext(tctx)
-	for name, node := range args.allNodes {
-		client := node.GetAPIClient().PChainAPI()
-		name := name
-		g.Go(func() error {
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(apiRetryFreq):
-				}
-				status, err := client.GetTxStatus(subnetIDTx, true)
-				if err != nil {
-					return err
-				}
-				if status.Status == platformvm.Committed {
-					args.log.Debug("subnet creation tx (%s) on (%s) accepted", subnetIDTx, name)
-					return nil
-				}
-				args.log.Debug("waiting for subnet creation tx (%s) on (%s) to be accepted", subnetIDTx, name)
-			}
-		})
-	}
-	return g.Wait()
+	// wait until all nodes have accepted the CreateSubnet transaction
+	return utils.AwaitedAllNodesPChainTxAccepted(
+		ctx,
+		args.log,
+		apiRetryFreq,
+		args.allNodes,
+		subnetIDTx)
 }
 
 // isSubnetInList returns an error if the given subnet is not in the client's list
-func isSubnetInList(txPChainClient platformvm.Client, rSubnetID ids.ID) error {
+func isSubnetInList(client platformvm.Client, rSubnetID ids.ID) error {
 	// confirm created subnet appears in subnet list
-	if _, err := txPChainClient.GetSubnets([]ids.ID{rSubnetID}); err != nil {
+	var subnetAPIs []platformvm.APISubnet
+	var err error
+	if subnetAPIs, err = client.GetSubnets([]ids.ID{rSubnetID}); err != nil {
 		return fmt.Errorf("subnet not found: %w", err)
+	}
+	// we should assume that the array returned has length 0 because it is filtered;
+	// but because it's an array let's be thorough
+	found := false
+	for _, api := range subnetAPIs {
+		if api.ID == rSubnetID {
+			found = true
+		}
+	}
+	if !found {
+		return errors.New("subnet not in returned list")
 	}
 	return nil
 }
@@ -193,7 +190,7 @@ func isSubnetInList(txPChainClient platformvm.Client, rSubnetID ids.ID) error {
 // addAllAsValidators adds all nodes as validators to the given subnet
 // and waits for each of the transactions to be accepted.
 // Returns an error if any transaction failed or there was a timeout
-func addAllAsValidators(tctx context.Context, args *args, subnetID string) error {
+func addAllAsValidators(ctx context.Context, args *args, subnetID string) error {
 	// Add all validators to subnet with equal weight
 	for _, node := range args.allNodes {
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
@@ -211,32 +208,16 @@ func addAllAsValidators(tctx context.Context, args *args, subnetID string) error
 			return fmt.Errorf("unable to add subnet validator: %w", err)
 		}
 
-		g, ctx := errgroup.WithContext(tctx)
-		for nID, checknode := range args.allNodes {
-			client := checknode.GetAPIClient().PChainAPI()
-			nID := nID
-			g.Go(func() error {
-				for {
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					case <-time.After(apiRetryFreq):
-					}
-					status, err := client.GetTxStatus(txID, true)
-					if err != nil {
-						return err
-					}
-					if status.Status == platformvm.Committed {
-						args.log.Debug("add subnet validator (%s) tx (%s) accepted", nID, txID)
-						return nil
-					}
-					args.log.Debug("waiting for add subnet validator (%s) tx (%s) to be accepted", nID, txID)
-				}
-			})
+		// wait until all nodes have accepted the AddSubnetValidator transaction
+		if err := utils.AwaitedAllNodesPChainTxAccepted(
+			ctx,
+			args.log,
+			apiRetryFreq,
+			args.allNodes,
+			txID); err != nil {
+			return fmt.Errorf("failed to get all nodes to accept transaction: %w", err)
 		}
-		if err := g.Wait(); err != nil {
-			return err
-		}
+
 	}
 	args.log.Info("all nodes added as subnet validators for subnet %s", subnetID)
 	return nil

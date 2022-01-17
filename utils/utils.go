@@ -1,13 +1,19 @@
 package utils
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"golang.org/x/sync/errgroup"
 )
 
 const genesisNetworkIDKey = "networkID"
@@ -67,4 +73,39 @@ func NewK8sNodeConfigJsonRaw(
 			api, id, image, kind, namespace, tag,
 		),
 	)
+}
+
+// AwaitedAllNodesPChainTxAccepted repeatedly polls the API for the given transaction to reach accepted status.
+// It does this for all nodes passed as the `allNodes` map.
+// It expects the caller to clear the context (timeout, cancel)
+func AwaitedAllNodesPChainTxAccepted(
+	ctx context.Context,
+	log logging.Logger,
+	apiRetryFreq time.Duration,
+	allNodes map[string]node.Node,
+	txID ids.ID) error {
+	g, ctx := errgroup.WithContext(ctx)
+	for nID, checknode := range allNodes {
+		client := checknode.GetAPIClient().PChainAPI()
+		nID := nID
+		g.Go(func() error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(apiRetryFreq):
+				}
+				status, err := client.GetTxStatus(txID, true)
+				if err != nil {
+					return err
+				}
+				if status.Status == platformvm.Committed {
+					log.Debug("add subnet validator (%s) tx (%s) accepted", nID, txID)
+					return nil
+				}
+				log.Debug("waiting for add subnet validator (%s) tx (%s) to be accepted", nID, txID)
+			}
+		})
+	}
+	return g.Wait()
 }

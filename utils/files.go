@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	filePerms = 0755
+	DefaultFilePerms = 0755
 )
 
 // CopyFile is a helper to copy a file from src to dst
@@ -24,7 +24,7 @@ func CopyFile(src, dst string) error {
 	defer out.Close()
 
 	// Grant permission to copy
-	if err := os.Chmod(dst, filePerms); err != nil {
+	if err := os.Chmod(dst, DefaultFilePerms); err != nil {
 		return err
 	}
 

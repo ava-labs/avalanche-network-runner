@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,19 +49,106 @@ type customVMConfig struct {
 // Example of how to run this:
 // go run programs/local/customvm/main.go --vm-path "/path/to/vm/binary" --genesis-path "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	logFactory := logging.NewFactory(loggingConfig)
+	defer logFactory.Close()
 	log, err := logFactory.Make("main")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
+	// setup all configs
+	config, pviper, err := setup(log)
+	if err != nil {
+		log.Fatal("%s", err)
+		return err
+	}
+
+	if err := checkSliceEqualLen(config.VMPaths, config.GenesisPaths, config.SubnetIDs, config.VMIDs); err != nil {
+		log.Fatal("error checking supplied params: %s", err)
+		return err
+	}
+
+	customVms := make([]vms.CustomVM, len(config.VMPaths))
+	for i, v := range config.VMPaths {
+		customVms[i] = vms.CustomVM{
+			Path:     v,
+			Genesis:  config.GenesisPaths[i],
+			Name:     filepath.Base(v),
+			SubnetID: config.SubnetIDs[i],
+			ID:       config.VMIDs[i],
+		}
+	}
+
+	var level logging.Level
+	if slevel := pviper.GetString(loglevelKey); slevel != "" {
+		level, err = logging.ToLevel(slevel)
+		if err != nil {
+			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
+		}
+	} else {
+		level = logging.Info
+	}
+	log.SetDisplayLevel(level)
+	log.SetLogLevel(level)
+
+	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms, pviper.GetString(avagoconfig.WhitelistedSubnetsKey))
+	if err != nil {
+		log.Error("failed to start the network: %s", err)
+		return err
+	}
+	defer func() { // Stop the network when this function returns
+		if err := nw.Stop(context.Background()); err != nil && !errors.Is(err, network.ErrStopped) {
+			log.Debug("error stopping network: %w", err)
+		}
+	}()
+
+	closedOnShutDownChan := utils.WatchShutdownSignals(log, nw.Stop)
+
+	log.Info("waiting for all nodes to report healthy...")
+
+	// Wait until the nodes in the network are ready
+	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
+	defer cancel()
+
+	if err := <-nw.Healthy(ctx); err != nil {
+		log.Error("error waiting for network to become healthy: %s", err)
+		return err
+	}
+	log.Info("network healthy")
+	// use a new timed context as we need to wait for the validators validation start time
+	subnetCtx, subnetCancel := context.WithTimeout(ctx, subnetTimeout)
+	defer subnetCancel()
+	for _, v := range customVms {
+		if err := vms.CreateSubnetAndBlockchain(
+			subnetCtx,
+			log,
+			v,
+			nw,
+			local.DefaultNetworkFundedPrivateKey); err != nil {
+			log.Error("failed running the subnet: %s", err)
+			return err
+		}
+	}
+	log.Info("Subnet and blockchains created. Network will run until you CTRL + C to exit...")
+
+	// Wait until done shutting down network after SIGINT/SIGTERM
+	<-closedOnShutDownChan
+	return nil
+}
+
+// setup all configuration options (cli flags, env vars, config file) with viper
+func setup(log logging.Logger) (customVMConfig, *viper.Viper, error) {
 	v := viper.New()
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.AddConfigPath(".")      // path to look for the config file in
@@ -76,12 +164,10 @@ func main() {
 	flagSet.String(loglevelKey, "info", "Log level for this program")
 
 	if err := v.BindPFlags(flagSet); err != nil {
-		log.Fatal("couldn't bind pflags: %s", err)
-		os.Exit(1)
+		return customVMConfig{}, v, fmt.Errorf("couldn't bind pflags: %s", err)
 	}
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
-		log.Fatal("couldn't parse pflags: %s", err)
-		os.Exit(1)
+		return customVMConfig{}, v, fmt.Errorf("couldn't parse pflags: %s", err)
 	}
 
 	v.AutomaticEnv()
@@ -92,19 +178,10 @@ func main() {
 
 	var c customVMConfig
 	if err := v.Unmarshal(&c); err != nil {
-		log.Fatal("couldn't unmarshal config: %s", err)
-		os.Exit(1)
+		return customVMConfig{}, v, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
 
-	if err := checkSliceEqualLen(c.VMPaths, c.GenesisPaths, c.SubnetIDs, c.VMIDs); err != nil {
-		log.Fatal("error checking supplied params: %s", err)
-		os.Exit(1)
-	}
-
-	if err := run(log, c, v); err != nil {
-		log.Fatal("%s", err)
-		os.Exit(1)
-	}
+	return c, v, nil
 }
 
 // checkSliceEqualLen compares the list of provided string arrays for its length
@@ -127,73 +204,5 @@ func checkSliceEqualLen(ss ...[]string) error {
 			return fmt.Errorf("unequal length")
 		}
 	}
-	return nil
-}
-
-func run(log logging.Logger, config customVMConfig, v *viper.Viper) error {
-	customVms := make([]vms.CustomVM, len(config.VMPaths))
-	for i, v := range config.VMPaths {
-		customVms[i] = vms.CustomVM{
-			Path:     v,
-			Genesis:  config.GenesisPaths[i],
-			Name:     filepath.Base(v),
-			SubnetID: config.SubnetIDs[i],
-			ID:       config.VMIDs[i],
-		}
-	}
-
-	var level logging.Level
-	var err error
-	if slevel := v.GetString(loglevelKey); slevel != "" {
-		level, err = logging.ToLevel(slevel)
-		if err != nil {
-			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
-		}
-	} else {
-		level = logging.Info
-	}
-	log.SetDisplayLevel(level)
-	log.SetLogLevel(level)
-
-	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms, v.GetString(avagoconfig.WhitelistedSubnetsKey))
-	if err != nil {
-		return err
-	}
-	defer func() { // Stop the network when this function returns
-		if err := nw.Stop(context.Background()); err != nil {
-			if err != network.ErrStopped {
-				log.Debug("error stopping network: %w", err)
-			}
-		}
-	}()
-
-	// Wait until the nodes in the network are ready
-	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
-	defer cancel()
-
-	watchShutdown := utils.WatchShutdownSignals(log, nw.Stop)
-
-	healthyChan := nw.Healthy(ctx)
-	log.Info("waiting for all nodes to report healthy...")
-	if err := <-healthyChan; err != nil {
-		return err
-	}
-	// use a new timed context as we need to wait for the validators validation start time
-	subnetCtx, subnetCancel := context.WithTimeout(ctx, subnetTimeout)
-	defer subnetCancel()
-	for _, v := range customVms {
-		if err := vms.SetupSubnet(
-			subnetCtx,
-			log,
-			v,
-			nw,
-			local.DefaultNetworkFundedPrivateKey); err != nil {
-			return err
-		}
-	}
-	// Wait until done shutting down network after SIGINT/SIGTERM
-	log.Info("All nodes healthy, subnet created. Network will run until you CTRL + C to exit...")
-
-	<-watchShutdown
 	return nil
 }
