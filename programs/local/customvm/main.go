@@ -42,12 +42,14 @@ type customVMConfig struct {
 	VMIDs        []string `json:"vmIds"`
 }
 
-// Shows example usage of the Avalanche Network Runner with custom VMs.
+// Execute the Avalanche Network Runner with custom VMs.
 // Creates a local five node Avalanche network all starting an avalanchego binary
-// and a provided custom VM binary. Waits for all nodes to become healthy.
+// and provided custom VM binaries.
+// The binary supports multiple VMs but to date only one has been thoroughly tested.
+// Waits for all nodes to become healthy.
 // The network runs until the user provides a SIGINT or SIGTERM.
 // Example of how to run this:
-// go run programs/local/customvm/main.go --vm-path "/path/to/vm/binary" --genesis-path "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
+// go run programs/local/customvm/main.go --vm-paths "/path/to/vm/binary" --genesis-paths "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
 func main() {
 	if err := run(); err != nil {
 		os.Exit(1)
@@ -90,19 +92,7 @@ func run() error {
 		}
 	}
 
-	var level logging.Level
-	if slevel := pviper.GetString(loglevelKey); slevel != "" {
-		level, err = logging.ToLevel(slevel)
-		if err != nil {
-			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
-		}
-	} else {
-		level = logging.Info
-	}
-	log.SetDisplayLevel(level)
-	log.SetLogLevel(level)
-
-	nw, err := local.NewDefaultNetworkWithVm(log, config.BinaryPath, customVms, pviper.GetString(avagoconfig.WhitelistedSubnetsKey))
+	nw, err := local.NewDefaultNetworkWithVM(log, config.BinaryPath, customVms, pviper.GetString(avagoconfig.WhitelistedSubnetsKey))
 	if err != nil {
 		log.Error("failed to start the network: %s", err)
 		return err
@@ -154,7 +144,7 @@ func setup(log logging.Logger) (customVMConfig, *viper.Viper, error) {
 	viper.AddConfigPath(".")      // path to look for the config file in
 	v.SetDefault(binaryPathKey, defaultBinaryPath)
 
-	flagSet := pflag.NewFlagSet("customVMConfig", pflag.ExitOnError)
+	flagSet := pflag.NewFlagSet("customVMConfig", pflag.ContinueOnError)
 	flagSet.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
 	flagSet.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
 	flagSet.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
@@ -180,6 +170,20 @@ func setup(log logging.Logger) (customVMConfig, *viper.Viper, error) {
 	if err := v.Unmarshal(&c); err != nil {
 		return customVMConfig{}, v, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
+
+	// parse custom log level
+	var level logging.Level
+	var err error
+	if slevel := v.GetString(loglevelKey); slevel != "" {
+		level, err = logging.ToLevel(slevel)
+		if err != nil {
+			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
+		}
+	} else {
+		level = logging.Info
+	}
+	log.SetDisplayLevel(level)
+	log.SetLogLevel(level)
 
 	return c, v, nil
 }

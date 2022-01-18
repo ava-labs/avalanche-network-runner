@@ -500,14 +500,14 @@ func TestNetworkFromConfig(t *testing.T) {
 func TestNetworkFromConfigWithVm(t *testing.T) {
 	assert := assert.New(t)
 	var customVms []vms.CustomVM
-	_, err := NewDefaultConfigWithVm("binary/path", customVms)
+	_, err := NewDefaultConfigWithVM("binary/path", customVms)
 	assert.Error(err)
 	customVms = []vms.CustomVM{
 		{
 			Path: "only/path/no/genesis",
 		},
 	}
-	_, err = NewDefaultConfigWithVm("binary/path", customVms)
+	_, err = NewDefaultConfigWithVM("binary/path", customVms)
 	assert.Error(err)
 	tmpDir, err := os.MkdirTemp("", "custom-vm")
 	if err != nil {
@@ -540,11 +540,11 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 			SubnetID: "INVALID-SUBNET-ID-WITH-CORRECT-LENGTHqn8pq5NwYSYV1",
 		},
 	}
-	_, err = NewDefaultConfigWithVm(tmpPath.Name(), customVms)
+	_, err = NewDefaultConfigWithVM(tmpPath.Name(), customVms)
 	assert.Error(err)
 
 	customVms[0].SubnetID = "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
-	_, err = NewDefaultConfigWithVm(tmpPath.Name(), customVms)
+	_, err = NewDefaultConfigWithVM(tmpPath.Name(), customVms)
 	assert.NoError(err)
 }
 

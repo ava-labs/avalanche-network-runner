@@ -301,13 +301,13 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	return config
 }
 
-func NewDefaultNetworkWithVm(
+func NewDefaultNetworkWithVM(
 	log logging.Logger,
 	binaryPath string,
 	vms []vms.CustomVM,
-	whitelistedSubnets string,
+	whitelistedSubnets string, // TODO remove when dynamic subnet whitelisting is supported
 ) (network.Network, error) {
-	conf, err := NewDefaultConfigWithVm(binaryPath, vms)
+	conf, err := NewDefaultConfigWithVM(binaryPath, vms)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +315,7 @@ func NewDefaultNetworkWithVm(
 	return newNetwork(log, conf, api.NewAPIClient, NewNodeProcess)
 }
 
-func NewDefaultConfigWithVm(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
+func NewDefaultConfigWithVM(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
 	if len(customVms) == 0 {
 		return network.Config{}, errors.New("no custom vm information has been provided - a default network should be created if this is intended")
 	}

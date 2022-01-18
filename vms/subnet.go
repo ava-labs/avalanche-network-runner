@@ -166,23 +166,15 @@ func createSubnet(ctx context.Context, args *args) error {
 }
 
 // isSubnetInList returns an error if the given subnet is not in the client's list
-func isSubnetInList(client platformvm.Client, rSubnetID ids.ID) error {
+func isSubnetInList(client platformvm.Client, subnetID ids.ID) error {
 	// confirm created subnet appears in subnet list
 	var subnetAPIs []platformvm.APISubnet
 	var err error
-	if subnetAPIs, err = client.GetSubnets([]ids.ID{rSubnetID}); err != nil {
+	if subnetAPIs, err = client.GetSubnets([]ids.ID{subnetID}); err != nil {
 		return fmt.Errorf("subnet not found: %w", err)
 	}
-	// we should assume that the array returned has length 0 because it is filtered;
-	// but because it's an array let's be thorough
-	found := false
-	for _, api := range subnetAPIs {
-		if api.ID == rSubnetID {
-			found = true
-		}
-	}
-	if !found {
-		return errors.New("subnet not in returned list")
+	if len(subnetAPIs) != 1 {
+		return fmt.Errorf("expected exactly 1 but returned %d subnetAPIs in call to `GetSubnets`", len(subnetAPIs))
 	}
 	return nil
 }

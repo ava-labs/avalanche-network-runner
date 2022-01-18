@@ -25,7 +25,7 @@ type NodeConfig struct {
 	RedirectStdout bool `json:"redirectStdout"`
 	// If non-nil, direct this node's Stderr to os.Stderr
 	RedirectStderr bool `json:"redirectStderr"`
-	// VmPath
+	// CustomVMs a slice of custom VMs this node should run
 	CustomVMs []vms.CustomVM
 }
 
