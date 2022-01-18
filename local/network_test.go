@@ -1,10 +1,14 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -730,6 +734,115 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
+}
+
+type testNodeProcessCreator struct {
+	nodeProcessCreator
+	buf bytes.Buffer
+}
+
+// TestChildCmdRedirection checks that RedirectStdout set to true on a NodeConfig
+// results indeed in the output being prepended and colored.
+// For the color check we just measure the length of the required terminal escape values
+func TestChildCmdRedirection(t *testing.T) {
+	// we need this to create the actual process we test
+	testNodeProcCreator := &testNodeProcessCreator{
+		nodeProcessCreator: nodeProcessCreator{},
+	}
+
+	// define a bogus output
+	testOutput := "this is the output"
+	// we will use `echo` with the testOutpu as we will get a measurable result
+	ctrlCmd := exec.Command("echo", testOutput)
+	// we would not really need to execute the command, just the ouput would be enough
+	// nevertheless let's do it to simulate the actual case
+	expectedResult, err := ctrlCmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// we will temporarily replace the `stdOutFunc` so that the color replacing function
+	// writes into a buffer this test controls, instead of the uncontrollable os.Stdout
+	// which has already been redirected with the StdOutPipe()
+	replaceStdOutFunc := func() io.Writer {
+		return &testNodeProcCreator.buf
+	}
+	replaceStdErrFunc := func() io.Writer {
+		return &testNodeProcCreator.buf
+	}
+
+	// temporarily replace the functions
+	stdOutFunc = replaceStdOutFunc
+	stdErrFunc = replaceStdErrFunc
+	// after we are done, we need to set them back
+	// (to avoid potential interferences with other tests)
+	defer func() {
+		stdOutFunc = getDefaultStdOut
+		stdErrFunc = getDefaultStdErr
+	}()
+
+	// this is the "mock" node name we want to see prepended to the output
+	mockNodeName := "redirect-test-node"
+
+	// now create the node process and check it will be prepended and colored
+	testConfig := node.Config{
+		ImplSpecificConfig: json.RawMessage(`{"binaryPath":"echo","redirectStdout":true,"redirectStderr":true}`),
+		Name:               mockNodeName,
+	}
+	proc, err := testNodeProcCreator.NewNodeProcess(testConfig, testOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// we need a bit of synchronization, otherwise, by the time we read `newResult`
+	// the value might already have been written
+	stop := make(chan struct{})
+	var newResult string
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				t.Log("context timed out")
+				return
+				// just poll until we have it
+			case <-time.After(10 * time.Millisecond):
+				newResult = testNodeProcCreator.buf.String()
+				if len(newResult) != 0 {
+					close(stop)
+					return
+				}
+			}
+		}
+	}()
+	if err := proc.Start(); err != nil {
+		t.Fatal(err)
+	}
+	// wait until we have the value
+	select {
+	case <-stop:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+
+	// let the process finish for better cleanup
+	if err = proc.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	// now do the checks:
+	// the new string should contain the node name
+	if !strings.Contains(newResult, mockNodeName) {
+		t.Fatalf("expected subcommand to contain node name %s, but it didn't", mockNodeName)
+	}
+
+	// and it should have a specific length:
+	//             the actual output   + the color terminal escape sequence      + node name    + []<space> + color terminal reset escape sequence
+	expectedLen := len(expectedResult) + len(utils.ColorPicker.AssignNewColor()) + len(mockNodeName) + 3 + len(logging.Reset)
+	if len(newResult) != expectedLen {
+		t.Fatalf("expected string length to be %d, but it was %d", expectedLen, len(newResult))
+	}
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and
