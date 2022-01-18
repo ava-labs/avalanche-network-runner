@@ -60,7 +60,10 @@ func ScanChildProcessForText(reader io.Reader, writer io.Writer, wrapText string
 		// and therefore the routine terminates
 		for scanner.Scan() {
 			txt := assignedColor.Wrap(fmt.Sprintf("[%s] %s\n", wrapText, scanner.Text()))
-			writer.Write([]byte(txt))
+			if _, err := writer.Write([]byte(txt)); err != nil {
+				// TODO better handling required? Failing and returning doesn't seem quite right either
+				fmt.Println("failed to write wrapped text to writer")
+			}
 		}
 	}(stdoutscanner)
 
