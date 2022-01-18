@@ -497,7 +497,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	checkNetwork(t, net, runningNodes, nil)
 }
 
-func TestNetworkFromConfigWithVm(t *testing.T) {
+func TestNetworkFromConfigWithVM(t *testing.T) {
 	assert := assert.New(t)
 	var customVms []vms.CustomVM
 	_, err := NewDefaultConfigWithVM("binary/path", customVms)
@@ -529,6 +529,10 @@ func TestNetworkFromConfigWithVm(t *testing.T) {
 	}
 	pluginsDir := filepath.Join(tmpDir, "plugins")
 	err = os.Mkdir(pluginsDir, os.FileMode(0777))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = os.Create(filepath.Join(pluginsDir, "evm"))
 	if err != nil {
 		t.Fatal(err)
 	}
