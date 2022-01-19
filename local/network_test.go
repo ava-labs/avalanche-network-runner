@@ -519,10 +519,6 @@ func TestNetworkFromConfigWithVM(t *testing.T) {
 		}
 	}()
 
-	tmpGen, err := os.CreateTemp(tmpDir, "temp-genesis")
-	if err != nil {
-		t.Fatal(err)
-	}
 	tmpPath, err := os.CreateTemp(tmpDir, "temp-path")
 	if err != nil {
 		t.Fatal(err)
@@ -538,10 +534,10 @@ func TestNetworkFromConfigWithVM(t *testing.T) {
 	}
 	customVms = []vms.CustomChainConfig{
 		{
-			VMPath:      tmpPath.Name(),
-			GenesisPath: tmpGen.Name(),
-			Name:        filepath.Base(tmpPath.Name()),
-			SubnetID:    "INVALID-SUBNET-ID-WITH-CORRECT-LENGTHqn8pq5NwYSYV1",
+			VMPath:   tmpPath.Name(),
+			Genesis:  []byte("hi mom"),
+			Name:     filepath.Base(tmpPath.Name()),
+			SubnetID: "INVALID-SUBNET-ID-WITH-CORRECT-LENGTHqn8pq5NwYSYV1",
 		},
 	}
 	_, err = NewDefaultConfigWithVM(tmpPath.Name(), customVms)

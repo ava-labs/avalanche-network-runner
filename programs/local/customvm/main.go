@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -26,10 +29,64 @@ const (
 var (
 	goPath                 = os.ExpandEnv("$GOPATH")
 	defaultAvalanchegoPath string
+	defaultEVMPath         string
+	defaultEVMGenesis      = []byte(`{
+		"config": {
+			"chainId": 43115,
+			"homesteadBlock": 0,
+			"daoForkBlock": 0,
+			"daoForkSupport": true,
+			"eip150Block": 0,
+			"eip150Hash": "0x2086799aeebeae135c246c65021c82b4e15a2c451340993aacfd2751886514f0",
+			"eip155Block": 0,
+			"eip158Block": 0,
+			"byzantiumBlock": 0,
+			"constantinopleBlock": 0,
+			"petersburgBlock": 0,
+			"istanbulBlock": 0,
+			"muirGlacierBlock": 0,
+			"apricotPhase1BlockTimestamp": 0,
+			"apricotPhase2BlockTimestamp": 0
+		},
+		"nonce": "0x0",
+		"timestamp": "0x0",
+		"extraData": "0x00",
+		"gasLimit": "0x5f5e100",
+		"difficulty": "0x0",
+		"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"coinbase": "0x0000000000000000000000000000000000000000",
+		"alloc": {
+			"8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC": {
+				"balance": "0x295BE96E64066972000000"
+			}
+		},
+		"number": "0x0",
+		"gasUsed": "0x0",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+	}`)
+	defaultConfig = `{
+		"logLevel":"INFO",
+		"avalanchegoPath":"%s",
+		"vmConfigs":[
+			{
+				"name":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
+				"vmPath":"%s",
+				"genesis":"%s",
+				"subnetID":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
+				"vmID":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
+			}
+		]
+	}`
 )
 
+// TODO find a better way to define a default config
 func init() {
 	defaultAvalanchegoPath = filepath.Join(goPath, "src", "github.com", "ava-labs", "avalanchego", "build", "avalanchego")
+	defaultEVMPath = filepath.Join(goPath, "src", "github.com", "ava-labs", "avalanchego", "build", "plugins", "evm")
+	defaultEVMGenesisBase64 := base64.StdEncoding.EncodeToString(defaultEVMGenesis)
+	defaultConfig = fmt.Sprintf(defaultConfig, defaultAvalanchegoPath, defaultEVMPath, defaultEVMGenesisBase64)
+	defaultConfig = strings.ReplaceAll(defaultConfig, "\n", "")
+	defaultConfig = strings.ReplaceAll(defaultConfig, "\t", "")
 }
 
 type config struct {
@@ -147,13 +204,18 @@ func readConfig(log logging.Logger) (config, error) {
 		v.SetConfigFile(*configPath)
 	}
 	v.AutomaticEnv()
+
+	var c config
 	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
-		log.Warn("no config file provided")
-	}
-	var c config
-	if err := v.Unmarshal(&c); err != nil {
-		return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
+		log.Warn("no config file provided. Using default, which creates an evm instance.")
+		if err := json.Unmarshal([]byte(defaultConfig), &c); err != nil {
+			return config{}, fmt.Errorf("couldn't unmarshal default config: %w", err)
+		}
+	} else {
+		if err := v.Unmarshal(&c); err != nil {
+			return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
+		}
 	}
 	logLevel, err := logging.ToLevel(c.LogLevel)
 	if err != nil {
@@ -162,6 +224,6 @@ func readConfig(log logging.Logger) (config, error) {
 		log.SetDisplayLevel(logLevel)
 		log.SetLogLevel(logLevel)
 	}
-	log.Info("using config: %v", c)
+	log.Debug("using config: %+v", c)
 	return c, nil
 }

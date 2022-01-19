@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -25,8 +24,8 @@ type CustomChainConfig struct {
 	Name string `json:"name"`
 	// Path to VM binary
 	VMPath string `json:"vmPath"`
-	// Path to blockchain genesis
-	GenesisPath string `json:"genesisPath"`
+	// blockchain genesis
+	Genesis []byte `json:"genesis"`
 	// ID of subnet that the blockchain will run on as the string repr. of an ids.ID
 	// TODO remove once dynamic whitelisting is supported by avalanchego
 	SubnetID string `json:"subnetID"`
@@ -232,18 +231,13 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error 
 }
 
 // createBlockchain creates a new blockchain with ID [vm.VMID]
-// and the genesis at [vm.GenesisPath].
+// and genesis [vm.Genesis].
 func createBlockchain(
 	ctx context.Context,
 	subnetID ids.ID,
 	args *args,
 	vm CustomChainConfig,
 ) (ids.ID, error) {
-	// Read genesis
-	genesis, err := os.ReadFile(vm.GenesisPath)
-	if err != nil {
-		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
-	}
 	// Create blockchain
 	txID, err := args.issuerClient.CreateBlockchain(
 		args.userPass,
@@ -253,7 +247,7 @@ func createBlockchain(
 		vm.VMID,
 		[]string{},
 		vm.Name,
-		genesis,
+		vm.Genesis,
 	)
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not create blockchain: %w", err)

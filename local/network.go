@@ -345,9 +345,6 @@ func NewDefaultConfigWithVM(avalanchegoPath string, customChainConfigs []vms.Cus
 		if _, err := os.Stat(chainConfig.VMPath); os.IsNotExist(err) {
 			return network.Config{}, fmt.Errorf("%s vm path does not exist", chainConfig.VMPath)
 		}
-		if _, err := os.Stat(chainConfig.GenesisPath); os.IsNotExist(err) {
-			return network.Config{}, fmt.Errorf("%s genesis does not exist", chainConfig.GenesisPath)
-		}
 		if _, err := ids.FromString(chainConfig.SubnetID); err != nil {
 			return network.Config{}, fmt.Errorf("the provided subnetID %s failed validation", chainConfig.SubnetID)
 		}
