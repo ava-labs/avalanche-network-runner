@@ -123,9 +123,9 @@ func newArgs(
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	txPChainClient := txClient.PChainAPI()
+	client := txClient.PChainAPI()
 	// Import genesis key
-	fundedAddress, err := txPChainClient.ImportKey(defaultUserPass, fundedPChainPrivateKey)
+	fundedAddress, err := client.ImportKey(defaultUserPass, fundedPChainPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to import genesis key: %w", err)
 	}
@@ -136,7 +136,7 @@ func newArgs(
 	}
 	return &args{
 		log:            log,
-		txPChainClient: txPChainClient,
+		txPChainClient: client,
 		fundedAddress:  fundedAddress,
 		userPass:       defaultUserPass,
 		allNodes:       nodes,
@@ -317,7 +317,6 @@ func ensureValidating(
 			}
 		})
 	}
-
 	return g.Wait()
 }
 
