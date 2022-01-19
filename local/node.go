@@ -15,7 +15,7 @@ var (
 	_ NodeProcess = (*nodeProcessImpl)(nil)
 )
 
-// Node configurations which are specific to the
+// NodeConfig configurations which are specific to the
 // local implementation of a network / node.
 type NodeConfig struct {
 	// What type of node this is
@@ -26,7 +26,7 @@ type NodeConfig struct {
 	RedirectStderr bool `json:"redirectStderr"`
 }
 
-// Use an interface so we can mock running
+// NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
 	// Start this process

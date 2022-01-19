@@ -20,52 +20,52 @@ var supportedColors = []logging.Color{
 	logging.Yellow,
 }
 
-type color struct {
-	lock       sync.Mutex
-	usedColors []logging.Color
+// ColorPicker allows to assign a new color
+type ColorPicker interface {
+	NextColor() logging.Color // get the next color
 }
 
-// ColorPicker allows to assign a color to different clients
-var ColorPicker = &color{
-	usedColors: make([]logging.Color, 0),
+// ColorPickerImpl implements ColorPicker
+type ColorPickerImpl struct {
+	lock      sync.Mutex
+	usedIndex int
 }
 
-// AssignNewColor to a client. If all supportedColors have been assigned,
+// NewColorPicker allows to assign a color to different clients
+func NewColorPicker() *ColorPickerImpl {
+	return &ColorPickerImpl{}
+}
+
+// NextColor for a client. If all supportedColors have been assigned,
 // it starts over with the first color
 // Doesn't need to be exported for the current use case but could be useful later
-func (c *color) AssignNewColor() logging.Color {
+func (c *ColorPickerImpl) NextColor() logging.Color {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if len(c.usedColors) == len(supportedColors) {
-		c.usedColors = make([]logging.Color, 0)
+	if c.usedIndex > len(supportedColors)-1 {
+		c.usedIndex = 0
 	}
-
-	pick := supportedColors[len(c.usedColors)]
-	c.usedColors = append(c.usedColors, pick)
+	pick := supportedColors[c.usedIndex]
+	c.usedIndex++
 
 	return pick
 }
 
-// ScanChildProcessForText scans the given `reader` for text and prepends the `wrapText` parameter to it.
-// It also assigns a new color if the `assignedColor` is of zero value
-func ScanChildProcessForText(reader io.Reader, writer io.Writer, wrapText string, assignedColor logging.Color) logging.Color {
-	stdoutscanner := bufio.NewScanner(reader)
-	if assignedColor == "" {
-		assignedColor = ColorPicker.AssignNewColor()
-	}
+// ColorReaderTextOnWriter scans the given `reader` for text and prepends the `wrapText` parameter to it.
+// It also assigns the passed color to the text and writes it to the given `writer`
+func ColorReaderTextOnWriter(reader io.Reader, writer io.Writer, wrapText string, color logging.Color) {
+	scanner := bufio.NewScanner(reader)
 	go func(scanner *bufio.Scanner) {
 		// we should not need any go routine control here:
 		// when the program exits, `Scan()` will hit an EOF and return false,
 		// and therefore the routine terminates
 		for scanner.Scan() {
-			txt := assignedColor.Wrap(fmt.Sprintf("[%s] %s\n", wrapText, scanner.Text()))
+			txt := color.Wrap(fmt.Sprintf("[%s] %s\n", wrapText, scanner.Text()))
 			if _, err := writer.Write([]byte(txt)); err != nil {
-				// TODO better handling required? Failing and returning doesn't seem quite right either
+				// this error handling is required for linting, but we can ignore this situation as it is highly unlikely
 				fmt.Println("failed to write wrapped text to writer")
 			}
 		}
-	}(stdoutscanner)
-
-	return assignedColor
+	}(scanner)
 }

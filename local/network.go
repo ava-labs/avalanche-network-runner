@@ -134,24 +134,9 @@ type NodeProcessCreator interface {
 }
 
 type nodeProcessCreator struct {
-	color logging.Color
-}
-
-// default variables pointing to the default functions to get the os output files
-// we can replace these in testing (see TestChildCmdRedirection in local/network_test.go)
-var (
-	stdOutFunc = getDefaultStdOut
-	stdErrFunc = getDefaultStdErr
-)
-
-// default function to get the StdOut write
-func getDefaultStdOut() io.Writer {
-	return os.Stdout
-}
-
-// default function to get the StdErr write
-func getDefaultStdErr() io.Writer {
-	return os.Stderr
+	colorPicker utils.ColorPicker // each child process will be colored in a different way, this field holds the color picker
+	stdout      io.Writer         // usually os.Stdout, but for testing can be replaced
+	stderr      io.Writer         // usually os.Stderr, but for testing can be replaced
 }
 
 // NewNodeProcess creates a new process of the passed binary
@@ -164,22 +149,24 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
+	// assign a new color to this process (might not be used if the localNodeConfig isn't set for it)
+	color := npc.colorPicker.NextColor()
 	// Optionally redirect stdout and stderr
 	if localNodeConfig.RedirectStdout {
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
 		}
-		// redirect stdout and assign a color to the text if not already assigned
-		npc.color = utils.ScanChildProcessForText(stdout, stdOutFunc(), config.Name, npc.color)
+		// redirect stdout and assign a color to the text
+		utils.ColorReaderTextOnWriter(stdout, npc.stdout, config.Name, color)
 	}
 	if localNodeConfig.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
 			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
 		}
-		// redirect stderr and assign a color to the text if not already assigned
-		npc.color = utils.ScanChildProcessForText(stderr, stdErrFunc(), config.Name, npc.color)
+		// redirect stderr and assign a color to the text
+		utils.ColorReaderTextOnWriter(stderr, npc.stderr, config.Name, color)
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
@@ -207,7 +194,11 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 ) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{})
+	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 // newNetwork creates a network from given configuration

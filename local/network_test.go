@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os/exec"
 	"strings"
 	"testing"
@@ -736,18 +735,16 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 }
 
-type testNodeProcessCreator struct {
-	nodeProcessCreator
-	buf bytes.Buffer
-}
-
 // TestChildCmdRedirection checks that RedirectStdout set to true on a NodeConfig
 // results indeed in the output being prepended and colored.
 // For the color check we just measure the length of the required terminal escape values
 func TestChildCmdRedirection(t *testing.T) {
 	// we need this to create the actual process we test
-	testNodeProcCreator := &testNodeProcessCreator{
-		nodeProcessCreator: nodeProcessCreator{},
+	var buf bytes.Buffer
+	npc := &nodeProcessCreator{
+		stdout:      &buf,
+		stderr:      &buf,
+		colorPicker: utils.NewColorPicker(),
 	}
 
 	// define a bogus output
@@ -761,26 +758,6 @@ func TestChildCmdRedirection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// we will temporarily replace the `stdOutFunc` so that the color replacing function
-	// writes into a buffer this test controls, instead of the uncontrollable os.Stdout
-	// which has already been redirected with the StdOutPipe()
-	replaceStdOutFunc := func() io.Writer {
-		return &testNodeProcCreator.buf
-	}
-	replaceStdErrFunc := func() io.Writer {
-		return &testNodeProcCreator.buf
-	}
-
-	// temporarily replace the functions
-	stdOutFunc = replaceStdOutFunc
-	stdErrFunc = replaceStdErrFunc
-	// after we are done, we need to set them back
-	// (to avoid potential interferences with other tests)
-	defer func() {
-		stdOutFunc = getDefaultStdOut
-		stdErrFunc = getDefaultStdErr
-	}()
-
 	// this is the "mock" node name we want to see prepended to the output
 	mockNodeName := "redirect-test-node"
 
@@ -789,7 +766,7 @@ func TestChildCmdRedirection(t *testing.T) {
 		ImplSpecificConfig: json.RawMessage(`{"binaryPath":"echo","redirectStdout":true,"redirectStderr":true}`),
 		Name:               mockNodeName,
 	}
-	proc, err := testNodeProcCreator.NewNodeProcess(testConfig, testOutput)
+	proc, err := npc.NewNodeProcess(testConfig, testOutput)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -808,7 +785,7 @@ func TestChildCmdRedirection(t *testing.T) {
 				return
 				// just poll until we have it
 			case <-time.After(10 * time.Millisecond):
-				newResult = testNodeProcCreator.buf.String()
+				newResult = buf.String()
 				if len(newResult) != 0 {
 					close(stop)
 					return
@@ -839,7 +816,7 @@ func TestChildCmdRedirection(t *testing.T) {
 
 	// and it should have a specific length:
 	//             the actual output   + the color terminal escape sequence      + node name    + []<space> + color terminal reset escape sequence
-	expectedLen := len(expectedResult) + len(utils.ColorPicker.AssignNewColor()) + len(mockNodeName) + 3 + len(logging.Reset)
+	expectedLen := len(expectedResult) + len(utils.NewColorPicker().NextColor()) + len(mockNodeName) + 3 + len(logging.Reset)
 	if len(newResult) != expectedLen {
 		t.Fatalf("expected string length to be %d, but it was %d", expectedLen, len(newResult))
 	}
