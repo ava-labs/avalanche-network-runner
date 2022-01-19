@@ -105,15 +105,11 @@ func AwaitAllNodesPChainTxAccepted(
 				if err != nil {
 					return err
 				}
-				switch status.Status {
-				case platformvm.Committed:
+				if status.Status == platformvm.Committed {
 					log.Debug("tx %s accepted on node %s", txID, nodeName)
 					return nil
-				case platformvm.Dropped, platformvm.Aborted:
-					return fmt.Errorf("expected transaction %s to be accepted but was dropped on node %s", txID, nodeName)
-				default: // Processing or unknown
-					log.Debug("waiting for tx %s to be accepted on node %s", txID, nodeName)
 				}
+				log.Debug("waiting for tx %s to be accepted on node %s", txID, nodeName)
 			}
 		})
 	}

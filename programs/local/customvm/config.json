@@ -1,0 +1,12 @@
+{
+    "logLevel":"INFO",
+    "vmConfigs":[
+        {
+            "name":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
+            "vmPath":"/home/danlaine/go/src/github.com/ava-labs/avalanchego/build/plugins/evm",
+            "genesisPath":"/home/danlaine/go/src/github.com/ava-labs/avalanche-network-runner/programs/local/customvm/todo_remove.json",
+            "subnetID":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
+            "vmID":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
+        }
+    ]
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -22,7 +23,17 @@ const (
 	configPathKey  = "config-path"
 )
 
+var (
+	goPath                 = os.ExpandEnv("$GOPATH")
+	defaultAvalanchegoPath string
+)
+
+func init() {
+	defaultAvalanchegoPath = filepath.Join(goPath, "src", "github.com", "ava-labs", "avalanchego", "build", "avalanchego")
+}
+
 type config struct {
+	LogLevel string `json:"logLevel"`
 	// Path to AvalancheGo binary
 	AvalanchegoPath string                  `json:"avalanchegoPath"`
 	VMConfigs       []vms.CustomChainConfig `json:"vmConfigs"`
@@ -35,7 +46,7 @@ type config struct {
 // Waits for all nodes to become healthy.
 // The network runs until the user provides a SIGINT or SIGTERM.
 // Example of how to run this:
-// go run programs/local/customvm/main.go --vm-paths "/path/to/vm/binary" --genesis-paths "/path/to/genesis/file" --subnet-ids "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" --vm-ids "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
+// go run programs/local/customvm/main.go
 func main() {
 	if err := run(); err != nil {
 		os.Exit(1)
@@ -128,11 +139,14 @@ func readConfig(log logging.Logger) (config, error) {
 	// By default, look for config file named "config" in this directory
 	v.SetConfigName("config")
 	v.AddConfigPath(".")
+	v.SetDefault("avalanchegoPath", defaultAvalanchegoPath)
+	v.SetDefault("logLevel", logging.Info.String())
 	if len(*configPath) > 0 {
 		// If config file path given, use that.
 		// Note that SetConfigName and AddConfigPath are ignored in this case.
 		v.SetConfigFile(*configPath)
 	}
+	log.Fatal("TODO remove %s", *configPath)
 
 	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
@@ -142,5 +156,13 @@ func readConfig(log logging.Logger) (config, error) {
 	if err := v.Unmarshal(&c); err != nil {
 		return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
+	logLevel, err := logging.ToLevel(c.LogLevel)
+	if err != nil {
+		log.Warn("got invalid log level %q. Ignoring and using log level INFO", logLevel)
+	} else {
+		log.SetDisplayLevel(logLevel)
+		log.SetLogLevel(logLevel)
+	}
+	log.Info("using config: %v", c)
 	return c, nil
 }

@@ -22,7 +22,7 @@ import (
 // Config for a blockchain that will be created
 type CustomChainConfig struct {
 	// Name for the custom chain
-	Name string
+	Name string `json:"name"`
 	// Path to VM binary
 	VMPath string `json:"vmPath"`
 	// Path to blockchain genesis
@@ -83,6 +83,7 @@ func CreateSubnetAndBlockchain(
 	if subnetID != expectedSubnetID {
 		return fmt.Errorf("expected subnet ID %s but got %s", expectedSubnetID, subnetID)
 	}
+	log.Fatal("TODO REMOVE expected %s got %s", expectedSubnetID, subnetID)
 	args.log.Info("all nodes accepted subnet tx creation")
 
 	// check the newly created subnet is in the subnet list
@@ -102,7 +103,7 @@ func CreateSubnetAndBlockchain(
 	}
 
 	// Make sure all nodes are validating the new chain
-	if err := ensureValidating(ctx, log, args.nodes, blockchainID); err != nil {
+	if err := assertAllValidating(ctx, log, args.nodes, blockchainID); err != nil {
 		return fmt.Errorf("error checking all nodes are validating the blockchain: %w", err)
 	}
 
@@ -199,8 +200,8 @@ func assertSubnetCreated(client platformvm.Client, subnetID ids.ID) error {
 
 // addAllAsValidators adds all nodes in [args.nodes] as validators of [args.subnetID].
 func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error {
+	args.log.Info("adding nodes as validators of %s...", subnetID)
 	// Add all validators to subnet with equal weight
-	txIDs := []ids.ID{}
 	for _, node := range args.nodes {
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
 		txID, err := args.issuerClient.AddSubnetValidator(
@@ -216,12 +217,8 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error 
 		if err != nil {
 			return fmt.Errorf("unable to add subnet validator: %w", err)
 		}
-		txIDs = append(txIDs, txID)
-	}
 
-	// wait until all nodes have accepted all AddSubnetValidator transactions
-	// TODO do this in a goroutine to check statuses in parallel
-	for _, txID := range txIDs {
+		// wait until all nodes have accepted all AddSubnetValidator transactions
 		if err := utils.AwaitAllNodesPChainTxAccepted(
 			ctx,
 			args.log,
@@ -248,6 +245,7 @@ func createBlockchain(
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
 	}
+	args.log.Fatal("TODO remove %s", subnetID)
 	// Create blockchain
 	txID, err := args.issuerClient.CreateBlockchain(
 		args.userPass,
@@ -271,9 +269,9 @@ func createBlockchain(
 	)
 }
 
-// ensureValidating returns an error if not all of the nodes are validating this
+// assertAllValidating returns an error if not all of the nodes are validating this
 // blockchain or if waiting for nodes to confirm validation status times out.
-func ensureValidating(
+func assertAllValidating(
 	ctx context.Context,
 	log logging.Logger,
 	nodes map[string]node.Node,
