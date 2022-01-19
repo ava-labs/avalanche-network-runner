@@ -301,7 +301,7 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	return config
 }
 
-func NewDefaultNetworkWithVM(
+func NewDefaultNetworkWithCustomChains(
 	log logging.Logger,
 	binaryPath string,
 	vms []vms.CustomChainConfig,

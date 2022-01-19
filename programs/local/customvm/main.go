@@ -42,6 +42,8 @@ func main() {
 	}
 }
 
+// All application logic error handling is done in this function.
+// If a non-nil error is returned, main exits with code 1.
 func run() error {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
@@ -57,7 +59,7 @@ func run() error {
 		return err
 	}
 
-	// setup all configs
+	// read config
 	config, err := readConfig(log)
 	if err != nil {
 		log.Fatal("couldn't read config: %s", err)
@@ -68,7 +70,7 @@ func run() error {
 	for _, chainConfig := range config.VMConfigs {
 		whiteListedSubnets = append(whiteListedSubnets, chainConfig.SubnetID)
 	}
-	nw, err := local.NewDefaultNetworkWithVM(log, config.AvalanchegoPath, config.VMConfigs, whiteListedSubnets)
+	nw, err := local.NewDefaultNetworkWithCustomChains(log, config.AvalanchegoPath, config.VMConfigs, whiteListedSubnets)
 	if err != nil {
 		log.Fatal("failed to start the network: %s", err)
 		return err
