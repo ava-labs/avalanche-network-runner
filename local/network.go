@@ -40,6 +40,7 @@ const (
 	healthCheckFreq       = 3 * time.Second
 	defaultNumNodes       = 5
 	defaultEvmBinaryName  = "evm"
+	pluginDirName         = "plugins"
 )
 
 // interface compliance
@@ -314,27 +315,28 @@ func NewDefaultNetworkWithVM(
 	return newNetwork(log, conf, api.NewAPIClient, NewNodeProcess)
 }
 
-func NewDefaultConfigWithVM(binaryPath string, customVms []vms.CustomVM) (network.Config, error) {
+func NewDefaultConfigWithVM(avalanchegoPath string, customVms []vms.CustomVM) (network.Config, error) {
 	if len(customVms) == 0 {
 		return network.Config{}, errors.New("no custom vm information has been provided - a default network should be created if this is intended")
 	}
 	// create a temporary runtime directory for this run
-	runDir, err := os.MkdirTemp("", "custom-vms")
+	runDir, err := os.MkdirTemp("", "custom-vms-*")
 	if err != nil {
 		return network.Config{}, fmt.Errorf("failed creating temporary runtime directory: %s", err)
 	}
 	// create its plugins dir
-	pluginDir := filepath.Join(runDir, "plugins")
+	pluginDir := filepath.Join(runDir, pluginDirName)
 	if err := os.Mkdir(pluginDir, utils.DefaultFilePerms); err != nil {
 		return network.Config{}, fmt.Errorf("failed creating plugins directory in temporary runtime: %s", err)
 	}
 	// copy the avalanchego binary to the temp runtime
-	tmpBinaryPath := filepath.Join(runDir, filepath.Base(binaryPath))
-	if err := utils.CopyFile(binaryPath, tmpBinaryPath); err != nil {
-		return network.Config{}, fmt.Errorf("failed to copy avalanchego binary %s to temporary runtime directory %s: %w", binaryPath, runDir, err)
+	tmpBinaryPath := filepath.Join(runDir, filepath.Base(avalanchegoPath))
+	if err := utils.CopyFile(avalanchegoPath, tmpBinaryPath); err != nil {
+		return network.Config{}, fmt.Errorf("failed to copy avalanchego binary %s to temporary runtime directory %s: %w", avalanchegoPath, runDir, err)
 	}
 	// copy the evm binary to the temp runtime
-	evmBinaryPath := filepath.Join(filepath.Dir(binaryPath), filepath.Join("plugins", defaultEvmBinaryName))
+	// TODO copy the entire plugins directory instead of just the evm plugin binary
+	evmBinaryPath := filepath.Join(filepath.Dir(avalanchegoPath), pluginDirName, defaultEvmBinaryName)
 	if err := utils.CopyFile(evmBinaryPath, filepath.Join(pluginDir, defaultEvmBinaryName)); err != nil {
 		return network.Config{}, fmt.Errorf("failed to copy evm binary %s to temporary runtime plugins directory %s: %w", evmBinaryPath, pluginDir, err)
 	}
@@ -357,7 +359,7 @@ func NewDefaultConfigWithVM(binaryPath string, customVms []vms.CustomVM) (networ
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	for i := 0; i < len(config.NodeConfigs); i++ {
-		// TODO can we use just binary path or do we need a customvm jsonraw
+		// Each node runs the binary at [tmpBinaryPath]
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(tmpBinaryPath)
 	}
 	config.Flags = make(map[string]interface{})
@@ -394,6 +396,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
+	// TODO put all node temp directories under one directory for the runner
 	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)

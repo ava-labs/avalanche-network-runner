@@ -94,7 +94,7 @@ func run() error {
 
 	nw, err := local.NewDefaultNetworkWithVM(log, config.BinaryPath, customVms, pviper.GetString(avagoconfig.WhitelistedSubnetsKey))
 	if err != nil {
-		log.Error("failed to start the network: %s", err)
+		log.Fatal("failed to start the network: %s", err)
 		return err
 	}
 	defer func() { // Stop the network when this function returns
@@ -125,8 +125,9 @@ func run() error {
 			log,
 			v,
 			nw,
-			local.DefaultNetworkFundedPrivateKey); err != nil {
-			log.Error("failed running the subnet: %s", err)
+			local.DefaultNetworkFundedPrivateKey,
+		); err != nil {
+			log.Fatal("failed running the subnet: %s", err)
 			return err
 		}
 	}
