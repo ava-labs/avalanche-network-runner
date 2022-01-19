@@ -101,38 +101,36 @@ func newArgs(
 	network network.Network,
 	fundedPChainPrivateKey string,
 ) (*args, error) {
-	userPass := defaultUserPass
+	nodes, err := network.GetAllNodes()
+	if err != nil {
+		return nil, err
+	}
+	if len(nodes) == 0 {
+		return nil, errors.New("there are no nodes in this network")
+	}
 
-	allNodes, err := network.GetAllNodes()
+	nodeNames, err := network.GetNodeNames()
 	if err != nil {
 		return nil, err
 	}
 
-	txNodeNames, err := network.GetNodeNames()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(txNodeNames) == 0 {
-		return nil, errors.New("the array of node names is empty! Can't get any nodes")
-	}
 	// txNode will be the node we issue all transactions on
-	txNode := allNodes[txNodeNames[0]]
+	txNode := nodes[nodeNames[0]]
 	txClient := txNode.GetAPIClient()
 	// we need to create a user for platformvm calls
-	ok, err := txClient.KeystoreAPI().CreateUser(userPass)
+	ok, err := txClient.KeystoreAPI().CreateUser(defaultUserPass)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
 	txPChainClient := txClient.PChainAPI()
 	// Import genesis key
-	fundedAddress, err := txPChainClient.ImportKey(userPass, fundedPChainPrivateKey)
+	fundedAddress, err := txPChainClient.ImportKey(defaultUserPass, fundedPChainPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to import genesis key: %w", err)
 	}
 
-	rSubnetID, err := ids.FromString(vm.SubnetID)
+	subnetID, err := ids.FromString(vm.SubnetID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid subnetID string: %w", err)
 	}
@@ -140,9 +138,9 @@ func newArgs(
 		log:            log,
 		txPChainClient: txPChainClient,
 		fundedAddress:  fundedAddress,
-		userPass:       userPass,
-		allNodes:       allNodes,
-		rSubnetID:      rSubnetID,
+		userPass:       defaultUserPass,
+		allNodes:       nodes,
+		rSubnetID:      subnetID,
 	}, nil
 }
 
@@ -168,19 +166,18 @@ func createSubnet(ctx context.Context, args *args) error {
 		args.log,
 		apiRetryFreq,
 		args.allNodes,
-		subnetIDTx)
+		subnetIDTx,
+	)
 }
 
 // isSubnetInList returns an error if the given subnet is not in the client's list
 func isSubnetInList(client platformvm.Client, subnetID ids.ID) error {
-	// confirm created subnet appears in subnet list
-	var subnetAPIs []platformvm.APISubnet
-	var err error
-	if subnetAPIs, err = client.GetSubnets([]ids.ID{subnetID}); err != nil {
-		return fmt.Errorf("subnet not found: %w", err)
+	subnets, err := client.GetSubnets([]ids.ID{subnetID})
+	if err != nil {
+		return fmt.Errorf("couldn't get subnets: %w", err)
 	}
-	if len(subnetAPIs) != 1 {
-		return fmt.Errorf("expected exactly 1 but returned %d subnetAPIs in call to `GetSubnets`", len(subnetAPIs))
+	if len(subnets) != 1 {
+		return fmt.Errorf("subnet %s not found", subnetID)
 	}
 	return nil
 }
@@ -216,7 +213,6 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID string) error 
 		); err != nil {
 			return fmt.Errorf("failed to get all nodes to accept transaction: %w", err)
 		}
-
 	}
 	args.log.Info("all nodes added as subnet validators for subnet %s", subnetID)
 	return nil
@@ -265,16 +261,21 @@ func createBlockchain(ctx context.Context, args *args, vm CustomChainConfig) (id
 // finalizeBlockchain is a checking function. It ensures that the given nodes
 // are validating the blockchain, and that all nodes have the VM bootstrapped.
 // If all is ok, it prints the endpoints to STDOUT, otherwise it returns an error.
-func finalizeBlockchain(ctx context.Context, log logging.Logger, allNodes map[string]node.Node, blockchainID ids.ID) error {
-	if err := ensureValidating(ctx, log, allNodes, blockchainID); err != nil {
+func finalizeBlockchain(
+	ctx context.Context,
+	log logging.Logger,
+	nodes map[string]node.Node,
+	blockchainID ids.ID,
+) error {
+	if err := ensureValidating(ctx, log, nodes, blockchainID); err != nil {
 		return fmt.Errorf("error checking all nodes are validating the blockchain: %w", err)
 	}
-	if err := ensureBootstrapped(ctx, log, allNodes, blockchainID); err != nil {
+	if err := ensureBootstrapped(ctx, log, nodes, blockchainID); err != nil {
 		return fmt.Errorf("error checking blockchain is bootstrapped: %w", err)
 	}
 	// Print endpoints where VM is accessible
 	log.Info("Custom VM endpoints now accessible at:")
-	for _, n := range allNodes {
+	for _, n := range nodes {
 		log.Info("%s: %s:%d/ext/bc/%s", n.GetNodeID(), n.GetURL(), n.GetAPIPort(), blockchainID.String())
 	}
 	return nil
