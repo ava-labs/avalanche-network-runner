@@ -20,7 +20,6 @@ import (
 )
 
 // Config for a blockchain that will be created
-// TODO should we parse the IDs
 type CustomChainConfig struct {
 	// Name for the custom chain
 	Name string
@@ -164,7 +163,7 @@ func createSubnet(ctx context.Context, args *args) error {
 	}
 
 	// wait until all nodes have accepted the CreateSubnet transaction
-	return utils.AwaitedAllNodesPChainTxAccepted(
+	return utils.AwaitAllNodesPChainTxAccepted(
 		ctx,
 		args.log,
 		apiRetryFreq,
@@ -208,12 +207,13 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID string) error 
 		}
 
 		// wait until all nodes have accepted the AddSubnetValidator transaction
-		if err := utils.AwaitedAllNodesPChainTxAccepted(
+		if err := utils.AwaitAllNodesPChainTxAccepted(
 			ctx,
 			args.log,
 			apiRetryFreq,
 			args.allNodes,
-			txID); err != nil {
+			txID,
+		); err != nil {
 			return fmt.Errorf("failed to get all nodes to accept transaction: %w", err)
 		}
 
@@ -282,11 +282,16 @@ func finalizeBlockchain(ctx context.Context, log logging.Logger, allNodes map[st
 
 // ensureValidating returns an error if not all of the nodes are validating this
 // blockchain or if waiting for nodes to confirm validation status times out.
-func ensureValidating(tctx context.Context, log logging.Logger, allNodes map[string]node.Node, blockchainID ids.ID) error {
+func ensureValidating(
+	ctx context.Context,
+	log logging.Logger,
+	nodes map[string]node.Node,
+	blockchainID ids.ID,
+) error {
 	statusCheckTimeout := longTimeout
 	// Ensure all nodes are validating subnet
-	g, ctx := errgroup.WithContext(tctx)
-	for _, node := range allNodes {
+	g, ctx := errgroup.WithContext(ctx)
+	for _, node := range nodes {
 		node := node
 		g.Go(func() error {
 			nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
@@ -318,10 +323,15 @@ func ensureValidating(tctx context.Context, log logging.Logger, allNodes map[str
 // ensureBootstrapped returns an error if not all nodes report the
 // given blockchain as bootstrapped or if waiting for nodes to confirm
 // the bootstrap status times out.
-func ensureBootstrapped(tctx context.Context, log logging.Logger, allNodes map[string]node.Node, blockchainID ids.ID) error {
+func ensureBootstrapped(
+	ctx context.Context,
+	log logging.Logger,
+	nodes map[string]node.Node,
+	blockchainID ids.ID,
+) error {
 	// Ensure network bootstrapped
-	g, ctx := errgroup.WithContext(tctx)
-	for _, node := range allNodes {
+	g, ctx := errgroup.WithContext(ctx)
+	for _, node := range nodes {
 		node := node
 		g.Go(func() error {
 			nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)

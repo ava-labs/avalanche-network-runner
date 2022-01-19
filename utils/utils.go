@@ -75,19 +75,23 @@ func NewK8sNodeConfigJsonRaw(
 	)
 }
 
-// AwaitedAllNodesPChainTxAccepted repeatedly polls the API for the given transaction to reach accepted status.
-// It does this for all nodes passed as the `allNodes` map.
-// It expects the caller to clear the context (timeout, cancel)
-func AwaitedAllNodesPChainTxAccepted(
+// AwaitAllNodesPChainTxAccepted returns nil when all nodes in [nodes]
+// have accepted transaction [txID].
+// Returns an error if [ctx] is cancelled before all nodes accept [txID],
+// or if [txID] is aborted/dropped.
+// Note that the caller should eventually cancel [ctx], or else
+// this function may never terminate.
+func AwaitAllNodesPChainTxAccepted(
 	ctx context.Context,
 	log logging.Logger,
 	apiRetryFreq time.Duration,
-	allNodes map[string]node.Node,
-	txID ids.ID) error {
+	nodes map[string]node.Node,
+	txID ids.ID,
+) error {
 	g, ctx := errgroup.WithContext(ctx)
-	for nID, checknode := range allNodes {
-		client := checknode.GetAPIClient().PChainAPI()
-		nID := nID
+	for nodeName, node := range nodes {
+		client := node.GetAPIClient().PChainAPI()
+		nodeName := nodeName
 		g.Go(func() error {
 			for {
 				select {
@@ -99,11 +103,15 @@ func AwaitedAllNodesPChainTxAccepted(
 				if err != nil {
 					return err
 				}
-				if status.Status == platformvm.Committed {
-					log.Debug("add subnet validator (%s) tx (%s) accepted", nID, txID)
+				switch status.Status {
+				case platformvm.Committed:
+					log.Debug("tx %s accepted on node %s", txID, nodeName)
 					return nil
+				case platformvm.Dropped, platformvm.Aborted:
+					return fmt.Errorf("expected transaction %s to be accepted but was dropped on node %s", txID, nodeName)
+				default: // Processing or unknown
+					log.Debug("waiting for tx %s to be accepted on node %s", txID, nodeName)
 				}
-				log.Debug("waiting for add subnet validator (%s) tx (%s) to be accepted", nID, txID)
 			}
 		})
 	}
