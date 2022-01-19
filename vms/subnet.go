@@ -83,7 +83,6 @@ func CreateSubnetAndBlockchain(
 	if subnetID != expectedSubnetID {
 		return fmt.Errorf("expected subnet ID %s but got %s", expectedSubnetID, subnetID)
 	}
-	log.Fatal("TODO REMOVE expected %s got %s", expectedSubnetID, subnetID)
 	args.log.Info("all nodes accepted subnet tx creation")
 
 	// check the newly created subnet is in the subnet list
@@ -114,8 +113,8 @@ func CreateSubnetAndBlockchain(
 
 	// Print endpoints where VM is accessible
 	log.Info("Custom VM endpoints now accessible at:")
-	for _, n := range args.nodes {
-		log.Info("%s: %s:%d/ext/bc/%s", n.GetNodeID(), n.GetURL(), n.GetAPIPort(), blockchainID.String())
+	for nodeName, node := range args.nodes {
+		log.Info("%s: %s:%d/ext/bc/%s", nodeName, node.GetURL(), node.GetAPIPort(), blockchainID.String())
 	}
 	return nil
 }
@@ -245,7 +244,6 @@ func createBlockchain(
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
 	}
-	args.log.Fatal("TODO remove %s", subnetID)
 	// Create blockchain
 	txID, err := args.issuerClient.CreateBlockchain(
 		args.userPass,

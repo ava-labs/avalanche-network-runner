@@ -146,8 +146,7 @@ func readConfig(log logging.Logger) (config, error) {
 		// Note that SetConfigName and AddConfigPath are ignored in this case.
 		v.SetConfigFile(*configPath)
 	}
-	log.Fatal("TODO remove %s", *configPath)
-
+	v.AutomaticEnv()
 	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
 		log.Warn("no config file provided")
