@@ -60,19 +60,21 @@ func run() error {
 	// Create the logger
 	loggingConfig, err := logging.DefaultConfig()
 	if err != nil {
+		fmt.Printf("couldn't create logging config: %s\n", err)
 		return err
 	}
 	logFactory := logging.NewFactory(loggingConfig)
 	defer logFactory.Close()
 	log, err := logFactory.Make("main")
 	if err != nil {
+		fmt.Printf("couldn't create log factory: %s\n", err)
 		return err
 	}
 
 	// setup all configs
-	config, pviper, err := setup(log)
+	config, pviper, err := readConfig(log)
 	if err != nil {
-		log.Fatal("%s", err)
+		log.Fatal("couldn't read config: %s", err)
 		return err
 	}
 
@@ -112,7 +114,7 @@ func run() error {
 	defer cancel()
 
 	if err := <-nw.Healthy(ctx); err != nil {
-		log.Error("error waiting for network to become healthy: %s", err)
+		log.Fatal("error waiting for network to become healthy: %s", err)
 		return err
 	}
 	log.Info("network healthy")
@@ -138,8 +140,8 @@ func run() error {
 	return nil
 }
 
-// setup all configuration options (cli flags, env vars, config file) with viper
-func setup(log logging.Logger) (customVMConfig, *viper.Viper, error) {
+// readConfig all configuration options (cli flags, env vars, config file) with viper
+func readConfig(log logging.Logger) (customVMConfig, *viper.Viper, error) {
 	v := viper.New()
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.AddConfigPath(".")      // path to look for the config file in
@@ -172,20 +174,14 @@ func setup(log logging.Logger) (customVMConfig, *viper.Viper, error) {
 		return customVMConfig{}, v, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
 
-	// parse custom log level
-	var level logging.Level
-	var err error
-	if slevel := v.GetString(loglevelKey); slevel != "" {
-		level, err = logging.ToLevel(slevel)
-		if err != nil {
-			log.Warn("invalid log level string provided: %s. Ignoring and setting level to INFO", slevel)
-		}
-	} else {
-		level = logging.Info
+	// parse log level
+	logLevelStr := v.GetString(loglevelKey)
+	level, err := logging.ToLevel(logLevelStr)
+	if err != nil {
+		log.Warn("invalid log level %q provided. Ignoring and setting level to INFO", logLevelStr)
 	}
 	log.SetDisplayLevel(level)
 	log.SetLogLevel(level)
-
 	return c, v, nil
 }
 
