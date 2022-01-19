@@ -34,14 +34,14 @@ type CustomChainConfig struct {
 	VMID string `json:"vmID"`
 }
 
-// most subfunctions share the same args...
+// Contains arguments used in several functions in this file
 type args struct {
-	log            logging.Logger
-	txPChainClient platformvm.Client
-	fundedAddress  string
-	userPass       api.UserPass
-	allNodes       map[string]node.Node
-	rSubnetID      ids.ID
+	log           logging.Logger
+	client        platformvm.Client
+	fundedAddress string
+	userPass      api.UserPass
+	nodes         map[string]node.Node
+	subnetID      ids.ID
 }
 
 // CreateSubnetAndBlockchain creates the necessary transactions to create a subnet for a given custom VM.
@@ -71,26 +71,36 @@ func CreateSubnetAndBlockchain(
 	args.log.Info("all nodes accepted subnet tx creation")
 
 	// check the newly created subnet is in the subnet list
-	if err := isSubnetInList(args.txPChainClient, args.rSubnetID); err != nil {
+	if err := assertSubnetCreated(args.client, args.subnetID); err != nil {
 		return fmt.Errorf("failed to confirm subnet is in the node's subnet list")
 	}
 
-	// add all nodes as validators
-	if err := addAllAsValidators(ctx, args, vm.SubnetID); err != nil {
+	// add all nodes as validators to the subnet
+	if err := addAllAsValidators(ctx, args, args.subnetID); err != nil {
 		return fmt.Errorf("failed to add nodes as validators: %w", err)
 	}
 
-	// create the blockchain for this vm
+	// create the blockchain
 	blockchainID, err := createBlockchain(ctx, args, vm)
 	if err != nil {
 		return fmt.Errorf("failed creating blockchain: %w", err)
 	}
 
-	// make sure all nodes are validating this new blockchain
-	if err := finalizeBlockchain(ctx, args.log, args.allNodes, blockchainID); err != nil {
-		return fmt.Errorf("error checking all nodes are validating subnet: %w", err)
+	// Make sure all nodes are validating the new chain
+	if err := ensureValidating(ctx, log, args.nodes, blockchainID); err != nil {
+		return fmt.Errorf("error checking all nodes are validating the blockchain: %w", err)
 	}
 
+	// Wait until all nodes finish bootstrapping the new chain
+	if err := awaitBootstrapped(ctx, log, args.nodes, blockchainID); err != nil {
+		return fmt.Errorf("error checking blockchain is bootstrapped: %w", err)
+	}
+
+	// Print endpoints where VM is accessible
+	log.Info("Custom VM endpoints now accessible at:")
+	for _, n := range args.nodes {
+		log.Info("%s: %s:%d/ext/bc/%s", n.GetNodeID(), n.GetURL(), n.GetAPIPort(), blockchainID.String())
+	}
 	return nil
 }
 
@@ -114,18 +124,15 @@ func newArgs(
 		return nil, err
 	}
 
-	// txNode will be the node we issue all transactions on
-	txNode := nodes[nodeNames[0]]
-	txClient := txNode.GetAPIClient()
-	// we need to create a user for platformvm calls
-	ok, err := txClient.KeystoreAPI().CreateUser(defaultUserPass)
-	if !ok || err != nil {
+	// issuer is the node we issue transactions from
+	issuer := nodes[nodeNames[0]]
+	client := issuer.GetAPIClient()
+	// create a user and import a funded key
+	if ok, err := client.KeystoreAPI().CreateUser(defaultUserPass); !ok || err != nil {
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
-
-	client := txClient.PChainAPI()
-	// Import genesis key
-	fundedAddress, err := client.ImportKey(defaultUserPass, fundedPChainPrivateKey)
+	pClient := client.PChainAPI()
+	fundedAddress, err := pClient.ImportKey(defaultUserPass, fundedPChainPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to import genesis key: %w", err)
 	}
@@ -135,21 +142,20 @@ func newArgs(
 		return nil, fmt.Errorf("invalid subnetID string: %w", err)
 	}
 	return &args{
-		log:            log,
-		txPChainClient: client,
-		fundedAddress:  fundedAddress,
-		userPass:       defaultUserPass,
-		allNodes:       nodes,
-		rSubnetID:      subnetID,
+		log:           log,
+		client:        pClient,
+		fundedAddress: fundedAddress,
+		userPass:      defaultUserPass,
+		nodes:         nodes,
+		subnetID:      subnetID,
 	}, nil
 }
 
-// createSubnet issues the CreateSubnet transaction and waits for
-// it to be accepted. It returns an error if the transaction failed
-// or there was a timout.
+// createSubnet creates a subnet and waits for all
+// nodes in [args.nodes] to accept the transaction.
 func createSubnet(ctx context.Context, args *args) error {
 	// Create a subnet
-	subnetIDTx, err := args.txPChainClient.CreateSubnet(
+	subnetIDTx, err := args.client.CreateSubnet(
 		args.userPass,
 		[]string{args.fundedAddress},
 		args.fundedAddress,
@@ -159,19 +165,16 @@ func createSubnet(ctx context.Context, args *args) error {
 	if err != nil {
 		return fmt.Errorf("unable to create subnet: %w", err)
 	}
-
-	// wait until all nodes have accepted the CreateSubnet transaction
 	return utils.AwaitAllNodesPChainTxAccepted(
 		ctx,
 		args.log,
-		apiRetryFreq,
-		args.allNodes,
+		args.nodes,
 		subnetIDTx,
 	)
 }
 
-// isSubnetInList returns an error if the given subnet is not in the client's list
-func isSubnetInList(client platformvm.Client, subnetID ids.ID) error {
+// assertSubnetCreated returns an error if subnet [subnetID] doesn't exist
+func assertSubnetCreated(client platformvm.Client, subnetID ids.ID) error {
 	subnets, err := client.GetSubnets([]ids.ID{subnetID})
 	if err != nil {
 		return fmt.Errorf("couldn't get subnets: %w", err)
@@ -182,18 +185,17 @@ func isSubnetInList(client platformvm.Client, subnetID ids.ID) error {
 	return nil
 }
 
-// addAllAsValidators adds all nodes as validators to the given subnet
-// and waits for each of the transactions to be accepted.
-// Returns an error if any transaction failed or there was a timeout
-func addAllAsValidators(ctx context.Context, args *args, subnetID string) error {
+// addAllAsValidators adds all nodes in [args.nodes] as validators of [args.subnetID].
+func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error {
 	// Add all validators to subnet with equal weight
-	for _, node := range args.allNodes {
+	txIDs := []ids.ID{}
+	for _, node := range args.nodes {
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-		txID, err := args.txPChainClient.AddSubnetValidator(
+		txID, err := args.client.AddSubnetValidator(
 			args.userPass,
 			[]string{args.fundedAddress},
 			args.fundedAddress,
-			subnetID,
+			subnetID.String(),
 			nodeID,
 			validatorWeight,
 			uint64(time.Now().Add(validatorStartDiff).Unix()),
@@ -202,13 +204,16 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID string) error 
 		if err != nil {
 			return fmt.Errorf("unable to add subnet validator: %w", err)
 		}
+		txIDs = append(txIDs, txID)
+	}
 
-		// wait until all nodes have accepted the AddSubnetValidator transaction
+	// wait until all nodes have accepted all AddSubnetValidator transactions
+	// TODO do this in a goroutine to check statuses in parallel
+	for _, txID := range txIDs {
 		if err := utils.AwaitAllNodesPChainTxAccepted(
 			ctx,
 			args.log,
-			apiRetryFreq,
-			args.allNodes,
+			args.nodes,
 			txID,
 		); err != nil {
 			return fmt.Errorf("failed to get all nodes to accept transaction: %w", err)
@@ -218,20 +223,20 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID string) error 
 	return nil
 }
 
-// createBlockchain performs the CreateBlockchain transaction and waits until
-// the tx has been accepted or returns an error if this caused a problem
-// or a timeout.
+// createBlockchain creates a new blockchain with ID [vm.VMID]
+// and the genesis at [vm.GenesisPath].
 func createBlockchain(ctx context.Context, args *args, vm CustomChainConfig) (ids.ID, error) {
-	// Create blockchain
+	// Read genesis
 	genesis, err := os.ReadFile(vm.GenesisPath)
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
 	}
-	txID, err := args.txPChainClient.CreateBlockchain(
+	// Create blockchain
+	txID, err := args.client.CreateBlockchain(
 		args.userPass,
 		[]string{args.fundedAddress},
 		args.fundedAddress,
-		args.rSubnetID,
+		args.subnetID,
 		vm.VMID,
 		[]string{},
 		vm.Name,
@@ -240,45 +245,13 @@ func createBlockchain(ctx context.Context, args *args, vm CustomChainConfig) (id
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not create blockchain: %w", err)
 	}
-	for {
-		select {
-		case <-ctx.Done():
-			return ids.Empty, ctx.Err()
-		case <-time.After(apiRetryFreq):
-		}
-		status, err := args.txPChainClient.GetTxStatus(txID, true)
-		if err != nil {
-			return ids.Empty, err
-		}
-		if status.Status == platformvm.Committed {
-			args.log.Info("create blockchain tx (%s) accepted", txID)
-			return txID, nil
-		}
-		args.log.Debug("waiting for create blockchain tx (%s) to be accepted", txID)
-	}
-}
-
-// finalizeBlockchain is a checking function. It ensures that the given nodes
-// are validating the blockchain, and that all nodes have the VM bootstrapped.
-// If all is ok, it prints the endpoints to STDOUT, otherwise it returns an error.
-func finalizeBlockchain(
-	ctx context.Context,
-	log logging.Logger,
-	nodes map[string]node.Node,
-	blockchainID ids.ID,
-) error {
-	if err := ensureValidating(ctx, log, nodes, blockchainID); err != nil {
-		return fmt.Errorf("error checking all nodes are validating the blockchain: %w", err)
-	}
-	if err := ensureBootstrapped(ctx, log, nodes, blockchainID); err != nil {
-		return fmt.Errorf("error checking blockchain is bootstrapped: %w", err)
-	}
-	// Print endpoints where VM is accessible
-	log.Info("Custom VM endpoints now accessible at:")
-	for _, n := range nodes {
-		log.Info("%s: %s:%d/ext/bc/%s", n.GetNodeID(), n.GetURL(), n.GetAPIPort(), blockchainID.String())
-	}
-	return nil
+	// Wait until all nodes create the blockchain
+	return txID, utils.AwaitAllNodesPChainTxAccepted(
+		ctx,
+		args.log,
+		args.nodes,
+		txID,
+	)
 }
 
 // ensureValidating returns an error if not all of the nodes are validating this
@@ -289,64 +262,68 @@ func ensureValidating(
 	nodes map[string]node.Node,
 	blockchainID ids.ID,
 ) error {
-	statusCheckTimeout := longTimeout
 	// Ensure all nodes are validating subnet
 	g, ctx := errgroup.WithContext(ctx)
 	for _, node := range nodes {
 		node := node
 		g.Go(func() error {
-			nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-			nClient := node.GetAPIClient().PChainAPI()
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(statusCheckTimeout):
-				}
-				status, err := nClient.GetBlockchainStatus(blockchainID.String())
-				if err != nil {
-					return fmt.Errorf("error querying blockchain status: %w", err)
-				}
-				if status == platformvm.Validating {
-					// after the first acceptance, next nodes probably don't need to check that long anymore
-					statusCheckTimeout = apiRetryFreq
-					log.Info("%s validating blockchain %s", nodeID, blockchainID)
-					return nil
-				}
-				log.Debug("waiting for validating status for blockchainID %s on %s", blockchainID.String(), nodeID)
-			}
-		})
-	}
-	return g.Wait()
-}
-
-// ensureBootstrapped returns an error if not all nodes report the
-// given blockchain as bootstrapped or if waiting for nodes to confirm
-// the bootstrap status times out.
-func ensureBootstrapped(
-	ctx context.Context,
-	log logging.Logger,
-	nodes map[string]node.Node,
-	blockchainID ids.ID,
-) error {
-	// Ensure network bootstrapped
-	g, ctx := errgroup.WithContext(ctx)
-	for _, node := range nodes {
-		node := node
-		g.Go(func() error {
-			nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-			nClient := node.GetAPIClient().InfoAPI()
+			nodeName := node.GetName()
+			client := node.GetAPIClient().PChainAPI()
+			// TODO I don't think we need to do this in a loop.
+			// GetBlockchainStatus should immediately return "validating"
 			for {
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
 				case <-time.After(apiRetryFreq):
 				}
-				if bootstrapped, _ := nClient.IsBootstrapped(blockchainID.String()); bootstrapped {
-					log.Info("%s bootstrapped %s", nodeID, blockchainID)
+				status, err := client.GetBlockchainStatus(blockchainID.String())
+				if err != nil {
+					return fmt.Errorf("error querying blockchain status: %w", err)
+				}
+				if status == platformvm.Validating {
+					log.Debug("%s is validating blockchain %s", nodeName, blockchainID)
 					return nil
 				}
-				log.Debug("waiting for %s to bootstrap %s", nodeID, blockchainID.String())
+				log.Debug("waiting for validating status for blockchainID %s on %s", blockchainID, nodeName)
+			}
+		})
+	}
+	return g.Wait()
+}
+
+// awaitBootstrapped returns when all nodes in [nodes]
+// have finished bootstrapping [blockchainID].
+// Waits at most [bootstrapTimeout] for a node to finish bootstrapping.
+func awaitBootstrapped(
+	ctx context.Context,
+	log logging.Logger,
+	nodes map[string]node.Node,
+	blockchainID ids.ID,
+) error {
+	ctx, cancel := context.WithTimeout(ctx, bootstrapTimeout)
+	defer cancel()
+	g, ctx := errgroup.WithContext(ctx)
+	for _, node := range nodes {
+		node := node
+		g.Go(func() error {
+			nodeName := node.GetName()
+			client := node.GetAPIClient().InfoAPI()
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(apiRetryFreq):
+				}
+				bootstrapped, err := client.IsBootstrapped(blockchainID.String())
+				if err != nil {
+					return fmt.Errorf("%s IsBootstrapped call failed: %w", nodeName, err)
+				}
+				if bootstrapped {
+					log.Info("%s finished bootstrapping %s", nodeName, blockchainID)
+					return nil
+				}
+				log.Debug("waiting for %s to finish bootstrapping %s", nodeName, blockchainID)
 			}
 		})
 	}

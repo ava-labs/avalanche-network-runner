@@ -16,7 +16,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const genesisNetworkIDKey = "networkID"
+const (
+	genesisNetworkIDKey = "networkID"
+	apiRetryFreq        = time.Second
+)
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
 	cert, err := tls.X509KeyPair(stakingCert, stakingKey)
@@ -84,7 +87,6 @@ func NewK8sNodeConfigJsonRaw(
 func AwaitAllNodesPChainTxAccepted(
 	ctx context.Context,
 	log logging.Logger,
-	apiRetryFreq time.Duration,
 	nodes map[string]node.Node,
 	txID ids.ID,
 ) error {

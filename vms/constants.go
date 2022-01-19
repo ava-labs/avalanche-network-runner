@@ -9,7 +9,7 @@ import (
 
 const (
 	apiRetryFreq        = 1 * time.Second
-	longTimeout         = 10 * apiRetryFreq
+	bootstrapTimeout    = time.Minute
 	defaultKeyThreshold = 1
 	validatorWeight     = 3000 * units.Avax
 	validatorStartDiff  = 30 * time.Second
