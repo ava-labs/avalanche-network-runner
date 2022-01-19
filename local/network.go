@@ -224,15 +224,14 @@ func newNetwork(
 	}
 
 	for flagName, flagVal := range networkConfig.Flags {
-		for i := range networkConfig.NodeConfigs {
-			n := &networkConfig.NodeConfigs[i]
-			if n.Flags == nil {
-				n.Flags = make(map[string]interface{})
+		for _, nodeConfig := range nodeConfigs {
+			if nodeConfig.Flags == nil {
+				nodeConfig.Flags = make(map[string]interface{})
 			}
 			// If the same flag is given in network config and node config,
 			// the flag in the node config takes precedence
-			if val, ok := n.Flags[flagName]; !ok {
-				n.Flags[flagName] = flagVal
+			if val, ok := nodeConfig.Flags[flagName]; !ok {
+				nodeConfig.Flags[flagName] = flagVal
 			} else {
 				log.Info(
 					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
