@@ -36,52 +36,67 @@ type CustomChainConfig struct {
 
 // Contains arguments used in several functions in this file
 type args struct {
-	log           logging.Logger
-	client        platformvm.Client
+	log logging.Logger
+	// All transactions are issued through this client
+	issuerClient platformvm.Client
+	// This address is funded
 	fundedAddress string
-	userPass      api.UserPass
-	nodes         map[string]node.Node
-	subnetID      ids.ID
+	// [userPass] controls [fundedAddress]
+	userPass api.UserPass
+	// The nodes in this network
+	nodes map[string]node.Node
 }
 
-// CreateSubnetAndBlockchain creates the necessary transactions to create a subnet for a given custom VM.
-// It then also waits until all these transactions are confirmed on all nodes.
-// Finally it creates a blockchain and makes sure all nodes of the given network
-// are validating this blockchain.
-// It requires a `privateKey` in order to issue the necessary transactions
+// CreateSubnetAndBlockchain:
+// * creates a subnet
+// * adds all the nodes in [network] as validators of the subnet
+// * creates a blockchain given by [vm]
+// validated by the subnet.
+// [privateKey] is a funded P-Chain private key.
 func CreateSubnetAndBlockchain(
 	ctx context.Context,
 	log logging.Logger,
-	vm CustomChainConfig,
+	customChainConfig CustomChainConfig,
 	network network.Network,
 	privateKey string,
 ) error {
 	log.Info("creating subnet and blockchain")
 
 	// initialize necessary args for the API calls
-	args, err := newArgs(log, vm, network, privateKey)
+	args, err := newArgs(log, customChainConfig, network, privateKey)
 	if err != nil {
 		return fmt.Errorf("failed initializing subnet: %w", err)
 	}
 
+	// parse the expected subnet ID
+	// TODO remove when avalanchego supports dynamic subnet whitelisting
+	expectedSubnetID, err := ids.FromString(customChainConfig.SubnetID)
+	if err != nil {
+		return fmt.Errorf("couldn't parse subnet ID %q: %w", customChainConfig.SubnetID, err)
+	}
+
 	// create the subnet
-	if err := createSubnet(ctx, args); err != nil {
+	subnetID, err := createSubnet(ctx, args)
+	if err != nil {
 		return fmt.Errorf("failed creating subnet: %w", err)
+	}
+	if subnetID != expectedSubnetID {
+		return fmt.Errorf("expected subnet ID %s but got %s", expectedSubnetID, subnetID)
 	}
 	args.log.Info("all nodes accepted subnet tx creation")
 
 	// check the newly created subnet is in the subnet list
-	if err := assertSubnetCreated(args.client, args.subnetID); err != nil {
+	if err := assertSubnetCreated(args.issuerClient, subnetID); err != nil {
 		return fmt.Errorf("failed to confirm subnet is in the node's subnet list")
 	}
 
 	// add all nodes as validators to the subnet
-	if err := addAllAsValidators(ctx, args, args.subnetID); err != nil {
+	if err := addAllAsValidators(ctx, args, subnetID); err != nil {
 		return fmt.Errorf("failed to add nodes as validators: %w", err)
 	}
 
 	// create the blockchain
-	blockchainID, err := createBlockchain(ctx, args, vm)
+	blockchainID, err := createBlockchain(ctx, subnetID, args, customChainConfig)
 	if err != nil {
 		return fmt.Errorf("failed creating blockchain: %w", err)
 	}
@@ -107,7 +122,7 @@ func CreateSubnetAndBlockchain(
 // initialize shared args
 func newArgs(
 	log logging.Logger,
-	vm CustomChainConfig,
+	customChainConfig CustomChainConfig,
 	network network.Network,
 	fundedPChainPrivateKey string,
 ) (*args, error) {
@@ -137,25 +152,21 @@ func newArgs(
 		return nil, fmt.Errorf("unable to import genesis key: %w", err)
 	}
 
-	subnetID, err := ids.FromString(vm.SubnetID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid subnetID string: %w", err)
-	}
 	return &args{
 		log:           log,
-		client:        pClient,
+		issuerClient:  pClient,
 		fundedAddress: fundedAddress,
 		userPass:      defaultUserPass,
 		nodes:         nodes,
-		subnetID:      subnetID,
 	}, nil
 }
 
 // createSubnet creates a subnet and waits for all
 // nodes in [args.nodes] to accept the transaction.
-func createSubnet(ctx context.Context, args *args) error {
+// Returns the ID of the new subnet.
+func createSubnet(ctx context.Context, args *args) (ids.ID, error) {
 	// Create a subnet
-	subnetIDTx, err := args.client.CreateSubnet(
+	txID, err := args.issuerClient.CreateSubnet(
 		args.userPass,
 		[]string{args.fundedAddress},
 		args.fundedAddress,
@@ -163,13 +174,14 @@ func createSubnet(ctx context.Context, args *args) error {
 		defaultKeyThreshold,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create subnet: %w", err)
+		return ids.Empty, fmt.Errorf("unable to create subnet: %w", err)
 	}
-	return utils.AwaitAllNodesPChainTxAccepted(
+	// Note that the subnet's ID is the ID of the tx that created it
+	return txID, utils.AwaitAllNodesPChainTxAccepted(
 		ctx,
 		args.log,
 		args.nodes,
-		subnetIDTx,
+		txID,
 	)
 }
 
@@ -191,7 +203,7 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error 
 	txIDs := []ids.ID{}
 	for _, node := range args.nodes {
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-		txID, err := args.client.AddSubnetValidator(
+		txID, err := args.issuerClient.AddSubnetValidator(
 			args.userPass,
 			[]string{args.fundedAddress},
 			args.fundedAddress,
@@ -225,18 +237,23 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID ids.ID) error 
 
 // createBlockchain creates a new blockchain with ID [vm.VMID]
 // and the genesis at [vm.GenesisPath].
-func createBlockchain(ctx context.Context, args *args, vm CustomChainConfig) (ids.ID, error) {
+func createBlockchain(
+	ctx context.Context,
+	subnetID ids.ID,
+	args *args,
+	vm CustomChainConfig,
+) (ids.ID, error) {
 	// Read genesis
 	genesis, err := os.ReadFile(vm.GenesisPath)
 	if err != nil {
 		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
 	}
 	// Create blockchain
-	txID, err := args.client.CreateBlockchain(
+	txID, err := args.issuerClient.CreateBlockchain(
 		args.userPass,
 		[]string{args.fundedAddress},
 		args.fundedAddress,
-		args.subnetID,
+		subnetID,
 		vm.VMID,
 		[]string{},
 		vm.Name,
