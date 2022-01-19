@@ -26,7 +26,7 @@ type NodeConfig struct {
 	// If non-nil, direct this node's Stderr to os.Stderr
 	RedirectStderr bool `json:"redirectStderr"`
 	// CustomVMs a slice of custom VMs this node should run
-	CustomVMs []vms.CustomVM
+	CustomVMs []vms.CustomChainConfig
 }
 
 // Use an interface so we can mock running

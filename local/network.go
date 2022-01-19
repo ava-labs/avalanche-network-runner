@@ -304,19 +304,20 @@ func NewDefaultConfig(binaryPath string) network.Config {
 func NewDefaultNetworkWithVM(
 	log logging.Logger,
 	binaryPath string,
-	vms []vms.CustomVM,
-	whitelistedSubnets string, // TODO remove when dynamic subnet whitelisting is supported
+	vms []vms.CustomChainConfig,
+	whitelistedSubnets []string, // TODO remove when dynamic subnet whitelisting is supported
 ) (network.Network, error) {
 	conf, err := NewDefaultConfigWithVM(binaryPath, vms)
 	if err != nil {
 		return nil, err
 	}
-	conf.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	whitelistedSubnetsStr := strings.Join(whitelistedSubnets, ",")
+	conf.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnetsStr
 	return newNetwork(log, conf, api.NewAPIClient, NewNodeProcess)
 }
 
-func NewDefaultConfigWithVM(avalanchegoPath string, customVms []vms.CustomVM) (network.Config, error) {
-	if len(customVms) == 0 {
+func NewDefaultConfigWithVM(avalanchegoPath string, customChainConfigs []vms.CustomChainConfig) (network.Config, error) {
+	if len(customChainConfigs) == 0 {
 		return network.Config{}, errors.New("no custom vm information has been provided - a default network should be created if this is intended")
 	}
 	// create a temporary runtime directory for this run
@@ -340,19 +341,19 @@ func NewDefaultConfigWithVM(avalanchegoPath string, customVms []vms.CustomVM) (n
 	if err := utils.CopyFile(evmBinaryPath, filepath.Join(pluginDir, defaultEvmBinaryName)); err != nil {
 		return network.Config{}, fmt.Errorf("failed to copy evm binary %s to temporary runtime plugins directory %s: %w", evmBinaryPath, pluginDir, err)
 	}
-	for _, v := range customVms {
-		if _, err := os.Stat(v.Path); os.IsNotExist(err) {
-			return network.Config{}, fmt.Errorf("%s vm path does not exist", v.Path)
+	for _, chainConfig := range customChainConfigs {
+		if _, err := os.Stat(chainConfig.VMPath); os.IsNotExist(err) {
+			return network.Config{}, fmt.Errorf("%s vm path does not exist", chainConfig.VMPath)
 		}
-		if _, err := os.Stat(v.Genesis); os.IsNotExist(err) {
-			return network.Config{}, fmt.Errorf("%s genesis does not exist", v.Genesis)
+		if _, err := os.Stat(chainConfig.GenesisPath); os.IsNotExist(err) {
+			return network.Config{}, fmt.Errorf("%s genesis does not exist", chainConfig.GenesisPath)
 		}
-		if _, err := ids.FromString(v.SubnetID); err != nil {
-			return network.Config{}, fmt.Errorf("the provided subnetID %s failed validation", v.SubnetID)
+		if _, err := ids.FromString(chainConfig.SubnetID); err != nil {
+			return network.Config{}, fmt.Errorf("the provided subnetID %s failed validation", chainConfig.SubnetID)
 		}
 		// copy the custom VM binary to the runtime
-		if err := utils.CopyFile(v.Path, filepath.Join(pluginDir, v.Name)); err != nil {
-			return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", v.Path, pluginDir, err)
+		if err := utils.CopyFile(chainConfig.VMPath, filepath.Join(pluginDir, chainConfig.Name)); err != nil {
+			return network.Config{}, fmt.Errorf("failed to copy binary %s to pluginsDir %s: %w", chainConfig.VMPath, pluginDir, err)
 		}
 	}
 	config := defaultNetworkConfig

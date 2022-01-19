@@ -19,13 +19,20 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 )
 
-// CustomVM wraps data to create a custom VM
-type CustomVM struct {
-	Path     string // Path to the binary of the VM
-	Genesis  string // Genesis string for the VM
-	Name     string // Name for the VM
-	SubnetID string // SubnetID this VM is running on
-	ID       string // ids.ID representation of the VM
+// Config for a blockchain that will be created
+// TODO should we parse the IDs
+type CustomChainConfig struct {
+	// Name for the custom chain
+	Name string
+	// Path to VM binary
+	VMPath string `json:"vmPath"`
+	// Path to blockchain genesis
+	GenesisPath string `json:"genesisPath"`
+	// ID of subnet that the blockchain will run on as the string repr. of an ids.ID
+	// TODO remove once dynamic whitelisting is supported by avalanchego
+	SubnetID string `json:"subnetID"`
+	// The VM's ID as the string repr. of an ids.ID
+	VMID string `json:"vmID"`
 }
 
 // most subfunctions share the same args...
@@ -46,7 +53,7 @@ type args struct {
 func CreateSubnetAndBlockchain(
 	ctx context.Context,
 	log logging.Logger,
-	vm CustomVM,
+	vm CustomChainConfig,
 	network network.Network,
 	privateKey string,
 ) error {
@@ -91,7 +98,7 @@ func CreateSubnetAndBlockchain(
 // initialize shared args
 func newArgs(
 	log logging.Logger,
-	vm CustomVM,
+	vm CustomChainConfig,
 	network network.Network,
 	fundedPChainPrivateKey string,
 ) (*args, error) {
@@ -218,18 +225,18 @@ func addAllAsValidators(ctx context.Context, args *args, subnetID string) error 
 // createBlockchain performs the CreateBlockchain transaction and waits until
 // the tx has been accepted or returns an error if this caused a problem
 // or a timeout.
-func createBlockchain(ctx context.Context, args *args, vm CustomVM) (ids.ID, error) {
+func createBlockchain(ctx context.Context, args *args, vm CustomChainConfig) (ids.ID, error) {
 	// Create blockchain
-	genesis, err := os.ReadFile(vm.Genesis)
+	genesis, err := os.ReadFile(vm.GenesisPath)
 	if err != nil {
-		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.Genesis, err)
+		return ids.Empty, fmt.Errorf("could not read genesis file (%s): %w", vm.GenesisPath, err)
 	}
 	txID, err := args.txPChainClient.CreateBlockchain(
 		args.userPass,
 		[]string{args.fundedAddress},
 		args.fundedAddress,
 		args.rSubnetID,
-		vm.ID,
+		vm.VMID,
 		[]string{},
 		vm.Name,
 		genesis,

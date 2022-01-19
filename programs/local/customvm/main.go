@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/vms"
-	avagoconfig "github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -21,25 +19,13 @@ import (
 const (
 	healthyTimeout = 2 * time.Minute
 	subnetTimeout  = 2 * time.Minute
-	binaryPathKey  = "binaryPath"
-	vmPathKey      = "vmPaths"
-	genesisPathKey = "genesisPaths"
-	subnetIDKey    = "subnetIds"
-	vmIDKey        = "vmIds"
-	loglevelKey    = "logLevel"
+	configPathKey  = "config-path"
 )
 
-var (
-	goPath            = os.ExpandEnv("$GOPATH")
-	defaultBinaryPath = fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
-)
-
-type customVMConfig struct {
-	BinaryPath   string   `json:"binaryPath"`
-	VMPaths      []string `json:"vmPaths"`
-	GenesisPaths []string `json:"genesisPaths"`
-	SubnetIDs    []string `json:"subnetIds"`
-	VMIDs        []string `json:"vmIds"`
+type config struct {
+	// Path to AvalancheGo binary
+	AvalanchegoPath string                  `json:"avalanchegoPath"`
+	VMConfigs       []vms.CustomChainConfig `json:"vmConfigs"`
 }
 
 // Execute the Avalanche Network Runner with custom VMs.
@@ -72,29 +58,17 @@ func run() error {
 	}
 
 	// setup all configs
-	config, pviper, err := readConfig(log)
+	config, err := readConfig(log)
 	if err != nil {
 		log.Fatal("couldn't read config: %s", err)
 		return err
 	}
 
-	if err := checkSliceEqualLen(config.VMPaths, config.GenesisPaths, config.SubnetIDs, config.VMIDs); err != nil {
-		log.Fatal("error checking supplied params: %s", err)
-		return err
+	whiteListedSubnets := []string{}
+	for _, chainConfig := range config.VMConfigs {
+		whiteListedSubnets = append(whiteListedSubnets, chainConfig.SubnetID)
 	}
-
-	customVms := make([]vms.CustomVM, len(config.VMPaths))
-	for i, v := range config.VMPaths {
-		customVms[i] = vms.CustomVM{
-			Path:     v,
-			Genesis:  config.GenesisPaths[i],
-			Name:     filepath.Base(v),
-			SubnetID: config.SubnetIDs[i],
-			ID:       config.VMIDs[i],
-		}
-	}
-
-	nw, err := local.NewDefaultNetworkWithVM(log, config.BinaryPath, customVms, pviper.GetString(avagoconfig.WhitelistedSubnetsKey))
+	nw, err := local.NewDefaultNetworkWithVM(log, config.AvalanchegoPath, config.VMConfigs, whiteListedSubnets)
 	if err != nil {
 		log.Fatal("failed to start the network: %s", err)
 		return err
@@ -121,7 +95,7 @@ func run() error {
 	// use a new timed context as we need to wait for the validators validation start time
 	subnetCtx, subnetCancel := context.WithTimeout(ctx, subnetTimeout)
 	defer subnetCancel()
-	for _, v := range customVms {
+	for _, v := range config.VMConfigs {
 		if err := vms.CreateSubnetAndBlockchain(
 			subnetCtx,
 			log,
@@ -141,69 +115,30 @@ func run() error {
 }
 
 // readConfig all configuration options (cli flags, env vars, config file) with viper
-func readConfig(log logging.Logger) (customVMConfig, *viper.Viper, error) {
-	v := viper.New()
-	viper.SetConfigName("config") // name of config file (without extension)
-	viper.AddConfigPath(".")      // path to look for the config file in
-	v.SetDefault(binaryPathKey, defaultBinaryPath)
-
+func readConfig(log logging.Logger) (config, error) {
 	flagSet := pflag.NewFlagSet("customVMConfig", pflag.ContinueOnError)
-	flagSet.String(binaryPathKey, defaultBinaryPath, "Path to avalanchego binary")
-	flagSet.StringSlice(vmPathKey, []string{""}, "Comma-separated list of file paths to custom vms")
-	flagSet.StringSlice(genesisPathKey, []string{""}, "Comma-separated list of file paths to genesis files")
-	flagSet.StringSlice(subnetIDKey, []string{""}, "Comma-separated list of subnetIDs for whitelisting")
-	flagSet.StringSlice(vmIDKey, []string{""}, "Comma-separated list of VM IDs")
-	flagSet.String(avagoconfig.WhitelistedSubnetsKey, "", "List of whitelisted subnets")
-	flagSet.String(loglevelKey, "info", "Log level for this program")
-
-	if err := v.BindPFlags(flagSet); err != nil {
-		return customVMConfig{}, v, fmt.Errorf("couldn't bind pflags: %s", err)
-	}
+	configPath := flagSet.String(configPathKey, "", "Path to config.json")
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
-		return customVMConfig{}, v, fmt.Errorf("couldn't parse pflags: %s", err)
+		return config{}, fmt.Errorf("couldn't parse pflags: %s", err)
 	}
 
-	v.AutomaticEnv()
+	v := viper.New()
+	// By default, look for config file named "config" in this directory
+	v.SetConfigName("config")
+	v.AddConfigPath(".")
+	if len(*configPath) > 0 {
+		// If config file path given, use that.
+		// Note that SetConfigName and AddConfigPath are ignored in this case.
+		v.SetConfigFile(*configPath)
+	}
 
+	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
 		log.Warn("no config file provided")
 	}
-
-	var c customVMConfig
+	var c config
 	if err := v.Unmarshal(&c); err != nil {
-		return customVMConfig{}, v, fmt.Errorf("couldn't unmarshal config: %s", err)
+		return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
-
-	// parse log level
-	logLevelStr := v.GetString(loglevelKey)
-	level, err := logging.ToLevel(logLevelStr)
-	if err != nil {
-		log.Warn("invalid log level %q provided. Ignoring and setting level to INFO", logLevelStr)
-	}
-	log.SetDisplayLevel(level)
-	log.SetLogLevel(level)
-	return c, v, nil
-}
-
-// checkSliceEqualLen compares the list of provided string arrays for its length
-// It returns an error if all the provided arrays are not of equal length.
-// It also returns an error if the arg list empty or if the arrays don't have
-// at least one element
-func checkSliceEqualLen(ss ...[]string) error {
-	if len(ss) < 1 {
-		return fmt.Errorf("no arguments")
-	}
-	checkLen := len(ss[0])
-	if checkLen < 1 {
-		return fmt.Errorf("one or more arguments missing")
-	}
-	for _, s := range ss {
-		if s[0] == "" {
-			return fmt.Errorf("empty argument")
-		}
-		if len(s) != checkLen {
-			return fmt.Errorf("unequal length")
-		}
-	}
-	return nil
+	return c, nil
 }
