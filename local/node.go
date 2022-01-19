@@ -6,7 +6,6 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/vms"
 	"github.com/ava-labs/avalanchego/ids"
 )
 
@@ -25,8 +24,6 @@ type NodeConfig struct {
 	RedirectStdout bool `json:"redirectStdout"`
 	// If non-nil, direct this node's Stderr to os.Stderr
 	RedirectStderr bool `json:"redirectStderr"`
-	// CustomVMs a slice of custom VMs this node should run
-	CustomVMs []vms.CustomChainConfig
 }
 
 // Use an interface so we can mock running
