@@ -49,8 +49,8 @@ type args struct {
 // CreateSubnetAndBlockchain:
 // * creates a subnet
 // * adds all the nodes in [network] as validators of the subnet
-// * creates a blockchain given by [vm]
-// validated by the subnet.
+// * creates a blockchain given by [customChainConfig]
+// Assumes all nodes in [network] are validators of the primary network.
 // [privateKey] is a funded P-Chain private key.
 func CreateSubnetAndBlockchain(
 	ctx context.Context,
@@ -276,8 +276,6 @@ func assertAllValidating(
 		g.Go(func() error {
 			nodeName := node.GetName()
 			client := node.GetAPIClient().PChainAPI()
-			// TODO I don't think we need to do this in a loop.
-			// GetBlockchainStatus should immediately return "validating"
 			for {
 				select {
 				case <-ctx.Done():

@@ -336,7 +336,6 @@ func NewDefaultConfigWithVM(avalanchegoPath string, customChainConfigs []vms.Cus
 		return network.Config{}, fmt.Errorf("failed to copy avalanchego binary %s to temporary runtime directory %s: %w", avalanchegoPath, runDir, err)
 	}
 	// copy the evm binary to the temp runtime
-	// TODO copy the entire plugins directory instead of just the evm plugin binary
 	evmBinaryPath := filepath.Join(filepath.Dir(avalanchegoPath), pluginDirName, defaultEvmBinaryName)
 	if err := utils.CopyFile(evmBinaryPath, filepath.Join(pluginDir, defaultEvmBinaryName)); err != nil {
 		return network.Config{}, fmt.Errorf("failed to copy evm binary %s to temporary runtime plugins directory %s: %w", evmBinaryPath, pluginDir, err)
