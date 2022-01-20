@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -64,29 +61,22 @@ var (
 		"gasUsed": "0x0",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
 	}`)
-	defaultConfig = `{
-		"logLevel":"INFO",
-		"avalanchegoPath":"%s",
-		"vmConfigs":[
-			{
-				"name":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
-				"vmPath":"%s",
-				"genesis":"%s",
-				"subnetID":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
-				"vmID":"tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH"
-			}
-		]
-	}`
+	defaultVMConfigs []map[string]interface{}
 )
 
 // TODO find a better way to define a default config
 func init() {
 	defaultAvalanchegoPath = filepath.Join(goPath, "src", "github.com", "ava-labs", "avalanchego", "build", "avalanchego")
 	defaultEVMPath = filepath.Join(goPath, "src", "github.com", "ava-labs", "avalanchego", "build", "plugins", "evm")
-	defaultEVMGenesisBase64 := base64.StdEncoding.EncodeToString(defaultEVMGenesis)
-	defaultConfig = fmt.Sprintf(defaultConfig, defaultAvalanchegoPath, defaultEVMPath, defaultEVMGenesisBase64)
-	defaultConfig = strings.ReplaceAll(defaultConfig, "\n", "")
-	defaultConfig = strings.ReplaceAll(defaultConfig, "\t", "")
+	defaultVMConfigs = []map[string]interface{}{
+		{
+			"name":     "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
+			"vmPath":   defaultEVMPath,
+			"genesis":  defaultEVMGenesis,
+			"subnetID": "24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1",
+			"vmID":     "tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH",
+		},
+	}
 }
 
 type config struct {
@@ -198,6 +188,7 @@ func readConfig(log logging.Logger) (config, error) {
 	v.AddConfigPath(".")
 	v.SetDefault("avalanchegoPath", defaultAvalanchegoPath)
 	v.SetDefault("logLevel", logging.Info.String())
+	v.SetDefault("vmConfigs", defaultVMConfigs)
 	if len(*configPath) > 0 {
 		// If config file path given, use that.
 		// Note that SetConfigName and AddConfigPath are ignored in this case.
@@ -208,14 +199,10 @@ func readConfig(log logging.Logger) (config, error) {
 	var c config
 	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
-		log.Warn("no config file provided. Using default, which creates an evm instance.")
-		if err := json.Unmarshal([]byte(defaultConfig), &c); err != nil {
-			return config{}, fmt.Errorf("couldn't unmarshal default config: %w", err)
-		}
-	} else {
-		if err := v.Unmarshal(&c); err != nil {
-			return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
-		}
+		log.Warn("no config file provided")
+	}
+	if err := v.Unmarshal(&c); err != nil {
+		return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)
 	}
 	logLevel, err := logging.ToLevel(c.LogLevel)
 	if err != nil {
