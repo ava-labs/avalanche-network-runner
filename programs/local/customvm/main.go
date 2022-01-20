@@ -199,7 +199,7 @@ func readConfig(log logging.Logger) (config, error) {
 	var c config
 	// Read the config file
 	if err := v.ReadInConfig(); err != nil {
-		log.Warn("no config file provided")
+		log.Warn("no config file provided. Using defaults")
 	}
 	if err := v.Unmarshal(&c); err != nil {
 		return config{}, fmt.Errorf("couldn't unmarshal config: %s", err)

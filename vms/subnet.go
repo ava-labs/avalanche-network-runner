@@ -327,7 +327,7 @@ func awaitBootstrapped(
 					return fmt.Errorf("%s IsBootstrapped call failed: %w", nodeName, err)
 				}
 				if bootstrapped {
-					log.Info("%s finished bootstrapping %s", nodeName, blockchainID)
+					log.Debug("%s finished bootstrapping %s", nodeName, blockchainID)
 					return nil
 				}
 				log.Debug("waiting for %s to finish bootstrapping %s", nodeName, blockchainID)
