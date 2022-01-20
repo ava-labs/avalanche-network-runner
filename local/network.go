@@ -134,9 +134,15 @@ type NodeProcessCreator interface {
 }
 
 type nodeProcessCreator struct {
-	colorPicker utils.ColorPicker // each child process will be colored in a different way, this field holds the color picker
-	stdout      io.Writer         // usually os.Stdout, but for testing can be replaced
-	stderr      io.Writer         // usually os.Stderr, but for testing can be replaced
+	// If this node's stdout or stderr are redirected, [colorPicker] determines
+	// the color of logs printed to stdout and/or stderr
+	colorPicker utils.ColorPicker
+	// If this node's stdout is redirected, it will be to here.
+	// In practice this is usually os.Stdout, but for testing can be replaced.
+	stdout io.Writer
+	// If this node's stderr is redirected, it will be to here.
+	// In practice this is usually os.Stderr, but for testing can be replaced.
+	stderr io.Writer
 }
 
 // NewNodeProcess creates a new process of the passed binary
@@ -158,7 +164,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
 		}
 		// redirect stdout and assign a color to the text
-		utils.ColorReaderTextOnWriter(stdout, npc.stdout, config.Name, color)
+		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
 	}
 	if localNodeConfig.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
@@ -166,7 +172,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
 		}
 		// redirect stderr and assign a color to the text
-		utils.ColorReaderTextOnWriter(stderr, npc.stderr, config.Name, color)
+		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
@@ -298,7 +304,11 @@ func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 ) (network.Network, error) {
-	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{})
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 func newDefaultNetwork(

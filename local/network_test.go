@@ -749,7 +749,7 @@ func TestChildCmdRedirection(t *testing.T) {
 
 	// define a bogus output
 	testOutput := "this is the output"
-	// we will use `echo` with the testOutpu as we will get a measurable result
+	// we will use `echo` with the testOutput as we will get a measurable result
 	ctrlCmd := exec.Command("echo", testOutput)
 	// we would not really need to execute the command, just the ouput would be enough
 	// nevertheless let's do it to simulate the actual case

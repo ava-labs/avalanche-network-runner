@@ -41,8 +41,8 @@ func TestColorReaderTextOnWriter(t *testing.T) {
 	fakeNodeName := "fake"
 
 	color := NewColorPicker().NextColor()
-	ColorReaderTextOnWriter(ro, &bufout, fakeNodeName, color)
-	ColorReaderTextOnWriter(re, &buferr, fakeNodeName, color)
+	ColorAndPrepend(ro, &bufout, fakeNodeName, color)
+	ColorAndPrepend(re, &buferr, fakeNodeName, color)
 
 	if err := fakeCmd.Run(); err != nil {
 		t.Fatal(err)
