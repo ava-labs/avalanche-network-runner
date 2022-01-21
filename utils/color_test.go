@@ -63,6 +63,19 @@ func TestColorAndPrepend(t *testing.T) {
 	var buferr bytes.Buffer
 	fakeNodeName := "fake"
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	errCh := make(chan error)
+	go func() {
+		// wait until we got the value
+		select {
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+		case <-bufout.sync:
+			errCh <- nil
+		}
+	}()
 	color := NewColorPicker().NextColor()
 	ColorAndPrepend(ro, bufout, fakeNodeName, color)
 	ColorAndPrepend(re, &buferr, fakeNodeName, color)
@@ -71,14 +84,8 @@ func TestColorAndPrepend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	// wait until we got the value
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case <-bufout.sync:
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
 	}
 	res := bufout.String()
 	if !strings.Contains(res, "test") {
