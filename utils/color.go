@@ -22,50 +22,44 @@ var supportedColors = []logging.Color{
 
 // ColorPicker allows to assign a new color
 type ColorPicker interface {
-	NextColor() logging.Color // get the next color
+	// get the next color
+	NextColor() logging.Color
 }
 
-// ColorPickerImpl implements ColorPicker
-type ColorPickerImpl struct {
+// colorPicker implements ColorPicker
+type colorPicker struct {
 	lock      sync.Mutex
 	usedIndex int
 }
 
 // NewColorPicker allows to assign a color to different clients
-func NewColorPicker() *ColorPickerImpl {
-	return &ColorPickerImpl{}
+func NewColorPicker() *colorPicker {
+	return &colorPicker{}
 }
 
 // NextColor for a client. If all supportedColors have been assigned,
-// it starts over with the first color
-// Doesn't need to be exported for the current use case but could be useful later
-func (c *ColorPickerImpl) NextColor() logging.Color {
+// it starts over with the first color.
+func (c *colorPicker) NextColor() logging.Color {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if c.usedIndex > len(supportedColors)-1 {
-		c.usedIndex = 0
-	}
-	pick := supportedColors[c.usedIndex]
+	color := supportedColors[c.usedIndex%len(supportedColors)]
 	c.usedIndex++
-
-	return pick
+	return color
 }
 
-// ColorReaderTextOnWriter scans the given `reader` for text and prepends the `wrapText` parameter to it.
-// It also assigns the passed color to the text and writes it to the given `writer`
-func ColorReaderTextOnWriter(reader io.Reader, writer io.Writer, wrapText string, color logging.Color) {
+// ColorAndPrepend reads each line from [reader], prepends it
+// with [prependText] and colors it with [color], and then prints the
+// prepended/colored line to [writer].
+func ColorAndPrepend(reader io.Reader, writer io.Writer, prependText string, color logging.Color) {
 	scanner := bufio.NewScanner(reader)
 	go func(scanner *bufio.Scanner) {
 		// we should not need any go routine control here:
-		// when the program exits, `Scan()` will hit an EOF and return false,
+		// when the program exits, Scan() will hit an EOF and return false,
 		// and therefore the routine terminates
 		for scanner.Scan() {
-			txt := color.Wrap(fmt.Sprintf("[%s] %s\n", wrapText, scanner.Text()))
-			if _, err := writer.Write([]byte(txt)); err != nil {
-				// this error handling is required for linting, but we can ignore this situation as it is highly unlikely
-				fmt.Println("failed to write wrapped text to writer")
-			}
+			txt := color.Wrap(fmt.Sprintf("[%s] %s\n", prependText, scanner.Text()))
+			_, _ = writer.Write([]byte(txt))
 		}
 	}(scanner)
 }

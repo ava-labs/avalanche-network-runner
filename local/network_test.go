@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -735,21 +736,35 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 }
 
+// for the TestChildCmdRedirection we need to be able to lock
+// the buffer or we will get a race condition
+type lockedBuffer struct {
+	bytes.Buffer
+	lock sync.Mutex
+}
+
+// Write is locked for the lockedBuffer
+func (m *lockedBuffer) Write(b []byte) (int, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.Buffer.Write(b)
+}
+
 // TestChildCmdRedirection checks that RedirectStdout set to true on a NodeConfig
 // results indeed in the output being prepended and colored.
 // For the color check we just measure the length of the required terminal escape values
 func TestChildCmdRedirection(t *testing.T) {
 	// we need this to create the actual process we test
-	var buf bytes.Buffer
+	buf := &lockedBuffer{}
 	npc := &nodeProcessCreator{
-		stdout:      &buf,
-		stderr:      &buf,
+		stdout:      buf,
+		stderr:      buf,
 		colorPicker: utils.NewColorPicker(),
 	}
 
 	// define a bogus output
 	testOutput := "this is the output"
-	// we will use `echo` with the testOutpu as we will get a measurable result
+	// we will use `echo` with the testOutput as we will get a measurable result
 	ctrlCmd := exec.Command("echo", testOutput)
 	// we would not really need to execute the command, just the ouput would be enough
 	// nevertheless let's do it to simulate the actual case
@@ -770,43 +785,19 @@ func TestChildCmdRedirection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// we need a bit of synchronization, otherwise, by the time we read `newResult`
-	// the value might already have been written
-	stop := make(chan struct{})
-	var newResult string
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				t.Log("context timed out")
-				return
-				// just poll until we have it
-			case <-time.After(10 * time.Millisecond):
-				newResult = buf.String()
-				if len(newResult) != 0 {
-					close(stop)
-					return
-				}
-			}
-		}
-	}()
-	if err := proc.Start(); err != nil {
+	// let the process finish for better cleanup
+	if err = proc.Start(); err != nil {
 		t.Fatal(err)
 	}
-	// wait until we have the value
-	select {
-	case <-stop:
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	}
-
 	// let the process finish for better cleanup
 	if err = proc.Wait(); err != nil {
 		t.Fatal(err)
 	}
+
+	// lock read access to the buffer
+	buf.lock.Lock()
+	newResult := buf.String()
+	buf.lock.Unlock()
 
 	// now do the checks:
 	// the new string should contain the node name
