@@ -2,9 +2,11 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -25,8 +27,23 @@ func TestColorAssignment(t *testing.T) {
 	}
 }
 
-// TestColorReaderTextOnWriter tests that passed colors are wrapped correctly
-func TestColorReaderTextOnWriter(t *testing.T) {
+// syncedBuffer writes to a channel after the Write operation
+// so that we are notified in testing when the value arrived
+type syncedBuffer struct {
+	bytes.Buffer
+	sync chan struct{}
+}
+
+// Write calls the embedded `Buffer.Write` but also
+// writes to the channel for notification
+func (s *syncedBuffer) Write(b []byte) (int, error) {
+	w, err := s.Buffer.Write(b)
+	s.sync <- struct{}{}
+	return w, err
+}
+
+// TestColorAndPrepend tests that passed colors are wrapped correctly
+func TestColorAndPrepend(t *testing.T) {
 	fakeCmd := exec.Command("echo", "test")
 	ro, err := fakeCmd.StdoutPipe()
 	if err != nil {
@@ -37,17 +54,32 @@ func TestColorReaderTextOnWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var bufout, buferr bytes.Buffer
+	bufout := &syncedBuffer{
+		sync: make(chan struct{}),
+	}
+
+	// for the stderr case we don't need a syncedBuffer because
+	// nothing should be written to stderr in this test case
+	var buferr bytes.Buffer
 	fakeNodeName := "fake"
 
 	color := NewColorPicker().NextColor()
-	ColorAndPrepend(ro, &bufout, fakeNodeName, color)
+	ColorAndPrepend(ro, bufout, fakeNodeName, color)
 	ColorAndPrepend(re, &buferr, fakeNodeName, color)
 
 	if err := fakeCmd.Run(); err != nil {
 		t.Fatal(err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// wait until we got the value
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-bufout.sync:
+	}
 	res := bufout.String()
 	if !strings.Contains(res, "test") {
 		t.Fatal("expected writer to contain the string `test`, but it didn't")
