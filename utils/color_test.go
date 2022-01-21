@@ -66,9 +66,11 @@ func TestColorAndPrepend(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
+	start := make(chan struct{})
 	errCh := make(chan error)
 	go func() {
 		// wait until we got the value
+		start <- struct{}{}
 		select {
 		case <-ctx.Done():
 			errCh <- ctx.Err()
@@ -79,7 +81,7 @@ func TestColorAndPrepend(t *testing.T) {
 	color := NewColorPicker().NextColor()
 	ColorAndPrepend(ro, bufout, fakeNodeName, color)
 	ColorAndPrepend(re, &buferr, fakeNodeName, color)
-
+	<-start
 	if err := fakeCmd.Run(); err != nil {
 		t.Fatal(err)
 	}
