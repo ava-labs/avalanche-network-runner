@@ -68,6 +68,7 @@ func main() {
 	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
 	if err := run(log, binaryPath); err != nil {
 		log.Fatal("%s", err)
+		os.Exit(1)
 	}
 }
 
