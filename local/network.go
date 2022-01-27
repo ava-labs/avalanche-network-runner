@@ -69,7 +69,7 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
-	//
+	// rootDir is the root directory of all node process directories
 	rootDir string
 }
 
