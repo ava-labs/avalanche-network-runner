@@ -69,6 +69,8 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+	//
+	rootDir string
 }
 
 var (
@@ -127,6 +129,7 @@ func init() {
 	}
 }
 
+// NodeProcessCreator is an interface for creating new node os processes
 type NodeProcessCreator interface {
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
@@ -238,6 +241,11 @@ func newNetwork(
 		}
 	}
 
+	net.rootDir, err = os.MkdirTemp("", "avalanchego-network-runner-*")
+	if err != nil {
+		return nil, err
+	}
+
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -286,6 +294,7 @@ func newDefaultNetwork(
 	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
 }
 
+// NewDefaultConfig create a new network.Config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
@@ -323,12 +332,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
-	// [tmpDir] is where this node's config file, C-Chain config file,
+	if ln.rootDir == "" {
+		ln.log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
+	}
+	// [nodeRootDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
-	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
-	if err != nil {
+	nodeRootDir := filepath.Join(ln.rootDir, nodeConfig.Name)
+	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
@@ -341,7 +353,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Tell the node to put the database in [tmpDir], unless given in config file
-	dbPath := tmpDir
+	dbPath := nodeRootDir
 	if dbPathIntf, ok := configFile[config.DBPathKey]; ok {
 		if dbPathFromConfig, ok := dbPathIntf.(string); ok {
 			dbPath = dbPathFromConfig
@@ -351,7 +363,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
-	logsDir := filepath.Join(tmpDir, "logs")
+	logsDir := filepath.Join(nodeRootDir, "logs")
 	if logsDirIntf, ok := configFile[config.LogsDirKey]; ok {
 		if logsDirFromConfig, ok := logsDirIntf.(string); ok {
 			logsDir = logsDirFromConfig
@@ -362,6 +374,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Use random free API port, unless given in config
 	var apiPort uint16
+	var err error
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
 		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
 			apiPort = uint16(apiPortFromConfig)
@@ -428,23 +441,23 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	ln.log.Info(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, tmpDir, logsDir, dbPath, p2pPort, apiPort,
+		nodeConfig.Name, nodeRootDir, logsDir, dbPath, p2pPort, apiPort,
 	)
 
 	// Write this node's staking key/cert to disk.
-	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
+	stakingKeyFilePath := filepath.Join(nodeRootDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, []byte(nodeConfig.StakingKey)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
-	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
+	stakingCertFilePath := filepath.Join(nodeRootDir, stakingCertFileName)
 	if err := createFileAndWrite(stakingCertFilePath, []byte(nodeConfig.StakingCert)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
 	// Write this node's config file to disk if one is given.
-	configFilePath := filepath.Join(tmpDir, configFileName)
+	configFilePath := filepath.Join(nodeRootDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, []byte(nodeConfig.ConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing config file: %w", err)
@@ -453,7 +466,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Write this node's genesis file to disk.
-	genesisFilePath := filepath.Join(tmpDir, genesisFileName)
+	genesisFilePath := filepath.Join(nodeRootDir, genesisFileName)
 	if err := createFileAndWrite(genesisFilePath, ln.genesis); err != nil {
 		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
 	}
@@ -461,11 +474,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Write this node's C-Chain file to disk if one is given.
 	if len(nodeConfig.CChainConfigFile) != 0 {
-		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
+		cChainConfigFilePath := filepath.Join(nodeRootDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, []byte(nodeConfig.CChainConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
 		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, nodeRootDir))
 	}
 
 	var localNodeConfig NodeConfig
@@ -497,20 +510,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) Healthy(ctx context.Context) chan error {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) Healthy(ctx context.Context) chan error {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
-	if net.isStopped() {
+	if ln.isStopped() {
 		healthyChan <- network.ErrStopped
 		return healthyChan
 	}
 
-	nodes := make([]*localNode, 0, len(net.nodes))
-	for _, node := range net.nodes {
+	nodes := make([]*localNode, 0, len(ln.nodes))
+	for _, node := range ln.nodes {
 		nodes = append(nodes, node)
 	}
 	go func() {
@@ -522,7 +535,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					select {
-					case <-net.closedOnStopCh:
+					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
@@ -530,7 +543,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
-						net.log.Debug("node %q became healthy", node.name)
+						ln.log.Debug("node %q became healthy", node.name)
 						return nil
 					}
 				}
@@ -546,15 +559,15 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 }
 
 // See network.Network
-func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	node, ok := net.nodes[nodeName]
+	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return nil, fmt.Errorf("node %q not found in network", nodeName)
 	}
@@ -562,17 +575,17 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetNodeNames() ([]string, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetNodeNames() ([]string, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	names := make([]string, len(net.nodes))
+	names := make([]string, len(ln.nodes))
 	i := 0
-	for name := range net.nodes {
+	for name := range ln.nodes {
 		names[i] = name
 		i++
 	}
@@ -580,38 +593,38 @@ func (net *localNetwork) GetNodeNames() ([]string, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetAllNodes() (map[string]node.Node, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	nodesCopy := make(map[string]node.Node, len(net.nodes))
-	for name, node := range net.nodes {
+	nodesCopy := make(map[string]node.Node, len(ln.nodes))
+	for name, node := range ln.nodes {
 		nodesCopy[name] = node
 	}
 	return nodesCopy, nil
 }
 
-func (net *localNetwork) Stop(ctx context.Context) error {
-	net.lock.Lock()
-	defer net.lock.Unlock()
+func (ln *localNetwork) Stop(ctx context.Context) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 
-	return net.stop(ctx)
+	return ln.stop(ctx)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop(ctx context.Context) error {
-	if net.isStopped() {
-		net.log.Debug("stop() called multiple times")
+func (ln *localNetwork) stop(ctx context.Context) error {
+	if ln.isStopped() {
+		ln.log.Debug("stop() called multiple times")
 		return network.ErrStopped
 	}
 	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
 	errs := wrappers.Errs{}
-	for nodeName := range net.nodes {
+	for nodeName := range ln.nodes {
 		select {
 		case <-ctx.Done():
 			// In practice we'll probably never time out here,
@@ -621,35 +634,35 @@ func (net *localNetwork) stop(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-		if err := net.removeNode(nodeName); err != nil {
-			net.log.Error("error stopping node %q: %s", nodeName, err)
+		if err := ln.removeNode(nodeName); err != nil {
+			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
 	}
-	close(net.closedOnStopCh)
-	net.log.Info("done stopping network")
+	close(ln.closedOnStopCh)
+	ln.log.Info("done stopping network")
 	return errs.Err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
-func (net *localNetwork) RemoveNode(nodeName string) error {
-	net.lock.Lock()
-	defer net.lock.Unlock()
+func (ln *localNetwork) RemoveNode(nodeName string) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 
-	return net.removeNode(nodeName)
+	return ln.removeNode(nodeName)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) removeNode(nodeName string) error {
-	if net.isStopped() {
+func (ln *localNetwork) removeNode(nodeName string) error {
+	if ln.isStopped() {
 		return network.ErrStopped
 	}
-	net.log.Debug("removing node %q", nodeName)
-	node, ok := net.nodes[nodeName]
+	ln.log.Debug("removing node %q", nodeName)
+	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
-	delete(net.nodes, nodeName)
+	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -663,9 +676,9 @@ func (net *localNetwork) removeNode(nodeName string) error {
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) isStopped() bool {
+func (ln *localNetwork) isStopped() bool {
 	select {
-	case <-net.closedOnStopCh:
+	case <-ln.closedOnStopCh:
 		return true
 	default:
 		return false
@@ -682,7 +695,9 @@ func createFileAndWrite(path string, contents []byte) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 	if _, err := file.Write(contents); err != nil {
 		return err
 	}
