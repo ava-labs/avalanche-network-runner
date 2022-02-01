@@ -2,11 +2,9 @@ package utils
 
 import (
 	"bytes"
-	"context"
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -37,9 +35,10 @@ type syncedBuffer struct {
 // Write calls the embedded `Buffer.Write` but also
 // writes to the channel for notification
 func (s *syncedBuffer) Write(b []byte) (int, error) {
-	w, err := s.Buffer.Write(b)
-	s.sync <- struct{}{}
-	return w, err
+	defer func() {
+		s.sync <- struct{}{}
+	}()
+	return s.Buffer.Write(b)
 }
 
 // TestColorAndPrepend tests that passed colors are wrapped correctly
@@ -63,35 +62,25 @@ func TestColorAndPrepend(t *testing.T) {
 	var buferr bytes.Buffer
 	fakeNodeName := "fake"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	start := make(chan struct{})
-	errCh := make(chan error)
-	go func() {
-		// wait until we got the value
-		start <- struct{}{}
-		select {
-		case <-ctx.Done():
-			errCh <- ctx.Err()
-		case <-bufout.sync:
-			errCh <- nil
-		}
-	}()
 	color := NewColorPicker().NextColor()
 	ColorAndPrepend(ro, bufout, fakeNodeName, color)
 	ColorAndPrepend(re, &buferr, fakeNodeName, color)
-	<-start
-	if err := fakeCmd.Run(); err != nil {
+	if err := fakeCmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := <-errCh; err != nil {
-		t.Fatal(err)
-	}
+	<-bufout.sync
 	res := bufout.String()
 	if !strings.Contains(res, "test") {
 		t.Fatal("expected writer to contain the string `test`, but it didn't")
+	}
+
+	// Note that, according to the specification of StdoutPipe
+	// and StderrPipe, we have to wait until after we read from
+	// the pipe before calling Wait.
+	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
+	if err := fakeCmd.Wait(); err != nil {
+		t.Fatal(err)
 	}
 
 	// 4 is []<space>\n

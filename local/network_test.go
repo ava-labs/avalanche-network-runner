@@ -786,18 +786,22 @@ func TestChildCmdRedirection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// let the process finish for better cleanup
 	if err = proc.Start(); err != nil {
-		t.Fatal(err)
-	}
-	// let the process finish for better cleanup
-	if err = proc.Wait(); err != nil {
 		t.Fatal(err)
 	}
 
 	// lock read access to the buffer
 	<-buf.writtenCh
 	newResult := buf.String()
+
+	// wait for the process to finish.
+	// Note that, according to the specification of StdoutPipe
+	// and StderrPipe, we have to wait until after we read from
+	// the pipe before calling Wait.
+	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
+	if err = proc.Wait(); err != nil {
+		t.Fatal(err)
+	}
 
 	// now do the checks:
 	// the new string should contain the node name
