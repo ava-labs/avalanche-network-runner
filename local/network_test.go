@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -736,17 +735,17 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 }
 
-// for the TestChildCmdRedirection we need to be able to lock
-// the buffer or we will get a race condition
+// for the TestChildCmdRedirection we need to be able to wait
+// until the buffer is written to or else there is a race condition
 type lockedBuffer struct {
 	bytes.Buffer
-	lock sync.Mutex
+	// [writtenCh] is closed after Write is called
+	writtenCh chan struct{}
 }
 
 // Write is locked for the lockedBuffer
 func (m *lockedBuffer) Write(b []byte) (int, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	defer func() { close(m.writtenCh) }()
 	return m.Buffer.Write(b)
 }
 
@@ -755,7 +754,9 @@ func (m *lockedBuffer) Write(b []byte) (int, error) {
 // For the color check we just measure the length of the required terminal escape values
 func TestChildCmdRedirection(t *testing.T) {
 	// we need this to create the actual process we test
-	buf := &lockedBuffer{}
+	buf := &lockedBuffer{
+		writtenCh: make(chan struct{}),
+	}
 	npc := &nodeProcessCreator{
 		stdout:      buf,
 		stderr:      buf,
@@ -795,9 +796,8 @@ func TestChildCmdRedirection(t *testing.T) {
 	}
 
 	// lock read access to the buffer
-	buf.lock.Lock()
+	<-buf.writtenCh
 	newResult := buf.String()
-	buf.lock.Unlock()
 
 	// now do the checks:
 	// the new string should contain the node name
