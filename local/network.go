@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -127,25 +128,51 @@ func init() {
 	}
 }
 
+// NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
-type nodeProcessCreator struct{}
+type nodeProcessCreator struct {
+	// If this node's stdout or stderr are redirected, [colorPicker] determines
+	// the color of logs printed to stdout and/or stderr
+	colorPicker utils.ColorPicker
+	// If this node's stdout is redirected, it will be to here.
+	// In practice this is usually os.Stdout, but for testing can be replaced.
+	stdout io.Writer
+	// If this node's stderr is redirected, it will be to here.
+	// In practice this is usually os.Stderr, but for testing can be replaced.
+	stderr io.Writer
+}
 
-func (*nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+// NewNodeProcess creates a new process of the passed binary
+// If the config has redirection set to `true` for either StdErr or StdOut,
+// the output will be redirected and colored
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	var localNodeConfig NodeConfig
 	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
-	// Optionally re-direct stdout and stderr
+	// assign a new color to this process (might not be used if the localNodeConfig isn't set for it)
+	color := npc.colorPicker.NextColor()
+	// Optionally redirect stdout and stderr
 	if localNodeConfig.RedirectStdout {
-		cmd.Stdout = os.Stdout
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
+		}
+		// redirect stdout and assign a color to the text
+		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
 	}
 	if localNodeConfig.RedirectStderr {
-		cmd.Stderr = os.Stderr
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
+		}
+		// redirect stderr and assign a color to the text
+		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
@@ -173,7 +200,11 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 ) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{})
+	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 // newNetwork creates a network from given configuration
@@ -273,7 +304,11 @@ func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 ) (network.Network, error) {
-	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{})
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 func newDefaultNetwork(
@@ -286,6 +321,7 @@ func newDefaultNetwork(
 	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
 }
 
+// NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
@@ -497,20 +533,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) Healthy(ctx context.Context) chan error {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) Healthy(ctx context.Context) chan error {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
-	if net.isStopped() {
+	if ln.isStopped() {
 		healthyChan <- network.ErrStopped
 		return healthyChan
 	}
 
-	nodes := make([]*localNode, 0, len(net.nodes))
-	for _, node := range net.nodes {
+	nodes := make([]*localNode, 0, len(ln.nodes))
+	for _, node := range ln.nodes {
 		nodes = append(nodes, node)
 	}
 	go func() {
@@ -522,7 +558,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					select {
-					case <-net.closedOnStopCh:
+					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-ctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
@@ -530,7 +566,7 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 					}
 					health, err := node.client.HealthAPI().Health()
 					if err == nil && health.Healthy {
-						net.log.Debug("node %q became healthy", node.name)
+						ln.log.Debug("node %q became healthy", node.name)
 						return nil
 					}
 				}
@@ -546,15 +582,15 @@ func (net *localNetwork) Healthy(ctx context.Context) chan error {
 }
 
 // See network.Network
-func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	node, ok := net.nodes[nodeName]
+	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return nil, fmt.Errorf("node %q not found in network", nodeName)
 	}
@@ -562,17 +598,17 @@ func (net *localNetwork) GetNode(nodeName string) (node.Node, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetNodeNames() ([]string, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetNodeNames() ([]string, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	names := make([]string, len(net.nodes))
+	names := make([]string, len(ln.nodes))
 	i := 0
-	for name := range net.nodes {
+	for name := range ln.nodes {
 		names[i] = name
 		i++
 	}
@@ -580,38 +616,38 @@ func (net *localNetwork) GetNodeNames() ([]string, error) {
 }
 
 // See network.Network
-func (net *localNetwork) GetAllNodes() (map[string]node.Node, error) {
-	net.lock.RLock()
-	defer net.lock.RUnlock()
+func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
 
-	if net.isStopped() {
+	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
 
-	nodesCopy := make(map[string]node.Node, len(net.nodes))
-	for name, node := range net.nodes {
+	nodesCopy := make(map[string]node.Node, len(ln.nodes))
+	for name, node := range ln.nodes {
 		nodesCopy[name] = node
 	}
 	return nodesCopy, nil
 }
 
-func (net *localNetwork) Stop(ctx context.Context) error {
-	net.lock.Lock()
-	defer net.lock.Unlock()
+func (ln *localNetwork) Stop(ctx context.Context) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 
-	return net.stop(ctx)
+	return ln.stop(ctx)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) stop(ctx context.Context) error {
-	if net.isStopped() {
-		net.log.Debug("stop() called multiple times")
+func (ln *localNetwork) stop(ctx context.Context) error {
+	if ln.isStopped() {
+		ln.log.Debug("stop() called multiple times")
 		return network.ErrStopped
 	}
 	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
 	errs := wrappers.Errs{}
-	for nodeName := range net.nodes {
+	for nodeName := range ln.nodes {
 		select {
 		case <-ctx.Done():
 			// In practice we'll probably never time out here,
@@ -621,35 +657,35 @@ func (net *localNetwork) stop(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-		if err := net.removeNode(nodeName); err != nil {
-			net.log.Error("error stopping node %q: %s", nodeName, err)
+		if err := ln.removeNode(nodeName); err != nil {
+			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
 	}
-	close(net.closedOnStopCh)
-	net.log.Info("done stopping network")
+	close(ln.closedOnStopCh)
+	ln.log.Info("done stopping network")
 	return errs.Err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
-func (net *localNetwork) RemoveNode(nodeName string) error {
-	net.lock.Lock()
-	defer net.lock.Unlock()
+func (ln *localNetwork) RemoveNode(nodeName string) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 
-	return net.removeNode(nodeName)
+	return ln.removeNode(nodeName)
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) removeNode(nodeName string) error {
-	if net.isStopped() {
+func (ln *localNetwork) removeNode(nodeName string) error {
+	if ln.isStopped() {
 		return network.ErrStopped
 	}
-	net.log.Debug("removing node %q", nodeName)
-	node, ok := net.nodes[nodeName]
+	ln.log.Debug("removing node %q", nodeName)
+	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
-	delete(net.nodes, nodeName)
+	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -663,9 +699,9 @@ func (net *localNetwork) removeNode(nodeName string) error {
 }
 
 // Assumes [net.lock] is held
-func (net *localNetwork) isStopped() bool {
+func (ln *localNetwork) isStopped() bool {
 	select {
-	case <-net.closedOnStopCh:
+	case <-ln.closedOnStopCh:
 		return true
 	default:
 		return false
@@ -682,7 +718,10 @@ func createFileAndWrite(path string, contents []byte) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
+
 	if _, err := file.Write(contents); err != nil {
 		return err
 	}
