@@ -11,7 +11,6 @@ const (
 	stopTimeout            = 10 * time.Second
 	removeTimeout          = 30 * time.Second
 	nodeReachableCheckFreq = 5 * time.Second
-	apiTimeout             = 10 * time.Second
 	healthCheckFreq        = 3 * time.Second
 	// TODO export these default ports from the
 	// AvalancheGo operator and use the imported
