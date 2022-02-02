@@ -69,7 +69,8 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
-	// rootDir is the root directory of all node process directories
+	// rootDir is the root directory under which we write all node
+	// logs, databases, etc.
 	rootDir string
 }
 
@@ -241,7 +242,7 @@ func newNetwork(
 		}
 	}
 
-	net.rootDir, err = os.MkdirTemp("", "avalanchego-network-runner-*")
+	net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
 	if err != nil {
 		return nil, err
 	}
@@ -373,8 +374,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Use random free API port, unless given in config
-	var apiPort uint16
-	var err error
+	var (
+		apiPort uint16
+		err     error
+	)
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
 		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
 			apiPort = uint16(apiPortFromConfig)
