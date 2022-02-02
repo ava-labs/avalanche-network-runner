@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	info "github.com/ava-labs/avalanchego/api/info"
 	ids "github.com/ava-labs/avalanchego/ids"
 
@@ -16,13 +18,13 @@ type InfoClient struct {
 	mock.Mock
 }
 
-// GetBlockchainID provides a mock function with given fields: alias
-func (_m *InfoClient) GetBlockchainID(alias string) (ids.ID, error) {
-	ret := _m.Called(alias)
+// GetBlockchainID provides a mock function with given fields: _a0, _a1
+func (_m *InfoClient) GetBlockchainID(_a0 context.Context, _a1 string) (ids.ID, error) {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 ids.ID
-	if rf, ok := ret.Get(0).(func(string) ids.ID); ok {
-		r0 = rf(alias)
+	if rf, ok := ret.Get(0).(func(context.Context, string) ids.ID); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(ids.ID)
@@ -30,8 +32,8 @@ func (_m *InfoClient) GetBlockchainID(alias string) (ids.ID, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(alias)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -39,20 +41,20 @@ func (_m *InfoClient) GetBlockchainID(alias string) (ids.ID, error) {
 	return r0, r1
 }
 
-// GetNetworkID provides a mock function with given fields:
-func (_m *InfoClient) GetNetworkID() (uint32, error) {
-	ret := _m.Called()
+// GetNetworkID provides a mock function with given fields: _a0
+func (_m *InfoClient) GetNetworkID(_a0 context.Context) (uint32, error) {
+	ret := _m.Called(_a0)
 
 	var r0 uint32
-	if rf, ok := ret.Get(0).(func() uint32); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) uint32); ok {
+		r0 = rf(_a0)
 	} else {
 		r0 = ret.Get(0).(uint32)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -60,20 +62,20 @@ func (_m *InfoClient) GetNetworkID() (uint32, error) {
 	return r0, r1
 }
 
-// GetNetworkName provides a mock function with given fields:
-func (_m *InfoClient) GetNetworkName() (string, error) {
-	ret := _m.Called()
+// GetNetworkName provides a mock function with given fields: _a0
+func (_m *InfoClient) GetNetworkName(_a0 context.Context) (string, error) {
+	ret := _m.Called(_a0)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(_a0)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -81,20 +83,20 @@ func (_m *InfoClient) GetNetworkName() (string, error) {
 	return r0, r1
 }
 
-// GetNodeID provides a mock function with given fields:
-func (_m *InfoClient) GetNodeID() (string, error) {
-	ret := _m.Called()
+// GetNodeID provides a mock function with given fields: _a0
+func (_m *InfoClient) GetNodeID(_a0 context.Context) (string, error) {
+	ret := _m.Called(_a0)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(_a0)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -102,20 +104,20 @@ func (_m *InfoClient) GetNodeID() (string, error) {
 	return r0, r1
 }
 
-// GetNodeIP provides a mock function with given fields:
-func (_m *InfoClient) GetNodeIP() (string, error) {
-	ret := _m.Called()
+// GetNodeIP provides a mock function with given fields: _a0
+func (_m *InfoClient) GetNodeIP(_a0 context.Context) (string, error) {
+	ret := _m.Called(_a0)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(_a0)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -123,13 +125,13 @@ func (_m *InfoClient) GetNodeIP() (string, error) {
 	return r0, r1
 }
 
-// GetNodeVersion provides a mock function with given fields:
-func (_m *InfoClient) GetNodeVersion() (*info.GetNodeVersionReply, error) {
-	ret := _m.Called()
+// GetNodeVersion provides a mock function with given fields: _a0
+func (_m *InfoClient) GetNodeVersion(_a0 context.Context) (*info.GetNodeVersionReply, error) {
+	ret := _m.Called(_a0)
 
 	var r0 *info.GetNodeVersionReply
-	if rf, ok := ret.Get(0).(func() *info.GetNodeVersionReply); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) *info.GetNodeVersionReply); ok {
+		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*info.GetNodeVersionReply)
@@ -137,8 +139,8 @@ func (_m *InfoClient) GetNodeVersion() (*info.GetNodeVersionReply, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -146,13 +148,13 @@ func (_m *InfoClient) GetNodeVersion() (*info.GetNodeVersionReply, error) {
 	return r0, r1
 }
 
-// GetTxFee provides a mock function with given fields:
-func (_m *InfoClient) GetTxFee() (*info.GetTxFeeResponse, error) {
-	ret := _m.Called()
+// GetTxFee provides a mock function with given fields: _a0
+func (_m *InfoClient) GetTxFee(_a0 context.Context) (*info.GetTxFeeResponse, error) {
+	ret := _m.Called(_a0)
 
 	var r0 *info.GetTxFeeResponse
-	if rf, ok := ret.Get(0).(func() *info.GetTxFeeResponse); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) *info.GetTxFeeResponse); ok {
+		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*info.GetTxFeeResponse)
@@ -160,8 +162,8 @@ func (_m *InfoClient) GetTxFee() (*info.GetTxFeeResponse, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -169,20 +171,20 @@ func (_m *InfoClient) GetTxFee() (*info.GetTxFeeResponse, error) {
 	return r0, r1
 }
 
-// IsBootstrapped provides a mock function with given fields: chainID
-func (_m *InfoClient) IsBootstrapped(chainID string) (bool, error) {
-	ret := _m.Called(chainID)
+// IsBootstrapped provides a mock function with given fields: _a0, _a1
+func (_m *InfoClient) IsBootstrapped(_a0 context.Context, _a1 string) (bool, error) {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = rf(chainID)
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(chainID)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -190,13 +192,13 @@ func (_m *InfoClient) IsBootstrapped(chainID string) (bool, error) {
 	return r0, r1
 }
 
-// Peers provides a mock function with given fields:
-func (_m *InfoClient) Peers() ([]network.PeerInfo, error) {
-	ret := _m.Called()
+// Peers provides a mock function with given fields: _a0
+func (_m *InfoClient) Peers(_a0 context.Context) ([]network.PeerInfo, error) {
+	ret := _m.Called(_a0)
 
 	var r0 []network.PeerInfo
-	if rf, ok := ret.Get(0).(func() []network.PeerInfo); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) []network.PeerInfo); ok {
+		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]network.PeerInfo)
@@ -204,8 +206,8 @@ func (_m *InfoClient) Peers() ([]network.PeerInfo, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -213,13 +215,13 @@ func (_m *InfoClient) Peers() ([]network.PeerInfo, error) {
 	return r0, r1
 }
 
-// Uptime provides a mock function with given fields:
-func (_m *InfoClient) Uptime() (*info.UptimeResponse, error) {
-	ret := _m.Called()
+// Uptime provides a mock function with given fields: _a0
+func (_m *InfoClient) Uptime(_a0 context.Context) (*info.UptimeResponse, error) {
+	ret := _m.Called(_a0)
 
 	var r0 *info.UptimeResponse
-	if rf, ok := ret.Get(0).(func() *info.UptimeResponse); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) *info.UptimeResponse); ok {
+		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*info.UptimeResponse)
@@ -227,8 +229,8 @@ func (_m *InfoClient) Uptime() (*info.UptimeResponse, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -47,15 +47,15 @@ func (_m *Client) AdminAPI() admin.Client {
 }
 
 // CChainAPI provides a mock function with given fields:
-func (_m *Client) CChainAPI() *evm.Client {
+func (_m *Client) CChainAPI() evm.Client {
 	ret := _m.Called()
 
-	var r0 *evm.Client
-	if rf, ok := ret.Get(0).(func() *evm.Client); ok {
+	var r0 evm.Client
+	if rf, ok := ret.Get(0).(func() evm.Client); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*evm.Client)
+			r0 = ret.Get(0).(evm.Client)
 		}
 	}
 

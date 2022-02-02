@@ -31,7 +31,6 @@ const (
 	stakingKeyFileName    = "staking.key"
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
-	apiTimeout            = 5 * time.Second
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	defaultNumNodes       = 5
@@ -523,7 +522,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	node := &localNode{
 		name:    nodeConfig.Name,
 		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", apiPort, apiTimeout),
+		client:  ln.newAPIClientF("localhost", apiPort),
 		process: nodeProcess,
 		apiPort: apiPort,
 		p2pPort: p2pPort,
@@ -564,7 +563,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health()
+					health, err := node.client.HealthAPI().Health(ctx)
 					if err == nil && health.Healthy {
 						ln.log.Debug("node %q became healthy", node.name)
 						return nil
