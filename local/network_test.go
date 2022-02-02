@@ -1,10 +1,13 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -730,6 +733,88 @@ func TestFlags(t *testing.T) {
 	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
+}
+
+// for the TestChildCmdRedirection we need to be able to wait
+// until the buffer is written to or else there is a race condition
+type lockedBuffer struct {
+	bytes.Buffer
+	// [writtenCh] is closed after Write is called
+	writtenCh chan struct{}
+}
+
+// Write is locked for the lockedBuffer
+func (m *lockedBuffer) Write(b []byte) (int, error) {
+	defer func() { close(m.writtenCh) }()
+	return m.Buffer.Write(b)
+}
+
+// TestChildCmdRedirection checks that RedirectStdout set to true on a NodeConfig
+// results indeed in the output being prepended and colored.
+// For the color check we just measure the length of the required terminal escape values
+func TestChildCmdRedirection(t *testing.T) {
+	// we need this to create the actual process we test
+	buf := &lockedBuffer{
+		writtenCh: make(chan struct{}),
+	}
+	npc := &nodeProcessCreator{
+		stdout:      buf,
+		stderr:      buf,
+		colorPicker: utils.NewColorPicker(),
+	}
+
+	// define a bogus output
+	testOutput := "this is the output"
+	// we will use `echo` with the testOutput as we will get a measurable result
+	ctrlCmd := exec.Command("echo", testOutput)
+	// we would not really need to execute the command, just the ouput would be enough
+	// nevertheless let's do it to simulate the actual case
+	expectedResult, err := ctrlCmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// this is the "mock" node name we want to see prepended to the output
+	mockNodeName := "redirect-test-node"
+
+	// now create the node process and check it will be prepended and colored
+	testConfig := node.Config{
+		ImplSpecificConfig: json.RawMessage(`{"binaryPath":"echo","redirectStdout":true,"redirectStderr":true}`),
+		Name:               mockNodeName,
+	}
+	proc, err := npc.NewNodeProcess(testConfig, testOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = proc.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// lock read access to the buffer
+	<-buf.writtenCh
+	newResult := buf.String()
+
+	// wait for the process to finish.
+	// Note that, according to the specification of StdoutPipe
+	// and StderrPipe, we have to wait until after we read from
+	// the pipe before calling Wait.
+	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
+	if err = proc.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	// now do the checks:
+	// the new string should contain the node name
+	if !strings.Contains(newResult, mockNodeName) {
+		t.Fatalf("expected subcommand to contain node name %s, but it didn't", mockNodeName)
+	}
+
+	// and it should have a specific length:
+	//             the actual output   + the color terminal escape sequence      + node name    + []<space> + color terminal reset escape sequence
+	expectedLen := len(expectedResult) + len(utils.NewColorPicker().NextColor()) + len(mockNodeName) + 3 + len(logging.Reset)
+	if len(newResult) != expectedLen {
+		t.Fatalf("expected string length to be %d, but it was %d", expectedLen, len(newResult))
+	}
 }
 
 // checkNetwork receives a network, a set of running nodes (started and not removed yet), and

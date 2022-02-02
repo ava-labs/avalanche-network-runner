@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -72,6 +73,8 @@ type localNetwork struct {
 	// rootDir is the root directory under which we write all node
 	// logs, databases, etc.
 	rootDir string
+	// Flags to apply to all nodes if not present
+	flags map[string]interface{}
 }
 
 var (
@@ -130,26 +133,51 @@ func init() {
 	}
 }
 
-// NodeProcessCreator is an interface for creating new node os processes
+// NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
-type nodeProcessCreator struct{}
+type nodeProcessCreator struct {
+	// If this node's stdout or stderr are redirected, [colorPicker] determines
+	// the color of logs printed to stdout and/or stderr
+	colorPicker utils.ColorPicker
+	// If this node's stdout is redirected, it will be to here.
+	// In practice this is usually os.Stdout, but for testing can be replaced.
+	stdout io.Writer
+	// If this node's stderr is redirected, it will be to here.
+	// In practice this is usually os.Stderr, but for testing can be replaced.
+	stderr io.Writer
+}
 
-func (*nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+// NewNodeProcess creates a new process of the passed binary
+// If the config has redirection set to `true` for either StdErr or StdOut,
+// the output will be redirected and colored
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	var localNodeConfig NodeConfig
 	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
 	}
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
-	// Optionally re-direct stdout and stderr
+	// assign a new color to this process (might not be used if the localNodeConfig isn't set for it)
+	color := npc.colorPicker.NextColor()
+	// Optionally redirect stdout and stderr
 	if localNodeConfig.RedirectStdout {
-		cmd.Stdout = os.Stdout
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
+		}
+		// redirect stdout and assign a color to the text
+		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
 	}
 	if localNodeConfig.RedirectStderr {
-		cmd.Stderr = os.Stderr
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
+		}
+		// redirect stderr and assign a color to the text
+		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
@@ -177,7 +205,11 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 ) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{})
+	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 // newNetwork creates a network from given configuration
@@ -208,6 +240,7 @@ func newNetwork(
 		bootstrapIDs:       make(beaconList),
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
+		flags:              networkConfig.Flags,
 	}
 
 	// Sort node configs so beacons start first
@@ -222,31 +255,10 @@ func newNetwork(
 			nodeConfigs = append(nodeConfigs, nodeConfig)
 		}
 	}
-
-	for flagName, flagVal := range networkConfig.Flags {
-		for i := range nodeConfigs {
-			n := &nodeConfigs[i]
-			if n.Flags == nil {
-				n.Flags = make(map[string]interface{})
-			}
-			// If the same flag is given in network config and node config,
-			// the flag in the node config takes precedence
-			if val, ok := n.Flags[flagName]; !ok {
-				n.Flags[flagName] = flagVal
-			} else {
-				log.Info(
-					"not overwriting node config flag %s (value %v) with network config flag (value %v)",
-					flagName, val, flagVal,
-				)
-			}
-		}
-	}
-
 	net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
 	if err != nil {
 		return nil, err
 	}
-
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -282,7 +294,11 @@ func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 ) (network.Network, error) {
-	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{})
+	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{
+		colorPicker: utils.NewColorPicker(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+	})
 }
 
 func newDefaultNetwork(
@@ -295,7 +311,7 @@ func newDefaultNetwork(
 	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
 }
 
-// NewDefaultConfig create a new network.Config
+// NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
@@ -320,6 +336,22 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.isStopped() {
 		return nil, network.ErrStopped
+	}
+
+	for flagName, flagVal := range ln.flags {
+		if nodeConfig.Flags == nil {
+			nodeConfig.Flags = make(map[string]interface{})
+		}
+		// If the same flag is given in network config and node config,
+		// the flag in the node config takes precedence
+		if val, ok := nodeConfig.Flags[flagName]; !ok {
+			nodeConfig.Flags[flagName] = flagVal
+		} else {
+			ln.log.Info(
+				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+				flagName, val, flagVal,
+			)
+		}
 	}
 
 	// If no name was given, use default name pattern
