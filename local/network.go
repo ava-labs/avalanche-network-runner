@@ -70,6 +70,9 @@ type localNetwork struct {
 	nodes map[string]*localNode
 	// List of nodes that new nodes will bootstrap from.
 	bootstrapIPs, bootstrapIDs beaconList
+	// rootDir is the root directory under which we write all node
+	// logs, databases, etc.
+	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
 }
@@ -252,7 +255,10 @@ func newNetwork(
 			nodeConfigs = append(nodeConfigs, nodeConfig)
 		}
 	}
-
+	net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
+	if err != nil {
+		return nil, err
+	}
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -359,12 +365,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
 	}
 
-	// [tmpDir] is where this node's config file, C-Chain config file,
+	if ln.rootDir == "" {
+		ln.log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
+	}
+	// [nodeRootDir] is where this node's config file, C-Chain config file,
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
-	tmpDir, err := os.MkdirTemp("", "avalanchego-network-runner-*")
-	if err != nil {
+	nodeRootDir := filepath.Join(ln.rootDir, nodeConfig.Name)
+	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		return nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 
@@ -377,7 +386,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Tell the node to put the database in [tmpDir], unless given in config file
-	dbPath := tmpDir
+	dbPath := nodeRootDir
 	if dbPathIntf, ok := configFile[config.DBPathKey]; ok {
 		if dbPathFromConfig, ok := dbPathIntf.(string); ok {
 			dbPath = dbPathFromConfig
@@ -387,7 +396,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
-	logsDir := filepath.Join(tmpDir, "logs")
+	logsDir := filepath.Join(nodeRootDir, "logs")
 	if logsDirIntf, ok := configFile[config.LogsDirKey]; ok {
 		if logsDirFromConfig, ok := logsDirIntf.(string); ok {
 			logsDir = logsDirFromConfig
@@ -397,7 +406,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Use random free API port, unless given in config
-	var apiPort uint16
+	var (
+		apiPort uint16
+		err     error
+	)
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
 		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
 			apiPort = uint16(apiPortFromConfig)
@@ -464,23 +476,23 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	ln.log.Info(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, tmpDir, logsDir, dbPath, p2pPort, apiPort,
+		nodeConfig.Name, nodeRootDir, logsDir, dbPath, p2pPort, apiPort,
 	)
 
 	// Write this node's staking key/cert to disk.
-	stakingKeyFilePath := filepath.Join(tmpDir, stakingKeyFileName)
+	stakingKeyFilePath := filepath.Join(nodeRootDir, stakingKeyFileName)
 	if err := createFileAndWrite(stakingKeyFilePath, []byte(nodeConfig.StakingKey)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
-	stakingCertFilePath := filepath.Join(tmpDir, stakingCertFileName)
+	stakingCertFilePath := filepath.Join(nodeRootDir, stakingCertFileName)
 	if err := createFileAndWrite(stakingCertFilePath, []byte(nodeConfig.StakingCert)); err != nil {
 		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
 
 	// Write this node's config file to disk if one is given.
-	configFilePath := filepath.Join(tmpDir, configFileName)
+	configFilePath := filepath.Join(nodeRootDir, configFileName)
 	if len(nodeConfig.ConfigFile) != 0 {
 		if err := createFileAndWrite(configFilePath, []byte(nodeConfig.ConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing config file: %w", err)
@@ -489,7 +501,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Write this node's genesis file to disk.
-	genesisFilePath := filepath.Join(tmpDir, genesisFileName)
+	genesisFilePath := filepath.Join(nodeRootDir, genesisFileName)
 	if err := createFileAndWrite(genesisFilePath, ln.genesis); err != nil {
 		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
 	}
@@ -497,11 +509,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Write this node's C-Chain file to disk if one is given.
 	if len(nodeConfig.CChainConfigFile) != 0 {
-		cChainConfigFilePath := filepath.Join(tmpDir, "C", configFileName)
+		cChainConfigFilePath := filepath.Join(nodeRootDir, "C", configFileName)
 		if err := createFileAndWrite(cChainConfigFilePath, []byte(nodeConfig.CChainConfigFile)); err != nil {
 			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
 		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, tmpDir))
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, nodeRootDir))
 	}
 
 	var localNodeConfig NodeConfig
@@ -721,7 +733,6 @@ func createFileAndWrite(path string, contents []byte) error {
 	defer func() {
 		_ = file.Close()
 	}()
-
 	if _, err := file.Write(contents); err != nil {
 		return err
 	}
