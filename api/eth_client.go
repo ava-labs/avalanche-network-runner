@@ -28,6 +28,15 @@ type EthClient interface {
 	NonceAt(context.Context, common.Address, *big.Int) (uint64, error)
 	AssetBalanceAt(context.Context, common.Address, ids.ID, *big.Int) (*big.Int, error)
 	SuggestGasPrice(context.Context) (*big.Int, error)
+	AcceptedCodeAt(context.Context, common.Address) ([]byte, error)
+	AcceptedNonceAt(context.Context, common.Address) (uint64, error)
+	CodeAt(context.Context, common.Address, *big.Int) ([]byte, error)
+	EstimateGas(context.Context, interfaces.CallMsg) (uint64, error)
+	AcceptedCallContract(context.Context, interfaces.CallMsg) ([]byte, error)
+	HeaderByNumber(context.Context, *big.Int) (*types.Header, error)
+	SuggestGasTipCap(context.Context) (*big.Int, error)
+	FilterLogs(context.Context, interfaces.FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(context.Context, interfaces.FilterQuery, chan<- types.Log) (interfaces.Subscription, error)
 }
 
 // ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
@@ -159,4 +168,85 @@ func (c *ethClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 	return c.client.SuggestGasPrice(ctx)
+}
+
+func (c *ethClient) AcceptedCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.AcceptedCodeAt(ctx, account)
+}
+
+func (c *ethClient) AcceptedNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return 0, err
+	}
+	return c.client.AcceptedNonceAt(ctx, account)
+}
+
+func (c *ethClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.CodeAt(ctx, account, blockNumber)
+}
+
+func (c *ethClient) EstimateGas(ctx context.Context, msg interfaces.CallMsg) (uint64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return 0, err
+	}
+	return c.client.EstimateGas(ctx, msg)
+}
+
+func (c *ethClient) AcceptedCallContract(ctx context.Context, call interfaces.CallMsg) ([]byte, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.AcceptedCallContract(ctx, call)
+}
+
+func (c *ethClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.HeaderByNumber(ctx, number)
+}
+
+func (c *ethClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.SuggestGasTipCap(ctx)
+}
+
+func (c *ethClient) FilterLogs(ctx context.Context, query interfaces.FilterQuery) ([]types.Log, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.FilterLogs(ctx, query)
+}
+
+func (c *ethClient) SubscribeFilterLogs(ctx context.Context, query interfaces.FilterQuery, ch chan<- types.Log) (interfaces.Subscription, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.client.SubscribeFilterLogs(ctx, query, ch)
 }
