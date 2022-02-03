@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const (
@@ -78,10 +79,10 @@ func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, f
 // * Only the above 2 methods may be called
 // TODO have this method return an API Client that has all
 // APIs and methods implemented
-func newMockAPISuccessful(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
-	healthReply := &health.APIHealthClientReply{Healthy: true}
+func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
+	healthReply := &health.APIHealthReply{Healthy: true}
 	healthClient := &apimocks.HealthClient{}
-	healthClient.On("Health").Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
 	ethClient := &apimocks.EthClient{}
 	ethClient.On("Close").Return()
@@ -92,10 +93,10 @@ func newMockAPISuccessful(ipAddr string, port uint16, requestTimeout time.Durati
 }
 
 // Returns an API client where the Health API's Health method always returns unhealthy
-func newMockAPIUnhealthy(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
-	healthReply := &health.APIHealthClientReply{Healthy: false}
+func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
+	healthReply := &health.APIHealthReply{Healthy: false}
 	healthClient := &apimocks.HealthClient{}
-	healthClient.On("Health").Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
 	return client

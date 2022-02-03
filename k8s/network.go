@@ -197,7 +197,7 @@ func (a *networkImpl) Healthy(ctx context.Context) chan error {
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.apiClient.HealthAPI().Health()
+					health, err := node.apiClient.HealthAPI().Health(ctx)
 					if err == nil && health.Healthy {
 						a.log.Info("node %q became healthy", node.GetName())
 						return nil
@@ -421,10 +421,10 @@ reachableLoop:
 
 	// Create an API client
 	a.log.Debug("creating network node and client for %s", url)
-	apiClient := a.apiClientFunc(url, defaultAPIPort, apiTimeout)
+	apiClient := a.apiClientFunc(url, defaultAPIPort)
 	// Get this node's ID
 	// TODO should we get this by parsing the key/cert?
-	nodeIDStr, err := apiClient.InfoAPI().GetNodeID()
+	nodeIDStr, err := apiClient.InfoAPI().GetNodeID(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get node ID: %w", err)
 	}

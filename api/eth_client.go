@@ -44,7 +44,7 @@ type EthClient interface {
 type ethClient struct {
 	ipAddr string
 	port   uint
-	client *ethclient.Client
+	client ethclient.Client
 	lock   sync.Mutex
 }
 

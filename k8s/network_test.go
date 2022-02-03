@@ -145,15 +145,15 @@ func newDNSChecker() *mocks.DnsReachableChecker {
 // * Only the above 2 methods may be called
 // TODO have this method return an API Client that has all
 // APIs and methods implemented
-func newMockAPISuccessful(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
-	healthReply := &health.APIHealthClientReply{Healthy: true}
+func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
+	healthReply := &health.APIHealthReply{Healthy: true}
 	healthClient := &apimocks.HealthClient{}
-	healthClient.On("Health").Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 
 	id := ids.GenerateTestShortID().String()
 	infoReply := fmt.Sprintf("%s%s", constants.NodeIDPrefix, id)
 	infoClient := &apimocks.InfoClient{}
-	infoClient.On("GetNodeID").Return(infoReply, nil)
+	infoClient.On("GetNodeID", mock.Anything).Return(infoReply, nil)
 
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
@@ -162,10 +162,10 @@ func newMockAPISuccessful(ipAddr string, port uint16, requestTimeout time.Durati
 }
 
 // Returns an API client where the Health API's Health method always returns unhealthy
-func newMockAPIUnhealthy(ipAddr string, port uint16, requestTimeout time.Duration) api.Client {
-	healthReply := &health.APIHealthClientReply{Healthy: false}
+func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
+	healthReply := &health.APIHealthReply{Healthy: false}
 	healthClient := &apimocks.HealthClient{}
-	healthClient.On("Health").Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
 	return client
