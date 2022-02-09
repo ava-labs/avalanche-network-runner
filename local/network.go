@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	avalancheconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -333,48 +334,12 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 // Assumes [ln.lock] is held.
 // TODO make this method shorter
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
-	if ln.isStopped() {
-		return nil, network.ErrStopped
+	nodeRootDir, err := ln.initChecks(&nodeConfig)
+	if err != nil {
+		return nil, err
 	}
 
-	for flagName, flagVal := range ln.flags {
-		if nodeConfig.Flags == nil {
-			nodeConfig.Flags = make(map[string]interface{})
-		}
-		// If the same flag is given in network config and node config,
-		// the flag in the node config takes precedence
-		if val, ok := nodeConfig.Flags[flagName]; !ok {
-			nodeConfig.Flags[flagName] = flagVal
-		} else {
-			ln.log.Info(
-				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
-				flagName, val, flagVal,
-			)
-		}
-	}
-
-	// If no name was given, use default name pattern
-	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
-		ln.nextNodeSuffix++
-	}
-
-	// Enforce name uniqueness
-	if _, ok := ln.nodes[nodeConfig.Name]; ok {
-		return nil, fmt.Errorf("repeated node name %s", nodeConfig.Name)
-	}
-
-	if ln.rootDir == "" {
-		ln.log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
-	}
-	// [nodeRootDir] is where this node's config file, C-Chain config file,
-	// staking key, staking certificate and genesis file will be written.
-	// (Other file locations are given in the node's config file.)
-	// TODO should we do this for other directories? Profiles?
-	nodeRootDir := filepath.Join(ln.rootDir, nodeConfig.Name)
-	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
-		return nil, fmt.Errorf("error creating temp dir: %w", err)
-	}
+	ln.setFlagsFromConfigs(&nodeConfig)
 
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
 	var configFile map[string]interface{}
@@ -384,135 +349,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Tell the node to put the database in [tmpDir], unless given in config file
-	dbPath := nodeRootDir
-	if dbPathIntf, ok := configFile[config.DBPathKey]; ok {
-		if dbPathFromConfig, ok := dbPathIntf.(string); ok {
-			dbPath = dbPathFromConfig
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.DBPathKey, dbPathIntf)
-		}
-	}
-
-	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
-	logsDir := filepath.Join(nodeRootDir, "logs")
-	if logsDirIntf, ok := configFile[config.LogsDirKey]; ok {
-		if logsDirFromConfig, ok := logsDirIntf.(string); ok {
-			logsDir = logsDirFromConfig
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be string but got %T", config.LogsDirKey, logsDirIntf)
-		}
-	}
-
-	// Use random free API port, unless given in config
-	var (
-		apiPort uint16
-		err     error
-	)
-	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
-		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
-			apiPort = uint16(apiPortFromConfig)
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
-		}
-	} else {
-		// Use a random free port.
-		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
-		apiPort, err = getFreePort()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't get free API port: %w", err)
-		}
-	}
-
-	// Use a random free P2P (staking) port, unless given in config
-	var p2pPort uint16
-	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
-		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
-			p2pPort = uint16(p2pPortFromConfig)
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, p2pPortIntf)
-		}
-	} else {
-		// Use a random free port.
-		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
-		p2pPort, err = getFreePort()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't get free P2P port: %w", err)
-		}
-	}
-
-	// Flags for AvalancheGo
-	flags := []string{
-		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
-		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
-		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
-		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
-	}
-
-	for flagName, flagVal := range nodeConfig.Flags {
-		if _, ok := warnFlags[flagName]; ok {
-			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
-	}
-
-	// Parse this node's ID
-	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
+	flags, nodeInfo, err := ln.buildDynamicFlags(configFile, nodeRootDir, &nodeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create node ID: %w", err)
+		return nil, err
 	}
 
-	// If this node is a beacon, add its IP/ID to the beacon lists.
-	// Note that we do this *after* we set this node's bootstrap IPs/IDs
-	// so this node won't try to use itself as a beacon.
-	if nodeConfig.IsBeacon {
-		ln.bootstrapIDs[nodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
-		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
-	}
-
-	ln.log.Info(
-		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, nodeRootDir, logsDir, dbPath, p2pPort, apiPort,
-	)
-
-	// Write this node's staking key/cert to disk.
-	stakingKeyFilePath := filepath.Join(nodeRootDir, stakingKeyFileName)
-	if err := createFileAndWrite(stakingKeyFilePath, []byte(nodeConfig.StakingKey)); err != nil {
-		return nil, fmt.Errorf("error creating/writing staking key: %w", err)
-	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingKeyPathKey, stakingKeyFilePath))
-	stakingCertFilePath := filepath.Join(nodeRootDir, stakingCertFileName)
-	if err := createFileAndWrite(stakingCertFilePath, []byte(nodeConfig.StakingCert)); err != nil {
-		return nil, fmt.Errorf("error creating/writing staking cert: %w", err)
-	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.StakingCertPathKey, stakingCertFilePath))
-
-	// Write this node's config file to disk if one is given.
-	configFilePath := filepath.Join(nodeRootDir, configFileName)
-	if len(nodeConfig.ConfigFile) != 0 {
-		if err := createFileAndWrite(configFilePath, []byte(nodeConfig.ConfigFile)); err != nil {
-			return nil, fmt.Errorf("error creating/writing config file: %w", err)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath))
-	}
-
-	// Write this node's genesis file to disk.
-	genesisFilePath := filepath.Join(nodeRootDir, genesisFileName)
-	if err := createFileAndWrite(genesisFilePath, ln.genesis); err != nil {
-		return nil, fmt.Errorf("error creating/writing genesis file: %w", err)
-	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.GenesisConfigFileKey, genesisFilePath))
-
-	// Write this node's C-Chain file to disk if one is given.
-	if len(nodeConfig.CChainConfigFile) != 0 {
-		cChainConfigFilePath := filepath.Join(nodeRootDir, "C", configFileName)
-		if err := createFileAndWrite(cChainConfigFilePath, []byte(nodeConfig.CChainConfigFile)); err != nil {
-			return nil, fmt.Errorf("error creating/writing C-Chain config file: %w", err)
-		}
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, nodeRootDir))
+	if err := ln.writeFilesAndSetTheirFlags(flags, nodeRootDir, &nodeConfig); err != nil {
+		return nil, err
 	}
 
 	var localNodeConfig NodeConfig
@@ -521,7 +364,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, *flags...)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
@@ -533,11 +376,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
 		name:    nodeConfig.Name,
-		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", apiPort),
+		nodeID:  nodeInfo.nodeID,
+		client:  ln.newAPIClientF("localhost", nodeInfo.apiPort),
 		process: nodeProcess,
-		apiPort: apiPort,
-		p2pPort: p2pPort,
+		apiPort: nodeInfo.apiPort,
+		p2pPort: nodeInfo.p2pPort,
 	}
 	ln.nodes[node.name] = node
 	return node, nil
@@ -736,4 +579,202 @@ func createFileAndWrite(path string, contents []byte) error {
 		return err
 	}
 	return nil
+}
+
+// setFlagsFromConfigs sets the flags as given in the node config resp. network config
+func (ln *localNetwork) setFlagsFromConfigs(nodeConfig *node.Config) {
+	for flagName, flagVal := range ln.flags {
+		if nodeConfig.Flags == nil {
+			nodeConfig.Flags = make(map[string]interface{})
+		}
+		// If the same flag is given in network config and node config,
+		// the flag in the node config takes precedence
+		if val, ok := nodeConfig.Flags[flagName]; !ok {
+			nodeConfig.Flags[flagName] = flagVal
+		} else {
+			ln.log.Info(
+				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
+				flagName, val, flagVal,
+			)
+		}
+	}
+}
+
+// initChecks the new node
+func (ln *localNetwork) initChecks(nodeConfig *node.Config) (string, error) {
+	if ln.isStopped() {
+		return "", network.ErrStopped
+	}
+
+	// If no name was given, use default name pattern
+	if len(nodeConfig.Name) == 0 {
+		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
+		ln.nextNodeSuffix++
+	}
+
+	// Enforce name uniqueness
+	if _, ok := ln.nodes[nodeConfig.Name]; ok {
+		return "", fmt.Errorf("repeated node name %s", nodeConfig.Name)
+	}
+
+	if ln.rootDir == "" {
+		ln.log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
+	}
+	// [nodeRootDir] is where this node's config file, C-Chain config file,
+	// staking key, staking certificate and genesis file will be written.
+	// (Other file locations are given in the node's config file.)
+	// TODO should we do this for other directories? Profiles?
+	nodeRootDir := filepath.Join(ln.rootDir, nodeConfig.Name)
+	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
+		return "", fmt.Errorf("error creating temp dir: %w", err)
+	}
+	return nodeRootDir, nil
+}
+
+// getConfigEntry returns an entry in the config file if it is found, otherwise returns the default value
+func (ln *localNetwork) getConfigEntry(configFile map[string]interface{}, flag string, defaultVal string) (string, error) {
+	var entry string
+	if val, ok := configFile[flag]; ok {
+		if entry, ok := val.(string); ok {
+			return entry, nil
+		}
+		return "", fmt.Errorf("expected flag %q to be string but got %T", flag, entry)
+	}
+	return defaultVal, nil
+}
+
+// getPort looks up the port config in the config file, if there is none, it tries to get a random free port from the OS
+func (ln *localNetwork) getPort(configFile map[string]interface{}, flag string) (port uint16, err error) {
+	var entry uint16
+	if val, ok := configFile[flag]; ok {
+		if entry, ok := val.(float64); ok {
+			return uint16(entry), nil
+		}
+		return 0, fmt.Errorf("expected flag %q to be string but got %T", flag, entry)
+	}
+	// Use a random free port.
+	// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+	port, err = getFreePort()
+	if err != nil {
+		return 0, fmt.Errorf("couldn't get free API port: %w", err)
+	}
+	return port, nil
+}
+
+// createFileAndSetFlag creates and writes the given file and then sets its path as a flag for the node so the latter can find it
+func (ln *localNetwork) createFileAndSetFlag(flags *[]string, filepath string, configEntry string, contents []byte) error {
+	// Write this node's staking key/cert to disk.
+	if err := createFileAndWrite(filepath, contents); err != nil {
+		return fmt.Errorf("error creating/writing staking key: %w", err)
+	}
+	*flags = append(*flags, fmt.Sprintf("--%s=%s", configEntry, filepath))
+	return nil
+}
+
+// nodeInfo is only internally used so we can pass some node information between funcs
+type nodeInfo struct {
+	apiPort uint16
+	p2pPort uint16
+	nodeID  ids.ShortID
+}
+
+// buildDynamicFlags builds flags by looking it first up in the config file or using a default
+func (ln *localNetwork) buildDynamicFlags(configFile map[string]interface{}, nodeRootDir string, nodeConfig *node.Config) (*[]string, nodeInfo, error) {
+	// Tell the node to put the database in [tmpDir], unless given in config file
+	dbPath, err := ln.getConfigEntry(configFile, config.DBPathKey, nodeRootDir)
+	if err != nil {
+		return nil, nodeInfo{}, err
+	}
+
+	// Tell the node to put the log directory in [tmpDir/logs], unless given in config file
+	logsDir, err := ln.getConfigEntry(configFile, config.LogsDirKey, filepath.Join(nodeRootDir, "logs"))
+	if err != nil {
+		return nil, nodeInfo{}, err
+	}
+
+	// Use random free API port, unless given in config
+	apiPort, err := ln.getPort(configFile, config.HTTPPortKey)
+	if err != nil {
+		return nil, nodeInfo{}, err
+	}
+
+	// Use a random free P2P (staking) port, unless given in config
+	// Use random free API port, unless given in config
+	p2pPort, err := ln.getPort(configFile, config.StakingPortKey)
+	if err != nil {
+		return nil, nodeInfo{}, err
+	}
+
+	// Flags for AvalancheGo
+	flags := []string{
+		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
+		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
+		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
+		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
+		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
+		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
+	}
+
+	for flagName, flagVal := range nodeConfig.Flags {
+		if _, ok := warnFlags[flagName]; ok {
+			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
+	}
+
+	// Parse this node's ID
+	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
+	if err != nil {
+		return nil, nodeInfo{}, fmt.Errorf("couldn't create node ID: %w", err)
+	}
+
+	// If this node is a beacon, add its IP/ID to the beacon lists.
+	// Note that we do this *after* we set this node's bootstrap IPs/IDs
+	// so this node won't try to use itself as a beacon.
+	if nodeConfig.IsBeacon {
+		ln.bootstrapIDs[nodeID.PrefixedString(avalancheconstants.NodeIDPrefix)] = struct{}{}
+		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
+	}
+
+	ln.log.Info(
+		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		nodeConfig.Name, nodeRootDir, logsDir, dbPath, p2pPort, apiPort,
+	)
+
+	info := nodeInfo{
+		apiPort: apiPort,
+		p2pPort: p2pPort,
+		nodeID:  nodeID,
+	}
+	return &flags, info, nil
+}
+
+// writeFilesAndSetTheirFlags groups together some files which need to be created in order for nodes to find them
+// when they start the process. Then it sets the path to those files as a flag to the node.
+func (ln *localNetwork) writeFilesAndSetTheirFlags(flags *[]string, nodeRootDir string, nodeConfig *node.Config) error {
+	var err error
+	if err = ln.createFileAndSetFlag(flags, filepath.Join(nodeRootDir, stakingKeyFileName), config.StakingKeyPathKey, []byte(nodeConfig.StakingKey)); err != nil {
+		return err
+	}
+	if err = ln.createFileAndSetFlag(flags, filepath.Join(nodeRootDir, stakingCertFileName), config.StakingCertPathKey, []byte(nodeConfig.StakingCert)); err != nil {
+		return err
+	}
+	// Write this node's config file to disk if one is given.
+	if len(nodeConfig.ConfigFile) != 0 {
+		if err = ln.createFileAndSetFlag(flags, filepath.Join(nodeRootDir, configFileName), config.ConfigFileKey, []byte(nodeConfig.ConfigFile)); err != nil {
+			return err
+		}
+	}
+	// Write this node's genesis file to disk.
+	if err = ln.createFileAndSetFlag(flags, filepath.Join(nodeRootDir, genesisFileName), config.GenesisConfigFileKey, ln.genesis); err != nil {
+		return err
+	}
+	// Write this node's C-Chain file to disk if one is given.
+	if len(nodeConfig.CChainConfigFile) != 0 {
+		if err = ln.createFileAndSetFlag(flags, filepath.Join(nodeRootDir, "C", configFileName), config.ChainConfigDirKey, []byte(nodeConfig.CChainConfigFile)); err != nil {
+			return err
+		}
+	}
+	return err
 }
