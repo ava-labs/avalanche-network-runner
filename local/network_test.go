@@ -880,7 +880,7 @@ func testNetworkConfig(t *testing.T) network.Config {
 		assert.NoError(err)
 		nodeConfig.StakingCert = string(cert)
 		nodeConfig.StakingKey = string(key)
-
+		nodeConfig.Flags = make(map[string]interface{})
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
