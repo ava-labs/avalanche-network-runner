@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -907,4 +910,261 @@ func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
 	defer cancel()
 	healthyCh := net.Healthy(ctx)
 	return <-healthyCh
+}
+
+func TestAddNetworkFlags(t *testing.T) {
+	type test struct {
+		name            string
+		netFlags        map[string]interface{}
+		beforeNodeFlags map[string]interface{}
+		afterNodeFlags  map[string]interface{}
+	}
+	tests := []test{
+		{
+			name:            "all empty",
+			netFlags:        map[string]interface{}{},
+			beforeNodeFlags: map[string]interface{}{},
+			afterNodeFlags:  map[string]interface{}{},
+		},
+		{
+			name:            "net flags not empty; node flags empty",
+			netFlags:        map[string]interface{}{"1": 1},
+			beforeNodeFlags: map[string]interface{}{},
+			afterNodeFlags:  map[string]interface{}{"1": 1},
+		},
+		{
+			name:            "net flags not empty; node flags not empty",
+			netFlags:        map[string]interface{}{"1": 1},
+			beforeNodeFlags: map[string]interface{}{"2": 2},
+			afterNodeFlags:  map[string]interface{}{"1": 1, "2": 2},
+		},
+		{
+			name:            "net flags empty; node flags not empty",
+			netFlags:        map[string]interface{}{},
+			beforeNodeFlags: map[string]interface{}{"2": 2},
+			afterNodeFlags:  map[string]interface{}{"2": 2},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			addNetworkFlags(logging.NoLog{}, tt.netFlags, tt.beforeNodeFlags)
+			assert.Equal(tt.afterNodeFlags, tt.beforeNodeFlags)
+		})
+	}
+}
+
+func TestSetNodeName(t *testing.T) {
+	assert := assert.New(t)
+
+	ln := &localNetwork{
+		nodes: make(map[string]*localNode),
+	}
+
+	// Case: No name given
+	config := &node.Config{Name: ""}
+	err := ln.setNodeName(config)
+	assert.NoError(err)
+	assert.Equal("node-0", config.Name)
+
+	// Case: No name given again
+	config.Name = ""
+	err = ln.setNodeName(config)
+	assert.NoError(err)
+	assert.Equal("node-1", config.Name)
+
+	// Case: name given
+	config.Name = "hi"
+	err = ln.setNodeName(config)
+	assert.NoError(err)
+	assert.Equal("hi", config.Name)
+
+	// Case: No name given again
+	config.Name = ""
+	err = ln.setNodeName(config)
+	assert.NoError(err)
+	assert.Equal("node-2", config.Name)
+
+	// Case: name already present
+	config.Name = "hi"
+	ln.nodes = map[string]*localNode{"hi": nil}
+	err = ln.setNodeName(config)
+	assert.Error(err)
+}
+
+func TestGetConfigEntry(t *testing.T) {
+	assert := assert.New(t)
+
+	// case: key not present
+	val, err := getConfigEntry(
+		map[string]interface{}{"2": "2"},
+		"1",
+		"1",
+	)
+	assert.NoError(err)
+	assert.Equal("1", val)
+
+	// case: key present
+	val, err = getConfigEntry(
+		map[string]interface{}{"1": "hi", "2": "2"},
+		"1",
+		"1",
+	)
+	assert.NoError(err)
+	assert.Equal("hi", val)
+
+	// case: key present wrong type
+	_, err = getConfigEntry(
+		map[string]interface{}{"1": 1, "2": "2"},
+		"1",
+		"1",
+	)
+	assert.Error(err)
+}
+
+func TestGetPort(t *testing.T) {
+	assert := assert.New(t)
+
+	// Case: flag present
+	port, err := getPort(
+		map[string]interface{}{"flag": float64(13)},
+		"flag",
+	)
+	assert.NoError(err)
+	assert.Equal(uint16(13), port)
+
+	// Case: flag not present
+	_, err = getPort(
+		map[string]interface{}{},
+		"flag",
+	)
+	assert.NoError(err)
+}
+
+func TestCreateFileAndWrite(t *testing.T) {
+	assert := assert.New(t)
+	dir, err := os.MkdirTemp("", "network-runner-test-*")
+	assert.NoError(err)
+	path := filepath.Join(dir, "path")
+	contents := []byte("hi")
+	err = createFileAndWrite(path, contents)
+	assert.NoError(err)
+	gotBytes, err := os.ReadFile(path)
+	assert.NoError(err)
+	assert.Equal(contents, gotBytes)
+}
+
+func TestWriteFiles(t *testing.T) {
+	stakingKey := "stakingKey"
+	stakingCert := "stakingCert"
+	genesis := []byte("genesis")
+	configFile := "config file"
+	cChainConfigFile := "c-chain config file"
+	tmpDir, err := os.MkdirTemp("", "avalanche-network-runner-tests-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
+	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingKeyPathKey, stakingKeyPath)
+	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
+	stakingCertFlag := fmt.Sprintf("--%s=%v", config.StakingCertPathKey, stakingCertPath)
+	genesisPath := filepath.Join(tmpDir, genesisFileName)
+	genesisFlag := fmt.Sprintf("--%s=%v", config.GenesisConfigFileKey, genesisPath)
+	configFilePath := filepath.Join(tmpDir, configFileName)
+	configFileFlag := fmt.Sprintf("--%s=%v", config.ConfigFileKey, configFilePath)
+	cChainConfigPath := filepath.Join(tmpDir, "C", configFileName)
+	cChainConfigFileFlag := fmt.Sprintf("--%s=%v", config.ChainConfigDirKey, cChainConfigPath)
+
+	type test struct {
+		name          string
+		shouldErr     bool
+		genesis       []byte
+		nodeConfig    node.Config
+		expectedFlags []string
+	}
+
+	tests := []test{
+		{
+			name:      "no config files given",
+			shouldErr: false,
+			genesis:   genesis,
+			nodeConfig: node.Config{
+				StakingKey:  stakingKey,
+				StakingCert: stakingCert,
+			},
+			expectedFlags: []string{
+				stakingKeyFlag,
+				stakingCertFlag,
+				genesisFlag,
+			},
+		},
+		{
+			name:      "config file given but not c-chain config file",
+			shouldErr: false,
+			genesis:   genesis,
+			nodeConfig: node.Config{
+				StakingKey:  stakingKey,
+				StakingCert: stakingCert,
+				ConfigFile:  configFile,
+			},
+			expectedFlags: []string{
+				stakingKeyFlag,
+				stakingCertFlag,
+				genesisFlag,
+				configFileFlag,
+			},
+		},
+		{
+			name:      "config file and c-chain config file given",
+			shouldErr: false,
+			genesis:   genesis,
+			nodeConfig: node.Config{
+				StakingKey:       stakingKey,
+				StakingCert:      stakingCert,
+				ConfigFile:       configFile,
+				CChainConfigFile: cChainConfigFile,
+			},
+			expectedFlags: []string{
+				stakingKeyFlag,
+				stakingCertFlag,
+				genesisFlag,
+				configFileFlag,
+				cChainConfigFileFlag,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			flags, err := writeFiles(tt.genesis, tmpDir, &tt.nodeConfig)
+			if tt.shouldErr {
+				assert.Error(err)
+				return
+			}
+			assert.NoError(err)
+			// Make sure returned flags are right
+			assert.ElementsMatch(tt.expectedFlags, flags)
+			// Assert files created correctly
+			gotStakingKey, err := os.ReadFile(stakingKeyPath)
+			assert.NoError(err)
+			assert.Equal([]byte(tt.nodeConfig.StakingKey), gotStakingKey)
+			gotStakingCert, err := os.ReadFile(stakingCertPath)
+			assert.NoError(err)
+			assert.Equal([]byte(tt.nodeConfig.StakingCert), gotStakingCert)
+			gotGenesis, err := os.ReadFile(genesisPath)
+			assert.NoError(err)
+			assert.Equal(tt.genesis, gotGenesis)
+			if len(tt.nodeConfig.ConfigFile) > 0 {
+				gotConfigFile, err := os.ReadFile(configFilePath)
+				assert.NoError(err)
+				assert.Equal([]byte(configFile), gotConfigFile)
+			}
+			if len(tt.nodeConfig.CChainConfigFile) > 0 {
+				gotCChainConfigFile, err := os.ReadFile(cChainConfigPath)
+				assert.NoError(err)
+				assert.Equal([]byte(cChainConfigFile), gotCChainConfigFile)
+			}
+		})
+	}
 }
