@@ -2,7 +2,7 @@
 # It runs when a change is pushed.
 name: Lint and Unit Test
 on:
-  [push]
+  [push, pull_request]
 jobs:
   lint:
     name: lint
