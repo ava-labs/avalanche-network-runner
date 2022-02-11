@@ -404,22 +404,22 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Use random free API port, unless given in config file or node config flag
+	// Use random free API port, unless given in node config flags or config file
 	var (
 		apiPort uint16
 		err     error
 	)
-	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
-		if apiPortFromConfigFile, ok := apiPortIntf.(float64); ok {
-			apiPort = uint16(apiPortFromConfigFile)
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
-		}
-	} else if apiPortIntf, ok := nodeConfig.Flags[config.HTTPPortKey]; ok {
+	if apiPortIntf, ok := nodeConfig.Flags[config.HTTPPortKey]; ok {
 		if apiPortFromNodeConfigFlags, ok := apiPortIntf.(int); ok {
 			apiPort = uint16(apiPortFromNodeConfigFlags)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	} else if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
+		if apiPortFromConfigFile, ok := apiPortIntf.(float64); ok {
+			apiPort = uint16(apiPortFromConfigFile)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
 		// Use a random free port.
@@ -430,19 +430,19 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Use a random free P2P (staking) port, unless given in config file or node config flag
+	// Use a random free P2P (staking) port, unless given in node config flags or config file
 	var p2pPort uint16
-	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
-		if p2pPortFromConfigFile, ok := p2pPortIntf.(float64); ok {
-			p2pPort = uint16(p2pPortFromConfigFile)
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.StakingPortKey, p2pPortIntf)
-		}
-	} else if p2pPortIntf, ok := nodeConfig.Flags[config.StakingPortKey]; ok {
+	if p2pPortIntf, ok := nodeConfig.Flags[config.StakingPortKey]; ok {
 		if p2pPortFromNodeConfigFlags, ok := p2pPortIntf.(int); ok {
 			p2pPort = uint16(p2pPortFromNodeConfigFlags)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.StakingPortKey, p2pPortIntf)
+		}
+	} else if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
+		if p2pPortFromConfigFile, ok := p2pPortIntf.(float64); ok {
+			p2pPort = uint16(p2pPortFromConfigFile)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.StakingPortKey, p2pPortIntf)
 		}
 	} else {
 		// Use a random free port.
