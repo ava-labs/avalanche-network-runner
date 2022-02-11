@@ -151,7 +151,20 @@ func newLocalTestOneNodeCreator(assert *assert.Assertions, networkConfig network
 // to the function that starts the node process.
 func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	lt.assert.True(config.IsBeacon)
-	lt.assert.EqualValues(lt.networkConfig.NodeConfigs[0], config)
+	expectedConfig := lt.networkConfig.NodeConfigs[0]
+	lt.assert.EqualValues(expectedConfig.CChainConfigFile, config.CChainConfigFile)
+	lt.assert.EqualValues(expectedConfig.ConfigFile, config.ConfigFile)
+	lt.assert.EqualValues(expectedConfig.ImplSpecificConfig, config.ImplSpecificConfig)
+	lt.assert.EqualValues(expectedConfig.IsBeacon, config.IsBeacon)
+	lt.assert.EqualValues(expectedConfig.Name, config.Name)
+	lt.assert.EqualValues(expectedConfig.StakingCert, config.StakingCert)
+	lt.assert.EqualValues(expectedConfig.StakingKey, config.StakingKey)
+	lt.assert.Len(config.Flags, len(expectedConfig.Flags))
+	for k, v := range expectedConfig.Flags {
+		gotV, ok := config.Flags[k]
+		lt.assert.True(ok)
+		lt.assert.EqualValues(v, gotV)
+	}
 	return lt.successCreator.NewNodeProcess(config, flags...)
 }
 
@@ -880,8 +893,8 @@ func testNetworkConfig(t *testing.T) network.Config {
 		assert.NoError(err)
 		nodeConfig.StakingCert = string(cert)
 		nodeConfig.StakingKey = string(key)
-		nodeConfig.Flags = make(map[string]interface{})
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		networkConfig.Flags = make(map[string]interface{})
 	}
 	networkConfig.NodeConfigs[0].IsBeacon = true
 	return networkConfig
