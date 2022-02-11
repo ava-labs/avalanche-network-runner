@@ -598,7 +598,8 @@ func createFileAndWrite(path string, contents []byte) error {
 	return nil
 }
 
-// addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags]
+// addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].
+// [nodeFlags] must not be nil.
 func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
 	for flagName, flagVal := range networkFlags {
 		// If the same flag is given in network config and node config,
@@ -679,6 +680,7 @@ func getPort(configFile map[string]interface{}, flag string) (port uint16, err e
 // 3) P2P port
 // of the node being added with config [nodeConfig], config file [configFile],
 // and directory at [nodeDir].
+// [nodeConfig.Flags] must not be nil
 func (ln *localNetwork) buildFlags(
 	configFile map[string]interface{},
 	nodeDir string,
