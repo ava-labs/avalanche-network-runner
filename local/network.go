@@ -404,16 +404,22 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Use random free API port, unless given in config
+	// Use random free API port, unless given in config file or node config flag
 	var (
 		apiPort uint16
 		err     error
 	)
 	if apiPortIntf, ok := configFile[config.HTTPPortKey]; ok {
-		if apiPortFromConfig, ok := apiPortIntf.(float64); ok {
-			apiPort = uint16(apiPortFromConfig)
+		if apiPortFromConfigFile, ok := apiPortIntf.(float64); ok {
+			apiPort = uint16(apiPortFromConfigFile)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, apiPortIntf)
+		}
+	} else if apiPortIntf, ok := nodeConfig.Flags[config.HTTPPortKey]; ok {
+		if apiPortFromNodeConfigFlags, ok := apiPortIntf.(int); ok {
+			apiPort = uint16(apiPortFromNodeConfigFlags)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.HTTPPortKey, apiPortIntf)
 		}
 	} else {
 		// Use a random free port.
@@ -424,13 +430,19 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	// Use a random free P2P (staking) port, unless given in config
+	// Use a random free P2P (staking) port, unless given in config file or node config flag
 	var p2pPort uint16
 	if p2pPortIntf, ok := configFile[config.StakingPortKey]; ok {
-		if p2pPortFromConfig, ok := p2pPortIntf.(float64); ok {
-			p2pPort = uint16(p2pPortFromConfig)
+		if p2pPortFromConfigFile, ok := p2pPortIntf.(float64); ok {
+			p2pPort = uint16(p2pPortFromConfigFile)
 		} else {
 			return nil, fmt.Errorf("expected flag %q to be float64 but got %T", config.StakingPortKey, p2pPortIntf)
+		}
+	} else if p2pPortIntf, ok := nodeConfig.Flags[config.StakingPortKey]; ok {
+		if p2pPortFromNodeConfigFlags, ok := p2pPortIntf.(int); ok {
+			p2pPort = uint16(p2pPortFromNodeConfigFlags)
+		} else {
+			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.StakingPortKey, p2pPortIntf)
 		}
 	} else {
 		// Use a random free port.
@@ -457,26 +469,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
-	}
-
-	// Overwriting API port if it is also present in nodeConfig's flag
-	if apiPortIntf, ok := nodeConfig.Flags[config.HTTPPortKey]; ok {
-		if apiPortFromConfig, ok := apiPortIntf.(int); ok {
-			apiPort = uint16(apiPortFromConfig)
-			flags = append(flags, fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort))
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.HTTPPortKey, apiPortIntf)
-		}
-	}
-
-	// Overwriting Staking port if it is also present in nodeConfig's flag
-	if p2pPortIntf, ok := nodeConfig.Flags[config.StakingPortKey]; ok {
-		if p2pPortFromConfig, ok := p2pPortIntf.(int); ok {
-			p2pPort = uint16(p2pPortFromConfig)
-			flags = append(flags, fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort))
-		} else {
-			return nil, fmt.Errorf("expected flag %q to be int but got %T", config.StakingPortKey, p2pPortIntf)
-		}
 	}
 
 	// Parse this node's ID
