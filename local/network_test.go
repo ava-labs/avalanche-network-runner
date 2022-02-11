@@ -1036,7 +1036,7 @@ func TestGetPort(t *testing.T) {
 
 	// Case: port key present in flags
 	port, err = getPort(
-		map[string]interface{}{"flag": float64(13)},
+		map[string]interface{}{"flag": 13},
 		map[string]interface{}{},
 		"flag",
 	)
@@ -1045,7 +1045,7 @@ func TestGetPort(t *testing.T) {
 
 	// Case: port key present in config file and flags
 	port, err = getPort(
-		map[string]interface{}{"flag": float64(13)},
+		map[string]interface{}{"flag": 13},
 		map[string]interface{}{"flag": float64(14)},
 		"flag",
 	)
