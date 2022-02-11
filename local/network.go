@@ -657,19 +657,30 @@ func getConfigEntry(configFile map[string]interface{}, flag string, defaultVal s
 }
 
 // getPort looks up the port config in the config file, if there is none, it tries to get a random free port from the OS
-func getPort(configFile map[string]interface{}, flag string) (port uint16, err error) {
-	var entry uint16
-	if val, ok := configFile[flag]; ok {
-		if entry, ok := val.(float64); ok {
-			return uint16(entry), nil
+func getPort(
+	flags map[string]interface{},
+	configFile map[string]interface{},
+	portKey string,
+) (port uint16, err error) {
+	if portIntf, ok := flags[portKey]; ok {
+		if portFromFlags, ok := portIntf.(int); ok {
+			port = uint16(portFromFlags)
+		} else {
+			return 0, fmt.Errorf("expected flag %q to be int but got %T", config.HTTPPortKey, portIntf)
 		}
-		return 0, fmt.Errorf("expected flag %q to be string but got %T", flag, entry)
-	}
-	// Use a random free port.
-	// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
-	port, err = getFreePort()
-	if err != nil {
-		return 0, fmt.Errorf("couldn't get free API port: %w", err)
+	} else if portIntf, ok := configFile[portKey]; ok {
+		if portFromConfigFile, ok := portIntf.(float64); ok {
+			port = uint16(portFromConfigFile)
+		} else {
+			return 0, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, portIntf)
+		}
+	} else {
+		// Use a random free port.
+		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
+		port, err = getFreePort()
+		if err != nil {
+			return 0, fmt.Errorf("couldn't get free API port: %w", err)
+		}
 	}
 	return port, nil
 }
@@ -703,14 +714,14 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// Use random free API port unless given in config file
-	apiPort, err := getPort(configFile, config.HTTPPortKey)
+	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
-	p2pPort, err := getPort(configFile, config.StakingPortKey)
+	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
 	if err != nil {
 		return nil, 0, 0, err
 	}

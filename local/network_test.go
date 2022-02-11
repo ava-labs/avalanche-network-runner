@@ -1025,16 +1025,36 @@ func TestGetConfigEntry(t *testing.T) {
 func TestGetPort(t *testing.T) {
 	assert := assert.New(t)
 
-	// Case: flag present
+	// Case: port key present in config file
 	port, err := getPort(
+		map[string]interface{}{},
 		map[string]interface{}{"flag": float64(13)},
 		"flag",
 	)
 	assert.NoError(err)
 	assert.Equal(uint16(13), port)
 
-	// Case: flag not present
+	// Case: port key present in flags
+	port, err = getPort(
+		map[string]interface{}{"flag": float64(13)},
+		map[string]interface{}{},
+		"flag",
+	)
+	assert.NoError(err)
+	assert.Equal(uint16(13), port)
+
+	// Case: port key present in config file and flags
+	port, err = getPort(
+		map[string]interface{}{"flag": float64(13)},
+		map[string]interface{}{"flag": float64(14)},
+		"flag",
+	)
+	assert.NoError(err)
+	assert.Equal(uint16(13), port)
+
+	// Case: port key not present
 	_, err = getPort(
+		map[string]interface{}{},
 		map[string]interface{}{},
 		"flag",
 	)
