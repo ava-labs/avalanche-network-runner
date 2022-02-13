@@ -384,7 +384,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// TODO should we do this for other directories? Profiles?
 	nodeRootDir := filepath.Join(ln.rootDir, nodeConfig.Name)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
-		return nil, fmt.Errorf("error creating temp dir: %w", err)
+		if os.IsExist(err) {
+			ln.log.Warn("node root directory %s already exists", nodeRootDir)
+		} else {
+			return nil, fmt.Errorf("error creating temp dir: %w", err)
+		}
 	}
 
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
