@@ -204,11 +204,15 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 ) (network.Network, error) {
+	return NewNetworkWithDir(log, networkConfig, "")
+}
+
+func NewNetworkWithDir(log logging.Logger, networkConfig network.Config, networkDir string) (network.Network, error) {
 	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
 		colorPicker: utils.NewColorPicker(),
 		stdout:      os.Stdout,
 		stderr:      os.Stderr,
-	})
+	}, networkDir)
 }
 
 // newNetwork creates a network from given configuration
@@ -217,6 +221,7 @@ func newNetwork(
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
+	networkDir string,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
@@ -254,10 +259,16 @@ func newNetwork(
 			nodeConfigs = append(nodeConfigs, nodeConfig)
 		}
 	}
-	net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
-	if err != nil {
-		return nil, err
+
+	if networkDir == "" {
+		net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		net.rootDir = networkDir
 	}
+
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -307,7 +318,7 @@ func newDefaultNetwork(
 	nodeProcessCreator NodeProcessCreator,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
+	return newNetwork(log, config, newAPIClientF, nodeProcessCreator, "")
 }
 
 // NewDefaultConfig creates a new default network config
