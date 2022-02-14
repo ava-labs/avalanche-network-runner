@@ -666,13 +666,13 @@ func getPort(
 		if portFromFlags, ok := portIntf.(int); ok {
 			port = uint16(portFromFlags)
 		} else {
-			return 0, fmt.Errorf("expected flag %q to be int but got %T", config.HTTPPortKey, portIntf)
+			return 0, fmt.Errorf("expected flag %q to be int but got %T", portKey, portIntf)
 		}
 	} else if portIntf, ok := configFile[portKey]; ok {
 		if portFromConfigFile, ok := portIntf.(float64); ok {
 			port = uint16(portFromConfigFile)
 		} else {
-			return 0, fmt.Errorf("expected flag %q to be float64 but got %T", config.HTTPPortKey, portIntf)
+			return 0, fmt.Errorf("expected flag %q to be float64 but got %T", portKey, portIntf)
 		}
 	} else {
 		// Use a random free port.
