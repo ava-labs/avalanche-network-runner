@@ -199,29 +199,37 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork call newNetwork with no mocking
+// Returns a new network from the given config that uses the given log.
+// Files (e.g. logs, databases) default to being written at directory [dir].
+// If there isn't a directory at [dir] one will be created.
+// If len([dir]) == 0, files will be written underneath a new temporary directory.
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
+	dir string,
 ) (network.Network, error) {
-	return NewNetworkWithDir(log, networkConfig, "")
+	return newNetwork(
+		log,
+		networkConfig,
+		api.NewAPIClient,
+		&nodeProcessCreator{
+			colorPicker: utils.NewColorPicker(),
+			stdout:      os.Stdout,
+			stderr:      os.Stderr,
+		},
+		dir,
+	)
 }
 
-func NewNetworkWithDir(log logging.Logger, networkConfig network.Config, networkDir string) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
-		colorPicker: utils.NewColorPicker(),
-		stdout:      os.Stdout,
-		stderr:      os.Stderr,
-	}, networkDir)
-}
-
-// newNetwork creates a network from given configuration
+// See NewNetwork.
+// [newAPIClientF] is used to create new API clients.
+// [nodeProcessCreator] is used to launch new avalanchego processes.
 func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
-	networkDir string,
+	dir string,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
@@ -260,13 +268,13 @@ func newNetwork(
 		}
 	}
 
-	if networkDir == "" {
+	if dir == "" {
 		net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		net.rootDir = networkDir
+		net.rootDir = dir
 	}
 
 	for _, nodeConfig := range nodeConfigs {

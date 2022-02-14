@@ -103,7 +103,7 @@ func TestConfigMarshalJSON(t *testing.T) {
 
 	// At this point unmarshalling should succeed because *the json.RawMessages are ignored*.
 	// Let's try creating a local network first: it should fail as the second node is for k8s
-	_, err := local.NewNetwork(logging.NoLog{}, netcfg)
+	_, err := local.NewNetwork(logging.NoLog{}, netcfg, "")
 	assert.Error(err)
 
 	var localcfg local.NodeConfig
