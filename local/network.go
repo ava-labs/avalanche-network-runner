@@ -199,24 +199,37 @@ func (l beaconList) String() string {
 	return s.String()
 }
 
-// NewNetwork call newNetwork with no mocking
+// Returns a new network from the given config that uses the given log.
+// Files (e.g. logs, databases) default to being written at directory [dir].
+// If there isn't a directory at [dir] one will be created.
+// If len([dir]) == 0, files will be written underneath a new temporary directory.
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
+	dir string,
 ) (network.Network, error) {
-	return newNetwork(log, networkConfig, api.NewAPIClient, &nodeProcessCreator{
-		colorPicker: utils.NewColorPicker(),
-		stdout:      os.Stdout,
-		stderr:      os.Stderr,
-	})
+	return newNetwork(
+		log,
+		networkConfig,
+		api.NewAPIClient,
+		&nodeProcessCreator{
+			colorPicker: utils.NewColorPicker(),
+			stdout:      os.Stdout,
+			stderr:      os.Stderr,
+		},
+		dir,
+	)
 }
 
-// newNetwork creates a network from given configuration
+// See NewNetwork.
+// [newAPIClientF] is used to create new API clients.
+// [nodeProcessCreator] is used to launch new avalanchego processes.
 func newNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
+	dir string,
 ) (network.Network, error) {
 	if err := networkConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config failed validation: %w", err)
@@ -254,10 +267,16 @@ func newNetwork(
 			nodeConfigs = append(nodeConfigs, nodeConfig)
 		}
 	}
-	net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
-	if err != nil {
-		return nil, err
+
+	if dir == "" {
+		net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		net.rootDir = dir
 	}
+
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := net.addNode(nodeConfig); err != nil {
 			if err := net.stop(context.Background()); err != nil {
@@ -307,7 +326,7 @@ func newDefaultNetwork(
 	nodeProcessCreator NodeProcessCreator,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return newNetwork(log, config, newAPIClientF, nodeProcessCreator)
+	return newNetwork(log, config, newAPIClientF, nodeProcessCreator, "")
 }
 
 // NewDefaultConfig creates a new default network config
@@ -639,7 +658,11 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	// TODO should we do this for other directories? Profiles?
 	nodeRootDir := filepath.Join(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
-		return "", fmt.Errorf("error creating temp dir: %w", err)
+		if os.IsExist(err) {
+			log.Warn("node root directory %s already exists", nodeRootDir)
+		} else {
+			return "", fmt.Errorf("error creating temp dir: %w", err)
+		}
 	}
 	return nodeRootDir, nil
 }
