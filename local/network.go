@@ -787,46 +787,52 @@ func (ln *localNetwork) buildFlags(
 // It returns flags used to point to those files.
 func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]string, error) {
 	type file struct {
-		path    string
+		ppath   string
+		fpath   string
 		pathKey string
 		val     []byte
 	}
 	files := []file{
 		{
-			path:    filepath.Join(nodeRootDir, stakingKeyFileName),
+			ppath:   filepath.Join(nodeRootDir, stakingKeyFileName),
+			fpath:   filepath.Join(nodeRootDir, stakingKeyFileName),
 			pathKey: config.StakingKeyPathKey,
 			val:     []byte(nodeConfig.StakingKey),
 		},
 		{
-			path:    filepath.Join(nodeRootDir, stakingCertFileName),
+			ppath:   filepath.Join(nodeRootDir, stakingCertFileName),
+			fpath:   filepath.Join(nodeRootDir, stakingCertFileName),
 			pathKey: config.StakingCertPathKey,
 			val:     []byte(nodeConfig.StakingCert),
 		},
 		{
-			path:    filepath.Join(nodeRootDir, genesisFileName),
+			ppath:   filepath.Join(nodeRootDir, genesisFileName),
+			fpath:   filepath.Join(nodeRootDir, genesisFileName),
 			pathKey: config.GenesisConfigFileKey,
 			val:     genesis,
 		},
 	}
 	if len(nodeConfig.ConfigFile) != 0 {
 		files = append(files, file{
-			path:    filepath.Join(nodeRootDir, configFileName),
+			ppath:   filepath.Join(nodeRootDir, configFileName),
+			fpath:   filepath.Join(nodeRootDir, configFileName),
 			pathKey: config.ConfigFileKey,
 			val:     []byte(nodeConfig.ConfigFile),
 		})
 	}
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		files = append(files, file{
-			path:    filepath.Join(nodeRootDir, "C", configFileName),
+			ppath:   filepath.Join(nodeRootDir, "C"),
+			fpath:   filepath.Join(nodeRootDir, "C", configFileName),
 			pathKey: config.ChainConfigDirKey,
 			val:     []byte(nodeConfig.CChainConfigFile),
 		})
 	}
 	flags := []string{}
 	for _, f := range files {
-		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.path))
-		if err := createFileAndWrite(f.path, f.val); err != nil {
-			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
+		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.ppath))
+		if err := createFileAndWrite(f.fpath, f.val); err != nil {
+			return nil, fmt.Errorf("couldn't write file at %q: %w", f.fpath, err)
 		}
 	}
 	return flags, nil
