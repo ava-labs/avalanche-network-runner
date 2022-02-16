@@ -1101,8 +1101,9 @@ func TestWriteFiles(t *testing.T) {
 	genesisFlag := fmt.Sprintf("--%s=%v", config.GenesisConfigFileKey, genesisPath)
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	configFileFlag := fmt.Sprintf("--%s=%v", config.ConfigFileKey, configFilePath)
-	cChainConfigPath := filepath.Join(tmpDir, "C")
-	cChainConfigFileFlag := fmt.Sprintf("--%s=%v", config.ChainConfigDirKey, cChainConfigPath)
+	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
+	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
+	chainConfigDirFlag := fmt.Sprintf("--%s=%v", config.ChainConfigDirKey, chainConfigDir)
 
 	type test struct {
 		name          string
@@ -1158,7 +1159,7 @@ func TestWriteFiles(t *testing.T) {
 				stakingCertFlag,
 				genesisFlag,
 				configFileFlag,
-				cChainConfigFileFlag,
+				chainConfigDirFlag,
 			},
 		},
 	}
@@ -1190,7 +1191,7 @@ func TestWriteFiles(t *testing.T) {
 				assert.Equal([]byte(configFile), gotConfigFile)
 			}
 			if len(tt.nodeConfig.CChainConfigFile) > 0 {
-				gotCChainConfigFile, err := os.ReadFile(filepath.Join(cChainConfigPath, configFileName))
+				gotCChainConfigFile, err := os.ReadFile(cChainConfigPath)
 				assert.NoError(err)
 				assert.Equal([]byte(cChainConfigFile), gotCChainConfigFile)
 			}

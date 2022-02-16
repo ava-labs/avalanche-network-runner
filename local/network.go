@@ -46,6 +46,8 @@ var (
 		config.BootstrapIPsKey: {},
 		config.BootstrapIDsKey: {},
 	}
+	chainConfigSubDir  = "chainConfigs"
+	cChainConfigSubDir = filepath.Join(chainConfigSubDir, "C")
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -822,8 +824,8 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 	}
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, "C"),
-			path:      filepath.Join(nodeRootDir, "C", configFileName),
+			flagValue: filepath.Join(nodeRootDir, chainConfigSubDir),
+			path:      filepath.Join(nodeRootDir, cChainConfigSubDir, configFileName),
 			pathKey:   config.ChainConfigDirKey,
 			val:       []byte(nodeConfig.CChainConfigFile),
 		})
