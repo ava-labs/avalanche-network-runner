@@ -787,52 +787,52 @@ func (ln *localNetwork) buildFlags(
 // It returns flags used to point to those files.
 func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]string, error) {
 	type file struct {
-		ppath   string
-		fpath   string
-		pathKey string
-		val     []byte
+		flagValue string
+		path      string
+		pathKey   string
+		val       []byte
 	}
 	files := []file{
 		{
-			ppath:   filepath.Join(nodeRootDir, stakingKeyFileName),
-			fpath:   filepath.Join(nodeRootDir, stakingKeyFileName),
-			pathKey: config.StakingKeyPathKey,
-			val:     []byte(nodeConfig.StakingKey),
+			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
+			path:      filepath.Join(nodeRootDir, stakingKeyFileName),
+			pathKey:   config.StakingKeyPathKey,
+			val:       []byte(nodeConfig.StakingKey),
 		},
 		{
-			ppath:   filepath.Join(nodeRootDir, stakingCertFileName),
-			fpath:   filepath.Join(nodeRootDir, stakingCertFileName),
-			pathKey: config.StakingCertPathKey,
-			val:     []byte(nodeConfig.StakingCert),
+			flagValue: filepath.Join(nodeRootDir, stakingCertFileName),
+			path:      filepath.Join(nodeRootDir, stakingCertFileName),
+			pathKey:   config.StakingCertPathKey,
+			val:       []byte(nodeConfig.StakingCert),
 		},
 		{
-			ppath:   filepath.Join(nodeRootDir, genesisFileName),
-			fpath:   filepath.Join(nodeRootDir, genesisFileName),
-			pathKey: config.GenesisConfigFileKey,
-			val:     genesis,
+			flagValue: filepath.Join(nodeRootDir, genesisFileName),
+			path:      filepath.Join(nodeRootDir, genesisFileName),
+			pathKey:   config.GenesisConfigFileKey,
+			val:       genesis,
 		},
 	}
 	if len(nodeConfig.ConfigFile) != 0 {
 		files = append(files, file{
-			ppath:   filepath.Join(nodeRootDir, configFileName),
-			fpath:   filepath.Join(nodeRootDir, configFileName),
-			pathKey: config.ConfigFileKey,
-			val:     []byte(nodeConfig.ConfigFile),
+			flagValue: filepath.Join(nodeRootDir, configFileName),
+			path:      filepath.Join(nodeRootDir, configFileName),
+			pathKey:   config.ConfigFileKey,
+			val:       []byte(nodeConfig.ConfigFile),
 		})
 	}
 	if len(nodeConfig.CChainConfigFile) != 0 {
 		files = append(files, file{
-			ppath:   filepath.Join(nodeRootDir, "C"),
-			fpath:   filepath.Join(nodeRootDir, "C", configFileName),
-			pathKey: config.ChainConfigDirKey,
-			val:     []byte(nodeConfig.CChainConfigFile),
+			flagValue: filepath.Join(nodeRootDir, "C"),
+			path:      filepath.Join(nodeRootDir, "C", configFileName),
+			pathKey:   config.ChainConfigDirKey,
+			val:       []byte(nodeConfig.CChainConfigFile),
 		})
 	}
 	flags := []string{}
 	for _, f := range files {
-		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.ppath))
-		if err := createFileAndWrite(f.fpath, f.val); err != nil {
-			return nil, fmt.Errorf("couldn't write file at %q: %w", f.fpath, err)
+		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.flagValue))
+		if err := createFileAndWrite(f.path, f.val); err != nil {
+			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}
 	}
 	return flags, nil
