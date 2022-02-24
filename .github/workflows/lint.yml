@@ -1,8 +1,7 @@
 # This workflow lints and runs unit tests on this package.
 # It runs when a change is pushed.
 name: Lint and Unit Test
-on:
-  [push, pull_request]
+on: [push, pull_request]
 jobs:
   lint:
     name: lint
@@ -16,7 +15,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: 'v1.42'
+          version: "v1.42"
           working-directory: .
           args: --timeout 3m
   unit_test:
@@ -30,6 +29,6 @@ jobs:
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
-        with: 
-          go-version: '1.17.2' # The Go version to use.
-      - run: go test -v ./... -timeout 10m -race
+        with:
+          go-version: "1.17.2" # The Go version to use.
+      - run: go test -v -timeout 10m -race $(go list ./... | grep -v tests)
