@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -464,7 +464,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.DbDir,
 		nodeInfo.WhitelistedSubnets,
 	)
-	nodeConfig.ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(nodeInfo.ExecPath)
+	nodeConfig.ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, nodeInfo.ExecPath))
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")

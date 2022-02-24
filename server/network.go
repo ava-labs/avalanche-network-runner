@@ -5,9 +5,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,10 +20,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	formatter "github.com/onsi/ginkgo/v2/formatter"
 )
 
 type localNetwork struct {
@@ -98,7 +96,7 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 			dbDir,
 			whitelistedSubnets,
 		)
-		cfg.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(execPath)
+		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath))
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
@@ -200,25 +198,4 @@ func (lc *localNetwork) stop() {
 		<-lc.donec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
-}
-
-type writer struct {
-	c    string
-	name string
-	w    io.Writer
-}
-
-// https://github.com/onsi/ginkgo/blob/v2.0.0/formatter/formatter.go#L52-L73
-var colors = []string{
-	"{{green}}",
-	"{{orange}}",
-	"{{blue}}",
-	"{{magenta}}",
-	"{{cyan}}",
-}
-
-func (wr *writer) Write(p []byte) (n int, err error) {
-	s := formatter.F(wr.c+"[%s]{{/}}	", wr.name)
-	fmt.Fprint(formatter.ColorableStdOut, s)
-	return wr.w.Write(p)
 }
