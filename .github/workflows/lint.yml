@@ -1,7 +1,13 @@
 # This workflow lints and runs unit tests on this package.
 # It runs when a change is pushed.
 name: Lint and Unit Test
-on: [push, pull_request]
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
 jobs:
   lint:
     name: lint
