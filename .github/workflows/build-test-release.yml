@@ -54,7 +54,7 @@ jobs:
         shell: bash
         run: scripts/tests.e2e.sh 1.7.4 1.7.5
   release:
-    needs: e2e_test
+    needs: [lint_test, unit_test, e2e_test]
     runs-on: ubuntu-latest
     steps:
       - name: Git checkout
