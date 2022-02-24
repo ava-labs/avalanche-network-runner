@@ -1,0 +1,12 @@
+version: v1
+plugins:
+  - name: go
+    out: .
+    opt: paths=source_relative
+  - name: go-grpc
+    out: .
+    opt: paths=source_relative
+  # https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/introduction/
+  - name: grpc-gateway
+    out: .
+    opt: paths=source_relative
