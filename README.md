@@ -261,7 +261,7 @@ To ping the server:
 curl -X POST -k http://localhost:8081/v1/ping -d ''
 
 # or
-avalanche-network-runner client ping \
+avalanche-network-runner ping \
 --log-level debug \
 --endpoint="0.0.0.0:8080"
 ```
