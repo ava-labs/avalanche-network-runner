@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,8 +18,9 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"golang.org/x/sync/errgroup"
@@ -69,8 +70,8 @@ type localNetwork struct {
 	nextNodeSuffix uint64
 	// Node Name --> Node
 	nodes map[string]*localNode
-	// List of nodes that new nodes will bootstrap from.
-	bootstrapIPs, bootstrapIDs beaconList
+	// Set of nodes that new nodes will bootstrap from.
+	bootstraps beacon.Set
 	// rootDir is the root directory under which we write all node
 	// logs, databases, etc.
 	rootDir string
@@ -183,24 +184,6 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
 
-type beaconList map[string]struct{}
-
-func (l beaconList) String() string {
-	if len(l) == 0 {
-		return ""
-	}
-	s := strings.Builder{}
-	i := 0
-	for beacon := range l {
-		if i != 0 {
-			_, _ = s.WriteString(",")
-		}
-		_, _ = s.WriteString(beacon)
-		i++
-	}
-	return s.String()
-}
-
 // Returns a new network from the given config that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [dir].
 // If there isn't a directory at [dir] one will be created.
@@ -250,8 +233,7 @@ func newNetwork(
 		nodes:              map[string]*localNode{},
 		closedOnStopCh:     make(chan struct{}),
 		log:                log,
-		bootstrapIPs:       make(beaconList),
-		bootstrapIDs:       make(beaconList),
+		bootstraps:         beacon.NewSet(),
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
 		flags:              networkConfig.Flags,
@@ -418,10 +400,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
 	if nodeConfig.IsBeacon {
-		ln.bootstrapIDs[nodeID.PrefixedString(constants.NodeIDPrefix)] = struct{}{}
-		ln.bootstrapIPs[fmt.Sprintf("127.0.0.1:%d", p2pPort)] = struct{}{}
+		err = ln.bootstraps.Add(beacon.New(nodeID, avago_utils.IPDesc{
+			IP:   net.IPv6loopback,
+			Port: p2pPort,
+		}))
 	}
-	return node, nil
+	return node, err
 }
 
 // See network.Network
@@ -577,6 +561,10 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
+
+	// If the node wasn't a beacon, we don't care
+	_ = ln.bootstraps.RemoveByID(node.nodeID)
+
 	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
@@ -758,8 +746,8 @@ func (ln *localNetwork) buildFlags(
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstrapIPs),
-		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstrapIDs),
+		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstraps.IPsArg()),
+		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstraps.IDsArg()),
 	}
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
