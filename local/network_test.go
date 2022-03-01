@@ -891,7 +891,7 @@ func emptyNetworkConfig() (network.Config, error) {
 
 // Returns a config for a three node network,
 // where the nodes have randomly generated staking
-// kets and certificates.
+// keys and certificates.
 func testNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
 	networkConfig, err := emptyNetworkConfig()
@@ -1197,4 +1197,26 @@ func TestWriteFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRemoveBeacon(t *testing.T) {
+	assert := assert.New(t)
+
+	// create a network with no nodes in it
+	emptyNetworkConfig, err := emptyNetworkConfig()
+	assert.NoError(err)
+	netIntf, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	assert.NoError(err)
+	net := netIntf.(*localNetwork)
+
+	// a network config for a 3 node staking network, and add the bootstrapper
+	// to the exesting network
+	networkConfig := testNetworkConfig(t)
+	_, err = net.AddNode(networkConfig.NodeConfigs[0])
+	assert.NoError(err)
+
+	// remove the beacon node from the network
+	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	assert.NoError(err)
+	assert.Equal(0, net.bootstraps.Len())
 }
