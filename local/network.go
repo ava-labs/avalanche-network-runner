@@ -20,6 +20,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -323,6 +325,25 @@ func NewDefaultConfig(binaryPath string) network.Config {
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config
+}
+
+func (ln *localNetwork) AttachPeer(ctx context.Context, attachTo string, router router.InboundHandler) (peer.Peer, error) {
+	attachToNode, err := ln.GetNode(attachTo)
+	if err != nil {
+		return nil, err
+	}
+	url, err := avago_utils.ToIPDesc(fmt.Sprintf("%s:%d", attachToNode.GetURL(), attachToNode.GetP2PPort()))
+	if err != nil {
+		return nil, err
+	}
+	p, err := peer.StartTestPeer(
+		ctx,
+		url,
+		ln.networkID,
+		router,
+	)
+
+	return p, nil
 }
 
 // See network.Network

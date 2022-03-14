@@ -22,6 +22,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -116,6 +117,28 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process.On("Wait").Return(nil)
 	process.On("Stop").Return(nil)
 	return process, nil
+}
+
+type dummyInboundHandler struct{}
+
+func (d *dummyInboundHandler) HandleInbound(msg message.InboundMessage) {
+	fmt.Println(fmt.Sprintf("dummy inbound handler, does nothing with message: %v", msg))
+}
+
+func AttachPeerTest(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := testNetworkConfig(t)
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, &localTestSuccessfulNodeProcessCreator{}, "")
+	assert.NoError(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	names, err := net.GetNodeNames()
+	assert.NoError(err)
+	nodeName := names[0]
+	router := &dummyInboundHandler{}
+	p, err := net.AttachPeer(ctx, nodeName, router)
+	assert.NoError(err)
+	assert.NotEmpty(p)
 }
 
 // Start a network with no nodes

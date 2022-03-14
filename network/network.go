@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 )
 
 var ErrStopped = errors.New("network stopped")
@@ -39,5 +41,7 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
+	// AttachPeer
+	AttachPeer(ctx context.Context, attachToNode string, router router.InboundHandler) (peer.Peer, error)
 	// TODO add methods
 }
