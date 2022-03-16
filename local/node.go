@@ -1,12 +1,16 @@
 package local
 
 import (
+	"context"
+	"fmt"
+	"net"
 	"os/exec"
 	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
 )
 
 // interface compliance
@@ -68,6 +72,22 @@ type localNode struct {
 	apiPort uint16
 	// The P2P (staking) port
 	p2pPort uint16
+
+	getConnFunc node.GetConnFunc
+}
+
+func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
+	dialer := net.Dialer{}
+	conn, err := dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func (node *localNode) GetConnFunc() node.GetConnFunc {
+	return node.getConnFunc
 }
 
 // See node.Node
@@ -87,7 +107,7 @@ func (node *localNode) GetAPIClient() api.Client {
 
 // See node.Node
 func (node *localNode) GetURL() string {
-	return "localhost"
+	return "127.0.0.1"
 }
 
 // See node.Node

@@ -1,14 +1,18 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 )
+
+type GetConnFunc func(context.Context, Node) (net.Conn, error)
 
 // Node represents an AvalancheGo node
 type Node interface {
@@ -27,6 +31,8 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTP API port.
 	GetAPIPort() uint16
+	// GetConn
+	GetConnFunc() GetConnFunc
 }
 
 // Config encapsulates an avalanchego configuration

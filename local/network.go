@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"crypto"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -20,11 +21,19 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/network/throttling"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/validators"
+	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -186,7 +195,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
 
-// Returns a new network from the given config that uses the given log.
+// NewNetwork returns a new network from the given config that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [dir].
 // If there isn't a directory at [dir] one will be created.
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
@@ -327,21 +336,84 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	return config
 }
 
+// AttachPeer: see Network
 func (ln *localNetwork) AttachPeer(ctx context.Context, attachTo string, router router.InboundHandler) (peer.Peer, error) {
 	attachToNode, err := ln.GetNode(attachTo)
 	if err != nil {
 		return nil, err
 	}
-	url, err := avago_utils.ToIPDesc(fmt.Sprintf("%s:%d", attachToNode.GetURL(), attachToNode.GetP2PPort()))
+	tlsCert, err := staking.NewTLSCert()
 	if err != nil {
 		return nil, err
 	}
-	p, err := peer.StartTestPeer(
-		ctx,
-		url,
-		ln.networkID,
-		router,
+	tlsConfg := peer.TLSConfig(*tlsCert)
+	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
+	connFunc := attachToNode.GetConnFunc()
+	conn, err := connFunc(ctx, attachToNode)
+	if err != nil {
+		return nil, err
+	}
+	mc, err := message.NewCreator(
+		prometheus.NewRegistry(),
+		true,
+		"",
+		10*time.Second,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics, err := peer.NewMetrics(
+		logging.NoLog{},
+		"",
+		prometheus.NewRegistry(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ip := avago_utils.IPDesc{
+		IP:   net.IPv6zero,
+		Port: 0,
+	}
+	config := &peer.Config{
+		Metrics:              metrics,
+		MessageCreator:       mc,
+		Log:                  logging.NoLog{},
+		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
+		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
+		Network: peer.NewTestNetwork(
+			mc,
+			ln.networkID,
+			ip,
+			version.CurrentApp,
+			tlsCert.PrivateKey.(crypto.Signer),
+			ids.Set{},
+			100,
+		),
+		Router:               router,
+		VersionCompatibility: version.GetCompatibility(ln.networkID),
+		VersionParser:        version.NewDefaultApplicationParser(),
+		MySubnets:            ids.Set{},
+		Beacons:              validators.NewSet(),
+		NetworkID:            ln.networkID,
+		PingFrequency:        constants.DefaultPingFrequency,
+		PongTimeout:          constants.DefaultPingPongTimeout,
+		MaxClockDifference:   time.Minute,
+	}
+	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	p := peer.Start(
+		config,
+		conn,
+		cert,
+		peerID,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }
@@ -409,12 +481,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:    nodeConfig.Name,
-		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", apiPort),
-		process: nodeProcess,
-		apiPort: apiPort,
-		p2pPort: p2pPort,
+		name:        nodeConfig.Name,
+		nodeID:      nodeID,
+		client:      ln.newAPIClientF("localhost", apiPort),
+		process:     nodeProcess,
+		apiPort:     apiPort,
+		p2pPort:     p2pPort,
+		getConnFunc: defaultGetConnFunc,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
