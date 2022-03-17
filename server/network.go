@@ -24,6 +24,19 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
+const (
+	defaultNodeConfig = `{
+	"network-peer-list-gossip-frequency":"250ms",
+	"network-max-reconnect-delay":"1s",
+	"public-ip":"127.0.0.1",
+	"health-check-frequency":"2s",
+	"api-admin-enabled":true,
+	"api-ipcs-enabled":true,
+	"index-enabled":true,
+	"log-display-level":"INFO"
+}`
+)
+
 type localNetwork struct {
 	logger logging.Logger
 
@@ -48,7 +61,7 @@ type localNetwork struct {
 	stopOnce sync.Once
 }
 
-func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string) (*localNetwork, error) {
+func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string, nodeConfigParam string) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
 	lcfg.Directory = rootDataDir
 	logFactory := logging.NewFactory(lcfg)
@@ -74,25 +87,16 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 
 		// need to whitelist subnet ID to create custom VM chain
 		// ref. vms/platformvm/createChain
-		cfg.NodeConfigs[i].ConfigFile = fmt.Sprintf(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"INFO",
-	"log-level":"%s",
-	"log-dir":"%s",
-	"db-dir":"%s",
-	"whitelisted-subnets":"%s"
-}`,
-			strings.ToUpper(logLevel),
-			logDir,
-			dbDir,
-			whitelistedSubnets,
-		)
+		nodeConfig := defaultNodeConfig
+		if nodeConfigParam != "" {
+			nodeConfig = nodeConfigParam
+		}
+		finalJSON, err := evalConfig(nodeConfig, logLevel, logDir, dbDir, whitelistedSubnets)
+		if err != nil {
+			return nil, err
+		}
+		cfg.NodeConfigs[i].ConfigFile = string(finalJSON)
+
 		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath))
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
@@ -123,6 +127,24 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 		donec: make(chan struct{}),
 		errc:  make(chan error, 1),
 	}, nil
+}
+
+func evalConfig(nodeConfig string, logLevel string, logDir string, dbDir string, whitelistedSubnets string) (string, error) {
+	var jsonContent map[string]interface{}
+	if err := json.Unmarshal([]byte(nodeConfig), &jsonContent); err != nil {
+		return "", err
+	}
+	// add (or overwrite, if given) the following entries
+	jsonContent["log-level"] = strings.ToUpper(logLevel)
+	jsonContent["log-dir"] = logDir
+	jsonContent["db-dir"] = dbDir
+	jsonContent["whitelisted-subnets"] = whitelistedSubnets
+
+	finalJSON, err := json.Marshal(jsonContent)
+	if err != nil {
+		return "", err
+	}
+	return string(finalJSON), nil
 }
 
 func (lc *localNetwork) start() {

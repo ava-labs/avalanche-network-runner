@@ -5,6 +5,8 @@ package control
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -56,6 +58,7 @@ func NewCommand() *cobra.Command {
 var (
 	avalancheGoBinPath string
 	whitelistedSubnets string
+	nodeConfigFilePath string
 )
 
 func newStartCommand() *cobra.Command {
@@ -76,6 +79,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"whitelisted subnets (comma-separated)",
 	)
+	cmd.PersistentFlags().StringVar(
+		&nodeConfigFilePath,
+		"node-config-path",
+		"",
+		"path to file with node configs",
+	)
 	return cmd
 }
 
@@ -90,8 +99,22 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	fileBytes, err := os.ReadFile(nodeConfigFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read provided config file: %s", err)
+	}
+	// validate it's valid JSON
+	var js json.RawMessage
+	if err := json.Unmarshal(fileBytes, &js); err != nil {
+		return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.Start(
+		ctx,
+		avalancheGoBinPath,
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithNodeConfig(string(fileBytes)),
+	)
 	cancel()
 	if err != nil {
 		return err

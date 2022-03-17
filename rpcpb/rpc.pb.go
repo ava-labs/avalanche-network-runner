@@ -7,11 +7,12 @@
 package rpcpb
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -296,6 +297,7 @@ type StartRequest struct {
 	ExecPath           string  `protobuf:"bytes,1,opt,name=exec_path,json=execPath,proto3" json:"exec_path,omitempty"`
 	WhitelistedSubnets *string `protobuf:"bytes,2,opt,name=whitelisted_subnets,json=whitelistedSubnets,proto3,oneof" json:"whitelisted_subnets,omitempty"`
 	LogLevel           *string `protobuf:"bytes,3,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
+	NodeConfig         *string `protobuf:"bytes,4,opt,name=node_config,json=nodeConfig,proto3,oneof" json:"node_config,omitempty"`
 }
 
 func (x *StartRequest) Reset() {
@@ -347,6 +349,13 @@ func (x *StartRequest) GetWhitelistedSubnets() string {
 func (x *StartRequest) GetLogLevel() string {
 	if x != nil && x.LogLevel != nil {
 		return *x.LogLevel
+	}
+	return ""
+}
+
+func (x *StartRequest) GetNodeConfig() string {
+	if x != nil && x.LogLevel != nil {
+		return *x.NodeConfig
 	}
 	return ""
 }
@@ -1201,30 +1210,33 @@ func file_rpcpb_rpc_proto_rawDescGZIP() []byte {
 	return file_rpcpb_rpc_proto_rawDescData
 }
 
-var file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
-var file_rpcpb_rpc_proto_goTypes = []interface{}{
-	(*PingRequest)(nil),          // 0: rpcpb.PingRequest
-	(*PingResponse)(nil),         // 1: rpcpb.PingResponse
-	(*ClusterInfo)(nil),          // 2: rpcpb.ClusterInfo
-	(*NodeInfo)(nil),             // 3: rpcpb.NodeInfo
-	(*StartRequest)(nil),         // 4: rpcpb.StartRequest
-	(*StartResponse)(nil),        // 5: rpcpb.StartResponse
-	(*HealthRequest)(nil),        // 6: rpcpb.HealthRequest
-	(*HealthResponse)(nil),       // 7: rpcpb.HealthResponse
-	(*URIsRequest)(nil),          // 8: rpcpb.URIsRequest
-	(*URIsResponse)(nil),         // 9: rpcpb.URIsResponse
-	(*StatusRequest)(nil),        // 10: rpcpb.StatusRequest
-	(*StatusResponse)(nil),       // 11: rpcpb.StatusResponse
-	(*StreamStatusRequest)(nil),  // 12: rpcpb.StreamStatusRequest
-	(*StreamStatusResponse)(nil), // 13: rpcpb.StreamStatusResponse
-	(*RestartNodeRequest)(nil),   // 14: rpcpb.RestartNodeRequest
-	(*RestartNodeResponse)(nil),  // 15: rpcpb.RestartNodeResponse
-	(*RemoveNodeRequest)(nil),    // 16: rpcpb.RemoveNodeRequest
-	(*RemoveNodeResponse)(nil),   // 17: rpcpb.RemoveNodeResponse
-	(*StopRequest)(nil),          // 18: rpcpb.StopRequest
-	(*StopResponse)(nil),         // 19: rpcpb.StopResponse
-	nil,                          // 20: rpcpb.ClusterInfo.NodeInfosEntry
-}
+var (
+	file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+	file_rpcpb_rpc_proto_goTypes  = []interface{}{
+		(*PingRequest)(nil),          // 0: rpcpb.PingRequest
+		(*PingResponse)(nil),         // 1: rpcpb.PingResponse
+		(*ClusterInfo)(nil),          // 2: rpcpb.ClusterInfo
+		(*NodeInfo)(nil),             // 3: rpcpb.NodeInfo
+		(*StartRequest)(nil),         // 4: rpcpb.StartRequest
+		(*StartResponse)(nil),        // 5: rpcpb.StartResponse
+		(*HealthRequest)(nil),        // 6: rpcpb.HealthRequest
+		(*HealthResponse)(nil),       // 7: rpcpb.HealthResponse
+		(*URIsRequest)(nil),          // 8: rpcpb.URIsRequest
+		(*URIsResponse)(nil),         // 9: rpcpb.URIsResponse
+		(*StatusRequest)(nil),        // 10: rpcpb.StatusRequest
+		(*StatusResponse)(nil),       // 11: rpcpb.StatusResponse
+		(*StreamStatusRequest)(nil),  // 12: rpcpb.StreamStatusRequest
+		(*StreamStatusResponse)(nil), // 13: rpcpb.StreamStatusResponse
+		(*RestartNodeRequest)(nil),   // 14: rpcpb.RestartNodeRequest
+		(*RestartNodeResponse)(nil),  // 15: rpcpb.RestartNodeResponse
+		(*RemoveNodeRequest)(nil),    // 16: rpcpb.RemoveNodeRequest
+		(*RemoveNodeResponse)(nil),   // 17: rpcpb.RemoveNodeResponse
+		(*StopRequest)(nil),          // 18: rpcpb.StopRequest
+		(*StopResponse)(nil),         // 19: rpcpb.StopResponse
+		nil,                          // 20: rpcpb.ClusterInfo.NodeInfosEntry
+	}
+)
+
 var file_rpcpb_rpc_proto_depIdxs = []int32{
 	20, // 0: rpcpb.ClusterInfo.node_infos:type_name -> rpcpb.ClusterInfo.NodeInfosEntry
 	2,  // 1: rpcpb.StartResponse.cluster_info:type_name -> rpcpb.ClusterInfo

@@ -101,6 +101,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		ExecPath:           execPath,
 		WhitelistedSubnets: &ret.whitelistedSubnets,
 		LogLevel:           &ret.logLevel,
+		NodeConfig:         &ret.nodeConfig,
 	})
 }
 
@@ -204,6 +205,7 @@ func (c *client) Close() error {
 type Op struct {
 	whitelistedSubnets string
 	logLevel           string
+	nodeConfig         string
 }
 
 type OpOption func(*Op)
@@ -211,6 +213,12 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
+	}
+}
+
+func WithNodeConfig(nodeConfig string) OpOption {
+	return func(op *Op) {
+		op.nodeConfig = nodeConfig
 	}
 }
 
