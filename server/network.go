@@ -49,10 +49,7 @@ type localNetwork struct {
 }
 
 func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string) (*localNetwork, error) {
-	lcfg, err := logging.DefaultConfig()
-	if err != nil {
-		return nil, err
-	}
+	lcfg := logging.DefaultConfig
 	lcfg.Directory = rootDataDir
 	logFactory := logging.NewFactory(lcfg)
 	logger, err := logFactory.Make("main")
