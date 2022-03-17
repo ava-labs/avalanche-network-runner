@@ -3,7 +3,7 @@
 ## Note
 
 This tool is under heavy development and the documentation/code snippers below may vary slightly from the actual code in the repository.
-Updates to the documentation may happen some time after an update to the codebase. 
+Updates to the documentation may happen some time after an update to the codebase.
 Nonetheless, this README should provide valuable information about using this tool.
 
 ## Overview
@@ -25,29 +25,28 @@ A node config is defined by this struct:
 
 ```go
 type Config struct {
-	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig interface{}
-	// A node's name must be unique from all other nodes
-	// in a network. If Name is the empty string, a
-	// unique name is assigned on node creation.
-	Name string
-	// True if other nodes should use this node
-	// as a bootstrap beacon.
-	IsBeacon bool
-	// Must not be nil
-	StakingKey []byte
-	// Must not be nil
-	StakingCert []byte
-	// May be nil.
-	ConfigFile []byte
-	// May be nil.
-	CChainConfigFile []byte
+  // Configuration specific to a particular implementation of a node.
+  ImplSpecificConfig interface{}
+  // A node's name must be unique from all other nodes
+  // in a network. If Name is the empty string, a
+  // unique name is assigned on node creation.
+  Name string
+  // True if other nodes should use this node
+  // as a bootstrap beacon.
+  IsBeacon bool
+  // Must not be nil
+  StakingKey []byte
+  // Must not be nil
+  StakingCert []byte
+  // May be nil.
+  ConfigFile []byte
+  // May be nil.
+  CChainConfigFile []byte
 }
 ```
 
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
 Bootstrap IPs/ IDs will be overwritten even if provided.
-
 
 A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
 For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
@@ -65,11 +64,11 @@ You can create a custom AvalancheGo genesis with function `network.NewAvalancheG
 // Note that many of the genesis fields (i.e. reward addresses)
 // are randomly generated or hard-coded.
 func NewAvalancheGoGenesis(
-	log logging.Logger,
-	networkID uint32,
-	xChainBalances []AddrAndBalance,
-	cChainBalances []AddrAndBalance,
-	genesisVdrs []ids.ShortID,
+  log logging.Logger,
+  networkID uint32,
+  xChainBalances []AddrAndBalance,
+  cChainBalances []AddrAndBalance,
+  genesisVdrs []ids.ShortID,
 ) ([]byte, error)
 ```
 
@@ -82,20 +81,20 @@ parameterized on `network.Config`:
 
 ```go
 type Config struct {
-	// Configuration specific to a particular implementation of a network.
-	ImplSpecificConfig interface{}
-	// Must not be nil
-	Genesis []byte
-	// May have length 0
-	// (i.e. network may have no nodes on creation.)
-	NodeConfigs []node.Config
-	// Log level for the whole network
-	LogLevel string
-	// Name for the network
-	Name string
-	// How many nodes in the network.
-	// TODO move to k8s package?
-	NodeCount int
+  // Configuration specific to a particular implementation of a network.
+  ImplSpecificConfig interface{}
+  // Must not be nil
+  Genesis []byte
+  // May have length 0
+  // (i.e. network may have no nodes on creation.)
+  NodeConfigs []node.Config
+  // Log level for the whole network
+  LogLevel string
+  // Name for the network
+  Name string
+  // How many nodes in the network.
+  // TODO move to k8s package?
+  NodeCount int
 }
 ```
 
@@ -104,7 +103,7 @@ The function that returns a new network may have additional configuration fields
 ## Default Network Creation
 
 The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
-This allows users to create a new network without needing to define any configurations. 
+This allows users to create a new network without needing to define any configurations.
 
 ```go
 // NewDefaultNetwork returns a new network using a pre-defined
@@ -127,8 +126,8 @@ This allows users to create a new network without needing to define any configur
 // * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
 // * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
 func NewDefaultNetwork(
-	log logging.Logger,
-	binaryPath string,
+  log logging.Logger,
+  binaryPath string,
 ) (network.Network, error)
 ```
 
@@ -141,32 +140,32 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-	// Returns a chan that is closed when
-	// all the nodes in the network are healthy.
-	// If an error is sent on this channel, at least 1
-	// node didn't become healthy before the timeout.
-	// If an error isn't sent on the channel before it
-	// closes, all the nodes are healthy.
-	// A stopped network is considered unhealthy.
-	// Timeout is given by the context parameter.
-	// [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
-	Healthy(context.Context) chan error
-	// Stop all the nodes.
-	// Returns ErrStopped if Stop() was previously called.
-	Stop(context.Context) error
-	// Start a new node with the given config.
-	// Returns ErrStopped if Stop() was previously called.
-	AddNode(node.Config) (node.Node, error)
-	// Stop the node with this name.
-	// Returns ErrStopped if Stop() was previously called.
-	RemoveNode(name string) error
-	// Return the node with this name.
-	// Returns ErrStopped if Stop() was previously called.
-	GetNode(name string) (node.Node, error)
-	// Returns the names of all nodes in this network.
-	// Returns ErrStopped if Stop() was previously called.
-	GetNodeNames() ([]string, error)
-	// TODO add methods
+  // Returns a chan that is closed when
+  // all the nodes in the network are healthy.
+  // If an error is sent on this channel, at least 1
+  // node didn't become healthy before the timeout.
+  // If an error isn't sent on the channel before it
+  // closes, all the nodes are healthy.
+  // A stopped network is considered unhealthy.
+  // Timeout is given by the context parameter.
+  // [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
+  Healthy(context.Context) chan error
+  // Stop all the nodes.
+  // Returns ErrStopped if Stop() was previously called.
+  Stop(context.Context) error
+  // Start a new node with the given config.
+  // Returns ErrStopped if Stop() was previously called.
+  AddNode(node.Config) (node.Node, error)
+  // Stop the node with this name.
+  // Returns ErrStopped if Stop() was previously called.
+  RemoveNode(name string) error
+  // Return the node with this name.
+  // Returns ErrStopped if Stop() was previously called.
+  GetNode(name string) (node.Node, error)
+  // Returns the names of all nodes in this network.
+  // Returns ErrStopped if Stop() was previously called.
+  GetNodeNames() ([]string, error)
+  // TODO add methods
 }
 ```
 
@@ -205,6 +204,7 @@ go test ./...
 
 As an example of how to use the network runner, we've included a `main.go` that uses the local implementation of the network runner.
 When run, it:
+
 * Creates a local five node Avalanche network and waits for all nodes to become healthy.
 * Prints the names of the nodes
 * Prints the node ID of one node
@@ -226,7 +226,7 @@ go run examples/local/indepth/main.go
 
 We've also included another example at `examples/local/fivenodenetwork/main.go`, which just starts a local five node network, waits for the nodes to become healthy, and then runs until the user provides a SIGINT or SIGTERM.
 
-# `network-runner` RPC server
+## `network-runner` RPC server
 
 **What does `network-runner` do?** The primary focus of [`network-runner`](https://github.com/ava-labs/avalanche-network-runner) is to create a local network, as a test framework for local development.
 
@@ -261,7 +261,7 @@ To ping the server:
 curl -X POST -k http://localhost:8081/v1/ping -d ''
 
 # or
-avalanche-network-runner client ping \
+avalanche-network-runner ping \
 --log-level debug \
 --endpoint="0.0.0.0:8080"
 ```
