@@ -29,15 +29,13 @@ import (
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-const (
-	defaultHealthyTimeout = 5 * time.Second
-	msgLenBytesLen        = 4
-)
+const defaultHealthyTimeout = 5 * time.Second
 
 var (
 	_ NodeProcessCreator = &localTestSuccessfulNodeProcessCreator{}
@@ -126,9 +124,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 
 type dummyInboundHandler struct{}
 
-func (d *dummyInboundHandler) HandleInbound(msg message.InboundMessage) {
-	fmt.Println(fmt.Sprintf("dummy inbound handler, does nothing; incoming message: %v", msg))
-}
+func (d *dummyInboundHandler) HandleInbound(message.InboundMessage) {}
 
 // pipedGetConnFunc returns a node.GetConnFunc which when running:
 // * returns a piped net.Conn to be used for the test connection
@@ -188,7 +184,7 @@ func verifyProtocol(assert *assert.Assertions, opSequence []message.Op, connRead
 		10*time.Second,
 	)
 	assert.NoError(err)
-	msgLenBytes := make([]byte, msgLenBytesLen)
+	msgLenBytes := make([]byte, wrappers.IntLen)
 
 	for _, expectedOpMsg := range opSequence {
 		// read the message length
