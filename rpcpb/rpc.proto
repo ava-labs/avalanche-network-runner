@@ -102,6 +102,7 @@ message StartRequest {
   string exec_path                    = 1;
   optional string whitelisted_subnets = 2;
   optional string log_level           = 3;
+  optional string node_config         = 4;
 }
 
 message StartResponse {

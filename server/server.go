@@ -195,11 +195,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 	zap.L().Info("starting",
+
 		zap.String("execPath", req.ExecPath),
 		zap.String("whitelistedSubnets", req.GetWhitelistedSubnets()),
 		zap.Int32("pid", s.clusterInfo.GetPid()),
 		zap.String("rootDataDir", s.clusterInfo.GetRootDataDir()),
-		zap.String("nodeConfig", *req.NodeConfig),
+		zap.String("nodeConfig", req.GetNodeConfig()),
 	)
 	if _, err := os.Stat(req.ExecPath); err != nil {
 		return nil, ErrNotExists

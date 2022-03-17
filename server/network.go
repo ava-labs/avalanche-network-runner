@@ -26,15 +26,15 @@ import (
 
 const (
 	defaultNodeConfig = `{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"INFO"
-}`
+		"network-peer-list-gossip-frequency":"250ms",
+		"network-max-reconnect-delay":"1s",
+		"public-ip":"127.0.0.1",
+		"health-check-frequency":"2s",
+		"api-admin-enabled":true,
+		"api-ipcs-enabled":true,
+		"index-enabled":true,
+		"log-display-level":"INFO"
+  }`
 )
 
 type localNetwork struct {
@@ -85,8 +85,7 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
 
-		// need to whitelist subnet ID to create custom VM chain
-		// ref. vms/platformvm/createChain
+		// get the node configs right
 		nodeConfig := defaultNodeConfig
 		if nodeConfigParam != "" {
 			nodeConfig = nodeConfigParam
@@ -138,6 +137,8 @@ func evalConfig(nodeConfig string, logLevel string, logDir string, dbDir string,
 	jsonContent["log-level"] = strings.ToUpper(logLevel)
 	jsonContent["log-dir"] = logDir
 	jsonContent["db-dir"] = dbDir
+	// need to whitelist subnet ID to create custom VM chain
+	// ref. vms/platformvm/createChain
 	jsonContent["whitelisted-subnets"] = whitelistedSubnets
 
 	finalJSON, err := json.Marshal(jsonContent)

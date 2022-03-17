@@ -99,21 +99,26 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	fileBytes, err := os.ReadFile(nodeConfigFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to read provided config file: %s", err)
-	}
-	// validate it's valid JSON
-	var js json.RawMessage
-	if err := json.Unmarshal(fileBytes, &js); err != nil {
-		return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+	configFileContents := ""
+	if nodeConfigFilePath != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config file{{/}} %+v\n", nodeConfigFilePath)
+		fileBytes, err := os.ReadFile(nodeConfigFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to read provided config file: %s", err)
+		}
+		// validate it's valid JSON
+		var js json.RawMessage
+		if err := json.Unmarshal(fileBytes, &js); err != nil {
+			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+		}
+		configFileContents = string(js)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	info, err := cli.Start(
 		ctx,
 		avalancheGoBinPath,
 		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithNodeConfig(string(fileBytes)),
+		client.WithNodeConfig(configFileContents),
 	)
 	cancel()
 	if err != nil {
