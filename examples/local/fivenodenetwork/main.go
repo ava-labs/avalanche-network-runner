@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"go/build"
 	"os"
 	"os/signal"
 	"syscall"
@@ -50,6 +51,9 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+	if goPath == "" {
+		goPath = build.Default.GOPATH
 	}
 	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
 	if err := run(log, binaryPath); err != nil {
