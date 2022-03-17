@@ -1,6 +1,10 @@
 package k8s
 
 import (
+	"context"
+	"errors"
+	"net"
+
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
@@ -69,4 +73,10 @@ func (n *Node) GetAPIPort() uint16 {
 // representation of this node
 func (n *Node) GetK8sObjSpec() *k8sapi.Avalanchego {
 	return n.k8sObjSpec
+}
+
+func (n *Node) GetConnFunc() node.GetConnFunc {
+	return func(context.Context, node.Node) (net.Conn, error) {
+		return nil, errors.New("unimplemented")
+	}
 }
