@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -38,12 +39,13 @@ import (
 const defaultHealthyTimeout = 5 * time.Second
 
 var (
-	_ NodeProcessCreator = &localTestSuccessfulNodeProcessCreator{}
-	_ NodeProcessCreator = &localTestFailedStartProcessCreator{}
-	_ NodeProcessCreator = &localTestProcessUndefNodeProcessCreator{}
-	_ NodeProcessCreator = &localTestFlagCheckProcessCreator{}
-	_ api.NewAPIClientF  = newMockAPISuccessful
-	_ api.NewAPIClientF  = newMockAPIUnhealthy
+	_ NodeProcessCreator    = &localTestSuccessfulNodeProcessCreator{}
+	_ NodeProcessCreator    = &localTestFailedStartProcessCreator{}
+	_ NodeProcessCreator    = &localTestProcessUndefNodeProcessCreator{}
+	_ NodeProcessCreator    = &localTestFlagCheckProcessCreator{}
+	_ api.NewAPIClientF     = newMockAPISuccessful
+	_ api.NewAPIClientF     = newMockAPIUnhealthy
+	_ router.InboundHandler = &noOpInboundHandler{}
 )
 
 type localTestSuccessfulNodeProcessCreator struct{}
@@ -122,15 +124,15 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	return process, nil
 }
 
-type dummyInboundHandler struct{}
+type noOpInboundHandler struct{}
 
-func (d *dummyInboundHandler) HandleInbound(message.InboundMessage) {}
+func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
 
 // pipedGetConnFunc returns a node.GetConnFunc which when running:
 // * returns a piped net.Conn to be used for the test connection
 // * runs a go routine which upgrades the connection to TLS
 // * runs a second go routine which mocks the node's message endpoint handling messages
-func pipedGetConnFunc(ctx context.Context, assert *assert.Assertions, errc chan error) node.GetConnFunc {
+func pipedGetConnFunc(assert *assert.Assertions, errc chan error) node.GetConnFunc {
 	return func(ctx context.Context, node node.Node) (net.Conn, error) {
 		// a mocked connection
 		connRead, connWrite := net.Pipe()
@@ -242,9 +244,9 @@ func TestAttachPeerTest(t *testing.T) {
 	defer cancel()
 
 	// assign our own pipedGetConnFunc so we can mock the node
-	originalNode.getConnFunc = pipedGetConnFunc(ctx, assert, errc)
+	originalNode.getConnFunc = pipedGetConnFunc(assert, errc)
 	// now attach the peer to the node
-	router := &dummyInboundHandler{}
+	router := &noOpInboundHandler{}
 	p, err := net.AttachPeer(ctx, nodeName, router)
 	assert.NoError(err)
 
