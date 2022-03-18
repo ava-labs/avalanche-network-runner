@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -125,12 +126,12 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		cChainConfig, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/cchain_config.json", i))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].CChainConfigFile = string(cChainConfig)
-		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 }
@@ -323,6 +324,36 @@ func NewDefaultConfig(binaryPath string) network.Config {
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config
+}
+
+// NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint) (network.Config, error) {
+	netConfig := NewDefaultConfig(binaryPath)
+	if int(numNodes) > len(netConfig.NodeConfigs) {
+		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
+		refNodeConfig := netConfig.NodeConfigs[0]
+		for i := 0; i < toAdd; i++ {
+			nodeConfig := refNodeConfig
+			stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+			if err != nil {
+				return netConfig, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+			}
+			nodeConfig.StakingKey = string(stakingKey)
+			nodeConfig.StakingCert = string(stakingCert)
+            apiPort, err := getFreePort()
+			if err != nil {
+				return netConfig, fmt.Errorf("couldn't get free API port: %w", err)
+			}
+			nodeConfig.Flags = map[string]interface{}{
+				config.HTTPPortKey: apiPort,
+			}
+			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
+		}
+	}
+	if int(numNodes) < len(netConfig.NodeConfigs) {
+		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
+	}
+	return netConfig, nil
 }
 
 // See network.Network
