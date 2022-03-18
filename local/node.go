@@ -15,8 +15,9 @@ import (
 
 // interface compliance
 var (
-	_ node.Node   = (*localNode)(nil)
-	_ NodeProcess = (*nodeProcessImpl)(nil)
+	_ node.Node        = (*localNode)(nil)
+	_ NodeProcess      = (*nodeProcessImpl)(nil)
+	_ node.GetConnFunc = defaultGetConnFunc
 )
 
 // NodeConfig configurations which are specific to the
@@ -57,7 +58,7 @@ func (p *nodeProcessImpl) Stop() error {
 	return p.cmd.Process.Signal(syscall.SIGTERM)
 }
 
-// Gives access to basic nodes info, and to most avalanchego apis
+// Gives access to basic node info, and to most avalanchego apis
 type localNode struct {
 	// Must be unique across all nodes in this network.
 	name string
@@ -72,18 +73,13 @@ type localNode struct {
 	apiPort uint16
 	// The P2P (staking) port
 	p2pPort uint16
-
+	// Returns a connection to this node
 	getConnFunc node.GetConnFunc
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
 	dialer := net.Dialer{}
-	conn, err := dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
 }
 
 func (node *localNode) GetConnFunc() node.GetConnFunc {

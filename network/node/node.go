@@ -31,7 +31,7 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTP API port.
 	GetAPIPort() uint16
-	// GetConn
+	// Returns a new connection to this node.
 	GetConnFunc() GetConnFunc
 }
 
