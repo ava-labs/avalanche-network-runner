@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"crypto"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -21,19 +20,9 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/network/peer"
-	"github.com/ava-labs/avalanchego/network/throttling"
-	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/snow/validators"
-	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	"github.com/ava-labs/avalanchego/version"
-	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -334,88 +323,6 @@ func NewDefaultConfig(binaryPath string) network.Config {
 		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
 	}
 	return config
-}
-
-// AttachPeer: see Network
-func (ln *localNetwork) AttachPeer(ctx context.Context, attachTo string, router router.InboundHandler) (peer.Peer, error) {
-	attachToNode, err := ln.GetNode(attachTo)
-	if err != nil {
-		return nil, err
-	}
-	tlsCert, err := staking.NewTLSCert()
-	if err != nil {
-		return nil, err
-	}
-	tlsConfg := peer.TLSConfig(*tlsCert)
-	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
-	connFunc := attachToNode.GetConnFunc()
-	conn, err := connFunc(ctx, attachToNode)
-	if err != nil {
-		return nil, err
-	}
-	mc, err := message.NewCreator(
-		prometheus.NewRegistry(),
-		true,
-		"",
-		10*time.Second,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	metrics, err := peer.NewMetrics(
-		logging.NoLog{},
-		"",
-		prometheus.NewRegistry(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	ip := avago_utils.IPDesc{
-		IP:   net.IPv6zero,
-		Port: 0,
-	}
-	config := &peer.Config{
-		Metrics:              metrics,
-		MessageCreator:       mc,
-		Log:                  logging.NoLog{},
-		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
-		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
-		Network: peer.NewTestNetwork(
-			mc,
-			ln.networkID,
-			ip,
-			version.CurrentApp,
-			tlsCert.PrivateKey.(crypto.Signer),
-			ids.Set{},
-			100,
-		),
-		Router:               router,
-		VersionCompatibility: version.GetCompatibility(ln.networkID),
-		VersionParser:        version.NewDefaultApplicationParser(),
-		MySubnets:            ids.Set{},
-		Beacons:              validators.NewSet(),
-		NetworkID:            ln.networkID,
-		PingFrequency:        constants.DefaultPingFrequency,
-		PongTimeout:          constants.DefaultPingPongTimeout,
-		MaxClockDifference:   time.Minute,
-	}
-	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
-	if err != nil {
-		return nil, err
-	}
-
-	p := peer.Start(
-		config,
-		conn,
-		cert,
-		peerID,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return p, nil
 }
 
 // See network.Network

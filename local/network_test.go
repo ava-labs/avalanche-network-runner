@@ -246,7 +246,9 @@ func TestAttachTestPeer(t *testing.T) {
 	// context for timeout control (give enough time)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	p, err := net.AttachPeer(ctx, nodeName, handler)
+	networkID, err := utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
+	assert.NoError(err)
+	p, err := attachToNode.AttachPeer(ctx, networkID, handler)
 	assert.NoError(err)
 
 	// we'll use a Chits message for testing

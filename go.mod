@@ -2,7 +2,7 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.17
 
-replace github.com/ava-labs/avalanchego => ../avalanchego
+replace github.com/ava-labs/avalanchego => ../avalanchego-internal
 
 require (
 	github.com/ava-labs/avalanchego v1.7.7

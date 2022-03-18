@@ -2,15 +2,27 @@ package local
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"net"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/network/throttling"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/validators"
+	"github.com/ava-labs/avalanchego/staking"
+	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // interface compliance
@@ -80,6 +92,84 @@ type localNode struct {
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
 	dialer := net.Dialer{}
 	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
+}
+
+// AttachPeer: see Network
+func (node *localNode) AttachPeer(ctx context.Context, networkID uint32, router router.InboundHandler) (peer.Peer, error) {
+	tlsCert, err := staking.NewTLSCert()
+	if err != nil {
+		return nil, err
+	}
+	tlsConfg := peer.TLSConfig(*tlsCert)
+	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
+	connFunc := node.GetConnFunc()
+	conn, err := connFunc(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	mc, err := message.NewCreator(
+		prometheus.NewRegistry(),
+		true,
+		"",
+		10*time.Second,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics, err := peer.NewMetrics(
+		logging.NoLog{},
+		"",
+		prometheus.NewRegistry(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ip := avago_utils.IPDesc{
+		IP:   net.IPv6zero,
+		Port: 0,
+	}
+	config := &peer.Config{
+		Metrics:              metrics,
+		MessageCreator:       mc,
+		Log:                  logging.NoLog{},
+		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
+		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
+		Network: peer.NewTestNetwork(
+			mc,
+			networkID,
+			ip,
+			version.CurrentApp,
+			tlsCert.PrivateKey.(crypto.Signer),
+			ids.Set{},
+			100,
+		),
+		Router:               router,
+		VersionCompatibility: version.GetCompatibility(networkID),
+		VersionParser:        version.NewDefaultApplicationParser(),
+		MySubnets:            ids.Set{},
+		Beacons:              validators.NewSet(),
+		NetworkID:            networkID,
+		PingFrequency:        constants.DefaultPingFrequency,
+		PongTimeout:          constants.DefaultPingPongTimeout,
+		MaxClockDifference:   time.Minute,
+	}
+	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	p := peer.Start(
+		config,
+		conn,
+		cert,
+		peerID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
 
 func (node *localNode) GetConnFunc() node.GetConnFunc {
