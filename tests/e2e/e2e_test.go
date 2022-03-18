@@ -17,7 +17,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-const numNodes 5
+const numNodes = 5
 
 func TestE2e(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
