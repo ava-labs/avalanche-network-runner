@@ -340,12 +340,13 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint) (network.Config, e
 			}
 			nodeConfig.StakingKey = string(stakingKey)
 			nodeConfig.StakingCert = string(stakingCert)
+			// replace api port in refNodeConfig.ConfigFile
 			apiPort, err := getFreePort()
 			if err != nil {
 				return netConfig, fmt.Errorf("couldn't get free API port: %w", err)
 			}
 			nodeConfig.Flags = map[string]interface{}{
-				config.HTTPPortKey: apiPort,
+				config.HTTPPortKey: int(apiPort),
 			}
 			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
 		}

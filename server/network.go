@@ -62,10 +62,10 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-    cfg, err := local.NewDefaultConfigNNodes(execPath, 10)
-    if err != nil {
-        return nil, err
-    }
+	cfg, err := local.NewDefaultConfigNNodes(execPath, 10)
+	if err != nil {
+		return nil, err
+	}
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
 		nodeName := fmt.Sprintf("node%d", i+1)
@@ -74,6 +74,9 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
+
+		// drop any flags received in original conf
+		cfg.NodeConfigs[i].Flags = nil
 
 		// need to whitelist subnet ID to create custom VM chain
 		// ref. vms/platformvm/createChain
