@@ -327,7 +327,7 @@ func NewDefaultConfig(binaryPath string) network.Config {
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint) (network.Config, error) {
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
 	netConfig := NewDefaultConfig(binaryPath)
 	if int(numNodes) > len(netConfig.NodeConfigs) {
 		toAdd := int(numNodes) - len(netConfig.NodeConfigs)

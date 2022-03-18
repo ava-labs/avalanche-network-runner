@@ -56,7 +56,7 @@ func NewCommand() *cobra.Command {
 var (
 	avalancheGoBinPath string
 	whitelistedSubnets string
-	numNodes           uint
+	numNodes           uint32
 )
 
 func newStartCommand() *cobra.Command {
@@ -71,7 +71,7 @@ func newStartCommand() *cobra.Command {
 		"",
 		"avalanchego binary path",
 	)
-	cmd.PersistentFlags().UintVar(
+	cmd.PersistentFlags().Uint32Var(
 		&numNodes,
 		"number-of-nodes",
 		5,

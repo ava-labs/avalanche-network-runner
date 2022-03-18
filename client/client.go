@@ -99,6 +99,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, &rpcpb.StartRequest{
 		ExecPath:           execPath,
+		NumNodes:           &ret.numNodes,
 		WhitelistedSubnets: &ret.whitelistedSubnets,
 		LogLevel:           &ret.logLevel,
 	})
@@ -204,7 +205,7 @@ func (c *client) Close() error {
 type Op struct {
 	whitelistedSubnets string
 	logLevel           string
-	numNodes           uint
+	numNodes           uint32
 }
 
 type OpOption func(*Op)
@@ -227,7 +228,7 @@ func WithLogLevel(logLevel string) OpOption {
 	}
 }
 
-func WithNumNodes(numNodes uint) OpOption {
+func WithNumNodes(numNodes uint32) OpOption {
 	return func(op *Op) {
 		op.numNodes = numNodes
 	}
