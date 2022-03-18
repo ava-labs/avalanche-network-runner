@@ -200,7 +200,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("whitelistedSubnets", req.GetWhitelistedSubnets()),
 		zap.Int32("pid", s.clusterInfo.GetPid()),
 		zap.String("rootDataDir", s.clusterInfo.GetRootDataDir()),
-		zap.String("nodeConfig", req.GetNodeConfig()),
+		zap.Strings("nodeConfigs", req.GetNodeConfigs()),
 	)
 	if _, err := os.Stat(req.ExecPath); err != nil {
 		return nil, ErrNotExists
@@ -213,7 +213,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, ErrAlreadyBootstrapped
 	}
 
-	s.network, err = newNetwork(req.GetExecPath(), rootDataDir, req.GetWhitelistedSubnets(), req.GetLogLevel(), req.GetNodeConfig())
+	// if len(nodeConfigs) == 0 => create default network with no custom configs
+	// if len(nodeConfigs) == 1 => create default network applying the same avalanchego config to all nodes
+	// if len(nodeConfigs) >= 5 => create a custom network with len(nodeConfigs) number of nodes with each its own avalanchego config
+	s.network, err = newNetwork(req.GetExecPath(), rootDataDir, req.GetWhitelistedSubnets(), req.GetLogLevel(), req.GetNodeConfigs())
 	if err != nil {
 		return nil, err
 	}

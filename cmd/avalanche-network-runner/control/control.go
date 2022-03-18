@@ -83,7 +83,7 @@ func newStartCommand() *cobra.Command {
 		&nodeConfigFilePath,
 		"node-config-path",
 		"",
-		"path to file with node configs",
+		"Path to file with node configs. 1 file in path: config applied to all nodes. More than 1 file: number of files defines number of nodes",
 	)
 	return cmd
 }
@@ -99,26 +99,34 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	configFileContents := ""
+	configFiles := []string{}
 	if nodeConfigFilePath != "" {
-		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config file{{/}} %+v\n", nodeConfigFilePath)
-		fileBytes, err := os.ReadFile(nodeConfigFilePath)
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config files{{/}} %+v\n", nodeConfigFilePath)
+
+		files, err := os.ReadDir(nodeConfigFilePath)
 		if err != nil {
-			return fmt.Errorf("failed to read provided config file: %s", err)
+			return err
 		}
-		// validate it's valid JSON
-		var js json.RawMessage
-		if err := json.Unmarshal(fileBytes, &js); err != nil {
-			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+
+		for _, f := range files {
+			fileBytes, err := os.ReadFile(f.Name())
+			if err != nil {
+				return fmt.Errorf("failed to read provided config file: %s", err)
+			}
+			// validate it's valid JSON
+			var js json.RawMessage
+			if err := json.Unmarshal(fileBytes, &js); err != nil {
+				return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+			}
+			configFiles = append(configFiles, string(js))
 		}
-		configFileContents = string(js)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	info, err := cli.Start(
 		ctx,
 		avalancheGoBinPath,
 		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithNodeConfig(configFileContents),
+		client.WithNodeConfig(configFiles),
 	)
 	cancel()
 	if err != nil {

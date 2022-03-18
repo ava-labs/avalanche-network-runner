@@ -61,7 +61,7 @@ type localNetwork struct {
 	stopOnce sync.Once
 }
 
-func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string, nodeConfigParam string) (*localNetwork, error) {
+func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string, nodeConfigs []string) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
 	lcfg.Directory = rootDataDir
 	logFactory := logging.NewFactory(lcfg)
@@ -74,8 +74,14 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 		logLevel = "INFO"
 	}
 
+	var cfg network.Config
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-	cfg := local.NewDefaultConfig(execPath)
+	nodeConfigNums := len(nodeConfigs)
+	if len(nodeConfigs) >= 5 {
+		// cfg, err := local.NewDefaultConfigNNodes(execPath, numNodes)
+	} else {
+		cfg = local.NewDefaultConfig(execPath)
+	}
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
 		nodeName := fmt.Sprintf("node%d", i+1)
@@ -87,8 +93,10 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 
 		// get the node configs right
 		nodeConfig := defaultNodeConfig
-		if nodeConfigParam != "" {
-			nodeConfig = nodeConfigParam
+		if nodeConfigNums == 1 {
+			nodeConfig = nodeConfigs[0]
+		} else if nodeConfigNums >= 5 {
+			nodeConfig = nodeConfigs[i]
 		}
 		finalJSON, err := evalConfig(nodeConfig, logLevel, logDir, dbDir, whitelistedSubnets)
 		if err != nil {
