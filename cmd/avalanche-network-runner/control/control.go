@@ -56,6 +56,7 @@ func NewCommand() *cobra.Command {
 var (
 	avalancheGoBinPath string
 	whitelistedSubnets string
+	numNodes           uint
 )
 
 func newStartCommand() *cobra.Command {
@@ -69,6 +70,12 @@ func newStartCommand() *cobra.Command {
 		"avalanchego-path",
 		"",
 		"avalanchego binary path",
+	)
+	cmd.PersistentFlags().UintVar(
+		&numNodes,
+		"number-of-nodes",
+		5,
+		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
 		&whitelistedSubnets,
@@ -91,7 +98,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithNumNodes(numNodes), client.WithWhitelistedSubnets(whitelistedSubnets))
 	cancel()
 	if err != nil {
 		return err
