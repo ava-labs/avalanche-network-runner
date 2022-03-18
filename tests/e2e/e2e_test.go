@@ -17,6 +17,8 @@ import (
 	"github.com/onsi/gomega"
 )
 
+const numNodes 5
+
 func TestE2e(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
 	ginkgo.RunSpecs(t, "network-runner-example e2e test suites")
@@ -91,7 +93,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 	ginkgo.It("can start", func() {
 		ginkgo.By("calling start API with the first binary", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.Start(ctx, execPath1)
+			resp, err := cli.Start(ctx, execPath1, numNodes)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
