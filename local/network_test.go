@@ -216,14 +216,14 @@ func verifyProtocol(assert *assert.Assertions, opSequence []message.Op, connRead
 	errc <- nil
 }
 
-// TestAttachPeerTest tests that we can attach a peer to a node
-func TestAttachPeerTest(t *testing.T) {
+// TestAttachTestPeer tests that we can attach a peer to a node
+func TestAttachTestPeer(t *testing.T) {
 	assert := assert.New(t)
 	// set up the network
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
 	assert.NoError(err)
-	assert.NoError(awaitNetworkHealthy(net, 10*time.Second))
+	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 
 	// get the first node
 	names, err := net.GetNodeNames()
@@ -237,17 +237,16 @@ func TestAttachPeerTest(t *testing.T) {
 	originalNode, ok := attachToNode.(*localNode)
 	assert.True(ok)
 
-	errc := make(chan error)
+	errCh := make(chan error)
+	// assign our own pipedGetConnFunc so we can mock the node
+	originalNode.getConnFunc = pipedGetConnFunc(assert, errCh)
+	// now attach the peer to the node
+	handler := &noOpInboundHandler{}
 
 	// context for timeout control (give enough time)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-
-	// assign our own pipedGetConnFunc so we can mock the node
-	originalNode.getConnFunc = pipedGetConnFunc(assert, errc)
-	// now attach the peer to the node
-	router := &noOpInboundHandler{}
-	p, err := net.AttachPeer(ctx, nodeName, router)
+	p, err := net.AttachPeer(ctx, nodeName, handler)
 	assert.NoError(err)
 
 	// we'll use a Chits message for testing
@@ -273,7 +272,7 @@ func TestAttachPeerTest(t *testing.T) {
 	ok = p.Send(msg)
 	assert.True(ok)
 	// wait until the go routines are done (will also ensure that `assert` calls will be reflected in test results if failed)
-	assert.NoError(<-errc)
+	assert.NoError(<-errCh)
 }
 
 // Start a network with no nodes
