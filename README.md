@@ -200,6 +200,34 @@ Inside the directory cloned above:
 go test ./...
 ```
 
+### Run E2E test
+
+E2E test checks `network-runner` RPC communication and control. It starts a network against a fresh RPC
+server and execute a set of query and control operations on it.
+
+To start it, execute inside the cloned directory:
+
+```sh
+./scripts/tests.e2e.sh AVALANCHEGO_VERSION1 AVALANCHEGO_VERSION2
+```
+
+As part of the E2E test, it checks wheter a node can be restarted with a different binary version, so two
+different versions shall be given as command line arguments. For example:
+
+```sh
+./scripts/tests.e2e.sh 1.7.4 1.7.5
+```
+
+#### `RUN\_E2E` environment variable
+
+For implementation of the test environment, a distintion is made in code between E2E test (this) 
+and non E2E tests (unit tests executed using `go test`). The environment var `RUN\_E2E` is check inside
+E2E test to decide if the environment is the correct. 
+
+The env var is set when executed `./scripts/tests.e2e.sh`, but the user should consider setting it if trying
+to execute E2E tests without using the given script.
+
+
 ### Run an Example
 
 As an example of how to use the network runner, we've included a `main.go` that uses the local implementation of the network runner.
