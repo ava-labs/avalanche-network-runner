@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/spf13/cobra"
@@ -74,7 +75,7 @@ func newStartCommand() *cobra.Command {
 	cmd.PersistentFlags().Uint32Var(
 		&numNodes,
 		"number-of-nodes",
-		local.defaultNumNodes,
+		local.DefaultNumNodes,
 		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(

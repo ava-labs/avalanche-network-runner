@@ -35,7 +35,7 @@ const (
 	genesisFileName       = "genesis.json"
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
-	defaultNumNodes       = 5
+	DefaultNumNodes       = 5
 )
 
 // interface compliance
@@ -101,7 +101,7 @@ func init() {
 
 	defaultNetworkConfig = network.Config{
 		Name:        "my network",
-		NodeConfigs: make([]node.Config, defaultNumNodes),
+		NodeConfigs: make([]node.Config, DefaultNumNodes),
 		LogLevel:    "INFO",
 	}
 

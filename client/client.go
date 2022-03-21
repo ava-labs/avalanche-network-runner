@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
@@ -93,7 +94,7 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {
-	ret := &Op{numNodes: local.defaultNumNodes}
+	ret := &Op{numNodes: local.DefaultNumNodes}
 	ret.applyOpts(opts)
 
 	zap.L().Info("start")
