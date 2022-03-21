@@ -211,8 +211,8 @@ To start it, execute inside the cloned directory:
 ./scripts/tests.e2e.sh AVALANCHEGO_VERSION1 AVALANCHEGO_VERSION2
 ```
 
-As part of the E2E test, it checks wheter a node can be restarted with a different binary version, so two
-different versions shall be given as command line arguments. For example:
+As the E2E test checks wheter a node can be restarted with a different binary version, two
+different versions shall be given as command line arguments. For Example:
 
 ```sh
 ./scripts/tests.e2e.sh 1.7.4 1.7.5
@@ -220,13 +220,12 @@ different versions shall be given as command line arguments. For example:
 
 #### `RUN_E2E` environment variable
 
-For implementation of the test environment, a distintion is made in code between E2E test (this) 
-and non E2E tests (unit tests executed using `go test`). The environment var `RUN_E2E` is check inside
+In order to implement the test environment, a distintion is made in code between E2E test (this) 
+and non E2E tests (unit tests executed using `go test`). The environment variable `RUN_E2E` is check inside
 E2E test to decide if the environment is the correct. 
 
-The env var is set when executed `./scripts/tests.e2e.sh`, but the user should consider setting it if trying
-to execute E2E tests without using the given script.
-
+This environment variable is correctly set when executing `./scripts/tests.e2e.sh`, but the user should consider 
+setting it if trying to execute E2E tests without using the given script.
 
 ### Run an Example
 
