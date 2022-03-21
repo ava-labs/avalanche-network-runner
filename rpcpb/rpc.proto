@@ -100,7 +100,7 @@ message NodeInfo {
 
 message StartRequest {
   string exec_path                    = 1;
-  uint32 num_nodes                    = 2;
+  optional uint32 num_nodes           = 2;
   optional string whitelisted_subnets = 3;
   optional string log_level           = 4;
 }
