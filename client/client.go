@@ -30,7 +30,7 @@ type Config struct {
 
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
-	Start(ctx context.Context, execPath string, numNodes uint32, opts ...OpOption) (*rpcpb.StartResponse, error)
+	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -92,14 +92,14 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 	return c.pingc.Ping(ctx, &rpcpb.PingRequest{})
 }
 
-func (c *client) Start(ctx context.Context, execPath string, numNodes uint32, opts ...OpOption) (*rpcpb.StartResponse, error) {
-	ret := &Op{}
+func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {
+	ret := &Op{numNodes: local.defaultNumNodes}
 	ret.applyOpts(opts)
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, &rpcpb.StartRequest{
 		ExecPath:           execPath,
-		NumNodes:           numNodes,
+		NumNodes:           &ret.numNodes,
 		WhitelistedSubnets: &ret.whitelistedSubnets,
 		LogLevel:           &ret.logLevel,
 	})
@@ -203,6 +203,7 @@ func (c *client) Close() error {
 }
 
 type Op struct {
+	numNodes           uint32
 	whitelistedSubnets string
 	logLevel           string
 }
@@ -212,6 +213,12 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
+	}
+}
+
+func WithNumNodes(numNodes uint32) OpOption {
+	return func(op *Op) {
+		op.numNodes = numNodes
 	}
 }
 
