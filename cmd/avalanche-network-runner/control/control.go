@@ -74,7 +74,7 @@ func newStartCommand() *cobra.Command {
 	cmd.PersistentFlags().Uint32Var(
 		&numNodes,
 		"number-of-nodes",
-		5,
+		local.defaultNumNodes,
 		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
@@ -98,7 +98,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.Start(ctx, avalancheGoBinPath, numNodes, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithNumNodes(numNodes), client.WithWhitelistedSubnets(whitelistedSubnets))
 	cancel()
 	if err != nil {
 		return err

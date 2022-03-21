@@ -196,7 +196,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 	zap.L().Info("starting",
 		zap.String("execPath", req.ExecPath),
-		zap.Uint32("numNodes", req.NumNodes),
+		zap.Uint32("numNodes", req.GetNumNodes()),
 		zap.String("whitelistedSubnets", req.GetWhitelistedSubnets()),
 		zap.Int32("pid", s.clusterInfo.GetPid()),
 		zap.String("rootDataDir", s.clusterInfo.GetRootDataDir()),
@@ -212,7 +212,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, ErrAlreadyBootstrapped
 	}
 
-	s.network, err = newNetwork(req.GetExecPath(), rootDataDir, req.NumNodes, req.GetWhitelistedSubnets(), req.GetLogLevel())
+	s.network, err = newNetwork(req.GetExecPath(), rootDataDir, req.GetNumNodes(), req.GetWhitelistedSubnets(), req.GetLogLevel())
 	if err != nil {
 		return nil, err
 	}
