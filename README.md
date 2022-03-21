@@ -218,10 +218,10 @@ different versions shall be given as command line arguments. For example:
 ./scripts/tests.e2e.sh 1.7.4 1.7.5
 ```
 
-#### `RUN\_E2E` environment variable
+#### `RUN_E2E` environment variable
 
 For implementation of the test environment, a distintion is made in code between E2E test (this) 
-and non E2E tests (unit tests executed using `go test`). The environment var `RUN\_E2E` is check inside
+and non E2E tests (unit tests executed using `go test`). The environment var `RUN_E2E` is check inside
 E2E test to decide if the environment is the correct. 
 
 The env var is set when executed `./scripts/tests.e2e.sh`, but the user should consider setting it if trying
