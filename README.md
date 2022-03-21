@@ -202,8 +202,8 @@ go test ./...
 
 ### Run E2E test
 
-E2E test checks `network-runner` RPC communication and control. It starts a network against a fresh RPC
-server and execute a set of query and control operations on it.
+The E2E test checks `network-runner` RPC communication and control. It starts a network against a fresh RPC
+server and executes a set of query and control operations on it.
 
 To start it, execute inside the cloned directory:
 
@@ -211,8 +211,8 @@ To start it, execute inside the cloned directory:
 ./scripts/tests.e2e.sh AVALANCHEGO_VERSION1 AVALANCHEGO_VERSION2
 ```
 
-As the E2E test checks wheter a node can be restarted with a different binary version, two
-different versions shall be given as command line arguments. For Example:
+The E2E test checks wheter a node can be restarted with a different binary version. Provide two
+different versions as arguments. For Example:
 
 ```sh
 ./scripts/tests.e2e.sh 1.7.4 1.7.5
@@ -220,12 +220,10 @@ different versions shall be given as command line arguments. For Example:
 
 #### `RUN_E2E` environment variable
 
-In order to implement the test environment, a distintion is made in code between E2E test (this) 
-and non E2E tests (unit tests executed using `go test`). The environment variable `RUN_E2E` is checked inside
-E2E test to decide if the environment is the correct one. 
+To specify that the E2E test should be run with `go test`, set environment variable `RUN_E2E` to any non-empty value. 
 
 This environment variable is correctly set when executing `./scripts/tests.e2e.sh`, but the user should consider 
-setting it if trying to execute E2E tests without using the given script.
+setting it if trying to execute E2E tests without using that script.
 
 ### Run an Example
 
