@@ -7,6 +7,7 @@ package e2e_test
 import (
 	"context"
 	"flag"
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 )
 
 func TestE2e(t *testing.T) {
+	if os.Getenv("RUN_E2E") == "" {
+		t.Skip("Environment variable RUN_E2E not set; skipping E2E tests")
+	}
 	gomega.RegisterFailHandler(ginkgo.Fail)
 	ginkgo.RunSpecs(t, "network-runner-example e2e test suites")
 }
