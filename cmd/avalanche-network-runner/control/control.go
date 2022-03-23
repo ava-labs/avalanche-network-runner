@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/spf13/cobra"
@@ -56,6 +57,7 @@ func NewCommand() *cobra.Command {
 var (
 	avalancheGoBinPath string
 	whitelistedSubnets string
+	numNodes           uint32
 )
 
 func newStartCommand() *cobra.Command {
@@ -69,6 +71,12 @@ func newStartCommand() *cobra.Command {
 		"avalanchego-path",
 		"",
 		"avalanchego binary path",
+	)
+	cmd.PersistentFlags().Uint32Var(
+		&numNodes,
+		"number-of-nodes",
+		local.DefaultNumNodes,
+		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
 		&whitelistedSubnets,
@@ -91,7 +99,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithNumNodes(numNodes), client.WithWhitelistedSubnets(whitelistedSubnets))
 	cancel()
 	if err != nil {
 		return err

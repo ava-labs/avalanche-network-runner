@@ -48,7 +48,7 @@ type localNetwork struct {
 	stopOnce sync.Once
 }
 
-func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, logLevel string) (*localNetwork, error) {
+func newNetwork(execPath string, rootDataDir string, numNodes uint32, whitelistedSubnets string, logLevel string) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
 	lcfg.Directory = rootDataDir
 	logFactory := logging.NewFactory(lcfg)
@@ -62,7 +62,10 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-	cfg := local.NewDefaultConfig(execPath)
+	cfg, err := local.NewDefaultConfigNNodes(execPath, numNodes)
+	if err != nil {
+		return nil, err
+	}
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
 		nodeName := fmt.Sprintf("node%d", i+1)

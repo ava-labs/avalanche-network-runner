@@ -340,12 +340,13 @@ func RegisterPingServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.PingService/Ping", runtime.WithHTTPPathPattern("/v1/ping"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.PingService/Ping", runtime.WithHTTPPathPattern("/v1/ping"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_PingService_Ping_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_PingService_Ping_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -372,12 +373,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Start", runtime.WithHTTPPathPattern("/v1/control/start"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Start", runtime.WithHTTPPathPattern("/v1/control/start"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_Start_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_Start_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -395,12 +397,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Health", runtime.WithHTTPPathPattern("/v1/control/health"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Health", runtime.WithHTTPPathPattern("/v1/control/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_Health_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_Health_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -418,12 +421,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/URIs", runtime.WithHTTPPathPattern("/v1/control/uris"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/URIs", runtime.WithHTTPPathPattern("/v1/control/uris"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_URIs_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_URIs_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -441,12 +445,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Status", runtime.WithHTTPPathPattern("/v1/control/status"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Status", runtime.WithHTTPPathPattern("/v1/control/status"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_Status_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_Status_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -471,12 +476,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RemoveNode", runtime.WithHTTPPathPattern("/v1/control/removenode"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RemoveNode", runtime.WithHTTPPathPattern("/v1/control/removenode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_RemoveNode_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_RemoveNode_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -494,12 +500,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RestartNode", runtime.WithHTTPPathPattern("/v1/control/restartnode"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RestartNode", runtime.WithHTTPPathPattern("/v1/control/restartnode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_RestartNode_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_RestartNode_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -517,12 +524,13 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Stop", runtime.WithHTTPPathPattern("/v1/control/stop"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/Stop", runtime.WithHTTPPathPattern("/v1/control/stop"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_Stop_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_Stop_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -579,12 +587,13 @@ func RegisterPingServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.PingService/Ping", runtime.WithHTTPPathPattern("/v1/ping"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.PingService/Ping", runtime.WithHTTPPathPattern("/v1/ping"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_PingService_Ping_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_PingService_Ping_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -648,12 +657,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Start", runtime.WithHTTPPathPattern("/v1/control/start"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Start", runtime.WithHTTPPathPattern("/v1/control/start"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_Start_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_Start_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -668,12 +678,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Health", runtime.WithHTTPPathPattern("/v1/control/health"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Health", runtime.WithHTTPPathPattern("/v1/control/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_Health_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_Health_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -688,12 +699,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/URIs", runtime.WithHTTPPathPattern("/v1/control/uris"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/URIs", runtime.WithHTTPPathPattern("/v1/control/uris"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_URIs_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_URIs_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -708,12 +720,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Status", runtime.WithHTTPPathPattern("/v1/control/status"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Status", runtime.WithHTTPPathPattern("/v1/control/status"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_Status_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_Status_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -728,12 +741,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/StreamStatus", runtime.WithHTTPPathPattern("/v1/control/streamstatus"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/StreamStatus", runtime.WithHTTPPathPattern("/v1/control/streamstatus"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_StreamStatus_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_StreamStatus_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -748,12 +762,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RemoveNode", runtime.WithHTTPPathPattern("/v1/control/removenode"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RemoveNode", runtime.WithHTTPPathPattern("/v1/control/removenode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_RemoveNode_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_RemoveNode_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -768,12 +783,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RestartNode", runtime.WithHTTPPathPattern("/v1/control/restartnode"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RestartNode", runtime.WithHTTPPathPattern("/v1/control/restartnode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_RestartNode_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_RestartNode_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -788,12 +804,13 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Stop", runtime.WithHTTPPathPattern("/v1/control/stop"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/Stop", runtime.WithHTTPPathPattern("/v1/control/stop"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_Stop_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_Stop_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
