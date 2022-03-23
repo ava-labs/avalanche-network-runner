@@ -390,6 +390,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	node := &localNode{
 		name:        nodeConfig.Name,
 		nodeID:      nodeID,
+		networkID:   ln.networkID,
 		client:      ln.newAPIClientF("localhost", apiPort),
 		process:     nodeProcess,
 		apiPort:     apiPort,

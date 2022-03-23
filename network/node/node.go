@@ -40,7 +40,7 @@ type Node interface {
 	// The test peer can be used to send messages to the node it's attached to.
 	// It's left to the caller to maintain a reference to the returned peer.
 	// The caller should call StartClose() on the peer when they're done with it.
-	AttachPeer(ctx context.Context, networkID uint32, handler router.InboundHandler) (peer.Peer, error)
+	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
 }
 
 // Config encapsulates an avalanchego configuration

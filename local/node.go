@@ -77,6 +77,8 @@ type localNode struct {
 	// [nodeID] is this node's Avalannche Node ID.
 	// Set in network.AddNode
 	nodeID ids.ShortID
+	// The ID of the network this node exists in
+	networkID uint32
 	// Allows user to make API calls to this node.
 	client api.Client
 	// The process running this node.
@@ -95,7 +97,7 @@ func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
 }
 
 // AttachPeer: see Network
-func (node *localNode) AttachPeer(ctx context.Context, networkID uint32, router router.InboundHandler) (peer.Peer, error) {
+func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHandler) (peer.Peer, error) {
 	tlsCert, err := staking.NewTLSCert()
 	if err != nil {
 		return nil, err
@@ -137,7 +139,7 @@ func (node *localNode) AttachPeer(ctx context.Context, networkID uint32, router 
 		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
 		Network: peer.NewTestNetwork(
 			mc,
-			networkID,
+			node.networkID,
 			ip,
 			version.CurrentApp,
 			tlsCert.PrivateKey.(crypto.Signer),
@@ -145,11 +147,11 @@ func (node *localNode) AttachPeer(ctx context.Context, networkID uint32, router 
 			100,
 		),
 		Router:               router,
-		VersionCompatibility: version.GetCompatibility(networkID),
+		VersionCompatibility: version.GetCompatibility(node.networkID),
 		VersionParser:        version.NewDefaultApplicationParser(),
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
-		NetworkID:            networkID,
+		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,

@@ -12,8 +12,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
-	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/sync/errgroup"
@@ -336,10 +334,6 @@ func (net *networkImpl) isStopped() bool {
 	default:
 		return false
 	}
-}
-
-func (net *networkImpl) AttachPeer(context.Context, string, router.InboundHandler) (peer.Peer, error) {
-	return nil, errors.New("AttachPeer is unimplemented")
 }
 
 // Creates the given nodes and blocks until they're all reachable.

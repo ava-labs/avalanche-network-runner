@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -43,8 +42,8 @@ type Node struct {
 
 // AttachPeer see Network
 // TODO: Not yet implemented
-func (n *Node) AttachPeer(ctx context.Context, networkID uint32, handler router.InboundHandler) (peer.Peer, error) {
-	return nil, fmt.Errorf("Not implemented")
+func (n *Node) AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error) {
+	return nil, errors.New("AttachPeer is not implemented")
 }
 
 // See node.Node
