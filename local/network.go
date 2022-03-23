@@ -185,7 +185,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
 
-// Returns a new network from the given config that uses the given log.
+// NewNetwork returns a new network from the given config that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [dir].
 // If there isn't a directory at [dir] one will be created.
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
@@ -420,12 +420,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:    nodeConfig.Name,
-		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", apiPort),
-		process: nodeProcess,
-		apiPort: apiPort,
-		p2pPort: p2pPort,
+		name:        nodeConfig.Name,
+		nodeID:      nodeID,
+		networkID:   ln.networkID,
+		client:      ln.newAPIClientF("localhost", apiPort),
+		process:     nodeProcess,
+		apiPort:     apiPort,
+		p2pPort:     p2pPort,
+		getConnFunc: defaultGetConnFunc,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.

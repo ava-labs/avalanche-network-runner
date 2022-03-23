@@ -22,6 +22,8 @@ import (
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -29,17 +31,16 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-const (
-	defaultHealthyTimeout = 5 * time.Second
-)
+const defaultHealthyTimeout = 5 * time.Second
 
 var (
-	_ NodeProcessCreator = &localTestSuccessfulNodeProcessCreator{}
-	_ NodeProcessCreator = &localTestFailedStartProcessCreator{}
-	_ NodeProcessCreator = &localTestProcessUndefNodeProcessCreator{}
-	_ NodeProcessCreator = &localTestFlagCheckProcessCreator{}
-	_ api.NewAPIClientF  = newMockAPISuccessful
-	_ api.NewAPIClientF  = newMockAPIUnhealthy
+	_ NodeProcessCreator    = &localTestSuccessfulNodeProcessCreator{}
+	_ NodeProcessCreator    = &localTestFailedStartProcessCreator{}
+	_ NodeProcessCreator    = &localTestProcessUndefNodeProcessCreator{}
+	_ NodeProcessCreator    = &localTestFlagCheckProcessCreator{}
+	_ api.NewAPIClientF     = newMockAPISuccessful
+	_ api.NewAPIClientF     = newMockAPIUnhealthy
+	_ router.InboundHandler = &noOpInboundHandler{}
 )
 
 type localTestSuccessfulNodeProcessCreator struct{}
@@ -117,6 +118,10 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process.On("Stop").Return(nil)
 	return process, nil
 }
+
+type noOpInboundHandler struct{}
+
+func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
 
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
