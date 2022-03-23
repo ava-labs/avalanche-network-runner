@@ -75,9 +75,6 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
 
-		// drop any flags received in original conf
-		cfg.NodeConfigs[i].Flags = nil
-
 		// need to whitelist subnet ID to create custom VM chain
 		// ref. vms/platformvm/createChain
 		cfg.NodeConfigs[i].ConfigFile = fmt.Sprintf(`{
