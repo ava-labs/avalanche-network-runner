@@ -27,10 +27,12 @@ import (
 
 // interface compliance
 var (
-	_ node.Node        = (*localNode)(nil)
-	_ NodeProcess      = (*nodeProcessImpl)(nil)
-	_ node.GetConnFunc = defaultGetConnFunc
+	_ node.Node   = (*localNode)(nil)
+	_ NodeProcess = (*nodeProcessImpl)(nil)
+	_ getConnFunc = defaultGetConnFunc
 )
+
+type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
 // NodeConfig configurations which are specific to the
 // local implementation of a network / node.
@@ -88,7 +90,7 @@ type localNode struct {
 	// The P2P (staking) port
 	p2pPort uint16
 	// Returns a connection to this node
-	getConnFunc node.GetConnFunc
+	getConnFunc getConnFunc
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -104,8 +106,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 	tlsConfg := peer.TLSConfig(*tlsCert)
 	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
-	connFunc := node.GetConnFunc()
-	conn, err := connFunc(ctx, node)
+	conn, err := node.getConnFunc(ctx, node)
 	if err != nil {
 		return nil, err
 	}
@@ -172,10 +173,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 
 	return p, nil
-}
-
-func (node *localNode) GetConnFunc() node.GetConnFunc {
-	return node.getConnFunc
 }
 
 // See node.Node

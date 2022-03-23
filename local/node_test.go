@@ -21,56 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-/* TODO delete
-// pipedGetConnFunc returns a node.GetConnFunc which when running:
-// * returns a piped net.Conn to be used for the test connection
-// * runs a go routine which upgrades the connection to TLS
-// * runs a second go routine which mocks the node's message endpoint handling messages
-func pipedGetConnFunc(assert *assert.Assertions, errc chan error) node.GetConnFunc {
-	return func(ctx context.Context, node node.Node) (net.Conn, error) {
-		// a mocked connection
-		connRead, connWrite := net.Pipe()
-		// we first need to upgrade the TLS connection before we can handle other messages
-		upgraded := make(chan struct{})
-
-		// upgrade to TLS and then signal that we can proceed handling messages
-		go func() {
-			tlsCert, err := staking.NewTLSCert()
-			assert.NoError(err)
-
-			tlsConfig := peer.TLSConfig(*tlsCert)
-			upgrader := peer.NewTLSServerUpgrader(tlsConfig)
-			// this will block until the ssh handshake is done
-			_, tlsConn, _, err := upgrader.Upgrade(connRead)
-			assert.NoError(err)
-			connRead = tlsConn
-			// signal we can now handle normal connections
-			upgraded <- struct{}{}
-		}()
-
-		// handle messages after handshake
-		go func() {
-			select {
-			// give the chance to be aborted
-			case <-ctx.Done():
-				errc <- ctx.Err()
-				// wait until the handshake is done
-			case <-upgraded:
-			}
-
-			// sequence of messages we expect
-			opSequence := []message.Op{
-				message.Version,
-				message.Chits,
-			}
-			// verify the sequence is correct
-			verifyProtocol(t, assert, opSequence, connRead, node.GetNodeID(), errc)
-		}()
-		return connWrite, nil
-	}
-}
-*/
-
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert)
 	upgrader := peer.NewTLSServerUpgrader(tlsConfig)

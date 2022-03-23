@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanchego/config"
@@ -13,8 +12,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 )
-
-type GetConnFunc func(context.Context, Node) (net.Conn, error)
 
 // Node represents an AvalancheGo node
 type Node interface {
@@ -33,8 +30,6 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTP API port.
 	GetAPIPort() uint16
-	// Returns a new connection to this node.
-	GetConnFunc() GetConnFunc
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.
 	// The test peer can be used to send messages to the node it's attached to.
