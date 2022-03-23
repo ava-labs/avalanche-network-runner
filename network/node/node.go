@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 )
 
 // Node represents an AvalancheGo node
@@ -27,6 +30,12 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTP API port.
 	GetAPIPort() uint16
+	// Starts a new test peer, connects it to the given node, and returns the peer.
+	// [handler] defines how the test peer handles messages it receives.
+	// The test peer can be used to send messages to the node it's attached to.
+	// It's left to the caller to maintain a reference to the returned peer.
+	// The caller should call StartClose() on the peer when they're done with it.
+	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
 }
 
 // Config encapsulates an avalanchego configuration

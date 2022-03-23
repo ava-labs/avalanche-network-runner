@@ -39,5 +39,4 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
-	// TODO add methods
 }
