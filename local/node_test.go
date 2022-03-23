@@ -1,8 +1,11 @@
 package local
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -13,12 +16,12 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
 
+/* TODO delete
 // pipedGetConnFunc returns a node.GetConnFunc which when running:
 // * returns a piped net.Conn to be used for the test connection
 // * runs a go routine which upgrades the connection to TLS
@@ -61,87 +64,102 @@ func pipedGetConnFunc(assert *assert.Assertions, errc chan error) node.GetConnFu
 				message.Chits,
 			}
 			// verify the sequence is correct
-			verifyProtocol(assert, opSequence, connRead, node.GetNodeID(), errc)
+			verifyProtocol(t, assert, opSequence, connRead, node.GetNodeID(), errc)
 		}()
 		return connWrite, nil
 	}
 }
+*/
 
-// verifyProtocol reads from the connection and verifies we get the expected message sequence
-func verifyProtocol(assert *assert.Assertions, opSequence []message.Op, connRead net.Conn, nodeID ids.ShortID, errc chan error) {
-	// needed for message parsing
-	mc, err := message.NewCreator(
-		prometheus.NewRegistry(),
-		true,
-		"",
-		10*time.Second,
-	)
-	assert.NoError(err)
-	msgLenBytes := make([]byte, wrappers.IntLen)
+func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Conn, error) {
+	tlsConfig := peer.TLSConfig(*myTLSCert)
+	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
+	// this will block until the ssh handshake is done
+	peerID, tlsConn, _, err := upgrader.Upgrade(conn)
+	return peerID, tlsConn, err
+}
+
+// verifyProtocol reads from the connection and asserts that we read the expected message sequence.
+// If an unexpected error occurs, or we get an unexpected message, sends an error on [errCh].
+// Sends nil on [errCh] if we get the expected message sequence.
+func verifyProtocol(
+	t *testing.T,
+	assert *assert.Assertions,
+	opSequence []message.Op,
+	mc message.Creator,
+	conn net.Conn,
+	errCh chan error,
+) {
+	// Do the TLS handshake on [conn]
+	myTLSCert, err := staking.NewTLSCert()
+	if err != nil {
+		errCh <- err
+		return
+	}
+	peerID, tlsConn, err := upgradeConn(myTLSCert, conn)
+	if err != nil {
+		errCh <- err
+		return
+	}
+	conn = tlsConn
+
+	/* TODO
+	// Send the peer our version and peerlist
+		myIP := avago_utils.IPDesc{
+			IP:   net.IPv6zero,
+			Port: 0,
+		}
+		mc.Version(
+			constants.MainnetID,
+			time.Now(),
+			myIP,
+			version.CurrentApp.String(),
+		)
+	*/
 
 	for _, expectedOpMsg := range opSequence {
+		msgLenBytes := &bytes.Buffer{}
 		// read the message length
-		_, err := connRead.Read(msgLenBytes)
-		if err != nil {
-			errc <- err
-			_ = connRead.Close()
+		if _, err := io.CopyN(msgLenBytes, conn, wrappers.IntLen); err != nil {
+			errCh <- err
+			_ = conn.Close()
 			return
 		}
-		msgLen := binary.BigEndian.Uint32(msgLenBytes)
-		msgBytes := make([]byte, msgLen)
+		msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
+		msgBytes := &bytes.Buffer{}
 		// read the message
-		_, err = connRead.Read(msgBytes)
-		if err != nil {
-			errc <- err
-			_ = connRead.Close()
+		if _, err := io.CopyN(msgBytes, conn, int64(msgLen)); err != nil {
+			errCh <- err
+			_ = conn.Close()
 			return
 		}
-		// readBytes = nil
-		msg, err := mc.Parse(msgBytes, nodeID, func() {
-		})
+		msg, err := mc.Parse(msgBytes.Bytes(), peerID, func() {})
 		assert.NoError(err)
 		op := msg.Op()
 		assert.Equal(expectedOpMsg, op)
 	}
-	// signal we are actually done (will also ensure that `assert` calls will be reflected in test results if failed)
-	errc <- nil
+	// signal we are actually done
+	errCh <- nil
 }
 
 // TestAttachPeer tests that we can attach a test peer to a node
+// and that the node receives messages sent through the test peer
 func TestAttachPeer(t *testing.T) {
 	assert := assert.New(t)
-	// set up the network
-	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
-	assert.NoError(err)
-	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 
-	// get the first node
-	names, err := net.GetNodeNames()
-	assert.NoError(err)
-	nodeName := names[0]
-	// we'll attach to this one
-	attachToNode, err := net.GetNode(nodeName)
-	assert.NoError(err)
+	// [nodeConn] is the connection that [node] uses to read from/write to [peer] (defined below)
+	// Similar for [peerConn].
+	nodeConn, peerConn := net.Pipe()
 
-	// cast so we can use a custom GetConnFunc
-	originalNode, ok := attachToNode.(*localNode)
-	assert.True(ok)
+	node := localNode{
+		nodeID:    ids.GenerateTestShortID(),
+		networkID: constants.MainnetID,
+		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
+			return peerConn, nil
+		},
+	}
 
-	errCh := make(chan error)
-	// assign our own pipedGetConnFunc so we can mock the node
-	originalNode.getConnFunc = pipedGetConnFunc(assert, errCh)
-	// now attach the peer to the node
-	handler := &noOpInboundHandler{}
-
-	// context for timeout control (give enough time)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	p, err := attachToNode.AttachPeer(ctx, handler)
-	assert.NoError(err)
-
-	// we'll use a Chits message for testing
-	// it could be any message type really
+	// For message creation and parsing
 	mc, err := message.NewCreator(
 		prometheus.NewRegistry(),
 		true,
@@ -149,6 +167,31 @@ func TestAttachPeer(t *testing.T) {
 		10*time.Second,
 	)
 	assert.NoError(err)
+
+	expectedMessages := []message.Op{
+		message.Version,
+		message.Chits,
+	}
+
+	// [p] define below will write to/read from [peerConn]
+	// Start a goroutine that reads messages from the other end of that
+	// connection and asserts that we get the expected messages
+	errCh := make(chan error, 1)
+	go verifyProtocol(t, assert, expectedMessages, mc, nodeConn, errCh)
+
+	// attach a test peer to [node]
+	handler := &noOpInboundHandler{}
+	p, err := node.AttachPeer(context.Background(), handler)
+	assert.NoError(err)
+
+	/* TODO
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = p.AwaitReady(ctx)
+	assert.NoError(err)
+	*/
+
+	// we'll use a Chits message for testing. (We could use any message type.)
 	containerIDs := []ids.ID{
 		ids.GenerateTestID(),
 		ids.GenerateTestID(),
@@ -156,12 +199,13 @@ func TestAttachPeer(t *testing.T) {
 	}
 	requestID := uint32(42)
 	chainID := constants.PlatformChainID
-	// create the Chits message and...
+	// create the Chits message
 	msg, err := mc.Chits(chainID, requestID, containerIDs)
 	assert.NoError(err)
-	// ... send
-	ok = p.Send(msg)
+	// send chits to [node]
+	ok := p.Send(msg)
 	assert.True(ok)
-	// wait until the go routines are done (will also ensure that `assert` calls will be reflected in test results if failed)
+	// wait until the go routines are done
+	// also ensures that [assert] calls will be reflected in test results if failed
 	assert.NoError(<-errCh)
 }
