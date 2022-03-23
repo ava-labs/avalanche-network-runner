@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+export RUN_E2E="true"
 # e.g.,
 # ./scripts/tests.e2e.sh 1.7.3 1.7.4
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
