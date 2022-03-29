@@ -873,7 +873,6 @@ func emptyNetworkConfig() (network.Config, error) {
 	networkID := uint32(1337)
 	// Use a dummy genesis
 	genesis, err := network.NewAvalancheGoGenesis(
-		logging.NoLog{},
 		networkID,
 		[]network.AddrAndBalance{
 			{
