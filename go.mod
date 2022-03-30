@@ -137,8 +137,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-// duktape is very slow to build including a bunch of C code in a single file
-// ref. https://github.com/ethereum/go-ethereum/issues/20590
-// ref. https://github.com/vocdoni/vocdoni-node/commit/5670fb0eeac873eb1b1fec99889976c06aaab20b
-replace gopkg.in/olebedev/go-duktape.v3 => ./internal/go-duktape/v3
