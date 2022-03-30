@@ -103,6 +103,7 @@ message StartRequest {
   optional uint32 num_nodes           = 2;
   optional string whitelisted_subnets = 3;
   optional string log_level           = 4;
+  optional string root_data_dir       = 5;
 }
 
 message StartResponse {

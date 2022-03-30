@@ -180,45 +180,57 @@ func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingR
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	zap.L().Info("received start request")
-	if s.getClusterInfo() != nil {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// If [clusterInfo] is already populated, the server has already been started.
+	if s.clusterInfo != nil {
 		return nil, ErrAlreadyBootstrapped
 	}
 
-	rootDataDir, err := ioutil.TempDir(os.TempDir(), "network-runner-root-data")
-	if err != nil {
-		return nil, err
+	var (
+		execPath           = req.GetExecPath()
+		numNodes           = req.GetNumNodes()
+		whitelistedSubnets = req.GetWhitelistedSubnets()
+		rootDataDir        = req.GetRootDataDir()
+		pid                = int32(os.Getpid())
+		logLevel           = req.GetLogLevel()
+		err                error
+	)
+	if len(rootDataDir) == 0 {
+		rootDataDir, err = ioutil.TempDir(os.TempDir(), "network-runner-root-data")
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	info := &rpcpb.ClusterInfo{
-		Pid:         int32(os.Getpid()),
+	s.clusterInfo = &rpcpb.ClusterInfo{
+		Pid:         pid,
 		RootDataDir: rootDataDir,
 		Healthy:     false,
 	}
 	zap.L().Info("starting",
-		zap.String("execPath", req.ExecPath),
-		zap.Uint32("numNodes", req.GetNumNodes()),
-		zap.String("whitelistedSubnets", req.GetWhitelistedSubnets()),
-		zap.Int32("pid", s.clusterInfo.GetPid()),
-		zap.String("rootDataDir", s.clusterInfo.GetRootDataDir()),
+		zap.String("execPath", execPath),
+		zap.Uint32("numNodes", numNodes),
+		zap.String("whitelistedSubnets", whitelistedSubnets),
+		zap.Int32("pid", pid),
+		zap.String("rootDataDir", rootDataDir),
 	)
 	if _, err := os.Stat(req.ExecPath); err != nil {
 		return nil, ErrNotExists
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
 	}
 
-	s.network, err = newNetwork(req.GetExecPath(), rootDataDir, req.GetNumNodes(), req.GetWhitelistedSubnets(), req.GetLogLevel())
+	s.network, err = newNetwork(execPath, rootDataDir, numNodes, whitelistedSubnets, logLevel)
 	if err != nil {
 		return nil, err
 	}
 	go s.network.start()
 
-	s.clusterInfo = info
 	go func() {
 		select {
 		case <-s.closed:
