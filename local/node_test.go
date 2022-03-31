@@ -40,7 +40,6 @@ func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Co
 // 2. Write version message to peer
 // 3. Write peerlist message length to peer
 // 4. Write peerlist message to peer
-// 5. Wait for peer.AwaitReady() to confirm the peer finished the handshake
 // If an unexpected error occurs, or we get an unexpected message, sends an error on [errCh].
 // Sends nil on [errCh] if we get the expected message sequence.
 func verifyProtocol(
@@ -51,7 +50,7 @@ func verifyProtocol(
 	nodeConn net.Conn,
 	errCh chan error,
 ) {
-	// do the TLS handshake on [conn]
+	// do the TLS handshake
 	myTLSCert, err := staking.NewTLSCert()
 	if err != nil {
 		errCh <- err
@@ -71,7 +70,6 @@ func verifyProtocol(
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
-
 	now := uint64(time.Now().Unix())
 	unsignedIP := peer.UnsignedIP{
 		IP:        myIP,
@@ -81,7 +79,6 @@ func verifyProtocol(
 	signedIP, err := unsignedIP.Sign(signer)
 	if err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return
 	}
 	verMsg, err := mc.Version(
@@ -95,7 +92,6 @@ func verifyProtocol(
 	)
 	if err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return
 	}
 
@@ -103,7 +99,6 @@ func verifyProtocol(
 	plMsg, err := mc.PeerList([]utils.IPCertDesc{}, true)
 	if err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return
 	}
 
@@ -142,7 +137,6 @@ func readMessage(nodeConn net.Conn, errCh chan error) (*bytes.Buffer, error) {
 	// read the message length
 	if _, err := io.CopyN(msgLenBytes, nodeConn, wrappers.IntLen); err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return nil, err
 	}
 	msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
@@ -150,7 +144,6 @@ func readMessage(nodeConn net.Conn, errCh chan error) (*bytes.Buffer, error) {
 	// read the message
 	if _, err := io.CopyN(msgBytes, nodeConn, int64(msgLen)); err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return nil, err
 	}
 	return msgBytes, nil
@@ -167,7 +160,6 @@ func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
 	// send the message length
 	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return err
 	}
 	// write the message
@@ -175,7 +167,6 @@ func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
 	// send the message
 	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(msgBytes))); err != nil {
 		errCh <- err
-		_ = nodeConn.Close()
 		return err
 	}
 	return nil
@@ -189,6 +180,10 @@ func TestAttachPeer(t *testing.T) {
 	// [nodeConn] is the connection that [node] uses to read from/write to [peer] (defined below)
 	// Similar for [peerConn].
 	nodeConn, peerConn := net.Pipe()
+	defer func() {
+		_ = nodeConn.Close()
+		_ = peerConn.Close()
+	}()
 
 	node := localNode{
 		nodeID:    ids.GenerateTestShortID(),
@@ -207,6 +202,7 @@ func TestAttachPeer(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	// Expect the peer to send these messages in this order.
 	expectedMessages := []message.Op{
 		message.Version,
 		message.PeerList,
