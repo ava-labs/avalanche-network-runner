@@ -49,7 +49,6 @@ func verifyProtocol(
 	opSequence []message.Op,
 	mc message.Creator,
 	nodeConn net.Conn,
-	peerConn net.Conn,
 	errCh chan error,
 ) {
 	// do the TLS handshake on [conn]
@@ -100,27 +99,6 @@ func verifyProtocol(
 		return
 	}
 
-	// buffer for message length
-	msgLenBytes := make([]byte, wrappers.IntLen)
-	lenBuf := bytes.NewBuffer(msgLenBytes)
-
-	// write the message length
-	binary.BigEndian.PutUint32(msgLenBytes, uint32(len(verMsg.Bytes())))
-	// send the message length
-	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
-		errCh <- err
-		_ = nodeConn.Close()
-		return
-	}
-	// write the message
-	msgBuf := bytes.NewBuffer(verMsg.Bytes())
-	// send the message
-	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(verMsg.Bytes()))); err != nil {
-		errCh <- err
-		_ = nodeConn.Close()
-		return
-	}
-
 	// create the PeerList message
 	plMsg, err := mc.PeerList([]utils.IPCertDesc{}, true)
 	if err != nil {
@@ -128,21 +106,15 @@ func verifyProtocol(
 		_ = nodeConn.Close()
 		return
 	}
-	// write the message length
-	binary.BigEndian.PutUint32(msgLenBytes, uint32(len(plMsg.Bytes())))
-	lenBuf = bytes.NewBuffer(msgLenBytes)
-	// send the message
-	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
-		errCh <- err
-		_ = nodeConn.Close()
+
+	// send the Version message
+	if err := sendMessage(nodeConn, verMsg.Bytes(), errCh); err != nil {
+		// if there was an error no need to continue
 		return
 	}
-	// write the message
-	msgBuf = bytes.NewBuffer(plMsg.Bytes())
-	// send the message
-	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(plMsg.Bytes()))); err != nil {
-		errCh <- err
-		_ = nodeConn.Close()
+	// send the PeerList message
+	if err := sendMessage(nodeConn, plMsg.Bytes(), errCh); err != nil {
+		// if there was an error no need to continue
 		return
 	}
 
@@ -150,19 +122,9 @@ func verifyProtocol(
 	// now *read* the messages on the other end and check they are in
 	// the expected sequence
 	for _, expectedOpMsg := range opSequence {
-		msgLenBytes := &bytes.Buffer{}
-		// read the message length
-		if _, err := io.CopyN(msgLenBytes, nodeConn, wrappers.IntLen); err != nil {
-			errCh <- err
-			_ = nodeConn.Close()
-			return
-		}
-		msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
-		msgBytes := &bytes.Buffer{}
-		// read the message
-		if _, err := io.CopyN(msgBytes, nodeConn, int64(msgLen)); err != nil {
-			errCh <- err
-			_ = nodeConn.Close()
+		msgBytes, err := readMessage(nodeConn, errCh)
+		if err != nil {
+			// If there was an error no need continue
 			return
 		}
 		msg, err := mc.Parse(msgBytes.Bytes(), peerID, func() {})
@@ -172,6 +134,51 @@ func verifyProtocol(
 	}
 	// signal we are actually done
 	errCh <- nil
+}
+
+// readMessage reads from the connection and returns a protocol message in bytes
+func readMessage(nodeConn net.Conn, errCh chan error) (*bytes.Buffer, error) {
+	msgLenBytes := &bytes.Buffer{}
+	// read the message length
+	if _, err := io.CopyN(msgLenBytes, nodeConn, wrappers.IntLen); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return nil, err
+	}
+	msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
+	msgBytes := &bytes.Buffer{}
+	// read the message
+	if _, err := io.CopyN(msgBytes, nodeConn, int64(msgLen)); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return nil, err
+	}
+	return msgBytes, nil
+}
+
+// sendMessage sends a protocol message to the avalanchego peer
+func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
+	// buffer for message length
+	msgLenBytes := make([]byte, wrappers.IntLen)
+	lenBuf := bytes.NewBuffer(msgLenBytes)
+
+	// write the message length
+	binary.BigEndian.PutUint32(msgLenBytes, uint32(len(msgBytes)))
+	// send the message length
+	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return err
+	}
+	// write the message
+	msgBuf := bytes.NewBuffer(msgBytes)
+	// send the message
+	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(msgBytes))); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return err
+	}
+	return nil
 }
 
 // TestAttachPeer tests that we can attach a test peer to a node
@@ -210,7 +217,7 @@ func TestAttachPeer(t *testing.T) {
 	// Start a goroutine that reads messages from the other end of that
 	// connection and asserts that we get the expected messages
 	errCh := make(chan error, 1)
-	go verifyProtocol(t, assert, expectedMessages, mc, nodeConn, peerConn, errCh)
+	go verifyProtocol(t, assert, expectedMessages, mc, nodeConn, errCh)
 
 	// attach a test peer to [node]
 	handler := &noOpInboundHandler{}
