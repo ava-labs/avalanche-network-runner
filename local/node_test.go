@@ -3,6 +3,7 @@ package local
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
 	"encoding/binary"
 	"io"
@@ -15,8 +16,11 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils"
+	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,6 +34,13 @@ func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Co
 }
 
 // verifyProtocol reads from the connection and asserts that we read the expected message sequence.
+// It also sends the required messages to complete the p2p handshake.
+// Sequence:
+// 1. Write the version message length to peer
+// 2. Write version message to peer
+// 3. Write peerlist message length to peer
+// 4. Write peerlist message to peer
+// 5. Wait for peer.AwaitReady() to confirm the peer finished the handshake
 // If an unexpected error occurs, or we get an unexpected message, sends an error on [errCh].
 // Sends nil on [errCh] if we get the expected message sequence.
 func verifyProtocol(
@@ -37,50 +48,121 @@ func verifyProtocol(
 	assert *assert.Assertions,
 	opSequence []message.Op,
 	mc message.Creator,
-	conn net.Conn,
+	nodeConn net.Conn,
+	peerConn net.Conn,
 	errCh chan error,
 ) {
-	// Do the TLS handshake on [conn]
+	// do the TLS handshake on [conn]
 	myTLSCert, err := staking.NewTLSCert()
 	if err != nil {
 		errCh <- err
 		return
 	}
-	peerID, tlsConn, err := upgradeConn(myTLSCert, conn)
+	peerID, tlsConn, err := upgradeConn(myTLSCert, nodeConn)
 	if err != nil {
 		errCh <- err
 		return
 	}
-	conn = tlsConn
+	nodeConn = tlsConn
 
-	/* TODO
-	// Send the peer our version and peerlist
-		myIP := avago_utils.IPDesc{
-			IP:   net.IPv6zero,
-			Port: 0,
-		}
-		mc.Version(
-			constants.MainnetID,
-			time.Now(),
-			myIP,
-			version.CurrentApp.String(),
-		)
-	*/
+	// send the peer our version and peerlist
 
+	// create the version message
+	myIP := avago_utils.IPDesc{
+		IP:   net.IPv6zero,
+		Port: 0,
+	}
+
+	now := uint64(time.Now().Unix())
+	unsignedIP := peer.UnsignedIP{
+		IP:        myIP,
+		Timestamp: now,
+	}
+	signer := myTLSCert.PrivateKey.(crypto.Signer)
+	signedIP, err := unsignedIP.Sign(signer)
+	if err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+	verMsg, err := mc.Version(
+		constants.MainnetID,
+		now,
+		myIP,
+		version.CurrentApp.String(),
+		now,
+		signedIP.Signature,
+		[]ids.ID{},
+	)
+	if err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+
+	// buffer for message length
+	msgLenBytes := make([]byte, wrappers.IntLen)
+	lenBuf := bytes.NewBuffer(msgLenBytes)
+
+	// write the message length
+	binary.BigEndian.PutUint32(msgLenBytes, uint32(len(verMsg.Bytes())))
+	// send the message length
+	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+	// write the message
+	msgBuf := bytes.NewBuffer(verMsg.Bytes())
+	// send the message
+	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(verMsg.Bytes()))); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+
+	// create the PeerList message
+	plMsg, err := mc.PeerList([]utils.IPCertDesc{}, true)
+	if err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+	// write the message length
+	binary.BigEndian.PutUint32(msgLenBytes, uint32(len(plMsg.Bytes())))
+	lenBuf = bytes.NewBuffer(msgLenBytes)
+	// send the message
+	if _, err := io.CopyN(nodeConn, lenBuf, wrappers.IntLen); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+	// write the message
+	msgBuf = bytes.NewBuffer(plMsg.Bytes())
+	// send the message
+	if _, err := io.CopyN(nodeConn, msgBuf, int64(len(plMsg.Bytes()))); err != nil {
+		errCh <- err
+		_ = nodeConn.Close()
+		return
+	}
+
+	// at this point we sent all messages expected for handshake,
+	// now *read* the messages on the other end and check they are in
+	// the expected sequence
 	for _, expectedOpMsg := range opSequence {
 		msgLenBytes := &bytes.Buffer{}
 		// read the message length
-		if _, err := io.CopyN(msgLenBytes, conn, wrappers.IntLen); err != nil {
+		if _, err := io.CopyN(msgLenBytes, nodeConn, wrappers.IntLen); err != nil {
 			errCh <- err
-			_ = conn.Close()
+			_ = nodeConn.Close()
 			return
 		}
 		msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
 		msgBytes := &bytes.Buffer{}
 		// read the message
-		if _, err := io.CopyN(msgBytes, conn, int64(msgLen)); err != nil {
+		if _, err := io.CopyN(msgBytes, nodeConn, int64(msgLen)); err != nil {
 			errCh <- err
-			_ = conn.Close()
+			_ = nodeConn.Close()
 			return
 		}
 		msg, err := mc.Parse(msgBytes.Bytes(), peerID, func() {})
@@ -120,6 +202,7 @@ func TestAttachPeer(t *testing.T) {
 
 	expectedMessages := []message.Op{
 		message.Version,
+		message.PeerList,
 		message.Chits,
 	}
 
@@ -127,19 +210,17 @@ func TestAttachPeer(t *testing.T) {
 	// Start a goroutine that reads messages from the other end of that
 	// connection and asserts that we get the expected messages
 	errCh := make(chan error, 1)
-	go verifyProtocol(t, assert, expectedMessages, mc, nodeConn, errCh)
+	go verifyProtocol(t, assert, expectedMessages, mc, nodeConn, peerConn, errCh)
 
 	// attach a test peer to [node]
 	handler := &noOpInboundHandler{}
 	p, err := node.AttachPeer(context.Background(), handler)
 	assert.NoError(err)
 
-	/* TODO
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err = p.AwaitReady(ctx)
 	assert.NoError(err)
-	*/
 
 	// we'll use a Chits message for testing. (We could use any message type.)
 	containerIDs := []ids.ID{
