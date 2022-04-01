@@ -125,6 +125,7 @@ func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
 
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs = nil
@@ -179,6 +180,7 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...s
 
 // Start a network with one node.
 func TestNewNetworkOneNode(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs = networkConfig.NodeConfigs[:1]
@@ -205,6 +207,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 // Test that NewNetwork returns an error when
 // starting a node returns an error
 func TestNewNetworkFailToStartNode(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	_, err := newNetwork(
@@ -219,6 +222,7 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 
 // Check configs that are expected to be invalid at network creation time
 func TestWrongNetworkConfigs(t *testing.T) {
+	t.Parallel()
 	refNetworkConfig := testNetworkConfig(t)
 	tests := map[string]struct {
 		config network.Config
@@ -466,6 +470,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 
 // Give incorrect type to interface{} ImplSpecificConfig
 func TestInvalidImplSpecificConfig(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = json.RawMessage("just a string")
@@ -476,6 +481,7 @@ func TestInvalidImplSpecificConfig(t *testing.T) {
 // Assert that the network's Healthy() method returns an
 // error when all nodes' Health API return unhealthy
 func TestUnhealthyNetwork(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, &localTestSuccessfulNodeProcessCreator{}, "")
@@ -486,6 +492,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 // Create a network without giving names to nodes.
 // Checks that the generated names are the correct number and unique.
 func TestGeneratedNodesNames(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	for i := range networkConfig.NodeConfigs {
@@ -505,6 +512,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 // TestGenerateDefaultNetwork create a default network with GenerateDefaultNetwork and
 // check expected number of nodes, node names, and avalanchego node ids
 func TestGenerateDefaultNetwork(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	binaryPath := "pepito"
 	net, err := newDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{})
@@ -552,6 +560,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 // TestNetworkFromConfig creates/waits/checks/stops a network from config file
 // the check verify that all the nodes can be accessed
 func TestNetworkFromConfig(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
@@ -570,6 +579,7 @@ func TestNetworkFromConfig(t *testing.T) {
 // to verify that all the running nodes are in the network,
 // and all removed nodes are not.
 func TestNetworkNodeOps(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// Start a new, empty network
@@ -606,6 +616,7 @@ func TestNetworkNodeOps(t *testing.T) {
 // TestNodeNotFound checks all operations fail for an unknown node,
 // being it either not created, or created and removed thereafter
 func TestNodeNotFound(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
@@ -636,6 +647,7 @@ func TestNodeNotFound(t *testing.T) {
 
 // TestStoppedNetwork checks that operations fail for an already stopped network
 func TestStoppedNetwork(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
@@ -669,6 +681,7 @@ func TestStoppedNetwork(t *testing.T) {
 }
 
 func TestGetAllNodes(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
@@ -686,6 +699,7 @@ func TestGetAllNodes(t *testing.T) {
 // but also via node.Config and that the latter overrides the former
 // if same keys exist.
 func TestFlags(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 
@@ -784,6 +798,7 @@ func (m *lockedBuffer) Write(b []byte) (int, error) {
 // results indeed in the output being prepended and colored.
 // For the color check we just measure the length of the required terminal escape values
 func TestChildCmdRedirection(t *testing.T) {
+	t.Parallel()
 	// we need this to create the actual process we test
 	buf := &lockedBuffer{
 		writtenCh: make(chan struct{}),
@@ -926,6 +941,7 @@ func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
 }
 
 func TestAddNetworkFlags(t *testing.T) {
+	t.Parallel()
 	type test struct {
 		name            string
 		netFlags        map[string]interface{}
@@ -968,6 +984,7 @@ func TestAddNetworkFlags(t *testing.T) {
 }
 
 func TestSetNodeName(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	ln := &localNetwork{
@@ -1006,6 +1023,7 @@ func TestSetNodeName(t *testing.T) {
 }
 
 func TestGetConfigEntry(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// case: key not present
@@ -1036,6 +1054,7 @@ func TestGetConfigEntry(t *testing.T) {
 }
 
 func TestGetPort(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// Case: port key present in config file
@@ -1075,6 +1094,7 @@ func TestGetPort(t *testing.T) {
 }
 
 func TestCreateFileAndWrite(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	dir, err := os.MkdirTemp("", "network-runner-test-*")
 	assert.NoError(err)
@@ -1088,6 +1108,7 @@ func TestCreateFileAndWrite(t *testing.T) {
 }
 
 func TestWriteFiles(t *testing.T) {
+	t.Parallel()
 	stakingKey := "stakingKey"
 	stakingCert := "stakingCert"
 	genesis := []byte("genesis")
@@ -1204,6 +1225,7 @@ func TestWriteFiles(t *testing.T) {
 }
 
 func TestRemoveBeacon(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// create a network with no nodes in it
