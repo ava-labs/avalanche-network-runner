@@ -15,6 +15,7 @@ import (
 
 // TestBuildNodeEnv tests the internal buildNodeEnv method which creates the env vars for the avalanche nodes
 func TestBuildNodeEnv(t *testing.T) {
+	t.Parallel()
 	genesis := defaultTestGenesis
 	testConfig := `
 	{
@@ -53,6 +54,7 @@ func TestBuildNodeEnv(t *testing.T) {
 // TestConvertKey tests the internal convertKey method which is used
 // to convert from the avalanchego config file format to env vars
 func TestConvertKey(t *testing.T) {
+	t.Parallel()
 	testKey := "network-peer-list-gossip-frequency"
 	controlKey := "AVAGO_NETWORK_PEER_LIST_GOSSIP_FREQUENCY"
 	convertedKey := convertKey(testKey)
@@ -61,6 +63,7 @@ func TestConvertKey(t *testing.T) {
 
 // TestCreateDeploymentConfig tests the internal createDeploymentFromConfig method which creates the k8s objects
 func TestCreateDeploymentConfig(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	genesis := defaultTestGenesis
 
