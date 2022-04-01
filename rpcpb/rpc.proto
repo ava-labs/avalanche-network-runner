@@ -77,6 +77,20 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc AttachPeer(AttachPeerRequest) returns (AttachPeerResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/attachpeer"
+      body: "*"
+    };
+  }
+
+  rpc SendOutboundMessage(SendOutboundMessageRequest) returns (SendOutboundMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/sendoutboundmessage"
+      body: "*"
+    };
+  }
 }
 
 message ClusterInfo {
@@ -85,6 +99,9 @@ message ClusterInfo {
   int32 pid                        = 3;
   string root_data_dir             = 4;
   bool healthy                     = 5;
+
+  // Maps from the node ID to its attached peer infos.
+  map<string, ListOfAttachedPeerInfo> attached_peer_infos = 6;
 }
 
 message NodeInfo {
@@ -96,6 +113,14 @@ message NodeInfo {
   string db_dir               = 6;
   string whitelisted_subnets  = 7;
   bytes config                = 8;
+}
+
+message AttachedPeerInfo {
+  string id = 1;
+}
+
+message ListOfAttachedPeerInfo {
+  repeated AttachedPeerInfo peers = 1;
 }
 
 message StartRequest {
@@ -157,4 +182,25 @@ message StopRequest {}
 
 message StopResponse {
   ClusterInfo cluster_info = 1;
+}
+
+message AttachPeerRequest {
+  string node_name = 1;
+}
+
+message AttachPeerResponse {
+  ClusterInfo cluster_info = 1;
+  AttachedPeerInfo attached_peer_info = 2;
+}
+
+message SendOutboundMessageRequest {
+  string node_name      = 1;
+  string peer_id        = 2;
+  uint32 op             = 3;
+  bytes bytes           = 4;
+  bool bytes_throttling = 5;
+}
+
+message SendOutboundMessageResponse {
+  bool sent = 1;
 }

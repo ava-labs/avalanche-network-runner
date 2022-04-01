@@ -21,6 +21,9 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -62,9 +65,21 @@ type server struct {
 }
 
 var (
-	ErrNotExists   = errors.New("not exists")
-	ErrInvalidPort = errors.New("invalid port")
-	ErrClosed      = errors.New("server closed")
+	ErrNotExists              = errors.New("not exists")
+	ErrInvalidPort            = errors.New("invalid port")
+	ErrClosed                 = errors.New("server closed")
+	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
+	ErrAlreadyBootstrapped    = errors.New("already bootstrapped")
+	ErrNotBootstrapped        = errors.New("not bootstrapped")
+	ErrNodeNotFound           = errors.New("node not found")
+	ErrPeerNotFound           = errors.New("peer not found")
+	ErrUnexpectedType         = errors.New("unexpected type")
+	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
+)
+
+const (
+	MinNodes     uint32 = 1
+	DefaultNodes uint32 = 5
 )
 
 func New(cfg Config) (Server, error) {
@@ -165,14 +180,6 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	return err
 }
 
-var (
-	ErrAlreadyBootstrapped = errors.New("already bootstrapped")
-	ErrNotBootstrapped     = errors.New("not bootstrapped")
-	ErrNodeNotFound        = errors.New("node not found")
-	ErrUnexpectedType      = errors.New("unexpected type")
-	ErrStatusCanceled      = errors.New("gRPC stream status canceled")
-)
-
 func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingResponse, error) {
 	zap.L().Debug("received ping request")
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
@@ -180,6 +187,14 @@ func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingR
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	zap.L().Info("received start request")
+
+	if req.NumNodes == nil {
+		n := DefaultNodes
+		req.NumNodes = &n
+	}
+	if *req.NumNodes < MinNodes {
+		return nil, ErrNotEnoughNodesForStart
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -458,7 +473,9 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	// keep everything same except config file and binary path
 	nodeInfo.ExecPath = req.StartRequest.ExecPath
-	nodeInfo.WhitelistedSubnets = *req.StartRequest.WhitelistedSubnets
+	if req.StartRequest.WhitelistedSubnets != nil {
+		nodeInfo.WhitelistedSubnets = *req.StartRequest.WhitelistedSubnets
+	}
 	nodeConfig.ConfigFile = fmt.Sprintf(`{
 	"network-peer-list-gossip-frequency":"250ms",
 	"network-max-reconnect-delay":"1s",
@@ -519,6 +536,102 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 	s.clusterInfo = nil
 
 	return &rpcpb.StopResponse{ClusterInfo: info}, nil
+}
+
+func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (*rpcpb.AttachPeerResponse, error) {
+	zap.L().Debug("received attach peer request")
+	info := s.getClusterInfo()
+	if info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	nodes, err := s.network.nw.GetAllNodes()
+	if err != nil {
+		return nil, err
+	}
+	node, ok := nodes[req.NodeName]
+	if !ok {
+		return nil, ErrNodeNotFound
+	}
+
+	lh := &loggingInboundHandler{nodeName: req.NodeName}
+	newPeer, err := node.AttachPeer(ctx, lh)
+	if err != nil {
+		return nil, err
+	}
+
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	err = newPeer.AwaitReady(cctx)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+	newPeerID := newPeer.ID().String()
+
+	zap.L().Debug("new peer is attached",
+		zap.String("node-name", req.NodeName),
+		zap.String("peer-id", newPeerID),
+	)
+
+	peers, ok := s.network.attachedPeers[req.NodeName]
+	if !ok {
+		peers = make(map[string]peer.Peer)
+		peers[newPeerID] = newPeer
+	} else {
+		peers[newPeerID] = newPeer
+	}
+	s.network.attachedPeers[req.NodeName] = peers
+
+	if s.clusterInfo.AttachedPeerInfos == nil {
+		s.clusterInfo.AttachedPeerInfos = make(map[string]*rpcpb.ListOfAttachedPeerInfo)
+	}
+	peerInfo := &rpcpb.AttachedPeerInfo{Id: newPeerID}
+	if v, ok := s.clusterInfo.AttachedPeerInfos[req.NodeName]; ok {
+		v.Peers = append(v.Peers, peerInfo)
+	} else {
+		s.clusterInfo.AttachedPeerInfos[req.NodeName] = &rpcpb.ListOfAttachedPeerInfo{
+			Peers: []*rpcpb.AttachedPeerInfo{peerInfo},
+		}
+	}
+
+	return &rpcpb.AttachPeerResponse{ClusterInfo: info, AttachedPeerInfo: peerInfo}, nil
+}
+
+var _ router.InboundHandler = &loggingInboundHandler{}
+
+type loggingInboundHandler struct {
+	nodeName string
+}
+
+func (lh *loggingInboundHandler) HandleInbound(m message.InboundMessage) {
+	zap.L().Debug("inbound handler received a message",
+		zap.String("node-name", lh.nodeName),
+		zap.String("message-op", m.Op().String()),
+	)
+}
+
+func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboundMessageRequest) (*rpcpb.SendOutboundMessageResponse, error) {
+	zap.L().Debug("received send outbound message request")
+	info := s.getClusterInfo()
+	if info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	peers, ok := s.network.attachedPeers[req.NodeName]
+	if !ok {
+		return nil, ErrNodeNotFound
+	}
+	attachedPeer, ok := peers[req.PeerId]
+	if !ok {
+		return nil, ErrPeerNotFound
+	}
+
+	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, req.BytesThrottling)
+	sent := attachedPeer.Send(msg)
+	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
 }
 
 func (s *server) getClusterInfo() *rpcpb.ClusterInfo {

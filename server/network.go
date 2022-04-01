@@ -17,9 +17,9 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
-	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -33,8 +33,10 @@ type localNetwork struct {
 	nw network.Network
 
 	nodeNames []string
-	nodes     map[string]node.Node
 	nodeInfos map[string]*rpcpb.NodeInfo
+
+	// maps from node name to peer ID to peer object
+	attachedPeers map[string]map[string]peer.Peer
 
 	apiClis map[string]api.Client
 
@@ -116,9 +118,10 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 		binPath: execPath,
 		cfg:     cfg,
 
-		nodeNames: nodeNames,
-		nodeInfos: nodeInfos,
-		apiClis:   make(map[string]api.Client),
+		nodeNames:     nodeNames,
+		nodeInfos:     nodeInfos,
+		apiClis:       make(map[string]api.Client),
+		attachedPeers: make(map[string]map[string]peer.Peer),
 
 		readyc: make(chan struct{}),
 
@@ -172,8 +175,6 @@ func (lc *localNetwork) waitForHealthy() error {
 	if err != nil {
 		return err
 	}
-	lc.nodes = nodes
-
 	for name, node := range nodes {
 		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)

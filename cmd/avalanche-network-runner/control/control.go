@@ -5,6 +5,7 @@ package control
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,6 +49,8 @@ func NewCommand() *cobra.Command {
 		newStreamStatusCommand(),
 		newRemoveNodeCommand(),
 		newRestartNodeCommand(),
+		newAttachPeerCommand(),
+		newSendOutboundMessageCommand(),
 		newStopCommand(),
 	)
 
@@ -338,6 +341,116 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	color.Outf("{{green}}restart node response:{{/}} %+v\n", info)
+	return nil
+}
+
+func newAttachPeerCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attach-peer [options]",
+		Short: "Attaches a peer to the node.",
+		RunE:  attachPeerFunc,
+	}
+	cmd.PersistentFlags().StringVar(
+		&nodeName,
+		"node-name",
+		"",
+		"node name to attach a peer to",
+	)
+	return cmd
+}
+
+func attachPeerFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.AttachPeer(ctx, nodeName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}attach peer response:{{/}} %+v\n", resp)
+	return nil
+}
+
+var (
+	peerID             string
+	msgOp              uint32
+	msgBytesB64        string
+	msgBytesThrottling bool
+)
+
+func newSendOutboundMessageCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-outbound-message [options]",
+		Short: "Sends an outbound message to an attached peer.",
+		RunE:  sendOutboundMessageFunc,
+	}
+	cmd.PersistentFlags().StringVar(
+		&nodeName,
+		"node-name",
+		"",
+		"node name that has an attached peer",
+	)
+	cmd.PersistentFlags().StringVar(
+		&peerID,
+		"peer-id",
+		"",
+		"peer ID to send a message to",
+	)
+	cmd.PersistentFlags().Uint32Var(
+		&msgOp,
+		"message-op",
+		0,
+		"Message operation type",
+	)
+	cmd.PersistentFlags().StringVar(
+		&msgBytesB64,
+		"message-bytes-b64",
+		"",
+		"Message bytes in base64 encoding",
+	)
+	cmd.PersistentFlags().BoolVar(
+		&msgBytesThrottling,
+		"message-bytes-throttling",
+		false,
+		"Message bytes throttling",
+	)
+	return cmd
+}
+
+func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	b, err := base64.StdEncoding.DecodeString(msgBytesB64)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.SendOutboundMessage(ctx, nodeName, peerID, msgOp, b, msgBytesThrottling)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}send outbound message response:{{/}} %+v\n", resp)
 	return nil
 }
 
