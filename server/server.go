@@ -548,13 +548,9 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	nodes, err := s.network.nw.GetAllNodes()
+	node, err := s.network.nw.GetNode((req.NodeName))
 	if err != nil {
 		return nil, err
-	}
-	node, ok := nodes[req.NodeName]
-	if !ok {
-		return nil, ErrNodeNotFound
 	}
 
 	lh := &loggingInboundHandler{nodeName: req.NodeName}
@@ -629,7 +625,7 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 		return nil, ErrPeerNotFound
 	}
 
-	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, req.BytesThrottling)
+	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, false)
 	sent := attachedPeer.Send(msg)
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
 }

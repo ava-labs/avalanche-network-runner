@@ -382,10 +382,9 @@ func attachPeerFunc(cmd *cobra.Command, args []string) error {
 }
 
 var (
-	peerID             string
-	msgOp              uint32
-	msgBytesB64        string
-	msgBytesThrottling bool
+	peerID      string
+	msgOp       uint32
+	msgBytesB64 string
 )
 
 func newSendOutboundMessageCommand() *cobra.Command {
@@ -418,12 +417,6 @@ func newSendOutboundMessageCommand() *cobra.Command {
 		"",
 		"Message bytes in base64 encoding",
 	)
-	cmd.PersistentFlags().BoolVar(
-		&msgBytesThrottling,
-		"message-bytes-throttling",
-		false,
-		"Message bytes throttling",
-	)
 	return cmd
 }
 
@@ -444,7 +437,7 @@ func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.SendOutboundMessage(ctx, nodeName, peerID, msgOp, b, msgBytesThrottling)
+	resp, err := cli.SendOutboundMessage(ctx, nodeName, peerID, msgOp, b)
 	cancel()
 	if err != nil {
 		return err

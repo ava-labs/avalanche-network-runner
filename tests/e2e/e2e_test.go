@@ -197,7 +197,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 
 			ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
-			sresp, err := cli.SendOutboundMessage(ctx, "node1", v.Peers[0].Id, uint32(msg.Op()), msg.Bytes(), msg.BypassThrottling())
+			sresp, err := cli.SendOutboundMessage(ctx, "node1", v.Peers[0].Id, uint32(msg.Op()), msg.Bytes())
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(sresp.Sent).Should(gomega.BeTrue())

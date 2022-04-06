@@ -40,7 +40,7 @@ type Client interface {
 	RestartNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
 	Stop(ctx context.Context) (*rpcpb.StopResponse, error)
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
-	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte, bytesThrottling bool) (*rpcpb.SendOutboundMessageResponse, error)
+	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
 }
 
@@ -203,14 +203,13 @@ func (c *client) AttachPeer(ctx context.Context, nodeName string) (*rpcpb.Attach
 	return c.controlc.AttachPeer(ctx, &rpcpb.AttachPeerRequest{NodeName: nodeName})
 }
 
-func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte, bytesThrottling bool) (*rpcpb.SendOutboundMessageResponse, error) {
+func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error) {
 	zap.L().Info("sending outbound message", zap.String("node-name", nodeName), zap.String("peer-id", peerID))
 	return c.controlc.SendOutboundMessage(ctx, &rpcpb.SendOutboundMessageRequest{
-		NodeName:        nodeName,
-		PeerId:          peerID,
-		Op:              op,
-		Bytes:           msgBody,
-		BytesThrottling: bytesThrottling,
+		NodeName: nodeName,
+		PeerId:   peerID,
+		Op:       op,
+		Bytes:    msgBody,
 	})
 }
 

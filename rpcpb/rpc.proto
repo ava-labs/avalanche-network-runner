@@ -194,11 +194,10 @@ message AttachPeerResponse {
 }
 
 message SendOutboundMessageRequest {
-  string node_name      = 1;
-  string peer_id        = 2;
-  uint32 op             = 3;
-  bytes bytes           = 4;
-  bool bytes_throttling = 5;
+  string node_name = 1;
+  string peer_id   = 2;
+  uint32 op        = 3;
+  bytes bytes      = 4;
 }
 
 message SendOutboundMessageResponse {
