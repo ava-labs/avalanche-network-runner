@@ -295,7 +295,7 @@ To start the server:
 
 ```bash
 # replace with your local path
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","whitelistedSubnets":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1","logLevel":"INFO"}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"whitelistedSubnets":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1","logLevel":"INFO"}'
 
 # or
 avalanche-network-runner control start \
@@ -367,7 +367,7 @@ To restart a node, download the test binary:
 ```bash
 # [optional] download a binary to update
 # https://github.com/ava-labs/avalanchego/releases
-VERSION=1.7.3
+VERSION=1.7.9
 GOARCH=$(go env GOARCH)
 GOOS=$(go env GOOS)
 DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION}/avalanchego-linux-${GOARCH}-v${VERSION}.tar.gz
@@ -396,7 +396,7 @@ find /tmp/avalanchego-v${VERSION}
 To restart a node:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","startRequest":{"execPath":"/tmp/avalanchego-v1.7.3/build/avalanchego",whitelistedSubnets:"",,"logLevel":"INFO"}}'
+curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","startRequest":{"execPath":"/tmp/avalanchego-v1.7.9/build/avalanchego",whitelistedSubnets:"",,"logLevel":"INFO"}}'
 
 # or
 avalanche-network-runner control restart-node \
@@ -404,8 +404,38 @@ avalanche-network-runner control restart-node \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
 --node-name node1 \
---avalanchego-path /tmp/avalanchego-v1.7.3/build/avalanchego \
+--avalanchego-path /tmp/avalanchego-v1.7.9/build/avalanchego \
 --whitelisted-subnets=""
+```
+
+To attach a peer to a node:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/attachpeer -d '{"nodeName":"node1"}'
+
+# or
+avalanche-network-runner control attach-peer \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node1
+```
+
+To send a chit message to the peer:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeName":"node1","peerId":"7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg","op":16,"bytes":"EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="}'
+
+# or
+avalanche-network-runner control send-outbound-message \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node1 \
+--peer-id "7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
+--message-op=16 \
+--message-bytes-b64="EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA=" \
+--message-bytes-throttling false \
 ```
 
 To terminate the cluster:
