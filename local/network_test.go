@@ -24,7 +24,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
@@ -913,20 +912,11 @@ func emptyNetworkConfig() (network.Config, error) {
 // keys and certificates.
 func testNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
-	networkConfig, err := emptyNetworkConfig()
+	networkConfig, err := NewDefaultConfigNNodes("pepito", 3)
 	assert.NoError(err)
 	for i := 0; i < 3; i++ {
-		nodeConfig := node.Config{
-			Name:               fmt.Sprintf("node%d", i),
-			ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw("pepito"),
-		}
-		cert, key, err := staking.NewCertAndKeyBytes()
-		assert.NoError(err)
-		nodeConfig.StakingCert = string(cert)
-		nodeConfig.StakingKey = string(key)
-		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
 	}
-	networkConfig.NodeConfigs[0].IsBeacon = true
 	return networkConfig
 }
 
