@@ -201,8 +201,13 @@ func NewAvalancheGoGenesis(
 			"balance": balHex,
 		}
 	}
-	cChainConfig["alloc"] = cChainAllocs
-	cChainConfigBytes, _ := json.Marshal(cChainConfig)
+	// avoid modifying original cChainConfig
+	localCChainConfig := map[string]interface{}{}
+	for k, v := range cChainConfig {
+		localCChainConfig[k] = v
+	}
+	localCChainConfig["alloc"] = cChainAllocs
+	cChainConfigBytes, _ := json.Marshal(localCChainConfig)
 	config.CChainGenesis = string(cChainConfigBytes)
 
 	// Set initial validators.
