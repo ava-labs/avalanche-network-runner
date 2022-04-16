@@ -15,6 +15,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
+	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
+	infomocks "github.com/ava-labs/avalanchego/api/info/mocks"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -148,12 +150,12 @@ func newDNSChecker() *mocks.DnsReachableChecker {
 // APIs and methods implemented
 func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: true}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 
 	id := ids.GenerateTestShortID().String()
 	infoReply := fmt.Sprintf("%s%s", constants.NodeIDPrefix, id)
-	infoClient := &apimocks.InfoClient{}
+	infoClient := &infomocks.Client{}
 	infoClient.On("GetNodeID", mock.Anything).Return(infoReply, nil)
 
 	client := &apimocks.Client{}
@@ -165,7 +167,7 @@ func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: false}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
