@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
+	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -84,7 +85,7 @@ func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, f
 // APIs and methods implemented
 func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: true}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
 	ethClient := &apimocks.EthClient{}
@@ -98,7 +99,7 @@ func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: false}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)

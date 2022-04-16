@@ -118,6 +118,8 @@ github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:l
 github.com/ava-labs/avalanchego v1.5.3/go.mod h1:mfsT8C6mfjCEAjE90q8aNh9BqGEFNBd2dgIr23RaePw=
 github.com/ava-labs/avalanchego v1.7.10 h1:OeLRHgE4YPQGFPETt3FLc8MNLEozqU1ehfOFQVYIhBU=
 github.com/ava-labs/avalanchego v1.7.10/go.mod h1:QVjeerfAaeS//G34swRgfrZu77SRpcprOkvkrJ+MeVE=
+github.com/ava-labs/avalanchego v1.7.11-0.20220416161358-8755486a274e h1:BC9sVeGLUgT/hPiQQs8WSD6jLlck1r51J8SM4ihJhg4=
+github.com/ava-labs/avalanchego v1.7.11-0.20220416161358-8755486a274e/go.mod h1:QVjeerfAaeS//G34swRgfrZu77SRpcprOkvkrJ+MeVE=
 github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf h1:vHIdrlBIqbkqbERfPX3Ut+Ofg2vsqdB8OC6JMegT0qk=
 github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf/go.mod h1:RTkVkouQ0HBSBVSFAQCUviXPU7Iuxoy+Fui3ykmD9HA=
 github.com/ava-labs/coreth v0.8.9-rc.1 h1:ZqNZlStP9DVS5+rTuWDkR7m0o2QGO06YS8F5Fjt0lmY=

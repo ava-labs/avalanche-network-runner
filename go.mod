@@ -3,7 +3,7 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.17
 
 require (
-	github.com/ava-labs/avalanchego v1.7.10
+	github.com/ava-labs/avalanchego v1.7.11-0.20220416161358-8755486a274e
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
 	github.com/ava-labs/coreth v0.8.9-rc.1
 	github.com/ethereum/go-ethereum v1.10.16
