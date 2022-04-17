@@ -244,7 +244,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err != nil {
 		return nil, err
 	}
-	go s.network.start()
+	go s.network.start(ctx)
 
 	go func() {
 		select {
@@ -271,7 +271,7 @@ func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.H
 	}
 
 	zap.L().Info("waiting for healthy")
-	if err := s.network.waitForHealthy(); err != nil {
+	if err := s.network.waitForHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -435,7 +435,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	zap.L().Info("waiting for healthy")
-	if err := s.network.waitForHealthy(); err != nil {
+	if err := s.network.waitForHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -509,7 +509,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	}
 
 	zap.L().Info("waiting for healthy")
-	if err := s.network.waitForHealthy(); err != nil {
+	if err := s.network.waitForHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -530,7 +530,7 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.network.stop()
+	s.network.stop(ctx)
 	s.network = nil
 	info.Healthy = false
 	s.clusterInfo = nil
