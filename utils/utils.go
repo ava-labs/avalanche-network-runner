@@ -1,28 +1,23 @@
 package utils
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/staking"
 )
 
 const genesisNetworkIDKey = "networkID"
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
-	cert, err := tls.X509KeyPair(stakingCert, stakingKey)
-	if err != nil {
-		return ids.ShortID{}, err
-	}
-	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
 		return ids.ShortID{}, err
 	}
 	nodeID := peer.CertToID(cert.Leaf)
-	return nodeID, err
+	return nodeID, nil
 }
 
 // Returns the network ID in the given genesis
