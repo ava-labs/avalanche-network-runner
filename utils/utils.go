@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/network/peer"
 )
 
 const genesisNetworkIDKey = "networkID"
@@ -21,11 +21,7 @@ func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
 	if err != nil {
 		return ids.ShortID{}, err
 	}
-	nodeID := ids.ShortID(
-		hashing.ComputeHash160Array(
-			hashing.ComputeHash256(cert.Leaf.Raw),
-		),
-	)
+	nodeID := peer.CertToID(cert.Leaf)
 	return nodeID, err
 }
 
