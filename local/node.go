@@ -157,7 +157,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
 	}
-	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
+	_, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		peerID,
+		peer.CertToID(tlsCert.Leaf),
 	)
 	if err != nil {
 		return nil, err
