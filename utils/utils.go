@@ -2,7 +2,10 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
@@ -58,4 +61,51 @@ func NewK8sNodeConfigJsonRaw(
 			api, id, image, kind, namespace, tag,
 		),
 	)
+}
+
+var (
+	ErrInvalidExecPath        = errors.New("avalanche exec is invalid")
+	ErrNotExists              = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin        = errors.New("plugin exec not exists")
+	ErrNotExistsPluginGenesis = errors.New("plugin genesis not exists")
+)
+
+func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath string) error {
+	if exec == "" {
+		return ErrInvalidExecPath
+	}
+	_, err := os.Stat(exec)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExists
+		}
+		return fmt.Errorf("failed to stat exec %q (%w)", exec, err)
+	}
+	if pluginExec == "" {
+		return nil
+	}
+
+	if _, err = os.Stat(pluginExec); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExistsPlugin
+		}
+		return fmt.Errorf("failed to stat plugin exec %q (%w)", pluginExec, err)
+	}
+	if _, err = os.Stat(pluginGenesisPath); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExistsPluginGenesis
+		}
+		return fmt.Errorf("failed to stat plugin genesis %q (%w)", pluginGenesisPath, err)
+	}
+
+	return nil
+}
+
+func VMID(vmName string) (ids.ID, error) {
+	if len(vmName) > 32 {
+		return ids.Empty, fmt.Errorf("VM name must be <= 32 bytes, found %d", len(vmName))
+	}
+	b := make([]byte, 32)
+	copy(b, []byte(vmName))
+	return ids.ToID(b)
 }

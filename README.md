@@ -43,7 +43,7 @@ The E2E test checks wheter a node can be restarted with a different binary versi
 different versions as arguments. For Example:
 
 ```sh
-./scripts/tests.e2e.sh 1.7.8 1.7.9
+./scripts/tests.e2e.sh 1.7.9 1.7.10
 ```
 
 #### `RUN_E2E` environment variable
@@ -64,10 +64,12 @@ This creates an RPC server that you can send requests to in order to start a net
 
 **Why gRPC gateway?** [gRPC gateway](https://grpc-ecosystem.github.io/grpc-gateway/) exposes gRPC API via HTTP, without us writing any code. Which can be useful if a test controller writer does not want to deal with gRPC.
 
-## Examples
+## `network-runner` RPC server: examples
+
+Download from https://github.com/ava-labs/avalanche-network-runner/releases:
 
 ```bash
-# to install
+# or install
 cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
 go install -v ./cmd/avalanche-network-runner
 ```
@@ -98,14 +100,13 @@ To start a new Avalanche network with five nodes (a cluster):
 
 ```bash
 # replace execPath with the path to AvalancheGo on your machine
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"whitelistedSubnets":"24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1","logLevel":"INFO"}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO"}'
 
 # or
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
---whitelisted-subnets="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
+--avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
 ```
 
 To wait for all the nodes in the cluster to become healthy:
@@ -170,7 +171,7 @@ To restart a node (in this case, the one named `node1`):
 ```bash
 # Note that you can restart the node with a different binary by providing
 # a different execPath
-curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","startRequest":{"execPath":"/tmp/avalanchego-v1.7.9/build/avalanchego",whitelistedSubnets:"",,"logLevel":"INFO"}}'
+curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","execPath":"/tmp/avalanchego-v1.7.10/build/avalanchego","logLevel":"INFO"}'
 
 # or
 avalanche-network-runner control restart-node \
@@ -178,8 +179,7 @@ avalanche-network-runner control restart-node \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
 --node-name node1 \
---avalanchego-path /tmp/avalanchego-v1.7.9/build/avalanchego \
---whitelisted-subnets=""
+--avalanchego-path /tmp/avalanchego-v1.7.10/build/avalanchego
 ```
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
@@ -225,6 +225,188 @@ curl -X POST -k http://localhost:8081/v1/control/stop -d ''
 avalanche-network-runner control stop \
 --log-level debug \
 --endpoint="0.0.0.0:8080"
+```
+
+## `network-runner` RPC server: `subnet-evm` example
+
+Download from https://github.com/ava-labs/avalanche-network-runner/releases:
+
+```bash
+# or install
+cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
+go install -v ./cmd/avalanche-network-runner
+```
+
+To start the server:
+
+```bash
+avalanche-network-runner server \
+--log-level debug \
+--port=":8080" \
+--grpc-gateway-port=":8081"
+
+# make sure network-runner server is up
+curl -X POST -k http://localhost:8081/v1/ping -d ''
+```
+
+To start the cluster with custom VMs:
+
+```bash
+cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
+go install -v .
+subnet-cli create VMID subnetevm
+# srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+
+# download from https://github.com/ava-labs/avalanchego/releases
+# or build
+rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+./scripts/build.sh
+
+# ref. https://github.com/ava-labs/subnet-evm/blob/b69e47e0398b5237cda0422f6a32969e64bde346/scripts/run.sh
+cd ${HOME}/go/src/github.com/ava-labs/subnet-evm
+go build -v \
+-o ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy \
+./plugin
+
+# make sure binaries are built
+find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+
+# generate the genesis for the custom VM
+export CHAIN_ID=99999
+export GENESIS_ADDRESS="0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
+cat <<EOF > /tmp/subnet-evm.genesis.json
+{
+  "config": {
+    "chainId": $CHAIN_ID,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip150Hash": "0x2086799aeebeae135c246c65021c82b4e15a2c451340993aacfd2751886514f0",
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "subnetEVMTimestamp": 0,
+    "feeConfig": {
+      "gasLimit": 20000000,
+      "minBaseFee": 1000000000,
+      "targetGas": 100000000,
+      "baseFeeChangeDenominator": 48,
+      "minBlockGasCost": 0,
+      "maxBlockGasCost": 10000000,
+      "targetBlockRate": 2,
+      "blockGasCostStep": 500000
+    }
+  },
+  "alloc": {
+    "${GENESIS_ADDRESS}": {
+      "balance": "0x52B7D2DCC80CD2E4000000"
+    }
+  },
+  "nonce": "0x0",
+  "timestamp": "0x0",
+  "extraData": "0x00",
+  "gasLimit": "0x1312D00",
+  "difficulty": "0x0",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}
+EOF
+cat /tmp/subnet-evm.genesis.json
+```
+
+```bash
+# replace with your local path
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO","pluginDir":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/plugins","customVms":{"subnetevm":"/tmp/subnet-evm.genesis.json"}}'
+
+# or
+avalanche-network-runner control start \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
+--plugin-dir ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins \
+--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+```
+
+```bash
+# to get cluster information including blockchain ID
+curl -X POST -k http://localhost:8081/v1/control/status -d ''
+```
+
+## `network-runner` RPC server: `blobvm` example
+
+Download from https://github.com/ava-labs/avalanche-network-runner/releases:
+
+```bash
+# or install
+cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
+go install -v ./cmd/avalanche-network-runner
+```
+
+To start the server:
+
+```bash
+avalanche-network-runner server \
+--log-level debug \
+--port=":8080" \
+--grpc-gateway-port=":8081"
+
+# make sure network-runner server is up
+curl -X POST -k http://localhost:8081/v1/ping -d ''
+```
+
+To start the cluster with custom VMs:
+
+```bash
+cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
+go install -v .
+subnet-cli create VMID blobvm
+# kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8
+
+# download from https://github.com/ava-labs/avalanchego/releases
+# or build
+rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+./scripts/build.sh
+
+cd ${HOME}/go/src/github.com/ava-labs/blobvm
+go build -v \
+-o ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8 \
+./cmd/blobvm
+
+# make sure binaries are built
+find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+
+# generate the genesis for the custom VM
+cd ${HOME}/go/src/github.com/ava-labs/blobvm
+go install -v ./cmd/blob-cli
+echo "[]" > /tmp/alloc.json
+blob-cli genesis 1 /tmp/alloc.json --genesis-file /tmp/blobvm.genesis.json
+cat /tmp/blobvm.genesis.json
+```
+
+```bash
+# replace with your local path
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO","pluginDir":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/plugins","customVms":{"blobvm":"/tmp/blobvm.genesis.json"}}'
+
+# or
+avalanche-network-runner control start \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
+--plugin-dir ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins \
+--custom-vms '{"blobvm":"/tmp/blobvm.genesis.json"}'
+```
+
+```bash
+# to get cluster information including blockchain ID
+curl -X POST -k http://localhost:8081/v1/control/status -d ''
 ```
 
 ## Configuration

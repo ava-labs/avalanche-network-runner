@@ -3,7 +3,7 @@ set -e
 
 export RUN_E2E="true"
 # e.g.,
-# ./scripts/tests.e2e.sh 1.7.8 1.7.9
+# ./scripts/tests.e2e.sh 1.7.9 1.7.10
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255

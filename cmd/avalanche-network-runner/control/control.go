@@ -6,6 +6,7 @@ package control
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,7 +40,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", time.Minute, "client request timeout")
+	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
 
 	cmd.AddCommand(
 		newStartCommand(),
@@ -58,9 +59,10 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath string
-	whitelistedSubnets string
-	numNodes           uint32
+	avalancheGoBinPath        string
+	numNodes                  uint32
+	pluginDir                 string
+	customVMNameToGenesisPath string
 )
 
 func newStartCommand() *cobra.Command {
@@ -82,10 +84,16 @@ func newStartCommand() *cobra.Command {
 		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
+		&pluginDir,
+		"plugin-dir",
 		"",
-		"whitelisted subnets (comma-separated)",
+		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
+		&customVMNameToGenesisPath,
+		"custom-vms",
+		"",
+		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	return cmd
 }
@@ -101,9 +109,26 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	opts := []client.OpOption{
+		client.WithNumNodes(numNodes),
+		client.WithPluginDir(pluginDir),
+	}
+	if customVMNameToGenesisPath != "" {
+		customVMs := make(map[string]string)
+		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, client.WithCustomVMs(customVMs))
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.Start(ctx, avalancheGoBinPath, client.WithNumNodes(numNodes), client.WithWhitelistedSubnets(whitelistedSubnets))
-	cancel()
+	_ = cancel // don't call since "start" is async
+	info, err := cli.Start(
+		ctx,
+		avalancheGoBinPath,
+		opts...,
+	)
 	if err != nil {
 		return err
 	}
@@ -295,6 +320,8 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var whitelistedSubnets string
+
 func newRestartNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restart-node [options]",
@@ -334,7 +361,7 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.RestartNode(ctx, nodeName, avalancheGoBinPath, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.RestartNode(ctx, nodeName, client.WithExecPath(avalancheGoBinPath), client.WithWhitelistedSubnets(whitelistedSubnets))
 	cancel()
 	if err != nil {
 		return err

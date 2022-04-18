@@ -1,0 +1,436 @@
+// Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
+// See the file LICENSE for licensing terms.
+
+package server
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/ava-labs/avalanche-network-runner/pkg/color"
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/genesis"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
+	"go.uber.org/zap"
+)
+
+// provisions local cluster and install custom VMs if applicable
+// assumes the local cluster is already set up and healthy
+func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
+	println()
+	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+
+	// "local/default/genesis.json" pre-funds "ewoq" key
+	testKey := genesis.EWOQKey
+	testKeyAddr := testKey.PublicKey().Address()
+	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
+
+	uris := make([]string, 0, len(lc.nodeInfos))
+	for _, i := range lc.nodeInfos {
+		uris = append(uris, i.Uri)
+	}
+	httpRPCEp := uris[0]
+
+	println()
+	color.Outf("{{green}}setting up the base wallet with the seed test key{{/}}\n")
+	baseWallet, err := createRefreshableWallet(ctx, httpRPCEp, testKeychain)
+	if err != nil {
+		return err
+	}
+	zap.L().Info("set up base wallet with pre-funded test key",
+		zap.String("http-rpc-endpoint", httpRPCEp),
+		zap.String("address", testKeyAddr.String()),
+	)
+
+	println()
+	color.Outf("{{green}}check if the seed test key has enough balance to create validators and subnets{{/}}\n")
+	avaxAssetID := baseWallet.P().AVAXAssetID()
+	balances, err := baseWallet.P().Builder().GetBalance()
+	if err != nil {
+		return err
+	}
+	bal, ok := balances[avaxAssetID]
+	if bal <= 1*units.Avax || !ok {
+		return fmt.Errorf("not enough AVAX balance %v in the address %q", bal, testKeyAddr)
+	}
+	zap.L().Info("fetched base wallet AVAX balance",
+		zap.String("http-rpc-endpoint", httpRPCEp),
+		zap.String("address", testKeyAddr.String()),
+		zap.Uint64("balance", bal),
+	)
+
+	println()
+	color.Outf("{{green}}fetching all nodes from the existing cluster to make sure all nodes are validating the primary network/subnet{{/}}\n")
+	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
+	platformCli := platformvm.NewClient(httpRPCEp)
+	cctx, cancel := createDefaultCtx(ctx)
+	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	cancel()
+	if err != nil {
+		return err
+	}
+	curValidators := make(map[string]struct{})
+	for _, v := range vs {
+		va, ok := v.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("failed to parse validator data: %T %+v", v, v)
+		}
+		nodeID, ok := va["nodeID"].(string)
+		if !ok {
+			return fmt.Errorf("failed to parse validator data: %T %+v", va, va)
+		}
+		curValidators[nodeID] = struct{}{}
+		zap.L().Info("current validator", zap.String("node-id", nodeID))
+	}
+
+	println()
+	color.Outf("{{green}}adding all nodes as validator for the primary subnet{{/}}\n")
+	nodeIDs := make([]ids.ShortID, 0, len(lc.nodeInfos))
+	for nodeName, nodeInfo := range lc.nodeInfos {
+		nodeID, err := ids.ShortFromPrefixedString(nodeInfo.Id, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		nodeIDs = append(nodeIDs, nodeID)
+
+		_, isValidator := curValidators[nodeInfo.Id]
+		if isValidator {
+			zap.L().Info("the node is already validating the primary subnet; skipping",
+				zap.String("node-name", nodeName),
+				zap.String("node-id", nodeInfo.Id),
+			)
+			continue
+		}
+
+		zap.L().Info("adding a node as a validator to the primary subnet",
+			zap.String("node-name", nodeName),
+			zap.String("node-id", nodeID.String()),
+		)
+		cctx, cancel = createDefaultCtx(ctx)
+		txID, err := baseWallet.P().IssueAddValidatorTx(
+			&platformvm.Validator{
+				NodeID: nodeID,
+				Start:  uint64(time.Now().Add(10 * time.Second).Unix()),
+				End:    uint64(time.Now().Add(300 * time.Hour).Unix()),
+				Wght:   1 * units.Avax,
+			},
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
+			},
+			10*10000, // 10% fee percent, times 10000 to make it as shares
+			common.WithContext(cctx),
+			common.WithPollFrequency(5*time.Second),
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		zap.L().Info("added the node as primary subnet validator",
+			zap.String("node-name", nodeName),
+			zap.String("node-id", nodeInfo.Id),
+			zap.String("tx-id", txID.String()),
+		)
+	}
+
+	println()
+	color.Outf("{{green}}creating subnet for each custom VM{{/}}\n")
+	for vmName := range lc.customVMNameToGenesis {
+		vmID, err := utils.VMID(vmName)
+		if err != nil {
+			return err
+		}
+		zap.L().Info("creating subnet tx",
+			zap.String("vm-name", vmName),
+			zap.String("vm-id", vmID.String()),
+		)
+		cctx, cancel = createDefaultCtx(ctx)
+		subnetID, err := baseWallet.P().IssueCreateSubnetTx(
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
+			},
+			common.WithContext(cctx),
+			common.WithPollFrequency(5*time.Second),
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		zap.L().Info("created subnet tx",
+			zap.String("vm-name", vmName),
+			zap.String("vm-id", vmID.String()),
+			zap.String("subnet-id", subnetID.String()),
+		)
+		lc.customVMIDToInfo[vmID] = vmInfo{
+			info: &rpcpb.CustomVmInfo{
+				VmName:       vmName,
+				VmId:         vmID.String(),
+				SubnetId:     subnetID.String(),
+				BlockchainId: "",
+			},
+			subnetID: subnetID,
+		}
+	}
+
+	println()
+	color.Outf("{{green}}restarting each node with --whitelisted-subnets{{/}}\n")
+	whitelistedSubnetIDs := make([]string, 0, len(lc.customVMIDToInfo))
+	for _, vmInfo := range lc.customVMIDToInfo {
+		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
+	}
+	sort.Strings(whitelistedSubnetIDs)
+	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
+	for nodeName, v := range lc.nodeInfos {
+		zap.L().Info("updating node info",
+			zap.String("node-name", nodeName),
+			zap.String("whitelisted-subnets", whitelistedSubnets),
+		)
+		v.WhitelistedSubnets = whitelistedSubnets
+		lc.nodeInfos[nodeName] = v
+	}
+	for i := range lc.cfg.NodeConfigs {
+		nodeName := lc.cfg.NodeConfigs[i].Name
+
+		zap.L().Info("updating node config and info",
+			zap.String("node-name", nodeName),
+			zap.String("whitelisted-subnets", whitelistedSubnets),
+		)
+
+		// replace "whitelisted-subnets" flag
+		lc.cfg.NodeConfigs[i].ConfigFile, err = replaceWhitelistedSubnets(lc.cfg.NodeConfigs[i].ConfigFile, whitelistedSubnets)
+		if err != nil {
+			return err
+		}
+
+		v := lc.nodeInfos[nodeName]
+		v.Config = []byte(lc.cfg.NodeConfigs[i].ConfigFile)
+		lc.nodeInfos[nodeName] = v
+	}
+	zap.L().Info("restarting all nodes to whitelist subnet",
+		zap.Strings("whitelisted-subnets", whitelistedSubnetIDs),
+	)
+	for _, nodeConfig := range lc.cfg.NodeConfigs {
+		nodeName := nodeConfig.Name
+
+		lc.customVMRestartMu.Lock()
+		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
+		if err := lc.nw.RemoveNode(nodeName); err != nil {
+			lc.customVMRestartMu.Unlock()
+			return err
+		}
+		if _, err := lc.nw.AddNode(nodeConfig); err != nil {
+			lc.customVMRestartMu.Unlock()
+			return err
+		}
+
+		zap.L().Info("waiting for local cluster readiness after restart", zap.String("node-name", nodeName))
+		if err := lc.waitForLocalClusterReady(ctx); err != nil {
+			lc.customVMRestartMu.Unlock()
+			return err
+		}
+		lc.customVMRestartMu.Unlock()
+	}
+
+	println()
+	color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
+	uris = make([]string, 0, len(lc.nodeInfos))
+	for _, i := range lc.nodeInfos {
+		uris = append(uris, i.Uri)
+	}
+	httpRPCEp = uris[0]
+	baseWallet.refresh(httpRPCEp)
+	zap.L().Info("set up base wallet with pre-funded test key",
+		zap.String("http-rpc-endpoint", httpRPCEp),
+		zap.String("address", testKeyAddr.String()),
+	)
+
+	println()
+	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
+	for vmID, vmInfo := range lc.customVMIDToInfo {
+		zap.L().Info("adding all nodes as subnet validator",
+			zap.String("vm-name", vmInfo.info.VmName),
+			zap.String("vm-id", vmID.String()),
+			zap.String("subnet-id", vmInfo.subnetID.String()),
+		)
+		for _, nodeID := range nodeIDs {
+			cctx, cancel = createDefaultCtx(ctx)
+			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
+				&platformvm.SubnetValidator{
+					Validator: platformvm.Validator{
+						NodeID: nodeID,
+						Start:  uint64(time.Now().Add(time.Minute).Unix()),
+						End:    uint64(time.Now().Add(100 * time.Hour).Unix()),
+						Wght:   1000,
+					},
+					Subnet: vmInfo.subnetID,
+				},
+				common.WithContext(cctx),
+				common.WithPollFrequency(5*time.Second),
+			)
+			cancel()
+			if err != nil {
+				return err
+			}
+			zap.L().Info("added the node as a subnet validator",
+				zap.String("vm-name", vmInfo.info.VmName),
+				zap.String("vm-id", vmID.String()),
+				zap.String("subnet-id", vmInfo.subnetID.String()),
+				zap.String("node-id", nodeID.String()),
+				zap.String("tx-id", txID.String()),
+			)
+		}
+	}
+
+	println()
+	color.Outf("{{green}}creating blockchain for each custom VM{{/}}\n")
+	for vmID, vmInfo := range lc.customVMIDToInfo {
+		vmName := vmInfo.info.VmName
+		vmGenesisBytes := lc.customVMNameToGenesis[vmName]
+
+		zap.L().Info("creating blockchain tx",
+			zap.String("vm-name", vmName),
+			zap.String("vm-id", vmID.String()),
+			zap.Int("genesis-bytes", len(vmGenesisBytes)),
+		)
+		cctx, cancel = createDefaultCtx(ctx)
+		blockchainID, err := baseWallet.P().IssueCreateChainTx(
+			vmInfo.subnetID,
+			vmGenesisBytes,
+			vmID,
+			nil,
+			vmName,
+			common.WithContext(cctx),
+			common.WithPollFrequency(5*time.Second),
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+
+		vmInfo.info.BlockchainId = blockchainID.String()
+		vmInfo.blockchainID = blockchainID
+		lc.customVMIDToInfo[vmID] = vmInfo
+
+		zap.L().Info("created a new blockchain",
+			zap.String("vm-name", vmName),
+			zap.String("vm-id", vmID.String()),
+			zap.String("blockchain-id", blockchainID.String()),
+		)
+	}
+
+	println()
+	color.Outf("{{green}}checking the remaining balance of the base wallet{{/}}\n")
+	balances, err = baseWallet.P().Builder().GetBalance()
+	if err != nil {
+		return err
+	}
+	zap.L().Info("base wallet AVAX balance",
+		zap.String("address", testKeyAddr.String()),
+		zap.Uint64("balance", balances[avaxAssetID]),
+	)
+
+	return nil
+}
+
+func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
+	println()
+	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
+
+	hc := lc.nw.Healthy(ctx)
+	select {
+	case <-lc.stopc:
+		return errAborted
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-hc:
+		if err != nil {
+			return err
+		}
+	}
+
+	for nodeName, nodeInfo := range lc.nodeInfos {
+		zap.L().Info("inspecting node log directory for custom VM logs",
+			zap.String("node-name", nodeName),
+			zap.String("log-dir", nodeInfo.LogDir),
+		)
+		for _, vmInfo := range lc.customVMIDToInfo {
+			p := filepath.Join(nodeInfo.LogDir, vmInfo.info.BlockchainId+".log")
+			zap.L().Info("checking log",
+				zap.String("vm-id", vmInfo.info.VmId),
+				zap.String("subnet-id", vmInfo.info.SubnetId),
+				zap.String("blockchain-id", vmInfo.info.BlockchainId),
+				zap.String("log-path", p),
+			)
+			for {
+				_, err := os.Stat(p)
+				if err == nil {
+					zap.L().Info("found the log", zap.String("log-path", p))
+					break
+				}
+
+				zap.L().Info("log not found yet, retrying...",
+					zap.String("vm-id", vmInfo.info.VmId),
+					zap.String("subnet-id", vmInfo.info.SubnetId),
+					zap.String("blockchain-id", vmInfo.info.BlockchainId),
+					zap.String("log-path", p),
+					zap.Error(err),
+				)
+				select {
+				case <-lc.stopc:
+					return errAborted
+				case <-time.After(10 * time.Second):
+				}
+			}
+		}
+	}
+
+	println()
+	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
+	for _, i := range lc.nodeInfos {
+		for vmID, vmInfo := range lc.customVMIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, i.GetUri(), vmInfo.blockchainID.String())
+		}
+	}
+
+	lc.customVMsReadycCloseOnce.Do(func() {
+		println()
+		color.Outf("{{green}}{{bold}}all custom VMs are ready!!!{{/}}\n")
+		close(lc.customVMsReadyc)
+	})
+	return nil
+}
+
+// Keep everything same except "whitelisted-subnets".
+func replaceWhitelistedSubnets(s string, whitelistedSubnet string) (string, error) {
+	lines := make([]string, 0)
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.Contains(line, `"whitelisted-subnets":`) {
+			lines = append(lines, line)
+			continue
+		}
+
+		idx := strings.Index(line, `"whitelisted-subnets":`)
+		if idx == -1 {
+			return "", fmt.Errorf("line %q has an invalid whitelisted-subnets field", line)
+		}
+		line = line[:idx]
+		line += fmt.Sprintf(`"whitelisted-subnets":"%s"`, whitelistedSubnet)
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n"), scanner.Err()
+}
