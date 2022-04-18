@@ -1,0 +1,80 @@
+name: Test and release (Rust SDK)
+
+# ref. https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static_analysis:
+    name: Static analysis for Rust SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
+      - name: Check Rust version
+        run: rustc --version
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+      - name: Run static analysis tests
+        shell: bash
+        run: pushd ./avalanche-network-runner-sdk && scripts/static-analysis.sh && popd
+
+  check_cargo_unused:
+    name: Check Cargo unused for Rust SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
+      - name: Check Rust version
+        run: rustc --version
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+      - name: Check unused Cargo dependencies
+        shell: bash
+        run: pushd ./avalanche-network-runner-sdk && scripts/cargo.unused.sh && popd
+
+  unit_tests:
+    name: Unit tests for Rust SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Check Rust version
+        run: rustc --version
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+      - name: Run unit tests
+        run: pushd ./avalanche-network-runner-sdk && scripts/tests.unit.sh && popd
+
+  # TODO: automate crate publish/release
