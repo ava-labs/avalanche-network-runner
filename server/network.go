@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -131,7 +130,7 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 	}, nil
 }
 
-func (lc *localNetwork) start() {
+func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
 		close(lc.donec)
 	}()
@@ -144,21 +143,17 @@ func (lc *localNetwork) start() {
 	}
 	lc.nw = nw
 
-	if err := lc.waitForHealthy(); err != nil {
+	if err := lc.waitForHealthy(ctx); err != nil {
 		lc.errc <- err
 		return
 	}
 }
 
-const healthyWait = 2 * time.Minute
-
 var errAborted = errors.New("aborted")
 
-func (lc *localNetwork) waitForHealthy() error {
+func (lc *localNetwork) waitForHealthy(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
 
-	ctx, cancel := context.WithTimeout(context.Background(), healthyWait)
-	defer cancel()
 	hc := lc.nw.Healthy(ctx)
 	select {
 	case <-lc.stopc:
@@ -192,10 +187,10 @@ func (lc *localNetwork) waitForHealthy() error {
 	return nil
 }
 
-func (lc *localNetwork) stop() {
+func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopc)
-		serr := lc.nw.Stop(context.Background())
+		serr := lc.nw.Stop(ctx)
 		<-lc.donec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
