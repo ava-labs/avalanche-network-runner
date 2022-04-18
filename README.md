@@ -100,13 +100,16 @@ To start a new Avalanche network with five nodes (a cluster):
 
 ```bash
 # replace execPath with the path to AvalancheGo on your machine
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO"}'
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO"}'
 
 # or
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
 
 To wait for all the nodes in the cluster to become healthy:
@@ -169,9 +172,12 @@ avalanche-network-runner control remove-node \
 To restart a node (in this case, the one named `node1`):
 
 ```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
 # Note that you can restart the node with a different binary by providing
 # a different execPath
-curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","execPath":"/tmp/avalanchego-v1.7.10/build/avalanchego","logLevel":"INFO"}'
+curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","execPath":"'${AVALANCHEGO_EXEC_PATH}'","logLevel":"INFO"}'
 
 # or
 avalanche-network-runner control restart-node \
@@ -179,7 +185,7 @@ avalanche-network-runner control restart-node \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
 --node-name node1 \
---avalanchego-path /tmp/avalanchego-v1.7.10/build/avalanchego
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
@@ -322,15 +328,18 @@ cat /tmp/subnet-evm.genesis.json
 ```
 
 ```bash
-# replace with your local path
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO","pluginDir":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/plugins","customVms":{"subnetevm":"/tmp/subnet-evm.genesis.json"}}'
+# replace execPath with the path to AvalancheGo on your machine
+AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
+AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
+
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"subnetevm":"/tmp/subnet-evm.genesis.json"}}'
 
 # or
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
---plugin-dir ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+--plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
 --custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
 ```
 
@@ -392,15 +401,18 @@ cat /tmp/blobvm.genesis.json
 ```
 
 ```bash
-# replace with your local path
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/avalanchego","numNodes":5,"logLevel":"INFO","pluginDir":"/Users/gyuho.lee/go/src/github.com/ava-labs/avalanchego/build/plugins","customVms":{"blobvm":"/tmp/blobvm.genesis.json"}}'
+# replace execPath with the path to AvalancheGo on your machine
+AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
+AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
+
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"blobvm":"/tmp/blobvm.genesis.json"}}'
 
 # or
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
---plugin-dir ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+--plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
 --custom-vms '{"blobvm":"/tmp/blobvm.genesis.json"}'
 ```
 

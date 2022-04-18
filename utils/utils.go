@@ -81,6 +81,10 @@ func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath stri
 		}
 		return fmt.Errorf("failed to stat exec %q (%w)", exec, err)
 	}
+
+	// no custom VM is specified
+	// no need to check further
+	// (subnet installation is optional)
 	if pluginExec == "" {
 		return nil
 	}

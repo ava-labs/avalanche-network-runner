@@ -186,7 +186,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 			os.RemoveAll(filePath)
 		})
 
-		ginkgo.By("calling start API with the first binary", func() {
+		ginkgo.By("calling start API with the valid binary path", func() {
+			color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath1)
 			cancel()

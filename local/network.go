@@ -24,6 +24,7 @@ import (
 	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -447,6 +448,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
+	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
@@ -460,7 +462,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 		nodes = append(nodes, node)
 	}
 	go func() {
-		errGr, ctx := errgroup.WithContext(ctx)
+		errGr, cctx := errgroup.WithContext(ctx)
 		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
@@ -470,11 +472,11 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 					select {
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
-					case <-ctx.Done():
+					case <-cctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health(ctx)
+					health, err := node.client.HealthAPI().Health(cctx)
 					if err == nil && health.Healthy {
 						ln.log.Debug("node %q became healthy", node.name)
 						return nil

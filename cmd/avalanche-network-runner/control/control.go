@@ -123,7 +123,13 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	_ = cancel // don't call since "start" is async
+	// don't call since "start" is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "Start" async ops
+	// when the deadline is reached
+	_ = cancel
+
 	info, err := cli.Start(
 		ctx,
 		avalancheGoBinPath,

@@ -194,7 +194,8 @@ func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingR
 const DefaultStartTimeout = 5 * time.Minute
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
-	if deadline, ok := ctx.Deadline(); !ok {
+	// if timeout is too small or not set, default to 5-min
+	if deadline, ok := ctx.Deadline(); !ok || time.Since(deadline) < DefaultStartTimeout {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
@@ -586,7 +587,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	}
 	logLevel := "INFO"
 	if req.GetLogLevel() != "" {
-		logLevel = req.GetLogLevel()
+		logLevel = strings.ToUpper(req.GetLogLevel())
 	}
 
 	nodeConfig.ConfigFile = fmt.Sprintf(`{
@@ -604,8 +605,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	"plugin-dir":"%s",
 	"whitelisted-subnets":"%s"
 }`,
-		strings.ToUpper(logLevel),
-		strings.ToUpper(logLevel),
+		logLevel,
+		logLevel,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
 		nodeInfo.PluginDir,
