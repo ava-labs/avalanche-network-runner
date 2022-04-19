@@ -4,7 +4,6 @@
 package server
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -256,7 +255,7 @@ func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platfor
 			},
 			10*10000, // 10% fee percent, times 10000 to make it as shares
 			common.WithContext(cctx),
-			common.WithPollFrequency(5*time.Second),
+			defaultPoll,
 		)
 		cancel()
 		if err != nil {
@@ -290,7 +289,7 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 				Addrs:     []ids.ShortID{testKeyAddr},
 			},
 			common.WithContext(cctx),
-			common.WithPollFrequency(5*time.Second),
+			defaultPoll,
 		)
 		cancel()
 		if err != nil {
@@ -314,6 +313,7 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 	return nil
 }
 
+// TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with --whitelisted-subnets{{/}}\n")
@@ -340,7 +340,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 		)
 
 		// replace "whitelisted-subnets" flag
-		lc.cfg.NodeConfigs[i].ConfigFile, err = replaceWhitelistedSubnets(lc.cfg.NodeConfigs[i].ConfigFile, whitelistedSubnets)
+		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.UpdateJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, "whitelisted-subnets", whitelistedSubnets)
 		if err != nil {
 			return err
 		}
@@ -400,7 +400,7 @@ func (lc *localNetwork) addSubnetValidators(ctx context.Context, baseWallet *ref
 					Subnet: vmInfo.subnetID,
 				},
 				common.WithContext(cctx),
-				common.WithPollFrequency(5*time.Second),
+				defaultPoll,
 			)
 			cancel()
 			if err != nil {
@@ -438,7 +438,7 @@ func (lc *localNetwork) createBlockchains(ctx context.Context, baseWallet *refre
 			nil,
 			vmName,
 			common.WithContext(cctx),
-			common.WithPollFrequency(5*time.Second),
+			defaultPoll,
 		)
 		cancel()
 		if err != nil {
@@ -458,24 +458,4 @@ func (lc *localNetwork) createBlockchains(ctx context.Context, baseWallet *refre
 	return nil
 }
 
-// Keep everything same except "whitelisted-subnets".
-func replaceWhitelistedSubnets(s string, whitelistedSubnet string) (string, error) {
-	lines := make([]string, 0)
-	scanner := bufio.NewScanner(strings.NewReader(s))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, `"whitelisted-subnets":`) {
-			lines = append(lines, line)
-			continue
-		}
-
-		idx := strings.Index(line, `"whitelisted-subnets":`)
-		if idx == -1 {
-			return "", fmt.Errorf("line %q has an invalid whitelisted-subnets field", line)
-		}
-		line = line[:idx]
-		line += fmt.Sprintf(`"whitelisted-subnets":"%s"`, whitelistedSubnet)
-		lines = append(lines, line)
-	}
-	return strings.Join(lines, "\n"), scanner.Err()
-}
+var defaultPoll = common.WithPollFrequency(5 * time.Second)

@@ -1,7 +1,7 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package server
+package utils
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReplaceWhitelistedSubnets(t *testing.T) {
+func TestUpdateJSONKey(t *testing.T) {
 	b := `{
 		"network-peer-list-gossip-frequency":"250ms",
 		"network-max-reconnect-delay":"1s",
@@ -25,7 +25,7 @@ func TestReplaceWhitelistedSubnets(t *testing.T) {
 		"plugin-dir":"INFO",
 		"whitelisted-subnets":"a,b,c"
 	}`
-	s, err := replaceWhitelistedSubnets(b, "d,e,f")
+	s, err := UpdateJSONKey(b, "whitelisted-subnets", "d,e,f")
 	assert.NoError(t, err)
 	assert.Contains(t, s, `"whitelisted-subnets":"d,e,f"`)
 }

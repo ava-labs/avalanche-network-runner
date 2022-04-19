@@ -258,6 +258,7 @@ curl -X POST -k http://localhost:8081/v1/ping -d ''
 To start the cluster with custom VMs:
 
 ```bash
+# or download from https://github.com/ava-labs/subnet-cli/releases
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
 subnet-cli create VMID subnetevm
@@ -277,6 +278,12 @@ go build -v \
 
 # make sure binaries are built
 find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+# for example
+# .../build
+# .../build/plugins
+# .../build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+# .../build/plugins/evm
+# .../build/avalanchego
 
 # generate the genesis for the custom VM
 export CHAIN_ID=99999
@@ -373,6 +380,7 @@ curl -X POST -k http://localhost:8081/v1/ping -d ''
 To start the cluster with custom VMs:
 
 ```bash
+# or download from https://github.com/ava-labs/subnet-cli/releases
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
 subnet-cli create VMID blobvm
@@ -391,6 +399,12 @@ go build -v \
 
 # make sure binaries are built
 find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+# for example
+# .../build
+# .../build/plugins
+# .../build/plugins/kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8
+# .../build/plugins/evm
+# .../build/avalanchego
 
 # generate the genesis for the custom VM
 cd ${HOME}/go/src/github.com/ava-labs/blobvm

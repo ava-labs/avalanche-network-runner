@@ -9,5 +9,4 @@ fi
 # git submodule add https://github.com/googleapis/googleapis
 git submodule update --init --remote
 
-cargo build \
---release
+cargo build --release
