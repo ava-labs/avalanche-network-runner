@@ -195,7 +195,7 @@ const DefaultStartTimeout = 5 * time.Minute
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Since(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
