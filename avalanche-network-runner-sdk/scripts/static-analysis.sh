@@ -9,7 +9,12 @@ fi
 # git submodule add https://github.com/googleapis/googleapis
 git submodule update --init --remote
 
-# https://rust-lang.github.io/rustup/installation/index.html
+# check https://www.rust-lang.org/tools/install for Rust compiler installation
+# e.g.,
+# curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+#
+# install Rust nightly builds https://rust-lang.github.io/rustup/installation/index.html
+# e.g.,
 # rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
 #
 # https://github.com/rust-lang/rustfmt
@@ -25,7 +30,7 @@ cargo fmt --all --verbose -- --check
 rustup default nightly
 cargo +nightly fmt --all -- --config-path .rustfmt.nightly.toml --verbose --check || true
 
-# TODO: enable this
+# TODO: remove "|| true"
 cargo +nightly clippy --all --all-features -- -D warnings || true
 
 rustup default stable

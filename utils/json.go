@@ -25,7 +25,8 @@ func UpdateJSONKey(jsonBody string, k string, v string) (string, error) {
 
 		idx := strings.Index(line, k)
 		if idx == -1 {
-			return "", fmt.Errorf("line %q has an invalid whitelisted-subnets field", line)
+			// should never happen...
+			return "", fmt.Errorf("line %q is missing the key %q", line, k)
 		}
 		line = line[:idx]
 		line += fmt.Sprintf(`%s"%s"`, k, v)

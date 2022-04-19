@@ -9,7 +9,6 @@ fi
 # git submodule add https://github.com/googleapis/googleapis
 git submodule update --init --remote
 
-# cargo install cargo-udeps --locked
 # https://github.com/est31/cargo-udeps
 cargo install cargo-udeps --locked
 cargo +nightly udeps

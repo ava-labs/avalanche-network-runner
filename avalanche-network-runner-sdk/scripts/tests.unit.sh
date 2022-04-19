@@ -10,6 +10,5 @@ fi
 git submodule update --init --remote
 
 RUST_LOG=debug cargo test --all --all-features -- --show-output
-# RUST_LOG=debug cargo test --all --all-features -- --show-output --ignored
 
 echo "ALL SUCCESS!"
