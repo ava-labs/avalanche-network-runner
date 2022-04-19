@@ -7,13 +7,19 @@ package e2e_test
 import (
 	"context"
 	"flag"
+	"io/fs"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
+	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -97,7 +103,91 @@ var _ = ginkgo.AfterSuite(func() {
 
 var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 	ginkgo.It("can start", func() {
-		ginkgo.By("calling start API with the first binary", func() {
+		ginkgo.By("start request with invalid exec path should fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.Start(ctx, "")
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrInvalidExecPath.Error()))
+		})
+
+		ginkgo.By("start request with invalid exec path should fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.Start(ctx, "invalid")
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExists.Error()))
+		})
+
+		ginkgo.By("start request with invalid custom VM path should fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.Start(ctx, execPath1,
+				client.WithPluginDir(os.TempDir()),
+				client.WithCustomVMs(map[string]string{"invalid": "{0}"}),
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExistsPlugin.Error()))
+		})
+
+		ginkgo.By("start request with invalid custom VM name format should fail", func() {
+			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
+			gomega.Ω(err).Should(gomega.BeNil())
+			filePath := f.Name()
+			gomega.Ω(f.Close()).Should(gomega.BeNil())
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err = cli.Start(ctx, execPath1,
+				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithCustomVMs(map[string]string{filepath.Base(filePath): "{0}"}),
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrInvalidVMName.Error()))
+
+			os.RemoveAll(filePath)
+		})
+
+		ginkgo.By("start request with missing plugin dir should fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.Start(ctx, execPath1,
+				client.WithCustomVMs(map[string]string{"test": "{0}"}),
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirEmptyButCustomVMsNotEmpty.Error()))
+		})
+
+		ginkgo.By("start request with missing custom VMs should fail", func() {
+			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
+			gomega.Ω(err).Should(gomega.BeNil())
+			filePath := f.Name()
+			gomega.Ω(f.Close()).Should(gomega.BeNil())
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err = cli.Start(ctx, execPath1,
+				client.WithPluginDir(filepath.Dir(filePath)),
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirNonEmptyButCustomVMsEmpty.Error()))
+
+			os.RemoveAll(filePath)
+		})
+
+		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
+			vmID, err := utils.VMID("hello")
+			gomega.Ω(err).Should(gomega.BeNil())
+			filePath := filepath.Join(os.TempDir(), vmID.String())
+			gomega.Ω(ioutil.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err = cli.Start(ctx, execPath1,
+				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithCustomVMs(map[string]string{"hello": "invalid"}),
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExistsPluginGenesis.Error()))
+
+			os.RemoveAll(filePath)
+		})
+
+		ginkgo.By("calling start API with the valid binary path", func() {
+			color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath1)
 			cancel()
@@ -159,7 +249,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 	ginkgo.It("can restart", func() {
 		ginkgo.By("calling restart API with the second binary", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			resp, err := cli.RestartNode(ctx, "node4", execPath2)
+			resp, err := cli.RestartNode(ctx, "node4", client.WithExecPath(execPath2))
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			color.Outf("{{green}}successfully restarted:{{/}} %+v\n", resp.ClusterInfo.NodeNames)

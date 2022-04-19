@@ -18,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -39,39 +40,69 @@ type localNetwork struct {
 
 	apiClis map[string]api.Client
 
-	readyc          chan struct{} // closed when local network is ready/healthy
-	readycCloseOnce sync.Once
+	localClusterReadyc          chan struct{} // closed when local network is ready/healthy
+	localClusterReadycCloseOnce sync.Once
 
-	stopc chan struct{}
-	donec chan struct{}
-	errc  chan error
+	// map from VM name to genesis bytes
+	customVMNameToGenesis map[string][]byte
+	// map from VM ID to VM info
+	customVMIDToInfo map[ids.ID]vmInfo
+
+	customVMsReadyc          chan struct{} // closed when subnet installations are complete
+	customVMsReadycCloseOnce sync.Once
+	customVMRestartMu        *sync.RWMutex
+
+	stopc      chan struct{}
+	startDonec chan struct{}
+	startErrc  chan error
 
 	stopOnce sync.Once
 }
 
-func newNetwork(execPath string, rootDataDir string, numNodes uint32, whitelistedSubnets string, logLevel string) (*localNetwork, error) {
+type vmInfo struct {
+	info         *rpcpb.CustomVmInfo
+	subnetID     ids.ID
+	blockchainID ids.ID
+}
+
+type localNetworkOptions struct {
+	execPath           string
+	rootDataDir        string
+	numNodes           uint32
+	whitelistedSubnets string
+	logLevel           string
+
+	pluginDir string
+	customVMs map[string][]byte
+
+	// to block racey restart while installing custom VMs
+	restartMu *sync.RWMutex
+}
+
+func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
-	lcfg.Directory = rootDataDir
+	lcfg.Directory = opts.rootDataDir
 	logFactory := logging.NewFactory(lcfg)
 	logger, err := logFactory.Make("main")
 	if err != nil {
 		return nil, err
 	}
 
+	logLevel := opts.logLevel
 	if logLevel == "" {
 		logLevel = "INFO"
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-	cfg, err := local.NewDefaultConfigNNodes(execPath, numNodes)
+	cfg, err := local.NewDefaultConfigNNodes(opts.execPath, opts.numNodes)
 	if err != nil {
 		return nil, err
 	}
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
 		nodeName := fmt.Sprintf("node%d", i+1)
-		logDir := filepath.Join(rootDataDir, nodeName, "log")
-		dbDir := filepath.Join(rootDataDir, nodeName, "db-dir")
+		logDir := filepath.Join(opts.rootDataDir, nodeName, "log")
+		dbDir := filepath.Join(opts.rootDataDir, nodeName, "db-dir")
 
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
@@ -86,27 +117,31 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 	"api-admin-enabled":true,
 	"api-ipcs-enabled":true,
 	"index-enabled":true,
-	"log-display-level":"INFO",
+	"log-display-level":"%s",
 	"log-level":"%s",
 	"log-dir":"%s",
 	"db-dir":"%s",
+	"plugin-dir":"%s",
 	"whitelisted-subnets":"%s"
 }`,
 			strings.ToUpper(logLevel),
+			strings.ToUpper(logLevel),
 			logDir,
 			dbDir,
-			whitelistedSubnets,
+			opts.pluginDir,
+			opts.whitelistedSubnets,
 		)
-		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath))
+		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, opts.execPath))
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
-			ExecPath:           execPath,
+			ExecPath:           opts.execPath,
 			Uri:                "",
 			Id:                 "",
 			LogDir:             logDir,
 			DbDir:              dbDir,
-			WhitelistedSubnets: whitelistedSubnets,
+			PluginDir:          opts.pluginDir,
+			WhitelistedSubnets: opts.whitelistedSubnets,
 			Config:             []byte(cfg.NodeConfigs[i].ConfigFile),
 		}
 	}
@@ -114,7 +149,7 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 	return &localNetwork{
 		logger: logger,
 
-		binPath: execPath,
+		binPath: opts.execPath,
 		cfg:     cfg,
 
 		nodeNames:     nodeNames,
@@ -122,36 +157,55 @@ func newNetwork(execPath string, rootDataDir string, numNodes uint32, whiteliste
 		apiClis:       make(map[string]api.Client),
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
-		readyc: make(chan struct{}),
+		localClusterReadyc: make(chan struct{}),
 
-		stopc: make(chan struct{}),
-		donec: make(chan struct{}),
-		errc:  make(chan error, 1),
+		customVMNameToGenesis: opts.customVMs,
+		customVMIDToInfo:      make(map[ids.ID]vmInfo),
+		customVMsReadyc:       make(chan struct{}),
+		customVMRestartMu:     opts.restartMu,
+
+		stopc:      make(chan struct{}),
+		startDonec: make(chan struct{}),
+		startErrc:  make(chan error, 1),
 	}, nil
 }
 
+// provisions local cluster and install custom VMs if applicable
 func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
-		close(lc.donec)
+		close(lc.startDonec)
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
 	nw, err := local.NewNetwork(lc.logger, lc.cfg, os.TempDir())
 	if err != nil {
-		lc.errc <- err
+		lc.startErrc <- err
 		return
 	}
 	lc.nw = nw
 
-	if err := lc.waitForHealthy(ctx); err != nil {
-		lc.errc <- err
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrc <- err
+		return
+	}
+
+	if len(lc.customVMNameToGenesis) == 0 {
+		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		return
+	}
+	if err := lc.installCustomVMs(ctx); err != nil {
+		lc.startErrc <- err
+		return
+	}
+	if err := lc.waitForCustomVMsReady(ctx); err != nil {
+		lc.startErrc <- err
 		return
 	}
 }
 
 var errAborted = errors.New("aborted")
 
-func (lc *localNetwork) waitForHealthy(ctx context.Context) error {
+func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
 
 	hc := lc.nw.Healthy(ctx)
@@ -181,8 +235,8 @@ func (lc *localNetwork) waitForHealthy(ctx context.Context) error {
 		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeID, uri)
 	}
 
-	lc.readycCloseOnce.Do(func() {
-		close(lc.readyc)
+	lc.localClusterReadycCloseOnce.Do(func() {
+		close(lc.localClusterReadyc)
 	})
 	return nil
 }
@@ -191,7 +245,7 @@ func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopc)
 		serr := lc.nw.Stop(ctx)
-		<-lc.donec
+		<-lc.startDonec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
 }
