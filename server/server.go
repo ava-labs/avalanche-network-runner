@@ -534,13 +534,14 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 	logLevel := *req.StartRequest.LogLevel
 	whitelistedSubnets := *req.StartRequest.WhitelistedSubnets
+	pluginDir := *req.StartRequest.PluginDir
 
 	rootDataDir := s.clusterInfo.RootDataDir
 
 	logDir := filepath.Join(rootDataDir, nodeName, "log")
 	dbDir := filepath.Join(rootDataDir, nodeName, "db-dir")
 
-	configFile := createConfigFileString(logLevel, logDir, dbDir, whitelistedSubnets)
+	configFile := createConfigFileString(logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)

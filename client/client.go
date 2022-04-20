@@ -206,6 +206,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 			ExecPath:           execPath,
 			WhitelistedSubnets: &ret.whitelistedSubnets,
 			LogLevel:           &ret.logLevel,
+			PluginDir:          &ret.pluginDir,
 		},
 	})
 }

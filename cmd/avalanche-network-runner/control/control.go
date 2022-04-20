@@ -359,6 +359,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"log level",
 	)
+	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"[optional] plugin directory",
+	)
 	return cmd
 }
 
