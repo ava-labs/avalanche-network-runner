@@ -48,6 +48,7 @@ func NewCommand() *cobra.Command {
 		newURIsCommand(),
 		newStatusCommand(),
 		newStreamStatusCommand(),
+		newAddNodeCommand(),
 		newRemoveNodeCommand(),
 		newRestartNodeCommand(),
 		newAttachPeerCommand(),
@@ -327,6 +328,66 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 }
 
 var whitelistedSubnets string
+
+func newAddNodeCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-node [options]",
+		Short: "Add a new node to the network",
+		RunE:  addNodeFunc,
+	}
+	cmd.PersistentFlags().StringVar(
+		&nodeName,
+		"node-name",
+		"",
+		"node name to add",
+	)
+	cmd.PersistentFlags().StringVar(
+		&avalancheGoBinPath,
+		"avalanchego-path",
+		"",
+		"avalanchego binary path",
+	)
+	cmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"whitelisted subnets (comma-separated)",
+	)
+	cmd.PersistentFlags().StringVar(
+		&logLevel,
+		"log-level",
+		"",
+		"log level",
+	)
+	return cmd
+}
+
+func addNodeFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	info, err := cli.AddNode(
+		ctx,
+		nodeName,
+		avalancheGoBinPath,
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithLogLevel(logLevel))
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}add node response:{{/}} %+v\n", info)
+	return nil
+}
 
 func newRestartNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
