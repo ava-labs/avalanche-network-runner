@@ -101,8 +101,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
-		ExecPath: execPath,
-		NumNodes: &ret.numNodes,
+		ExecPath:     execPath,
+		NumNodes:     &ret.numNodes,
+		ChainConfigs: ret.chainConfigs,
 	}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
@@ -207,6 +208,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 			WhitelistedSubnets: &ret.whitelistedSubnets,
 			LogLevel:           &ret.logLevel,
 			PluginDir:          &ret.pluginDir,
+			ChainConfigs:       ret.chainConfigs,
 		},
 	})
 }
