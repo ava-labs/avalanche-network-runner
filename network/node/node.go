@@ -24,7 +24,6 @@ type Node interface {
 	GetAPIClient() api.Client
 	// Return this node's URL.
 	// For a local network, this is the node's IP (e.g. 127.0.0.1).
-	// For a k8s network, this is the DNS name of the pod hosting the node.
 	GetURL() string
 	// Return this node's P2P (staking) port.
 	GetP2PPort() uint16

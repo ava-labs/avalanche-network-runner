@@ -40,12 +40,6 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 	return uint32(networkID), nil
 }
 
-// NewLocalNodeConfigJsonRaw returns a JSON formatted string as json.RawMessage for a
-// local node config object (ImplSpecificConfig)
-func NewLocalNodeConfigJsonRaw(binaryPath string) json.RawMessage {
-	return json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s"}`, binaryPath))
-}
-
 var (
 	ErrInvalidExecPath        = errors.New("avalanche exec is invalid")
 	ErrNotExists              = errors.New("avalanche exec not exists")

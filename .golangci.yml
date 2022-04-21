@@ -4,7 +4,6 @@ run:
   tests: false
   skip-dirs:
     - api/mocks
-    - k8s/mocks
     - local/mocks
     - rpcpb
   go: "1.17"
