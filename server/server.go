@@ -284,13 +284,14 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 
-	zap.L().Info("starting",
+	zap.L().Info("starting local network",
 		zap.String("execPath", execPath),
 		zap.Uint32("numNodes", numNodes),
 		zap.String("whitelistedSubnets", whitelistedSubnets),
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
+		zap.Any("chainConfigs", req.ChainConfigs),
 	)
 
 	if s.network != nil {
