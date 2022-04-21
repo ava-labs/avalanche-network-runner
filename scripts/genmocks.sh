@@ -11,4 +11,4 @@ mockery --dir api --name EthClient --output api/mocks/ --filename EthClient.go
 mockery --dir local --name NodeProcess --output local/mocks/ --filename node_process.go
 mockery --dir k8s --name dnsReachableChecker --output k8s/mocks/ --filename dns_checker.go --structname DnsReachableChecker
 
-echo "ALL SUCCESS"
+echo "Successfully generated mock files"
