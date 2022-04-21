@@ -6,7 +6,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -612,7 +611,9 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.PluginDir,
 		nodeInfo.WhitelistedSubnets,
 	)
-	nodeConfig.ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, nodeInfo.ExecPath))
+	nodeConfig.BinaryPath = nodeInfo.ExecPath
+	nodeConfig.RedirectStdout = true
+	nodeConfig.RedirectStderr = true
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
