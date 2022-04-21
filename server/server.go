@@ -572,7 +572,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, err
 	}
-
 	info := &rpcpb.NodeInfo{
 		Name:               nodeName,
 		ExecPath:           execPath,
