@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -528,11 +529,21 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	defer s.mu.Unlock()
 
 	nodeName := req.Name
+	if _, exists := s.network.nodeInfos[nodeName]; exists {
+		return nil, fmt.Errorf("node with name %s already exists", nodeName)
+	}
 	// user can override bin path for this node...
 	execPath := req.StartRequest.ExecPath
 	if execPath == "" {
 		// ...or use the same binary as the rest of the network
 		execPath = s.network.binPath
+	}
+	_, err := os.Stat(execPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, utils.ErrNotExists
+		}
+		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
 	logLevel := *req.StartRequest.LogLevel
 	whitelistedSubnets := *req.StartRequest.WhitelistedSubnets

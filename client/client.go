@@ -200,17 +200,25 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret := &Op{}
 	ret.applyOpts(opts)
 
+	req := &rpcpb.AddNodeRequest{
+    Name:         name,
+    ChainConfigs: ret.chainConfigs,
+  }
+	if ret.whitelistedSubnets != "" {
+		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
+	}
+	if ret.logLevel != "" {
+		req.StartRequest.LogLevel = &ret.logLevel
+	}
+	if ret.execPath != "" {
+		req.StartRequest.ExecPath = ret.execPath
+	}
+	if ret.pluginDir != "" {
+		req.StartRequest.PluginDir = &ret.pluginDir
+	}
+
 	zap.L().Info("add node", zap.String("name", name))
-	return c.controlc.AddNode(ctx, &rpcpb.AddNodeRequest{
-		Name: name,
-		StartRequest: &rpcpb.StartRequest{
-			ExecPath:           execPath,
-			WhitelistedSubnets: &ret.whitelistedSubnets,
-			LogLevel:           &ret.logLevel,
-			PluginDir:          &ret.pluginDir,
-			ChainConfigs:       ret.chainConfigs,
-		},
-	})
+	return c.controlc.AddNode(ctx, req)
 }
 
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {
