@@ -27,7 +27,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -557,18 +556,16 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		CChainConfigFile:   req.StartRequest.ChainConfigs["C"], // TODO: add support for other chains
 	}
 	s.network.nodeNames = append(s.network.nodeNames, req.Name)
-	node, err := s.network.nw.AddNode(nodeConfig)
+	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
 		return nil, err
 	}
-	uri := fmt.Sprintf("https://%s:%d", node.GetURL(), node.GetAPIPort())
-	nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
 
 	info := &rpcpb.NodeInfo{
 		Name:               nodeName,
 		ExecPath:           execPath,
-		Uri:                uri,
-		Id:                 nodeID,
+		Uri:                "",
+		Id:                 "",
 		LogDir:             logDir,
 		DbDir:              dbDir,
 		WhitelistedSubnets: whitelistedSubnets,

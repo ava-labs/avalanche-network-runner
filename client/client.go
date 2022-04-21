@@ -267,8 +267,9 @@ type Op struct {
 	logLevel           string
 	rootDataDir        string
 
-	pluginDir string
-	customVMs map[string]string
+	pluginDir    string
+	customVMs    map[string]string
+	chainConfigs map[string]string
 }
 
 type OpOption func(*Op)
@@ -319,6 +320,13 @@ func WithPluginDir(pluginDir string) OpOption {
 func WithCustomVMs(customVMs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customVMs = customVMs
+	}
+}
+
+// Map from chain name to its configuration json contents.
+func WithChainConfigs(chainConfigs map[string]string) OpOption {
+	return func(op *Op) {
+		op.chainConfigs = chainConfigs
 	}
 }
 
