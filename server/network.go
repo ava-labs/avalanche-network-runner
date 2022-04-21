@@ -72,8 +72,9 @@ type localNetworkOptions struct {
 	whitelistedSubnets string
 	logLevel           string
 
-	pluginDir string
-	customVMs map[string][]byte
+	pluginDir    string
+	customVMs    map[string][]byte
+	chainConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
@@ -108,6 +109,13 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		cfg.NodeConfigs[i].Name = nodeName
 		cfg.NodeConfigs[i].ConfigFile = createConfigFileString(logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, opts.execPath))
+		for chain, config := range opts.chainConfigs {
+			if chain != "C" {
+				// TODO: add support for other chains
+				continue
+			}
+			cfg.NodeConfigs[i].CChainConfigFile = config
+		}
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,

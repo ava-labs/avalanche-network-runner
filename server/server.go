@@ -27,6 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -305,6 +306,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		logLevel:           logLevel,
 		pluginDir:          pluginDir,
 		customVMs:          customVMs,
+		chainConfigs:       req.ChainConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -552,17 +554,21 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		ImplSpecificConfig: json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath)),
 		StakingKey:         string(stakingKey),
 		StakingCert:        string(stakingCert),
+		CChainConfigFile:   req.StartRequest.ChainConfigs["C"], // TODO: add support for other chains
 	}
 	s.network.nodeNames = append(s.network.nodeNames, req.Name)
-	_, err = s.network.nw.AddNode(nodeConfig)
+	node, err := s.network.nw.AddNode(nodeConfig)
 	if err != nil {
 		return nil, err
 	}
+	uri := fmt.Sprintf("https://%s:%d", node.GetURL(), node.GetAPIPort())
+	nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+
 	info := &rpcpb.NodeInfo{
 		Name:               nodeName,
 		ExecPath:           execPath,
-		Uri:                "",
-		Id:                 "",
+		Uri:                uri,
+		Id:                 nodeID,
 		LogDir:             logDir,
 		DbDir:              dbDir,
 		WhitelistedSubnets: whitelistedSubnets,
