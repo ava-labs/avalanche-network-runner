@@ -1,10 +1,15 @@
 package k8s
 
 import (
+	"context"
+	"errors"
+
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	k8sapi "github.com/ava-labs/avalanchego-operator/api/v1alpha1"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
 )
 
 var _ node.Node = &Node{}
@@ -32,6 +37,12 @@ type Node struct {
 	apiClient api.Client
 	// K8s description of this node
 	k8sObjSpec *k8sapi.Avalanchego
+}
+
+// AttachPeer see Network
+// TODO: Not yet implemented
+func (n *Node) AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error) {
+	return nil, errors.New("AttachPeer is not implemented")
 }
 
 // See node.Node

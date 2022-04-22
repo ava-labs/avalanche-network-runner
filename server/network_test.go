@@ -20,8 +20,9 @@ func TestEvalConfig(t *testing.T) {
 	tLogDir := "/tmp/log"
 	tDbDir := "/tmp/db"
 	tWhitelistedSubnets := "someSubnet"
+	tPluginDir := "/tmp/plugins"
 
-	finalJSON, err := evalConfig(test1, tLogLevel, tLogDir, tDbDir, tWhitelistedSubnets)
+	finalJSON, err := evalConfig(test1, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	var controlMap map[string]interface{}
@@ -42,6 +43,8 @@ func TestEvalConfig(t *testing.T) {
 	test2 := `{
 		"log-dir":"/home/user/logs",
 		"db-dir":"/home/user/db",
+		"plugin-dir":"/home/user/plugins",
+		"log-display-level":"debug",
 		"log-level":"debug",
 		"whitelisted-subnets":"otherSubNets",
 		"index-enabled":false,
@@ -53,7 +56,7 @@ func TestEvalConfig(t *testing.T) {
 	err = json.Unmarshal([]byte(test2), &test2Map)
 	assert.NoError(err)
 
-	finalJSON, err = evalConfig(test2, tLogLevel, tLogDir, tDbDir, tWhitelistedSubnets)
+	finalJSON, err = evalConfig(test2, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)

@@ -10,10 +10,13 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
 	"github.com/ava-labs/avalanche-network-runner/k8s/mocks"
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
+	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
+	infomocks "github.com/ava-labs/avalanchego/api/info/mocks"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -147,12 +150,12 @@ func newDNSChecker() *mocks.DnsReachableChecker {
 // APIs and methods implemented
 func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: true}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 
 	id := ids.GenerateTestShortID().String()
 	infoReply := fmt.Sprintf("%s%s", constants.NodeIDPrefix, id)
-	infoClient := &apimocks.InfoClient{}
+	infoClient := &infomocks.Client{}
 	infoClient.On("GetNodeID", mock.Anything).Return(infoReply, nil)
 
 	client := &apimocks.Client{}
@@ -164,7 +167,7 @@ func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: false}
-	healthClient := &apimocks.HealthClient{}
+	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
@@ -197,6 +200,7 @@ func cleanup(n network.Network) {
 
 // TestNewNetworkEmpty tests that an empty config results in an error
 func TestNewNetworkEmpty(t *testing.T) {
+	t.Parallel()
 	conf := network.Config{}
 	_, err := newTestNetworkWithConfig(conf)
 	assert.Error(t, err)
@@ -204,6 +208,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 
 // TestHealthy tests that a default network can be created and becomes healthy
 func TestHealthy(t *testing.T) {
+	t.Parallel()
 	n, err := newDefaultTestNetwork(t)
 	assert.NoError(t, err)
 	defer cleanup(n)
@@ -219,6 +224,7 @@ func TestHealthy(t *testing.T) {
 // * it removes a node
 // * it stops the network
 func TestNetworkDefault(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	conf := defaultTestNetworkConfig(t)
 	n, err := newTestNetworkWithConfig(conf)
@@ -285,6 +291,7 @@ func TestNetworkDefault(t *testing.T) {
 // TestWrongNetworkConfigs checks configs that are expected to be invalid at network creation time
 // This is adapted from the local test suite
 func TestWrongNetworkConfigs(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		config network.Config
 	}{
@@ -384,6 +391,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 // but also via node.Config and that the latter overrides the former
 // if same keys exist.
 func TestFlags(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := defaultTestNetworkConfig(t)
 
@@ -468,6 +476,7 @@ func TestFlags(t *testing.T) {
 // TestImplSpecificConfigInterface checks incorrect type to interface{} ImplSpecificConfig
 // This is adapted from the local test suite
 func TestImplSpecificConfigInterface(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := defaultTestNetworkConfig(t)
 	networkConfig.NodeConfigs[0].ImplSpecificConfig = json.RawMessage("should be a JSON")
@@ -478,21 +487,12 @@ func TestImplSpecificConfigInterface(t *testing.T) {
 // defaultTestNetworkConfig creates a default size network for testing
 func defaultTestNetworkConfig(t *testing.T) network.Config {
 	assert := assert.New(t)
-	networkConfig := network.Config{
-		Genesis: string(defaultTestGenesis),
-	}
+	networkConfig, err := local.NewDefaultConfigNNodes("pepito", defaultTestNetworkSize)
+	assert.NoError(err)
 	for i := 0; i < defaultTestNetworkSize; i++ {
-		crt, key, err := staking.NewCertAndKeyBytes()
-		assert.NoError(err)
-		nodeConfig := node.Config{
-			Name:               fmt.Sprintf("node%d", i),
-			ImplSpecificConfig: utils.NewK8sNodeConfigJsonRaw("0.00.0000", fmt.Sprintf("testnode-%d", i), "somerepo/someimage", "Avalanchego", "ci-networkrunner", "testingversion"),
-			StakingKey:         string(key),
-			StakingCert:        string(crt),
-		}
-		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
+		networkConfig.NodeConfigs[i].ImplSpecificConfig = utils.NewK8sNodeConfigJsonRaw("0.00.0000", fmt.Sprintf("testnode-%d", i), "somerepo/someimage", "Avalanchego", "ci-networkrunner", "testingversion")
 	}
-	networkConfig.NodeConfigs[0].IsBeacon = true
 	return networkConfig
 }
 

@@ -5,6 +5,7 @@ package control
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/spf13/cobra"
@@ -39,7 +41,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", time.Minute, "client request timeout")
+	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
 
 	cmd.AddCommand(
 		newStartCommand(),
@@ -49,6 +51,8 @@ func NewCommand() *cobra.Command {
 		newStreamStatusCommand(),
 		newRemoveNodeCommand(),
 		newRestartNodeCommand(),
+		newAttachPeerCommand(),
+		newSendOutboundMessageCommand(),
 		newStopCommand(),
 	)
 
@@ -56,9 +60,12 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath string
-	whitelistedSubnets string
-	nodeConfigFilePath string
+	avalancheGoBinPath        string
+	numNodes                  uint32
+	pluginDir                 string
+	whitelistedSubnets        string
+	nodeConfigFilePath        string
+	customVMNameToGenesisPath string
 )
 
 func newStartCommand() *cobra.Command {
@@ -73,11 +80,23 @@ func newStartCommand() *cobra.Command {
 		"",
 		"avalanchego binary path",
 	)
+	cmd.PersistentFlags().Uint32Var(
+		&numNodes,
+		"number-of-nodes",
+		local.DefaultNumNodes,
+		"number of nodes of the network",
+	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
+		&pluginDir,
+		"plugin-dir",
 		"",
-		"whitelisted subnets (comma-separated)",
+		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
+		&customVMNameToGenesisPath,
+		"custom-vms",
+		"",
+		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	cmd.PersistentFlags().StringVar(
 		&nodeConfigFilePath,
@@ -113,14 +132,26 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		}
 		configFileContents = string(js)
 	}
+	opts := []client.OpOption{
+		client.WithNumNodes(numNodes),
+		client.WithPluginDir(pluginDir),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithNodeConfig(configFileContents),
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// don't call since "start" is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "Start" async ops
+	// when the deadline is reached
+	_ = cancel
+
 	info, err := cli.Start(
 		ctx,
 		avalancheGoBinPath,
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithNodeConfig(configFileContents),
+		opts...,
 	)
-	cancel()
 	if err != nil {
 		return err
 	}
@@ -351,13 +382,116 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.RestartNode(ctx, nodeName, avalancheGoBinPath, client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.RestartNode(ctx, nodeName, client.WithExecPath(avalancheGoBinPath), client.WithWhitelistedSubnets(whitelistedSubnets))
 	cancel()
 	if err != nil {
 		return err
 	}
 
 	color.Outf("{{green}}restart node response:{{/}} %+v\n", info)
+	return nil
+}
+
+func newAttachPeerCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attach-peer [options]",
+		Short: "Attaches a peer to the node.",
+		RunE:  attachPeerFunc,
+	}
+	cmd.PersistentFlags().StringVar(
+		&nodeName,
+		"node-name",
+		"",
+		"node name to attach a peer to",
+	)
+	return cmd
+}
+
+func attachPeerFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.AttachPeer(ctx, nodeName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}attach peer response:{{/}} %+v\n", resp)
+	return nil
+}
+
+var (
+	peerID      string
+	msgOp       uint32
+	msgBytesB64 string
+)
+
+func newSendOutboundMessageCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-outbound-message [options]",
+		Short: "Sends an outbound message to an attached peer.",
+		RunE:  sendOutboundMessageFunc,
+	}
+	cmd.PersistentFlags().StringVar(
+		&nodeName,
+		"node-name",
+		"",
+		"node name that has an attached peer",
+	)
+	cmd.PersistentFlags().StringVar(
+		&peerID,
+		"peer-id",
+		"",
+		"peer ID to send a message to",
+	)
+	cmd.PersistentFlags().Uint32Var(
+		&msgOp,
+		"message-op",
+		0,
+		"Message operation type",
+	)
+	cmd.PersistentFlags().StringVar(
+		&msgBytesB64,
+		"message-bytes-b64",
+		"",
+		"Message bytes in base64 encoding",
+	)
+	return cmd
+}
+
+func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	b, err := base64.StdEncoding.DecodeString(msgBytesB64)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.SendOutboundMessage(ctx, nodeName, peerID, msgOp, b)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}send outbound message response:{{/}} %+v\n", resp)
 	return nil
 }
 

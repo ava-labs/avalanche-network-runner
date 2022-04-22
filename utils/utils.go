@@ -1,32 +1,26 @@
 package utils
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/staking"
 )
 
 const genesisNetworkIDKey = "networkID"
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
-	cert, err := tls.X509KeyPair(stakingCert, stakingKey)
+	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
 		return ids.ShortID{}, err
 	}
-	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return ids.ShortID{}, err
-	}
-	nodeID := ids.ShortID(
-		hashing.ComputeHash160Array(
-			hashing.ComputeHash256(cert.Leaf.Raw),
-		),
-	)
-	return nodeID, err
+	nodeID := peer.CertToID(cert.Leaf)
+	return nodeID, nil
 }
 
 // Returns the network ID in the given genesis
@@ -67,4 +61,55 @@ func NewK8sNodeConfigJsonRaw(
 			api, id, image, kind, namespace, tag,
 		),
 	)
+}
+
+var (
+	ErrInvalidExecPath        = errors.New("avalanche exec is invalid")
+	ErrNotExists              = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin        = errors.New("plugin exec not exists")
+	ErrNotExistsPluginGenesis = errors.New("plugin genesis not exists")
+)
+
+func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath string) error {
+	if exec == "" {
+		return ErrInvalidExecPath
+	}
+	_, err := os.Stat(exec)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExists
+		}
+		return fmt.Errorf("failed to stat exec %q (%w)", exec, err)
+	}
+
+	// no custom VM is specified
+	// no need to check further
+	// (subnet installation is optional)
+	if pluginExec == "" {
+		return nil
+	}
+
+	if _, err = os.Stat(pluginExec); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExistsPlugin
+		}
+		return fmt.Errorf("failed to stat plugin exec %q (%w)", pluginExec, err)
+	}
+	if _, err = os.Stat(pluginGenesisPath); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return ErrNotExistsPluginGenesis
+		}
+		return fmt.Errorf("failed to stat plugin genesis %q (%w)", pluginGenesisPath, err)
+	}
+
+	return nil
+}
+
+func VMID(vmName string) (ids.ID, error) {
+	if len(vmName) > 32 {
+		return ids.Empty, fmt.Errorf("VM name must be <= 32 bytes, found %d", len(vmName))
+	}
+	b := make([]byte, 32)
+	copy(b, []byte(vmName))
+	return ids.ToID(b)
 }

@@ -20,9 +20,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -34,7 +36,7 @@ const (
 	genesisFileName       = "genesis.json"
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
-	defaultNumNodes       = 5
+	DefaultNumNodes       = 5
 )
 
 // interface compliance
@@ -100,7 +102,7 @@ func init() {
 
 	defaultNetworkConfig = network.Config{
 		Name:        "my network",
-		NodeConfigs: make([]node.Config, defaultNumNodes),
+		NodeConfigs: make([]node.Config, DefaultNumNodes),
 		LogLevel:    "INFO",
 	}
 
@@ -125,12 +127,12 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
+		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		cChainConfig, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/cchain_config.json", i))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].CChainConfigFile = string(cChainConfig)
-		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 }
@@ -184,7 +186,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	return &nodeProcessImpl{cmd: cmd}, nil
 }
 
-// Returns a new network from the given config that uses the given log.
+// NewNetwork returns a new network from the given config that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [dir].
 // If there isn't a directory at [dir] one will be created.
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
@@ -325,6 +327,37 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	return config
 }
 
+// NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
+	netConfig := NewDefaultConfig(binaryPath)
+	if int(numNodes) > len(netConfig.NodeConfigs) {
+		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
+		refNodeConfig := netConfig.NodeConfigs[0]
+		for i := 0; i < toAdd; i++ {
+			nodeConfig := refNodeConfig
+			stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+			if err != nil {
+				return netConfig, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+			}
+			nodeConfig.StakingKey = string(stakingKey)
+			nodeConfig.StakingCert = string(stakingCert)
+			// replace api port in refNodeConfig.ConfigFile
+			apiPort, err := getFreePort()
+			if err != nil {
+				return netConfig, fmt.Errorf("couldn't get free API port: %w", err)
+			}
+			nodeConfig.Flags = map[string]interface{}{
+				config.HTTPPortKey: int(apiPort),
+			}
+			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
+		}
+	}
+	if int(numNodes) < len(netConfig.NodeConfigs) {
+		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
+	}
+	return netConfig, nil
+}
+
 // See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
@@ -388,12 +421,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:    nodeConfig.Name,
-		nodeID:  nodeID,
-		client:  ln.newAPIClientF("localhost", apiPort),
-		process: nodeProcess,
-		apiPort: apiPort,
-		p2pPort: p2pPort,
+		name:        nodeConfig.Name,
+		nodeID:      nodeID,
+		networkID:   ln.networkID,
+		client:      ln.newAPIClientF("localhost", apiPort),
+		process:     nodeProcess,
+		apiPort:     apiPort,
+		p2pPort:     p2pPort,
+		getConnFunc: defaultGetConnFunc,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -413,6 +448,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
+	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
@@ -426,7 +462,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 		nodes = append(nodes, node)
 	}
 	go func() {
-		errGr, ctx := errgroup.WithContext(ctx)
+		errGr, cctx := errgroup.WithContext(ctx)
 		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
@@ -436,11 +472,11 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 					select {
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
-					case <-ctx.Done():
+					case <-cctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health(ctx)
+					health, err := node.client.HealthAPI().Health(cctx)
 					if err == nil && health.Healthy {
 						ln.log.Debug("node %q became healthy", node.name)
 						return nil

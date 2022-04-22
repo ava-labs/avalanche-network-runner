@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+export RUN_E2E="true"
 # e.g.,
-# ./scripts/tests.e2e.sh 1.7.3 1.7.4
+# ./scripts/tests.e2e.sh 1.7.9 1.7.10
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255
@@ -85,7 +86,7 @@ go build -v -o /tmp/network.runner ./cmd/avalanche-network-runner
 
 echo "building e2e.test"
 # to install the ginkgo binary (required for test build and run)
-go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
+go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.1.3
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 ./tests/e2e/e2e.test --help
 
@@ -94,7 +95,7 @@ echo "launch local test cluster in the background"
 server \
 --log-level debug \
 --port=":8080" \
---grpc-gateway-port=":8081" 2> /dev/null &
+--grpc-gateway-port=":8081" &
 PID=${!}
 
 echo "running e2e tests"

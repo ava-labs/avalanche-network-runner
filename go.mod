@@ -2,14 +2,19 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.17
 
+// ignores the dependency for Rust SDK
+// only used for protocol buffer submodule
+exclude google.golang.org/api v0.62.0
+
 require (
-	github.com/ava-labs/avalanchego v1.7.7
+	github.com/ava-labs/avalanchego v1.7.11-0.20220416161358-8755486a274e
 	github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf
-	github.com/ava-labs/coreth v0.8.7-rc.2
+	github.com/ava-labs/coreth v0.8.9-rc.1
 	github.com/ethereum/go-ethereum v1.10.16
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.2
-	github.com/onsi/ginkgo/v2 v2.1.0
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/ginkgo/v2 v2.1.3
+	github.com/onsi/gomega v1.19.0
+	github.com/prometheus/client_golang v1.11.0
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.21.0
@@ -37,7 +42,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200627015759-01fd2de07837 // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
@@ -54,10 +58,10 @@ require (
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa // indirect
 	github.com/google/uuid v1.1.5 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
-	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/rpc v1.2.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/hashicorp/go-bexpr v0.1.10 // indirect
 	github.com/hashicorp/go-hclog v1.0.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.3 // indirect
@@ -92,7 +96,6 @@ require (
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
@@ -126,7 +129,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.66.2 // indirect
-	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6 // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
@@ -139,8 +141,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-// duktape is very slow to build including a bunch of C code in a single file
-// ref. https://github.com/ethereum/go-ethereum/issues/20590
-// ref. https://github.com/vocdoni/vocdoni-node/commit/5670fb0eeac873eb1b1fec99889976c06aaab20b
-replace gopkg.in/olebedev/go-duktape.v3 => ./internal/go-duktape/v3

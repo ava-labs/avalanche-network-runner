@@ -116,6 +116,8 @@ type ControlServiceClient interface {
 	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
 	RestartNode(ctx context.Context, in *RestartNodeRequest, opts ...grpc.CallOption) (*RestartNodeResponse, error)
 	Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error)
+	AttachPeer(ctx context.Context, in *AttachPeerRequest, opts ...grpc.CallOption) (*AttachPeerResponse, error)
+	SendOutboundMessage(ctx context.Context, in *SendOutboundMessageRequest, opts ...grpc.CallOption) (*SendOutboundMessageResponse, error)
 }
 
 type controlServiceClient struct {
@@ -221,6 +223,24 @@ func (c *controlServiceClient) Stop(ctx context.Context, in *StopRequest, opts .
 	return out, nil
 }
 
+func (c *controlServiceClient) AttachPeer(ctx context.Context, in *AttachPeerRequest, opts ...grpc.CallOption) (*AttachPeerResponse, error) {
+	out := new(AttachPeerResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/AttachPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) SendOutboundMessage(ctx context.Context, in *SendOutboundMessageRequest, opts ...grpc.CallOption) (*SendOutboundMessageResponse, error) {
+	out := new(SendOutboundMessageResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/SendOutboundMessage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlServiceServer is the server API for ControlService service.
 // All implementations must embed UnimplementedControlServiceServer
 // for forward compatibility
@@ -233,6 +253,8 @@ type ControlServiceServer interface {
 	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
 	RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error)
 	Stop(context.Context, *StopRequest) (*StopResponse, error)
+	AttachPeer(context.Context, *AttachPeerRequest) (*AttachPeerResponse, error)
+	SendOutboundMessage(context.Context, *SendOutboundMessageRequest) (*SendOutboundMessageResponse, error)
 	mustEmbedUnimplementedControlServiceServer()
 }
 
@@ -263,6 +285,12 @@ func (UnimplementedControlServiceServer) RestartNode(context.Context, *RestartNo
 }
 func (UnimplementedControlServiceServer) Stop(context.Context, *StopRequest) (*StopResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
+}
+func (UnimplementedControlServiceServer) AttachPeer(context.Context, *AttachPeerRequest) (*AttachPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttachPeer not implemented")
+}
+func (UnimplementedControlServiceServer) SendOutboundMessage(context.Context, *SendOutboundMessageRequest) (*SendOutboundMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendOutboundMessage not implemented")
 }
 func (UnimplementedControlServiceServer) mustEmbedUnimplementedControlServiceServer() {}
 
@@ -424,6 +452,42 @@ func _ControlService_Stop_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlService_AttachPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttachPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).AttachPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/AttachPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).AttachPeer(ctx, req.(*AttachPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_SendOutboundMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendOutboundMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).SendOutboundMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/SendOutboundMessage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).SendOutboundMessage(ctx, req.(*SendOutboundMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ControlService_ServiceDesc is the grpc.ServiceDesc for ControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -458,6 +522,14 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Stop",
 			Handler:    _ControlService_Stop_Handler,
+		},
+		{
+			MethodName: "AttachPeer",
+			Handler:    _ControlService_AttachPeer_Handler,
+		},
+		{
+			MethodName: "SendOutboundMessage",
+			Handler:    _ControlService_SendOutboundMessage_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

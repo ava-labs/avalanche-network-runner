@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
@@ -36,8 +37,10 @@ type Client interface {
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
 	StreamStatus(ctx context.Context, pushInterval time.Duration) (<-chan *rpcpb.ClusterInfo, error)
 	RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error)
-	RestartNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
+	RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
 	Stop(ctx context.Context) (*rpcpb.StopResponse, error)
+	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
+	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
 }
 
@@ -93,16 +96,34 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {
-	ret := &Op{}
+	ret := &Op{numNodes: local.DefaultNumNodes}
 	ret.applyOpts(opts)
 
+	req := &rpcpb.StartRequest{
+		ExecPath: execPath,
+		NumNodes: &ret.numNodes,
+	}
+	if ret.whitelistedSubnets != "" {
+		req.WhitelistedSubnets = &ret.whitelistedSubnets
+	}
+	if ret.logLevel != "" {
+		req.LogLevel = &ret.logLevel
+	}
+	if ret.rootDataDir != "" {
+		req.RootDataDir = &ret.rootDataDir
+	}
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
+	}
+	if len(ret.customVMs) > 0 {
+		req.CustomVms = ret.customVMs
+	}
+	if ret.nodeConfig != "" {
+		req.NodeConfig = &ret.nodeConfig
+	}
+
 	zap.L().Info("start")
-	return c.controlc.Start(ctx, &rpcpb.StartRequest{
-		ExecPath:           execPath,
-		WhitelistedSubnets: &ret.whitelistedSubnets,
-		LogLevel:           &ret.logLevel,
-		NodeConfig:         &ret.nodeConfig,
-	})
+	return c.controlc.Start(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
@@ -181,17 +202,40 @@ func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNode
 	return c.controlc.RemoveNode(ctx, &rpcpb.RemoveNodeRequest{Name: name})
 }
 
-func (c *client) RestartNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error) {
+func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
+	req := &rpcpb.RestartNodeRequest{Name: name}
+	if ret.execPath != "" {
+		req.ExecPath = &ret.execPath
+	}
+	if ret.whitelistedSubnets != "" {
+		req.WhitelistedSubnets = &ret.whitelistedSubnets
+	}
+	if ret.logLevel != "" {
+		req.LogLevel = &ret.logLevel
+	}
+	if ret.rootDataDir != "" {
+		req.RootDataDir = &ret.rootDataDir
+	}
+
 	zap.L().Info("restart node", zap.String("name", name))
-	return c.controlc.RestartNode(ctx, &rpcpb.RestartNodeRequest{
-		Name: name,
-		StartRequest: &rpcpb.StartRequest{
-			ExecPath:           execPath,
-			WhitelistedSubnets: &ret.whitelistedSubnets,
-		},
+	return c.controlc.RestartNode(ctx, req)
+}
+
+func (c *client) AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error) {
+	zap.L().Info("attaching peer", zap.String("node-name", nodeName))
+	return c.controlc.AttachPeer(ctx, &rpcpb.AttachPeerRequest{NodeName: nodeName})
+}
+
+func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error) {
+	zap.L().Info("sending outbound message", zap.String("node-name", nodeName), zap.String("peer-id", peerID))
+	return c.controlc.SendOutboundMessage(ctx, &rpcpb.SendOutboundMessageRequest{
+		NodeName: nodeName,
+		PeerId:   peerID,
+		Op:       op,
+		Bytes:    msgBody,
 	})
 }
 
@@ -203,9 +247,14 @@ func (c *client) Close() error {
 }
 
 type Op struct {
+	numNodes           uint32
+	execPath           string
 	whitelistedSubnets string
 	logLevel           string
 	nodeConfig         string
+	rootDataDir        string
+	pluginDir          string
+	customVMs          map[string]string
 }
 
 type OpOption func(*Op)
@@ -222,6 +271,18 @@ func WithNodeConfig(nodeConfig string) OpOption {
 	}
 }
 
+func WithNumNodes(numNodes uint32) OpOption {
+	return func(op *Op) {
+		op.numNodes = numNodes
+	}
+}
+
+func WithExecPath(execPath string) OpOption {
+	return func(op *Op) {
+		op.execPath = execPath
+	}
+}
+
 func WithWhitelistedSubnets(whitelistedSubnets string) OpOption {
 	return func(op *Op) {
 		op.whitelistedSubnets = whitelistedSubnets
@@ -231,6 +292,25 @@ func WithWhitelistedSubnets(whitelistedSubnets string) OpOption {
 func WithLogLevel(logLevel string) OpOption {
 	return func(op *Op) {
 		op.logLevel = logLevel
+	}
+}
+
+func WithRootDataDir(rootDataDir string) OpOption {
+	return func(op *Op) {
+		op.rootDataDir = rootDataDir
+	}
+}
+
+func WithPluginDir(pluginDir string) OpOption {
+	return func(op *Op) {
+		op.pluginDir = pluginDir
+	}
+}
+
+// Map from VM name to its genesis path.
+func WithCustomVMs(customVMs map[string]string) OpOption {
+	return func(op *Op) {
+		op.customVMs = customVMs
 	}
 }
 

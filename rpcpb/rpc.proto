@@ -77,6 +77,20 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc AttachPeer(AttachPeerRequest) returns (AttachPeerResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/attachpeer"
+      body: "*"
+    };
+  }
+
+  rpc SendOutboundMessage(SendOutboundMessageRequest) returns (SendOutboundMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/sendoutboundmessage"
+      body: "*"
+    };
+  }
 }
 
 message ClusterInfo {
@@ -85,6 +99,29 @@ message ClusterInfo {
   int32 pid                        = 3;
   string root_data_dir             = 4;
   bool healthy                     = 5;
+
+  // Maps from the node ID to its attached peer infos.
+  map<string, ListOfAttachedPeerInfo> attached_peer_infos = 6;
+
+  // Set to "true" once custom VMs are ready.
+  bool custom_vms_healthy = 7;
+  // The map of custom VM IDs in "ids.ID" format to its VM information.
+  map<string, CustomVmInfo> custom_vms = 8;
+}
+
+message CustomVmInfo {
+  string vm_name = 1;
+
+  // VM ID in "ids.ID" format.
+  string vm_id = 2;
+
+  // Create subnet transaction ID -- subnet ID.
+  // The subnet ID must be whitelisted by the avalanche node.
+  string subnet_id = 3;
+
+  // Create blockchain transaction ID -- blockchain ID>
+  // The blockchain ID is used for RPC endpoints for the custom VM.
+  string blockchain_id = 4;
 }
 
 message NodeInfo {
@@ -94,15 +131,42 @@ message NodeInfo {
   string id                   = 4;
   string log_dir              = 5;
   string db_dir               = 6;
-  string whitelisted_subnets  = 7;
-  bytes config                = 8;
+  string plugin_dir           = 7;
+  string whitelisted_subnets  = 8;
+  bytes config                = 9;
+}
+
+message AttachedPeerInfo {
+  string id = 1;
+}
+
+message ListOfAttachedPeerInfo {
+  repeated AttachedPeerInfo peers = 1;
 }
 
 message StartRequest {
   string exec_path                    = 1;
-  optional string whitelisted_subnets = 2;
-  optional string log_level           = 3;
-  optional string node_config         = 4;
+  optional uint32 num_nodes           = 2;
+  optional string whitelisted_subnets = 3;
+  optional string log_level           = 4;
+  optional string node_config         = 5;
+  // Used for both database and log files.
+  optional string root_data_dir = 6;
+
+  // Plugin directory to load all custom VM executables.
+  // Must be non-empty to install custom VMs.
+  optional string plugin_dir = 7;
+
+  // The map of custom VM name to its genesis file path.
+  //
+  // The matching file with the name in "ids.ID" format must exist.
+  // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
+  // e.g., subnet-cli create VMID subnetevm
+  //
+  // If this field is set to none (by default), the node/network-runner
+  // does not install the custom VM and does not create the subnet,
+  // even if the VM binary exists on the local plugins directory.
+  map<string, string> custom_vms = 8;
 }
 
 message StartResponse {
@@ -136,8 +200,16 @@ message StreamStatusResponse {
 }
 
 message RestartNodeRequest {
-  string name                = 1;
-  StartRequest start_request = 2;
+  // Must be a valid node name.
+  string name = 1;
+
+  // Optional fields are set to the previous values if empty.
+  optional string exec_path           = 2;
+  optional string whitelisted_subnets = 3;
+  optional string log_level           = 4;
+
+  // Used for both database and log files.
+  optional string root_data_dir = 5;
 }
 
 message RestartNodeResponse {
@@ -156,4 +228,24 @@ message StopRequest {}
 
 message StopResponse {
   ClusterInfo cluster_info = 1;
+}
+
+message AttachPeerRequest {
+  string node_name = 1;
+}
+
+message AttachPeerResponse {
+  ClusterInfo cluster_info = 1;
+  AttachedPeerInfo attached_peer_info = 2;
+}
+
+message SendOutboundMessageRequest {
+  string node_name = 1;
+  string peer_id   = 2;
+  uint32 op        = 3;
+  bytes bytes      = 4;
+}
+
+message SendOutboundMessageResponse {
+  bool sent = 1;
 }

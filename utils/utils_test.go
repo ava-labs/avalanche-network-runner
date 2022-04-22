@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,4 +48,75 @@ func TestExtractNetworkID(t *testing.T) {
 	netID, err := NetworkIDFromGenesis(genesis)
 	assert.NoError(t, err)
 	assert.EqualValues(t, netID, 1337)
+}
+
+func TestCheckExecPluginPaths(t *testing.T) {
+	execF, err := os.CreateTemp(os.TempDir(), "test-check-exec")
+	assert.NoError(t, err)
+	execPath := execF.Name()
+	assert.NoError(t, execF.Close())
+
+	pluginF, err := os.CreateTemp(os.TempDir(), "test-check-exec-plugin")
+	assert.NoError(t, err)
+	pluginPath := pluginF.Name()
+	assert.NoError(t, pluginF.Close())
+
+	genesisF, err := os.CreateTemp(os.TempDir(), "test-check-genesis-plugin")
+	assert.NoError(t, err)
+	genesisPath := genesisF.Name()
+	assert.NoError(t, genesisF.Close())
+
+	t.Cleanup(func() {
+		os.RemoveAll(execPath)
+		os.RemoveAll(pluginPath)
+		os.RemoveAll(genesisPath)
+	})
+
+	tt := []struct {
+		execPath    string
+		pluginPath  string
+		genesisPath string
+		expectedErr error
+	}{
+		{
+			execPath:    execPath,
+			pluginPath:  "",
+			genesisPath: "",
+			expectedErr: nil,
+		},
+		{
+			execPath:    execPath,
+			pluginPath:  pluginPath,
+			genesisPath: genesisPath,
+			expectedErr: nil,
+		},
+		{
+			execPath:    "",
+			pluginPath:  "",
+			genesisPath: "",
+			expectedErr: ErrInvalidExecPath,
+		},
+		{
+			execPath:    "invalid",
+			pluginPath:  "",
+			genesisPath: "",
+			expectedErr: ErrNotExists,
+		},
+		{
+			execPath:    execPath,
+			pluginPath:  "invalid",
+			genesisPath: "",
+			expectedErr: ErrNotExistsPlugin,
+		},
+		{
+			execPath:    execPath,
+			pluginPath:  pluginPath,
+			genesisPath: "invalid",
+			expectedErr: ErrNotExistsPluginGenesis,
+		},
+	}
+	for i, tv := range tt {
+		err := CheckExecPluginPaths(tv.execPath, tv.pluginPath, tv.genesisPath)
+		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
+	}
 }
