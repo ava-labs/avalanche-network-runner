@@ -90,11 +90,11 @@ func newNetwork(execPath string, rootDataDir string, whitelistedSubnets string, 
 		if nodeConfigParam != "" {
 			nodeConfig = nodeConfigParam
 		}
-		finalJSON, err := evalConfig(nodeConfig, logLevel, logDir, dbDir, whitelistedSubnets)
+		finalNodeConfig, err := evalConfig(nodeConfig, logLevel, logDir, dbDir, whitelistedSubnets)
 		if err != nil {
 			return nil, err
 		}
-		cfg.NodeConfigs[i].ConfigFile = string(finalJSON)
+		cfg.NodeConfigs[i].ConfigFile = finalNodeConfig
 
 		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath))
 

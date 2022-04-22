@@ -195,7 +195,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 	zap.L().Info("starting",
-
 		zap.String("execPath", req.ExecPath),
 		zap.String("whitelistedSubnets", req.GetWhitelistedSubnets()),
 		zap.Int32("pid", s.clusterInfo.GetPid()),
