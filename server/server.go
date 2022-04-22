@@ -526,6 +526,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	var logLevel, whitelistedSubnets, pluginDir string
+
 	nodeName := req.Name
 	if _, exists := s.network.nodeInfos[nodeName]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", nodeName)
@@ -543,9 +545,15 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		}
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
-	logLevel := *req.StartRequest.LogLevel
-	whitelistedSubnets := *req.StartRequest.WhitelistedSubnets
-	pluginDir := *req.StartRequest.PluginDir
+	if req.StartRequest.LogLevel != nil {
+		logLevel = *req.StartRequest.LogLevel
+	}
+	if req.StartRequest.WhitelistedSubnets != nil {
+		whitelistedSubnets = *req.StartRequest.WhitelistedSubnets
+	}
+	if req.StartRequest.PluginDir != nil {
+		pluginDir = *req.StartRequest.PluginDir
+	}
 
 	rootDataDir := s.clusterInfo.RootDataDir
 

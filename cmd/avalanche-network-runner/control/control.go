@@ -25,10 +25,11 @@ func init() {
 }
 
 var (
-	logLevel       string
-	endpoint       string
-	dialTimeout    time.Duration
-	requestTimeout time.Duration
+	logLevel           string
+	whitelistedSubnets string
+	endpoint           string
+	dialTimeout        time.Duration
+	requestTimeout     time.Duration
 )
 
 func NewCommand() *cobra.Command {
@@ -327,8 +328,6 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var whitelistedSubnets string
-
 func newAddNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-node [options]",
@@ -365,6 +364,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"[optional] plugin directory",
 	)
+	cmd.PersistentFlags().StringVar(
+		&customVMNameToGenesisPath,
+		"custom-vms",
+		"",
+		"[optional] JSON string of map that maps from VM to its genesis file path",
+	)
 	return cmd
 }
 
@@ -379,13 +384,27 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	opts := []client.OpOption{
+		client.WithPluginDir(pluginDir),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithLogLevel(logLevel),
+	}
+	if customVMNameToGenesisPath != "" {
+		customVMs := make(map[string]string)
+		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, client.WithCustomVMs(customVMs))
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	info, err := cli.AddNode(
 		ctx,
 		nodeName,
 		avalancheGoBinPath,
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithLogLevel(logLevel))
+		opts...,
+	)
 	cancel()
 	if err != nil {
 		return err

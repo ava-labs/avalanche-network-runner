@@ -199,7 +199,10 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	req := &rpcpb.AddNodeRequest{Name: name}
+	req := &rpcpb.AddNodeRequest{
+		Name:         name,
+		StartRequest: &rpcpb.StartRequest{},
+	}
 	if ret.whitelistedSubnets != "" {
 		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
