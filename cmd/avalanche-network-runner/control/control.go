@@ -64,7 +64,7 @@ var (
 	numNodes                  uint32
 	pluginDir                 string
 	whitelistedSubnets        string
-	nodeConfigFilePath        string
+	nodeConfigFile            string
 	customVMNameToGenesisPath string
 )
 
@@ -99,10 +99,10 @@ func newStartCommand() *cobra.Command {
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&nodeConfigFilePath,
-		"node-config-path",
+		&nodeConfigFile,
+		"node-config",
 		"",
-		"path to file with node configs",
+		"node config as string",
 	)
 	return cmd
 }
@@ -118,25 +118,20 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	configFileContents := ""
-	if nodeConfigFilePath != "" {
-		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config file{{/}} %+v\n", nodeConfigFilePath)
-		fileBytes, err := os.ReadFile(nodeConfigFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to read provided config file: %s", err)
-		}
+	if nodeConfigFile != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfigFile)
+
 		// validate it's valid JSON
 		var js json.RawMessage
-		if err := json.Unmarshal(fileBytes, &js); err != nil {
+		if err := json.Unmarshal([]byte(nodeConfigFile), &js); err != nil {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
-		configFileContents = string(js)
 	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithNodeConfig(configFileContents),
+		client.WithNodeConfig(nodeConfigFile),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
