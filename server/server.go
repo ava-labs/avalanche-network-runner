@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/staking"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -512,6 +514,84 @@ func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error 
 			return err
 		}
 	}
+}
+
+func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.AddNodeResponse, error) {
+	zap.L().Debug("received add node request", zap.String("name", req.Name))
+
+	if info := s.getClusterInfo(); info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var logLevel, whitelistedSubnets, pluginDir string
+
+	if _, exists := s.network.nodeInfos[req.Name]; exists {
+		return nil, fmt.Errorf("node with name %s already exists", req.Name)
+	}
+	// user can override bin path for this node...
+	execPath := req.StartRequest.ExecPath
+	if execPath == "" {
+		// ...or use the same binary as the rest of the network
+		execPath = s.network.binPath
+	}
+	_, err := os.Stat(execPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, utils.ErrNotExists
+		}
+		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
+	}
+	if req.StartRequest.LogLevel != nil {
+		logLevel = *req.StartRequest.LogLevel
+	}
+	if req.StartRequest.WhitelistedSubnets != nil {
+		whitelistedSubnets = *req.StartRequest.WhitelistedSubnets
+	}
+	if req.StartRequest.PluginDir != nil {
+		pluginDir = *req.StartRequest.PluginDir
+	}
+
+	rootDataDir := s.clusterInfo.RootDataDir
+
+	logDir := filepath.Join(rootDataDir, req.Name, "log")
+	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
+
+	configFile := createConfigFileString(logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+	}
+
+	nodeConfig := node.Config{
+		Name:               req.Name,
+		ConfigFile:         configFile,
+		ImplSpecificConfig: json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath)),
+		StakingKey:         string(stakingKey),
+		StakingCert:        string(stakingCert),
+	}
+	_, err = s.network.nw.AddNode(nodeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	s.network.nodeNames = append(s.network.nodeNames, req.Name)
+
+	info := &rpcpb.NodeInfo{
+		Name:               req.Name,
+		ExecPath:           execPath,
+		Uri:                "",
+		Id:                 "",
+		LogDir:             logDir,
+		DbDir:              dbDir,
+		WhitelistedSubnets: whitelistedSubnets,
+		Config:             []byte(configFile),
+	}
+	s.network.nodeInfos[req.Name] = info
+
+	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (*rpcpb.RemoveNodeResponse, error) {
