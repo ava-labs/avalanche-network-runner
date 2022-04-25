@@ -105,35 +105,10 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
-
-		// need to whitelist subnet ID to create custom VM chain
-		// ref. vms/platformvm/createChain
-		cfg.NodeConfigs[i].ConfigFile = fmt.Sprintf(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"%s",
-	"log-level":"%s",
-	"log-dir":"%s",
-	"db-dir":"%s",
-	"plugin-dir":"%s",
-	"whitelisted-subnets":"%s"
-}`,
-			strings.ToUpper(logLevel),
-			strings.ToUpper(logLevel),
-			logDir,
-			dbDir,
-			opts.pluginDir,
-			opts.whitelistedSubnets,
-		)
+		cfg.NodeConfigs[i].ConfigFile = createConfigFileString(logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		cfg.NodeConfigs[i].BinaryPath = opts.execPath
 		cfg.NodeConfigs[i].RedirectStdout = true
 		cfg.NodeConfigs[i].RedirectStderr = true
-
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
 			ExecPath:           opts.execPath,
@@ -171,7 +146,33 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-// provisions local cluster and install custom VMs if applicable
+func createConfigFileString(logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) string {
+	// need to whitelist subnet ID to create custom VM chain
+	// ref. vms/platformvm/createChain
+	return fmt.Sprintf(`{
+	"network-peer-list-gossip-frequency":"250ms",
+	"network-max-reconnect-delay":"1s",
+	"public-ip":"127.0.0.1",
+	"health-check-frequency":"2s",
+	"api-admin-enabled":true,
+	"api-ipcs-enabled":true,
+	"index-enabled":true,
+	"log-display-level":"%s",
+	"log-level":"%s",
+	"log-dir":"%s",
+	"db-dir":"%s",
+	"plugin-dir":"%s",
+	"whitelisted-subnets":"%s"
+}`,
+		strings.ToUpper(logLevel),
+		strings.ToUpper(logLevel),
+		logDir,
+		dbDir,
+		pluginDir,
+		whitelistedSubnets,
+	)
+}
+
 func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
 		close(lc.startDonec)

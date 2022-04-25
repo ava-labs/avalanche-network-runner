@@ -38,6 +38,7 @@ type Client interface {
 	StreamStatus(ctx context.Context, pushInterval time.Duration) (<-chan *rpcpb.ClusterInfo, error)
 	RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error)
 	RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
+	AddNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.AddNodeResponse, error)
 	Stop(ctx context.Context) (*rpcpb.StopResponse, error)
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
@@ -192,6 +193,31 @@ func (c *client) StreamStatus(ctx context.Context, pushInterval time.Duration) (
 func (c *client) Stop(ctx context.Context) (*rpcpb.StopResponse, error) {
 	zap.L().Info("stop")
 	return c.controlc.Stop(ctx, &rpcpb.StopRequest{})
+}
+
+func (c *client) AddNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.AddNodeResponse, error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	req := &rpcpb.AddNodeRequest{
+		Name:         name,
+		StartRequest: &rpcpb.StartRequest{},
+	}
+	if ret.whitelistedSubnets != "" {
+		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
+	}
+	if ret.logLevel != "" {
+		req.StartRequest.LogLevel = &ret.logLevel
+	}
+	if ret.execPath != "" {
+		req.StartRequest.ExecPath = ret.execPath
+	}
+	if ret.pluginDir != "" {
+		req.StartRequest.PluginDir = &ret.pluginDir
+	}
+
+	zap.L().Info("add node", zap.String("name", name))
+	return c.controlc.AddNode(ctx, req)
 }
 
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {

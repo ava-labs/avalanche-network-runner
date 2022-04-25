@@ -2,10 +2,6 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.17
 
-// ignores the dependency for Rust SDK
-// only used for protocol buffer submodule
-exclude google.golang.org/api v0.62.0
-
 require (
 	github.com/ava-labs/avalanchego v1.7.11-0.20220416161358-8755486a274e
 	github.com/ava-labs/coreth v0.8.9-rc.1
