@@ -196,25 +196,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
 		})
-
-		ginkgo.By("calling AddNode", func() {
-			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
-		})
-
-		ginkgo.By("calling AddNode with existing node name, should fail", func() {
-			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
-			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("already exists"))
-			gomega.Ω(resp).Should(gomega.BeNil())
-			color.Outf("{{green}}add-node failed as expected")
-		})
 	})
 
 	ginkgo.It("can wait for health", func() {
@@ -312,6 +293,28 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(sresp.Sent).Should(gomega.BeTrue())
+		})
+	})
+
+	time.Sleep(10 * time.Second)
+	ginkgo.It("can add a node", func() {
+		ginkgo.By("calling AddNode", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+
+		ginkgo.By("calling AddNode with existing node name, should fail", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("already exists"))
+			gomega.Ω(resp).Should(gomega.BeNil())
+			color.Outf("{{green}}add-node failed as expected")
 		})
 	})
 })
