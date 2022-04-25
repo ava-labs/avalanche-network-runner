@@ -528,9 +528,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	var logLevel, whitelistedSubnets, pluginDir string
 
-	nodeName := req.Name
-	if _, exists := s.network.nodeInfos[nodeName]; exists {
-		return nil, fmt.Errorf("node with name %s already exists", nodeName)
+	if _, exists := s.network.nodeInfos[req.Name]; exists {
+		return nil, fmt.Errorf("node with name %s already exists", req.Name)
 	}
 	// user can override bin path for this node...
 	execPath := req.StartRequest.ExecPath
@@ -557,8 +556,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	rootDataDir := s.clusterInfo.RootDataDir
 
-	logDir := filepath.Join(rootDataDir, nodeName, "log")
-	dbDir := filepath.Join(rootDataDir, nodeName, "db-dir")
+	logDir := filepath.Join(rootDataDir, req.Name, "log")
+	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
 
 	configFile := createConfigFileString(logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
@@ -572,13 +571,14 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		StakingKey:         string(stakingKey),
 		StakingCert:        string(stakingCert),
 	}
-	s.network.nodeNames = append(s.network.nodeNames, req.Name)
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	s.network.nodeNames = append(s.network.nodeNames, req.Name)
 	info := &rpcpb.NodeInfo{
-		Name:               nodeName,
+		Name:               req.Name,
 		ExecPath:           execPath,
 		Uri:                "",
 		Id:                 "",
