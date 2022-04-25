@@ -42,6 +42,8 @@ var (
 	gRPCGatewayEp string
 	execPath1     string
 	execPath2     string
+
+	newNodeName = "test-add-node"
 )
 
 func init() {
@@ -101,7 +103,7 @@ var _ = ginkgo.AfterSuite(func() {
 	gomega.Ω(err).Should(gomega.BeNil())
 })
 
-var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
+var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	ginkgo.It("can start", func() {
 		ginkgo.By("start request with invalid exec path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -193,6 +195,25 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+
+		ginkgo.By("calling AddNode", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+
+		ginkgo.By("calling AddNode with existing node name, should fail", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("already exists"))
+			gomega.Ω(resp).Should(gomega.BeNil())
+			color.Outf("{{green}}add-node failed as expected")
 		})
 	})
 
