@@ -158,16 +158,12 @@ type nodeProcessCreator struct {
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
 func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
-	var localNodeConfig NodeConfig
-	if err := json.Unmarshal(config.ImplSpecificConfig, &localNodeConfig); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal local.NodeConfig: %w", err)
-	}
 	// Start the AvalancheGo node and pass it the flags defined above
-	cmd := exec.Command(localNodeConfig.BinaryPath, args...)
-	// assign a new color to this process (might not be used if the localNodeConfig isn't set for it)
+	cmd := exec.Command(config.BinaryPath, args...)
+	// assign a new color to this process (might not be used if the config isn't set for it)
 	color := npc.colorPicker.NextColor()
 	// Optionally redirect stdout and stderr
-	if localNodeConfig.RedirectStdout {
+	if config.RedirectStdout {
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
@@ -175,7 +171,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stdout and assign a color to the text
 		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
 	}
-	if localNodeConfig.RedirectStderr {
+	if config.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
 			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
@@ -322,7 +318,7 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i].ImplSpecificConfig = utils.NewLocalNodeConfigJsonRaw(binaryPath)
+		config.NodeConfigs[i].BinaryPath = binaryPath
 	}
 	return config
 }
@@ -404,19 +400,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't get node ID: %w", err)
 	}
 
-	var localNodeConfig NodeConfig
-	if err := json.Unmarshal(nodeConfig.ImplSpecificConfig, &localNodeConfig); err != nil {
-		return nil, fmt.Errorf("Unmarshalling an expected local.NodeConfig object failed: %w", err)
-	}
-
 	// Start the AvalancheGo node and pass it the flags defined above
 	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
-	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, localNodeConfig.BinaryPath, flags)
+	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
 	if err := nodeProcess.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", localNodeConfig.BinaryPath, flags, err)
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
 	}
 
 	// Create a wrapper for this node so we can reference it later

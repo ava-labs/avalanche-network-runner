@@ -34,17 +34,6 @@ var (
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
-// NodeConfig configurations which are specific to the
-// local implementation of a network / node.
-type NodeConfig struct {
-	// What type of node this is
-	BinaryPath string `json:"binaryPath"`
-	// If non-nil, direct this node's Stdout to os.Stdout
-	RedirectStdout bool `json:"redirectStdout"`
-	// If non-nil, direct this node's Stderr to os.Stderr
-	RedirectStderr bool `json:"redirectStderr"`
-}
-
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {

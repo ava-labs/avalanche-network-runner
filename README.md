@@ -443,32 +443,39 @@ A node config is defined by this struct:
 
 ```go
 type Config struct {
-  // Configuration specific to a particular implementation of a node.
-  ImplSpecificConfig interface{}
   // A node's name must be unique from all other nodes
   // in a network. If Name is the empty string, a
   // unique name is assigned on node creation.
-  Name string
+  Name string `json:"name"`
   // True if other nodes should use this node
   // as a bootstrap beacon.
-  IsBeacon bool
-  // Must not be nil
-  StakingKey []byte
-  // Must not be nil
-  StakingCert []byte
+  IsBeacon bool `json:"isBeacon"`
+  // Must not be nil.
+  StakingKey string `json:"stakingKey"`
+  // Must not be nil.
+  StakingCert string `json:"stakingCert"`
   // May be nil.
-  ConfigFile []byte
+  ConfigFile string `json:"configFile"`
   // May be nil.
-  CChainConfigFile []byte
+  CChainConfigFile string `json:"cChainConfigFile"`
+  // Flags can hold additional flags for the node.
+  // It can be empty.
+  // The precedence of flags handling is:
+  // 1. Flags defined in node.Config (this struct) override
+  // 2. Flags defined in network.Config override
+  // 3. Flags defined in the json config file
+  Flags map[string]interface{} `json:"flags"`
+  // What type of node this is
+  BinaryPath string `json:"binaryPath"`
+  // If non-nil, direct this node's Stdout to os.Stdout
+  RedirectStdout bool `json:"redirectStdout"`
+  // If non-nil, direct this node's Stderr to os.Stderr
+  RedirectStderr bool `json:"redirectStderr"`
 }
 ```
 
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
 Bootstrap IPs/ IDs will be overwritten even if provided.
-
-A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
-For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
-whereas a node running locally has a config field that specifies the path of the binary that the node runs.
 
 ## Genesis Generation
 
@@ -494,25 +501,32 @@ Later on the genesis contents can be used in network creation.
 
 ## Network Creation
 
-Each network runner implementation (local/Kubernetes) has a function `NewNetwork` that returns a new network,
-parameterized on `network.Config`:
+Th function `NewNetwork` returns a new network, parameterized on `network.Config`:
 
 ```go
 type Config struct {
-  // Configuration specific to a particular implementation of a network.
-  ImplSpecificConfig interface{}
-  // Must not be nil
-  Genesis []byte
+  // Must not be empty
+  Genesis string `json:"genesis"`
   // May have length 0
   // (i.e. network may have no nodes on creation.)
-  NodeConfigs []node.Config
+  NodeConfigs []node.Config `json:"nodeConfigs"`
   // Log level for the whole network
-  LogLevel string
+  LogLevel string `json:"logLevel"`
   // Name for the network
-  Name string
-  // How many nodes in the network.
-  // TODO move to k8s package?
-  NodeCount int
+  Name string `json:"name"`
+  // Flags that will be passed to each node in this network.
+  // It can be empty.
+  // Config flags may also be passed in a node's config struct
+  // or config file.
+  // The precedence of flags handling is, from highest to lowest:
+  // 1. Flags defined in a node's node.Config
+  // 2. Flags defined in a network's network.Config
+  // 3. Flags defined in a node's config file
+  // For example, if a network.Config has flag W set to X,
+  // and a node within that network has flag W set to Y,
+  // and the node's config file has flag W set to Z,
+  // then the node will be started with flag W set to Y.
+  Flags map[string]interface{} `json:"flags"`
 }
 ```
 
@@ -520,7 +534,7 @@ The function that returns a new network may have additional configuration fields
 
 ## Default Network Creation
 
-The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
+The helper function `NewDefaultNetwork` returns a network using a pre-defined configuration.
 This allows users to create a new network without needing to define any configurations.
 
 ```go

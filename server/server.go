@@ -6,7 +6,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -566,11 +565,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 
 	nodeConfig := node.Config{
-		Name:               req.Name,
-		ConfigFile:         configFile,
-		ImplSpecificConfig: json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, execPath)),
-		StakingKey:         string(stakingKey),
-		StakingCert:        string(stakingCert),
+		Name:           req.Name,
+		ConfigFile:     configFile,
+		StakingKey:     string(stakingKey),
+		StakingCert:    string(stakingCert),
+		BinaryPath:     execPath,
+		RedirectStdout: true,
+		RedirectStderr: true,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -692,7 +693,9 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.PluginDir,
 		nodeInfo.WhitelistedSubnets,
 	)
-	nodeConfig.ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, nodeInfo.ExecPath))
+	nodeConfig.BinaryPath = nodeInfo.ExecPath
+	nodeConfig.RedirectStdout = true
+	nodeConfig.RedirectStderr = true
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")

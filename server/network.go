@@ -5,7 +5,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -107,8 +106,9 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
 		cfg.NodeConfigs[i].ConfigFile = createConfigFileString(logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
-		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, opts.execPath))
-
+		cfg.NodeConfigs[i].BinaryPath = opts.execPath
+		cfg.NodeConfigs[i].RedirectStdout = true
+		cfg.NodeConfigs[i].RedirectStderr = true
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
 			ExecPath:           opts.execPath,
