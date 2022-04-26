@@ -289,8 +289,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("execPath", execPath),
 		zap.Uint32("numNodes", numNodes),
 		zap.String("whitelistedSubnets", whitelistedSubnets),
-		zap.Int32("pid", s.clusterInfo.GetPid()),
-		zap.String("rootDataDir", s.clusterInfo.GetRootDataDir()),
+		zap.Int32("pid", pid),
+		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
 		zap.String("nodeConfig", nodeConfigParam),
 	)
