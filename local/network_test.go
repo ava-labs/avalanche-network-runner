@@ -958,7 +958,7 @@ func TestSetNodeName(t *testing.T) {
 	assert := assert.New(t)
 
 	ln := &localNetwork{
-		nodes: make(map[string]*localNode),
+		nodes: make(map[string]node.Node),
 	}
 
 	// Case: No name given
@@ -987,7 +987,7 @@ func TestSetNodeName(t *testing.T) {
 
 	// Case: name already present
 	config.Name = "hi"
-	ln.nodes = map[string]*localNode{"hi": nil}
+	ln.nodes = map[string]node.Node{"hi": nil}
 	err = ln.setNodeName(config)
 	assert.Error(err)
 }

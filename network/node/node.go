@@ -28,6 +28,8 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTP API port.
 	GetAPIPort() uint16
+	// Stop this node.
+	Stop(context.Context) error
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.
 	// The test peer can be used to send messages to the node it's attached to.

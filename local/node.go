@@ -193,3 +193,17 @@ func (node *localNode) GetP2PPort() uint16 {
 func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
 }
+
+// See node.Node
+func (node *localNode) Stop(context.Context) error {
+	// cchain eth api uses a websocket connection and must be closed before stopping the node,
+	// to avoid errors logs at client
+	node.client.CChainEthAPI().Close()
+	if err := node.process.Stop(); err != nil {
+		return fmt.Errorf("error sending SIGTERM to node %s: %w", node.name, err)
+	}
+	if err := node.process.Wait(); err != nil {
+		return fmt.Errorf("node %q stopped with error: %w", node.name, err)
+	}
+	return nil
+}

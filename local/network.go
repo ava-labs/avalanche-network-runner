@@ -71,7 +71,7 @@ type localNetwork struct {
 	// For node name generation
 	nextNodeSuffix uint64
 	// Node Name --> Node
-	nodes map[string]*localNode
+	nodes map[string]node.Node
 	// Set of nodes that new nodes will bootstrap from.
 	bootstraps beacon.Set
 	// rootDir is the root directory under which we write all node
@@ -166,7 +166,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	if config.RedirectStdout {
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stdout pipe: %s", err)
 		}
 		// redirect stdout and assign a color to the text
 		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
@@ -174,7 +174,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	if config.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
-			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stderr pipe: %s", err)
 		}
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
@@ -228,7 +228,7 @@ func newNetwork(
 	net := &localNetwork{
 		networkID:          networkID,
 		genesis:            []byte(networkConfig.Genesis),
-		nodes:              map[string]*localNode{},
+		nodes:              map[string]node.Node{},
 		closedOnStopCh:     make(chan struct{}),
 		log:                log,
 		bootstraps:         beacon.NewSet(),
@@ -448,7 +448,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 		return healthyChan
 	}
 
-	nodes := make([]*localNode, 0, len(ln.nodes))
+	nodes := make([]node.Node, 0, len(ln.nodes))
 	for _, node := range ln.nodes {
 		nodes = append(nodes, node)
 	}
@@ -467,9 +467,9 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health(cctx)
+					health, err := node.GetAPIClient().HealthAPI().Health(cctx)
 					if err == nil && health.Healthy {
-						ln.log.Debug("node %q became healthy", node.name)
+						ln.log.Debug("node %q became healthy", node.GetName())
 						return nil
 					}
 				}
@@ -590,19 +590,10 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	}
 
 	// If the node wasn't a beacon, we don't care
-	_ = ln.bootstraps.RemoveByID(node.nodeID)
+	_ = ln.bootstraps.RemoveByID(node.GetNodeID())
 
 	delete(ln.nodes, nodeName)
-	// cchain eth api uses a websocket connection and must be closed before stopping the node,
-	// to avoid errors logs at client
-	node.client.CChainEthAPI().Close()
-	if err := node.process.Stop(); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
-	}
-	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
-	}
-	return nil
+	return node.Stop(context.TODO())
 }
 
 // Assumes [net.lock] is held

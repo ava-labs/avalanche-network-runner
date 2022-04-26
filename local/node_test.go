@@ -17,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/ava-labs/avalanchego/version"
@@ -66,7 +65,7 @@ func verifyProtocol(
 	// send the peer our version and peerlist
 
 	// create the version message
-	myIP := avago_utils.IPDesc{
+	myIP := utils.IPDesc{
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
