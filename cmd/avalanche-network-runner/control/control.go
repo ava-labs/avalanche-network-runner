@@ -391,6 +391,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
+	cmd.PersistentFlags().StringVar(
+		&nodeConfig,
+		"node-config",
+		"",
+		"node config as string",
+	)
 	return cmd
 }
 
@@ -405,10 +411,19 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	if nodeConfig != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfig)
+		// validate it's valid JSON
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(nodeConfig), &js); err != nil {
+			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+		}
+	}
 	opts := []client.OpOption{
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 		client.WithLogLevel(logLevel),
+		client.WithNodeConfig(nodeConfig),
 	}
 	if customVMNameToGenesisPath != "" {
 		customVMs := make(map[string]string)
