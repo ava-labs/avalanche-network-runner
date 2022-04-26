@@ -65,7 +65,7 @@ var (
 	avalancheGoBinPath        string
 	numNodes                  uint32
 	pluginDir                 string
-	nodeConfigFile            string
+	nodeConfig                string
 	customVMNameToGenesisPath string
 )
 
@@ -100,7 +100,7 @@ func newStartCommand() *cobra.Command {
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&nodeConfigFile,
+		&nodeConfig,
 		"node-config",
 		"",
 		"node config as string",
@@ -119,12 +119,12 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	if nodeConfigFile != "" {
-		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfigFile)
+	if nodeConfig != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfig)
 
 		// validate it's valid JSON
 		var js json.RawMessage
-		if err := json.Unmarshal([]byte(nodeConfigFile), &js); err != nil {
+		if err := json.Unmarshal([]byte(nodeConfig), &js); err != nil {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
 	}
@@ -132,7 +132,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithNodeConfig(nodeConfigFile),
+		client.WithNodeConfig(nodeConfig),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
