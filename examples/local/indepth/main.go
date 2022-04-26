@@ -11,7 +11,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -123,10 +122,10 @@ func run(log logging.Logger, binaryPath string) error {
 		return err
 	}
 	nodeConfig := node.Config{
-		Name:               "New Node",
-		ImplSpecificConfig: utils.NewLocalNodeConfigJsonRaw(binaryPath),
-		StakingKey:         string(stakingKey),
-		StakingCert:        string(stakingCert),
+		Name:        "New Node",
+		BinaryPath:  binaryPath,
+		StakingKey:  string(stakingKey),
+		StakingCert: string(stakingCert),
 		// The flags below would override the config in this node's config file,
 		// if it had one.
 		Flags: map[string]interface{}{

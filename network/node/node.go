@@ -22,9 +22,7 @@ type Node interface {
 	GetNodeID() ids.ShortID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
-	// Return this node's URL.
-	// For a local network, this is the node's IP (e.g. 127.0.0.1).
-	// For a k8s network, this is the DNS name of the pod hosting the node.
+	// Return this node's IP (e.g. 127.0.0.1).
 	GetURL() string
 	// Return this node's P2P (staking) port.
 	GetP2PPort() uint16
@@ -40,8 +38,6 @@ type Node interface {
 
 // Config encapsulates an avalanchego configuration
 type Config struct {
-	// Configuration specific to a particular implementation of a node.
-	ImplSpecificConfig json.RawMessage `json:"implSpecificConfig"`
 	// A node's name must be unique from all other nodes
 	// in a network. If Name is the empty string, a
 	// unique name is assigned on node creation.
@@ -64,13 +60,17 @@ type Config struct {
 	// 2. Flags defined in network.Config override
 	// 3. Flags defined in the json config file
 	Flags map[string]interface{} `json:"flags"`
+	// What type of node this is
+	BinaryPath string `json:"binaryPath"`
+	// If non-nil, direct this node's Stdout to os.Stdout
+	RedirectStdout bool `json:"redirectStdout"`
+	// If non-nil, direct this node's Stderr to os.Stderr
+	RedirectStderr bool `json:"redirectStderr"`
 }
 
 // Validate returns an error if this config is invalid
 func (c *Config) Validate(expectedNetworkID uint32) error {
 	switch {
-	case c.ImplSpecificConfig == nil:
-		return errors.New("implementation-specific node config not given")
 	case c.StakingKey == "":
 		return errors.New("staking key not given")
 	case c.StakingCert == "":

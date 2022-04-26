@@ -64,6 +64,13 @@ service ControlService {
     };
   }
 
+  rpc AddNode(AddNodeRequest) returns (AddNodeResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/addnode"
+      body: "*"
+    };
+  }
+
   rpc RestartNode(RestartNodeRequest) returns (RestartNodeResponse) {
     option (google.api.http) = {
       post: "/v1/control/restartnode"
@@ -221,6 +228,15 @@ message RemoveNodeRequest {
 }
 
 message RemoveNodeResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message AddNodeRequest {
+  string name = 1;
+  StartRequest start_request = 2;
+}
+
+message AddNodeResponse {
   ClusterInfo cluster_info = 1;
 }
 

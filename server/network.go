@@ -125,13 +125,14 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		if opts.nodeConfigParam != "" {
 			nodeConfig = opts.nodeConfigParam
 		}
-		finalNodeConfig, err := evalConfig(nodeConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(nodeConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		if err != nil {
 			return nil, err
 		}
-		cfg.NodeConfigs[i].ConfigFile = finalNodeConfig
 
-		cfg.NodeConfigs[i].ImplSpecificConfig = json.RawMessage(fmt.Sprintf(`{"binaryPath":"%s","redirectStdout":true,"redirectStderr":true}`, opts.execPath))
+		cfg.NodeConfigs[i].BinaryPath = opts.execPath
+		cfg.NodeConfigs[i].RedirectStdout = true
+		cfg.NodeConfigs[i].RedirectStderr = true
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
@@ -170,7 +171,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-func evalConfig(nodeConfig string, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(nodeConfig string, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	var jsonContent map[string]interface{}
 	if err := json.Unmarshal([]byte(nodeConfig), &jsonContent); err != nil {
 		return "", err
@@ -192,7 +193,6 @@ func evalConfig(nodeConfig string, logLevel string, logDir string, dbDir string,
 	return string(finalJSON), nil
 }
 
-// provisions local cluster and install custom VMs if applicable
 func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
 		close(lc.startDonec)
