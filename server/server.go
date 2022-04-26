@@ -561,7 +561,14 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
 	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
 
-	configFile := createConfigFileString(logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	nodeCfg := defaultNodeConfig
+	if req.StartRequest.GetNodeConfig() != "" {
+		nodeCfg = req.StartRequest.GetNodeConfig()
+	}
+	configFile, err := createConfigFileString(nodeCfg, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	}
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)

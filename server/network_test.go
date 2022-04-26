@@ -22,7 +22,7 @@ func TestEvalConfig(t *testing.T) {
 	tWhitelistedSubnets := "someSubnet"
 	tPluginDir := "/tmp/plugins"
 
-	finalJSON, err := evalConfig(test1, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err := createConfigFileString(test1, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	var controlMap map[string]interface{}
@@ -56,7 +56,7 @@ func TestEvalConfig(t *testing.T) {
 	err = json.Unmarshal([]byte(test2), &test2Map)
 	assert.NoError(err)
 
-	finalJSON, err = evalConfig(test2, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(test2, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
