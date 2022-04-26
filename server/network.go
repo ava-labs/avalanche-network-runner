@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,6 +22,18 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+)
+
+const (
+	defaultNodeConfig = `{
+		"network-peer-list-gossip-frequency":"250ms",
+		"network-max-reconnect-delay":"1s",
+		"public-ip":"127.0.0.1",
+		"health-check-frequency":"2s",
+		"api-admin-enabled":true,
+		"api-ipcs-enabled":true,
+		"index-enabled":true
+  }`
 )
 
 type localNetwork struct {
@@ -70,6 +83,7 @@ type localNetworkOptions struct {
 	numNodes           uint32
 	whitelistedSubnets string
 	logLevel           string
+	nodeConfigParam    string
 
 	pluginDir string
 	customVMs map[string][]byte
@@ -105,10 +119,21 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
-		cfg.NodeConfigs[i].ConfigFile = createConfigFileString(logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+
+		// get the node configs right
+		nodeConfig := defaultNodeConfig
+		if opts.nodeConfigParam != "" {
+			nodeConfig = opts.nodeConfigParam
+		}
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(nodeConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+		if err != nil {
+			return nil, err
+		}
+
 		cfg.NodeConfigs[i].BinaryPath = opts.execPath
 		cfg.NodeConfigs[i].RedirectStdout = true
 		cfg.NodeConfigs[i].RedirectStderr = true
+
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
 			ExecPath:           opts.execPath,
@@ -146,31 +171,26 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-func createConfigFileString(logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) string {
+func createConfigFileString(nodeConfig string, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+	var jsonContent map[string]interface{}
+	if err := json.Unmarshal([]byte(nodeConfig), &jsonContent); err != nil {
+		return "", err
+	}
+	// add (or overwrite, if given) the following entries
+	jsonContent["log-level"] = strings.ToUpper(logLevel)
+	jsonContent["log-display-level"] = strings.ToUpper(logLevel)
+	jsonContent["log-dir"] = logDir
+	jsonContent["db-dir"] = dbDir
+	jsonContent["plugin-dir"] = pluginDir
 	// need to whitelist subnet ID to create custom VM chain
 	// ref. vms/platformvm/createChain
-	return fmt.Sprintf(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"%s",
-	"log-level":"%s",
-	"log-dir":"%s",
-	"db-dir":"%s",
-	"plugin-dir":"%s",
-	"whitelisted-subnets":"%s"
-}`,
-		strings.ToUpper(logLevel),
-		strings.ToUpper(logLevel),
-		logDir,
-		dbDir,
-		pluginDir,
-		whitelistedSubnets,
-	)
+	jsonContent["whitelisted-subnets"] = whitelistedSubnets
+
+	finalJSON, err := json.Marshal(jsonContent)
+	if err != nil {
+		return "", err
+	}
+	return string(finalJSON), nil
 }
 
 func (lc *localNetwork) start(ctx context.Context) {

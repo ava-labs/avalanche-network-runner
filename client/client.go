@@ -119,6 +119,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if len(ret.customVMs) > 0 {
 		req.CustomVms = ret.customVMs
 	}
+	if ret.nodeConfig != "" {
+		req.NodeConfig = &ret.nodeConfig
+	}
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, req)
@@ -274,10 +277,10 @@ type Op struct {
 	execPath           string
 	whitelistedSubnets string
 	logLevel           string
+	nodeConfig         string
 	rootDataDir        string
-
-	pluginDir string
-	customVMs map[string]string
+	pluginDir          string
+	customVMs          map[string]string
 }
 
 type OpOption func(*Op)
@@ -285,6 +288,12 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
+	}
+}
+
+func WithNodeConfig(nodeConfig string) OpOption {
+	return func(op *Op) {
+		op.nodeConfig = nodeConfig
 	}
 }
 
