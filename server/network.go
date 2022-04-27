@@ -22,6 +22,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"go.uber.org/zap"
 )
 
 const (
@@ -83,10 +84,11 @@ type localNetworkOptions struct {
 	numNodes           uint32
 	whitelistedSubnets string
 	logLevel           string
-	nodeConfigParam    string
+	defaultNodeConfig  string
 
-	pluginDir string
-	customVMs map[string][]byte
+	pluginDir         string
+	customVMs         map[string][]byte
+	customNodeConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
@@ -120,12 +122,13 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
 
-		// get the node configs right
-		nodeConfig := defaultNodeConfig
-		if opts.nodeConfigParam != "" {
-			nodeConfig = opts.nodeConfigParam
+		var mergedConfig map[string]interface{}
+		mergedConfig, err = mergeNodeConfig(defaultNodeConfig, opts.customNodeConfigs[nodeNames[i]], opts.defaultNodeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(nodeConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		if err != nil {
 			return nil, err
 		}
@@ -171,22 +174,55 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-func createConfigFileString(nodeConfig string, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
-	var jsonContent map[string]interface{}
-	if err := json.Unmarshal([]byte(nodeConfig), &jsonContent); err != nil {
-		return "", err
+// get the node configs right
+func mergeNodeConfig(defaultConfig string, customConfig string, globalConfig string) (map[string]interface{}, error) {
+	var jsonMerged, jsonCustom, jsonGlobal map[string]interface{}
+
+	if err := json.Unmarshal([]byte(defaultConfig), &jsonMerged); err != nil {
+		return nil, err
 	}
+
+	if globalConfig != "" {
+		if err := json.Unmarshal([]byte(globalConfig), &jsonGlobal); err != nil {
+			return nil, err
+		}
+		// merge, overwriting entries in default with the global ones
+		for k, v := range jsonGlobal {
+			jsonMerged[k] = v
+		}
+	}
+
+	if customConfig != "" {
+		if err := json.Unmarshal([]byte(customConfig), &jsonCustom); err != nil {
+			return nil, err
+		}
+		// merge, overwriting entries in default with the custom ones
+		for k, v := range jsonCustom {
+			jsonMerged[k] = v
+		}
+	}
+
+	return jsonMerged, nil
+}
+
+func createConfigFileString(config map[string]interface{}, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
-	jsonContent["log-level"] = strings.ToUpper(logLevel)
-	jsonContent["log-display-level"] = strings.ToUpper(logLevel)
-	jsonContent["log-dir"] = logDir
-	jsonContent["db-dir"] = dbDir
-	jsonContent["plugin-dir"] = pluginDir
+	config["log-level"] = strings.ToUpper(logLevel)
+	config["log-display-level"] = strings.ToUpper(logLevel)
+	if config["log-dir"] != "" {
+		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
+	}
+	config["log-dir"] = logDir
+	if config["db-dir"] != "" {
+		zap.L().Warn("ignoring 'db-dir' config entry provided; the network runner needs to set its own")
+	}
+	config["db-dir"] = dbDir
+	config["plugin-dir"] = pluginDir
 	// need to whitelist subnet ID to create custom VM chain
 	// ref. vms/platformvm/createChain
-	jsonContent["whitelisted-subnets"] = whitelistedSubnets
+	config["whitelisted-subnets"] = whitelistedSubnets
 
-	finalJSON, err := json.Marshal(jsonContent)
+	finalJSON, err := json.Marshal(config)
 	if err != nil {
 		return "", err
 	}

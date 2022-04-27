@@ -269,7 +269,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
 		logLevel           = req.GetLogLevel()
-		nodeConfigParam    = req.GetNodeConfig()
+		defaultNodeConfig  = req.GetDefaultNodeConfig()
+		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
 	)
 	if len(rootDataDir) == 0 {
@@ -292,11 +293,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
-		zap.String("nodeConfig", nodeConfigParam),
+		zap.String("defaultNodeConfig", defaultNodeConfig),
 	)
 
 	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
+	}
+
+	if len(customNodeConfigs) > 0 {
+		zap.L().Warn("custom node configs have been provided; ignoring the 'number-of-nodes' parameter and setting it to", zap.Int("numNodes", len(customNodeConfigs)))
+		numNodes = uint32(len(customNodeConfigs))
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
@@ -307,7 +313,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		logLevel:           logLevel,
 		pluginDir:          pluginDir,
 		customVMs:          customVMs,
-		nodeConfigParam:    nodeConfigParam,
+		defaultNodeConfig:  defaultNodeConfig,
+		customNodeConfigs:  customNodeConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -549,23 +556,23 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if req.StartRequest.LogLevel != nil {
 		logLevel = *req.StartRequest.LogLevel
 	}
-	if req.StartRequest.WhitelistedSubnets != nil {
-		whitelistedSubnets = *req.StartRequest.WhitelistedSubnets
-	}
-	if req.StartRequest.PluginDir != nil {
-		pluginDir = *req.StartRequest.PluginDir
-	}
+
+	// use same configs from other nodes
+	whitelistedSubnets = s.network.nodeInfos[s.network.nodeNames[0]].WhitelistedSubnets
+	pluginDir = s.network.nodeInfos[s.network.nodeNames[0]].PluginDir
 
 	rootDataDir := s.clusterInfo.RootDataDir
 
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
 	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
 
-	nodeCfg := defaultNodeConfig
-	if req.StartRequest.GetNodeConfig() != "" {
-		nodeCfg = req.StartRequest.GetNodeConfig()
+	var mergedConfig map[string]interface{}
+	// we only need to merge from the default node config here, as we are only adding one node
+	mergedConfig, err = mergeNodeConfig(defaultNodeConfig, "", req.StartRequest.GetDefaultNodeConfig())
+	if err != nil {
+		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}
-	configFile, err := createConfigFileString(nodeCfg, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	configFile, err := createConfigFileString(mergedConfig, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
