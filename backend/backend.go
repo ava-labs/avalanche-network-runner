@@ -36,7 +36,7 @@ type Network interface {
 // NetworkOrchestrator provides an interface to orchestrate networks using an arbitrary backend
 type NetworkOrchestrator interface {
 	CreateNetwork(name string) (Network, error)
+	GetNetworks() ([]Network, error)
 	GetNetwork(name string) (Network, error)
-	TeardownNetwork(ctx context.Context, name string) error
 	Teardown(ctx context.Context) error
 }

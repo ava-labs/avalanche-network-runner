@@ -76,15 +76,6 @@ func (o *orchestrator) GetNetwork(name string) (Network, error) {
 	return network, nil
 }
 
-func (o *orchestrator) TeardownNetwork(ctx context.Context, name string) error {
-	network, err := o.GetNetwork(name)
-	if err != nil {
-		return err
-	}
-
-	return network.Teardown(ctx)
-}
-
 // removeNetwork grabs the lock to remove the network under [name] from the networks map and returns
 // the removed network or an error if it can't be found.
 func (o *orchestrator) removeNetwork(name string) (Network, error) {

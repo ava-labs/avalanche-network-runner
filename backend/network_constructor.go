@@ -28,7 +28,6 @@ type networkBackend struct {
 
 	name    string
 	network NetworkConstructor
-	killed  bool
 
 	removeNetwork func() error
 	nodes         map[string]Node
@@ -113,11 +112,6 @@ func (backend *networkBackend) Teardown(ctx context.Context) error {
 	backend.lock.Lock()
 	defer backend.lock.Unlock()
 
-	// If the backend has already been torn down, consider this a no-op.
-	if backend.killed {
-		return nil
-	}
-
 	// Shut down all of the nodes in the network before calling teardown on the constructor
 	eg := errgroup.Group{}
 	for name, node := range backend.nodes {
@@ -144,7 +138,6 @@ func (backend *networkBackend) Teardown(ctx context.Context) error {
 	if err := backend.removeNetwork(); err != nil {
 		return err
 	}
-	// Mark the backend as killed after it has successfully been taken down.
-	backend.killed = true
+
 	return nil
 }
