@@ -10,29 +10,24 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"sync"
-	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/backend"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
-type networkConstructor struct {
-	lock sync.RWMutex
+var _ backend.NetworkConstructor = &networkConstructor{}
 
+type networkConstructor struct {
 	registry       backend.ExecutorRegistry
 	networkBaseDir string
-	nodes          map[string]*node
 }
 
 func newNetworkConstructor(networkBaseDir string, registry backend.ExecutorRegistry) backend.NetworkConstructor {
 	return &networkConstructor{
 		registry:       registry,
 		networkBaseDir: networkBaseDir,
-		nodes:          make(map[string]*node),
 	}
 }
 
@@ -44,7 +39,21 @@ func (c *networkConstructor) AddNode(ctx context.Context, nodeDef backend.NodeCo
 
 	// Modify the node config to advertise "127.0.0.1" as the public IP for the local network
 	modifiedNodeConfig := backend.CopyConfig(nodeDef.Config)
+
 	modifiedNodeConfig[config.PublicIPKey] = "127.0.0.1"
+
+	// Find 2 free ports in case they are needed ie. the port keys are not explicitly set.
+	ports, err := utils.GetFreePorts(2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find 2 free ports: %w", err)
+	}
+	if _, ok := modifiedNodeConfig[config.HTTPHostKey]; !ok {
+		modifiedNodeConfig[config.HTTPHostKey] = ports[0]
+	}
+	if _, ok := modifiedNodeConfig[config.StakingPortKey]; !ok {
+		modifiedNodeConfig[config.HTTPHostKey] = ports[1]
+	}
+
 	nodeConfigBytes, err := json.Marshal(modifiedNodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal node config: %w", err)
@@ -68,23 +77,10 @@ func (c *networkConstructor) AddNode(ctx context.Context, nodeDef backend.NodeCo
 	if err != nil {
 		return nil, err
 	}
-	c.nodes[nodeDef.Name] = node
 	return node, nil
 }
 
+// TODO: optionally remove associated data
 func (c *networkConstructor) Teardown(ctx context.Context) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	eg := errgroup.Group{}
-	for _, node := range c.nodes {
-		node := node
-		eg.Go(func() error {
-			return node.Stop(10 * time.Second)
-		})
-	}
-
-	errs := wrappers.Errs{}
-	errs.Add(eg.Wait())
-	return errs.Err
+	return nil
 }

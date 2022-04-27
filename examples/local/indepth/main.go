@@ -35,7 +35,10 @@ func main() {
 	}()
 
 	updatedNodesCallback := func(network backend.Network) error {
-		nodes := network.GetNodes()
+		nodes, err := network.GetNodes()
+		if err != nil {
+			return err
+		}
 		if len(nodes) != 5 {
 			return fmt.Errorf("network had unexpected number of nodes: %d", len(nodes))
 		}

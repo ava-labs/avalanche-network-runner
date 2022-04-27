@@ -20,17 +20,29 @@ import (
 func TestNetworkOrchestrator(ctx context.Context, t *testing.T, orchestrator backend.NetworkOrchestrator) {
 	assert := assert.New(t)
 
-	defer func() {
-		closeCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(2*time.Minute))
-		defer cancel()
-		assert.NoError(orchestrator.Teardown(closeCtx))
-	}()
-
 	logrus.Info("Creating default local network")
 	network, err := networks.NewDefaultLocalNetwork(ctx, orchestrator, constants.NormalExecution)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		assert.NoError(network.Teardown(ctx), "failed to teardown network")
+	}()
 
-	assert.NoError(AwaitHealthy(ctx, network, 5*time.Second))
+	if err := AwaitHealthy(ctx, network, 5*time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	nodes, err := network.GetNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(nodes, 5, "unexpected number of nodes in the network")
+
+	for _, node := range nodes {
+		node.GetBootstrapIP() // construct test peer to the bootstrapIP
+		// check against initial chain config
+		node.Config()
+		node.GetName()
+	}
 }

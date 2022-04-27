@@ -6,6 +6,12 @@ package rpcpb;
 
 import "google/api/annotations.proto";
 
+message PingRequest {}
+
+message PingResponse {
+  int32 pid = 1;
+}
+
 service PingService {
   rpc Ping(PingRequest) returns (PingResponse) {
     option (google.api.http) = {
@@ -15,253 +21,100 @@ service PingService {
   }
 }
 
-message PingRequest {}
-
-message PingResponse {
-  int32 pid = 1;
+message NodeInfo {
+  string name = 1;
+  bytes config = 2;
+  string uri = 3;
+  string bootstrapip = 4;
 }
 
-service ControlService {
-  rpc Start(StartRequest) returns (StartResponse) {
+message CreateNetworkRequest {
+  string network = 1;
+}
+
+message CreateNetworkResponse {}
+
+message GetNodesRequest {
+  string network = 1;
+}
+
+message GetNodesResponse {
+  repeated NodeInfo nodes = 1;
+}
+
+message GetNodeRequest {
+  string network = 1;
+  string name = 2;
+}
+
+message GetNodeResponse {
+  NodeInfo node = 1;
+}
+
+message AddNodeRequest {
+  string network = 1;
+  bytes config = 2;
+}
+
+message AddNodeResponse {
+  NodeInfo node = 1;
+}
+
+message TeardownRequest {
+  string network = 1;
+}
+
+message TeardownResponse {}
+
+message NodeStopRequest {
+  string network = 1;
+  string name = 2;
+  int64 timeout = 3;
+}
+
+message NodeStopResponse {}
+
+
+service OrchestratorService {
+  rpc CreateNetwork(CreateNetworkRequest) returns (CreateNetworkResponse) {
     option (google.api.http) = {
-      post: "/v1/control/start"
+      post: "/v1/orchestrator/create"
       body: "*"
     };
   }
 
-  rpc Health(HealthRequest) returns (HealthResponse) {
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse) {
     option (google.api.http) = {
-      post: "/v1/control/health"
+      post: "/v1/network/getNodes"
       body: "*"
     };
   }
 
-  rpc URIs(URIsRequest) returns (URIsResponse) {
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse) {
     option (google.api.http) = {
-      post: "/v1/control/uris"
-      body: "*"
-    };
-  }
-
-  rpc Status(StatusRequest) returns (StatusResponse) {
-    option (google.api.http) = {
-      post: "/v1/control/status"
-      body: "*"
-    };
-  }
-
-  rpc StreamStatus(StreamStatusRequest) returns (stream StreamStatusResponse) {
-    option (google.api.http) = {
-      post: "/v1/control/streamstatus"
-      body: "*"
-    };
-  }
-
-  rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse) {
-    option (google.api.http) = {
-      post: "/v1/control/removenode"
+      post: "/v1/network/getNode"
       body: "*"
     };
   }
 
   rpc AddNode(AddNodeRequest) returns (AddNodeResponse) {
     option (google.api.http) = {
-      post: "/v1/control/addnode"
+      post: "/v1/network/add"
       body: "*"
     };
   }
 
-  rpc RestartNode(RestartNodeRequest) returns (RestartNodeResponse) {
+  rpc Teardown(TeardownRequest) returns (TeardownResponse) {
     option (google.api.http) = {
-      post: "/v1/control/restartnode"
+      post: "/v1/network/teardown"
       body: "*"
     };
   }
 
-  rpc Stop(StopRequest) returns (StopResponse) {
+  rpc NodeStop(NodeStopRequest) returns (NodeStopResponse) {
     option (google.api.http) = {
-      post: "/v1/control/stop"
+      post: "/v1/network/stop"
       body: "*"
     };
   }
-
-  rpc AttachPeer(AttachPeerRequest) returns (AttachPeerResponse) {
-    option (google.api.http) = {
-      post: "/v1/control/attachpeer"
-      body: "*"
-    };
-  }
-
-  rpc SendOutboundMessage(SendOutboundMessageRequest) returns (SendOutboundMessageResponse) {
-    option (google.api.http) = {
-      post: "/v1/control/sendoutboundmessage"
-      body: "*"
-    };
-  }
-}
-
-message ClusterInfo {
-  repeated string node_names       = 1;
-  map<string, NodeInfo> node_infos = 2;
-  int32 pid                        = 3;
-  string root_data_dir             = 4;
-  bool healthy                     = 5;
-
-  // Maps from the node ID to its attached peer infos.
-  map<string, ListOfAttachedPeerInfo> attached_peer_infos = 6;
-
-  // Set to "true" once custom VMs are ready.
-  bool custom_vms_healthy = 7;
-  // The map of custom VM IDs in "ids.ID" format to its VM information.
-  map<string, CustomVmInfo> custom_vms = 8;
-}
-
-message CustomVmInfo {
-  string vm_name = 1;
-
-  // VM ID in "ids.ID" format.
-  string vm_id = 2;
-
-  // Create subnet transaction ID -- subnet ID.
-  // The subnet ID must be whitelisted by the avalanche node.
-  string subnet_id = 3;
-
-  // Create blockchain transaction ID -- blockchain ID>
-  // The blockchain ID is used for RPC endpoints for the custom VM.
-  string blockchain_id = 4;
-}
-
-message NodeInfo {
-  string name                 = 1;
-  string exec_path            = 2;
-  string uri                  = 3;
-  string id                   = 4;
-  string log_dir              = 5;
-  string db_dir               = 6;
-  string plugin_dir           = 7;
-  string whitelisted_subnets  = 8;
-  bytes config                = 9;
-}
-
-message AttachedPeerInfo {
-  string id = 1;
-}
-
-message ListOfAttachedPeerInfo {
-  repeated AttachedPeerInfo peers = 1;
-}
-
-message StartRequest {
-  string exec_path                    = 1;
-  optional uint32 num_nodes           = 2;
-  optional string whitelisted_subnets = 3;
-  optional string log_level           = 4;
-  optional string node_config         = 5;
-  // Used for both database and log files.
-  optional string root_data_dir = 6;
-
-  // Plugin directory to load all custom VM executables.
-  // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 7;
-
-  // The map of custom VM name to its genesis file path.
-  //
-  // The matching file with the name in "ids.ID" format must exist.
-  // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
-  // e.g., subnet-cli create VMID subnetevm
-  //
-  // If this field is set to none (by default), the node/network-runner
-  // does not install the custom VM and does not create the subnet,
-  // even if the VM binary exists on the local plugins directory.
-  map<string, string> custom_vms = 8;
-}
-
-message StartResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message HealthRequest {}
-
-message HealthResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message URIsRequest {}
-
-message URIsResponse {
-  repeated string uris = 1;
-}
-
-message StatusRequest {}
-
-message StatusResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message StreamStatusRequest {
-  int64 push_interval = 1;
-}
-
-message StreamStatusResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message RestartNodeRequest {
-  // Must be a valid node name.
-  string name = 1;
-
-  // Optional fields are set to the previous values if empty.
-  optional string exec_path           = 2;
-  optional string whitelisted_subnets = 3;
-  optional string log_level           = 4;
-
-  // Used for both database and log files.
-  optional string root_data_dir = 5;
-}
-
-message RestartNodeResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message RemoveNodeRequest {
-  string name = 1;
-}
-
-message RemoveNodeResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message AddNodeRequest {
-  string name = 1;
-  StartRequest start_request = 2;
-}
-
-message AddNodeResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message StopRequest {}
-
-message StopResponse {
-  ClusterInfo cluster_info = 1;
-}
-
-message AttachPeerRequest {
-  string node_name = 1;
-}
-
-message AttachPeerResponse {
-  ClusterInfo cluster_info = 1;
-  AttachedPeerInfo attached_peer_info = 2;
-}
-
-message SendOutboundMessageRequest {
-  string node_name = 1;
-  string peer_id   = 2;
-  uint32 op        = 3;
-  bytes bytes      = 4;
-}
-
-message SendOutboundMessageResponse {
-  bool sent = 1;
 }

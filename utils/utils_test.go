@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"testing"
 
@@ -118,5 +119,24 @@ func TestCheckExecPluginPaths(t *testing.T) {
 	for i, tv := range tt {
 		err := CheckExecPluginPaths(tv.execPath, tv.pluginPath, tv.genesisPath)
 		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
+	}
+}
+
+func TestFreePorts(t *testing.T) {
+	numPorts := 2
+	ports, err := GetFreePorts(numPorts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(t, ports, numPorts)
+
+	for _, port := range ports {
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := listener.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

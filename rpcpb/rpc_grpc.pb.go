@@ -104,476 +104,268 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "rpcpb/rpc.proto",
 }
 
-// ControlServiceClient is the client API for ControlService service.
+// OrchestratorServiceClient is the client API for OrchestratorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ControlServiceClient interface {
-	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
-	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
-	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
-	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
-	StreamStatus(ctx context.Context, in *StreamStatusRequest, opts ...grpc.CallOption) (ControlService_StreamStatusClient, error)
-	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
+type OrchestratorServiceClient interface {
+	CreateNetwork(ctx context.Context, in *CreateNetworkRequest, opts ...grpc.CallOption) (*CreateNetworkResponse, error)
+	GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error)
+	GetNode(ctx context.Context, in *GetNodeRequest, opts ...grpc.CallOption) (*GetNodeResponse, error)
 	AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error)
-	RestartNode(ctx context.Context, in *RestartNodeRequest, opts ...grpc.CallOption) (*RestartNodeResponse, error)
-	Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error)
-	AttachPeer(ctx context.Context, in *AttachPeerRequest, opts ...grpc.CallOption) (*AttachPeerResponse, error)
-	SendOutboundMessage(ctx context.Context, in *SendOutboundMessageRequest, opts ...grpc.CallOption) (*SendOutboundMessageResponse, error)
+	Teardown(ctx context.Context, in *TeardownRequest, opts ...grpc.CallOption) (*TeardownResponse, error)
+	NodeStop(ctx context.Context, in *NodeStopRequest, opts ...grpc.CallOption) (*NodeStopResponse, error)
 }
 
-type controlServiceClient struct {
+type orchestratorServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewControlServiceClient(cc grpc.ClientConnInterface) ControlServiceClient {
-	return &controlServiceClient{cc}
+func NewOrchestratorServiceClient(cc grpc.ClientConnInterface) OrchestratorServiceClient {
+	return &orchestratorServiceClient{cc}
 }
 
-func (c *controlServiceClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error) {
-	out := new(StartResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Start", in, out, opts...)
+func (c *orchestratorServiceClient) CreateNetwork(ctx context.Context, in *CreateNetworkRequest, opts ...grpc.CallOption) (*CreateNetworkResponse, error) {
+	out := new(CreateNetworkResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/CreateNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
-	out := new(HealthResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Health", in, out, opts...)
+func (c *orchestratorServiceClient) GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error) {
+	out := new(GetNodesResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/GetNodes", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error) {
-	out := new(URIsResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/URIs", in, out, opts...)
+func (c *orchestratorServiceClient) GetNode(ctx context.Context, in *GetNodeRequest, opts ...grpc.CallOption) (*GetNodeResponse, error) {
+	out := new(GetNodeResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/GetNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
-	out := new(StatusResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Status", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlServiceClient) StreamStatus(ctx context.Context, in *StreamStatusRequest, opts ...grpc.CallOption) (ControlService_StreamStatusClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ControlService_ServiceDesc.Streams[0], "/rpcpb.ControlService/StreamStatus", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &controlServiceStreamStatusClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type ControlService_StreamStatusClient interface {
-	Recv() (*StreamStatusResponse, error)
-	grpc.ClientStream
-}
-
-type controlServiceStreamStatusClient struct {
-	grpc.ClientStream
-}
-
-func (x *controlServiceStreamStatusClient) Recv() (*StreamStatusResponse, error) {
-	m := new(StreamStatusResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *controlServiceClient) RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error) {
-	out := new(RemoveNodeResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/RemoveNode", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlServiceClient) AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error) {
+func (c *orchestratorServiceClient) AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error) {
 	out := new(AddNodeResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/AddNode", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/AddNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) RestartNode(ctx context.Context, in *RestartNodeRequest, opts ...grpc.CallOption) (*RestartNodeResponse, error) {
-	out := new(RestartNodeResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/RestartNode", in, out, opts...)
+func (c *orchestratorServiceClient) Teardown(ctx context.Context, in *TeardownRequest, opts ...grpc.CallOption) (*TeardownResponse, error) {
+	out := new(TeardownResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/Teardown", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error) {
-	out := new(StopResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Stop", in, out, opts...)
+func (c *orchestratorServiceClient) NodeStop(ctx context.Context, in *NodeStopRequest, opts ...grpc.CallOption) (*NodeStopResponse, error) {
+	out := new(NodeStopResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.OrchestratorService/NodeStop", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controlServiceClient) AttachPeer(ctx context.Context, in *AttachPeerRequest, opts ...grpc.CallOption) (*AttachPeerResponse, error) {
-	out := new(AttachPeerResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/AttachPeer", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlServiceClient) SendOutboundMessage(ctx context.Context, in *SendOutboundMessageRequest, opts ...grpc.CallOption) (*SendOutboundMessageResponse, error) {
-	out := new(SendOutboundMessageResponse)
-	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/SendOutboundMessage", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// ControlServiceServer is the server API for ControlService service.
-// All implementations must embed UnimplementedControlServiceServer
+// OrchestratorServiceServer is the server API for OrchestratorService service.
+// All implementations must embed UnimplementedOrchestratorServiceServer
 // for forward compatibility
-type ControlServiceServer interface {
-	Start(context.Context, *StartRequest) (*StartResponse, error)
-	Health(context.Context, *HealthRequest) (*HealthResponse, error)
-	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
-	Status(context.Context, *StatusRequest) (*StatusResponse, error)
-	StreamStatus(*StreamStatusRequest, ControlService_StreamStatusServer) error
-	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
+type OrchestratorServiceServer interface {
+	CreateNetwork(context.Context, *CreateNetworkRequest) (*CreateNetworkResponse, error)
+	GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error)
+	GetNode(context.Context, *GetNodeRequest) (*GetNodeResponse, error)
 	AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error)
-	RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error)
-	Stop(context.Context, *StopRequest) (*StopResponse, error)
-	AttachPeer(context.Context, *AttachPeerRequest) (*AttachPeerResponse, error)
-	SendOutboundMessage(context.Context, *SendOutboundMessageRequest) (*SendOutboundMessageResponse, error)
-	mustEmbedUnimplementedControlServiceServer()
+	Teardown(context.Context, *TeardownRequest) (*TeardownResponse, error)
+	NodeStop(context.Context, *NodeStopRequest) (*NodeStopResponse, error)
+	mustEmbedUnimplementedOrchestratorServiceServer()
 }
 
-// UnimplementedControlServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedControlServiceServer struct {
+// UnimplementedOrchestratorServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedOrchestratorServiceServer struct {
 }
 
-func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (*StartResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+func (UnimplementedOrchestratorServiceServer) CreateNetwork(context.Context, *CreateNetworkRequest) (*CreateNetworkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateNetwork not implemented")
 }
-func (UnimplementedControlServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
+func (UnimplementedOrchestratorServiceServer) GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNodes not implemented")
 }
-func (UnimplementedControlServiceServer) URIs(context.Context, *URIsRequest) (*URIsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method URIs not implemented")
+func (UnimplementedOrchestratorServiceServer) GetNode(context.Context, *GetNodeRequest) (*GetNodeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNode not implemented")
 }
-func (UnimplementedControlServiceServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
-}
-func (UnimplementedControlServiceServer) StreamStatus(*StreamStatusRequest, ControlService_StreamStatusServer) error {
-	return status.Errorf(codes.Unimplemented, "method StreamStatus not implemented")
-}
-func (UnimplementedControlServiceServer) RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveNode not implemented")
-}
-func (UnimplementedControlServiceServer) AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error) {
+func (UnimplementedOrchestratorServiceServer) AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddNode not implemented")
 }
-func (UnimplementedControlServiceServer) RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RestartNode not implemented")
+func (UnimplementedOrchestratorServiceServer) Teardown(context.Context, *TeardownRequest) (*TeardownResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Teardown not implemented")
 }
-func (UnimplementedControlServiceServer) Stop(context.Context, *StopRequest) (*StopResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
+func (UnimplementedOrchestratorServiceServer) NodeStop(context.Context, *NodeStopRequest) (*NodeStopResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NodeStop not implemented")
 }
-func (UnimplementedControlServiceServer) AttachPeer(context.Context, *AttachPeerRequest) (*AttachPeerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AttachPeer not implemented")
-}
-func (UnimplementedControlServiceServer) SendOutboundMessage(context.Context, *SendOutboundMessageRequest) (*SendOutboundMessageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendOutboundMessage not implemented")
-}
-func (UnimplementedControlServiceServer) mustEmbedUnimplementedControlServiceServer() {}
+func (UnimplementedOrchestratorServiceServer) mustEmbedUnimplementedOrchestratorServiceServer() {}
 
-// UnsafeControlServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ControlServiceServer will
+// UnsafeOrchestratorServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to OrchestratorServiceServer will
 // result in compilation errors.
-type UnsafeControlServiceServer interface {
-	mustEmbedUnimplementedControlServiceServer()
+type UnsafeOrchestratorServiceServer interface {
+	mustEmbedUnimplementedOrchestratorServiceServer()
 }
 
-func RegisterControlServiceServer(s grpc.ServiceRegistrar, srv ControlServiceServer) {
-	s.RegisterService(&ControlService_ServiceDesc, srv)
+func RegisterOrchestratorServiceServer(s grpc.ServiceRegistrar, srv OrchestratorServiceServer) {
+	s.RegisterService(&OrchestratorService_ServiceDesc, srv)
 }
 
-func _ControlService_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartRequest)
+func _OrchestratorService_CreateNetwork_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateNetworkRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).Start(ctx, in)
+		return srv.(OrchestratorServiceServer).CreateNetwork(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/Start",
+		FullMethod: "/rpcpb.OrchestratorService/CreateNetwork",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).Start(ctx, req.(*StartRequest))
+		return srv.(OrchestratorServiceServer).CreateNetwork(ctx, req.(*CreateNetworkRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HealthRequest)
+func _OrchestratorService_GetNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNodesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).Health(ctx, in)
+		return srv.(OrchestratorServiceServer).GetNodes(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/Health",
+		FullMethod: "/rpcpb.OrchestratorService/GetNodes",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).Health(ctx, req.(*HealthRequest))
+		return srv.(OrchestratorServiceServer).GetNodes(ctx, req.(*GetNodesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_URIs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(URIsRequest)
+func _OrchestratorService_GetNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNodeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).URIs(ctx, in)
+		return srv.(OrchestratorServiceServer).GetNode(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/URIs",
+		FullMethod: "/rpcpb.OrchestratorService/GetNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).URIs(ctx, req.(*URIsRequest))
+		return srv.(OrchestratorServiceServer).GetNode(ctx, req.(*GetNodeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StatusRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServiceServer).Status(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/Status",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).Status(ctx, req.(*StatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ControlService_StreamStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(StreamStatusRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(ControlServiceServer).StreamStatus(m, &controlServiceStreamStatusServer{stream})
-}
-
-type ControlService_StreamStatusServer interface {
-	Send(*StreamStatusResponse) error
-	grpc.ServerStream
-}
-
-type controlServiceStreamStatusServer struct {
-	grpc.ServerStream
-}
-
-func (x *controlServiceStreamStatusServer) Send(m *StreamStatusResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _ControlService_RemoveNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveNodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServiceServer).RemoveNode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/RemoveNode",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).RemoveNode(ctx, req.(*RemoveNodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ControlService_AddNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _OrchestratorService_AddNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddNodeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).AddNode(ctx, in)
+		return srv.(OrchestratorServiceServer).AddNode(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/AddNode",
+		FullMethod: "/rpcpb.OrchestratorService/AddNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).AddNode(ctx, req.(*AddNodeRequest))
+		return srv.(OrchestratorServiceServer).AddNode(ctx, req.(*AddNodeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_RestartNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RestartNodeRequest)
+func _OrchestratorService_Teardown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TeardownRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).RestartNode(ctx, in)
+		return srv.(OrchestratorServiceServer).Teardown(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/RestartNode",
+		FullMethod: "/rpcpb.OrchestratorService/Teardown",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).RestartNode(ctx, req.(*RestartNodeRequest))
+		return srv.(OrchestratorServiceServer).Teardown(ctx, req.(*TeardownRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StopRequest)
+func _OrchestratorService_NodeStop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeStopRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).Stop(ctx, in)
+		return srv.(OrchestratorServiceServer).NodeStop(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/Stop",
+		FullMethod: "/rpcpb.OrchestratorService/NodeStop",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).Stop(ctx, req.(*StopRequest))
+		return srv.(OrchestratorServiceServer).NodeStop(ctx, req.(*NodeStopRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_AttachPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AttachPeerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServiceServer).AttachPeer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/AttachPeer",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).AttachPeer(ctx, req.(*AttachPeerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ControlService_SendOutboundMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendOutboundMessageRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServiceServer).SendOutboundMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpcpb.ControlService/SendOutboundMessage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).SendOutboundMessage(ctx, req.(*SendOutboundMessageRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// ControlService_ServiceDesc is the grpc.ServiceDesc for ControlService service.
+// OrchestratorService_ServiceDesc is the grpc.ServiceDesc for OrchestratorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ControlService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "rpcpb.ControlService",
-	HandlerType: (*ControlServiceServer)(nil),
+var OrchestratorService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpcpb.OrchestratorService",
+	HandlerType: (*OrchestratorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Start",
-			Handler:    _ControlService_Start_Handler,
+			MethodName: "CreateNetwork",
+			Handler:    _OrchestratorService_CreateNetwork_Handler,
 		},
 		{
-			MethodName: "Health",
-			Handler:    _ControlService_Health_Handler,
+			MethodName: "GetNodes",
+			Handler:    _OrchestratorService_GetNodes_Handler,
 		},
 		{
-			MethodName: "URIs",
-			Handler:    _ControlService_URIs_Handler,
-		},
-		{
-			MethodName: "Status",
-			Handler:    _ControlService_Status_Handler,
-		},
-		{
-			MethodName: "RemoveNode",
-			Handler:    _ControlService_RemoveNode_Handler,
+			MethodName: "GetNode",
+			Handler:    _OrchestratorService_GetNode_Handler,
 		},
 		{
 			MethodName: "AddNode",
-			Handler:    _ControlService_AddNode_Handler,
+			Handler:    _OrchestratorService_AddNode_Handler,
 		},
 		{
-			MethodName: "RestartNode",
-			Handler:    _ControlService_RestartNode_Handler,
+			MethodName: "Teardown",
+			Handler:    _OrchestratorService_Teardown_Handler,
 		},
 		{
-			MethodName: "Stop",
-			Handler:    _ControlService_Stop_Handler,
-		},
-		{
-			MethodName: "AttachPeer",
-			Handler:    _ControlService_AttachPeer_Handler,
-		},
-		{
-			MethodName: "SendOutboundMessage",
-			Handler:    _ControlService_SendOutboundMessage_Handler,
+			MethodName: "NodeStop",
+			Handler:    _OrchestratorService_NodeStop_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "StreamStatus",
-			Handler:       _ControlService_StreamStatus_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "rpcpb/rpc.proto",
 }

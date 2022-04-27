@@ -8,23 +8,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/backend"
 	"github.com/ava-labs/avalanche-network-runner/e2e"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLocalNetworkOrchestrator(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(2*time.Minute))
 	defer cancel()
 
-	registry := backend.NewExecutorRegistry(map[string]string{
-		constants.NormalExecution: constants.AvalancheGoBinary,
-	})
-
 	// Note: t.TempDir() returns a directory that can be cleaned up within the test, whereas
 	// os.TempDir() maintains an open file descriptor, so it cannot be cleaned up by the
 	// network orchestrator.
-	orchestrator := NewNetworkOrchestrator(t.TempDir(), registry, true)
+	orchestrator := NewNetworkOrchestrator(&OrchestratorConfig{
+		BaseDir: t.TempDir(),
+		Registry: map[string]string{
+			constants.NormalExecution: constants.AvalancheGoBinary,
+		},
+		DestroyOnTeardown: true,
+	})
+	defer func() {
+		assert.NoError(t, orchestrator.Teardown(ctx), "failed to teardown orchestator")
+	}()
 
 	e2e.TestNetworkOrchestrator(ctx, t, orchestrator)
 }

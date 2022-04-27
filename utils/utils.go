@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -89,4 +90,20 @@ func VMID(vmName string) (ids.ID, error) {
 	b := make([]byte, 32)
 	copy(b, []byte(vmName))
 	return ids.ToID(b)
+}
+
+func GetFreePorts(numPorts int) ([]int, error) {
+	ports := make([]int, 0, numPorts)
+	for i := 0; i < numPorts; i++ {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, err
+		}
+		// Defer closing the listener until the end of the function
+		// so that we don't accidentally allocate the same port twice.
+		defer listener.Close()
+		ports = append(ports, listener.Addr().(*net.TCPAddr).Port)
+	}
+
+	return ports, nil
 }

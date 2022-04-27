@@ -19,12 +19,16 @@ type Node interface {
 
 // Network provides an interface for configuring Nodes
 type Network interface {
+	// GetName returns the name of the network
+	GetName() string
 	// GetNodes returns the names of each node in the network
-	GetNodes() []Node
+	GetNodes() ([]Node, error)
 	// GetNode returns the Node corresponding to [name]
-	GetNode(name string) (Node, bool)
+	GetNode(name string) (Node, error)
 	// AddNode adds new node to the network
 	AddNode(ctx context.Context, config NodeConfig) (Node, error)
+	// RemoveNode stops and removes the node from the network
+	RemoveNode(name string, timeout time.Duration) error
 	// Teardown stops the network and additionally tears down all of the resources associated with it
 	Teardown(ctx context.Context) error
 }
@@ -32,11 +36,7 @@ type Network interface {
 // NetworkOrchestrator provides an interface to orchestrate networks using an arbitrary backend
 type NetworkOrchestrator interface {
 	CreateNetwork(name string) (Network, error)
-	GetNetwork(name string) (Network, bool)
+	GetNetwork(name string) (Network, error)
+	TeardownNetwork(ctx context.Context, name string) error
 	Teardown(ctx context.Context) error
 }
-
-// // OrchestratorFactory defines an interface for creating a new orchestrator with an arbitrary configuration
-// type OrchestratorFactory interface {
-// 	CreateOrchestrator(config []byte) (NetworkOrchestrator, error)
-// }

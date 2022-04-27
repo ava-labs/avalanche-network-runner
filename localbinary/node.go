@@ -14,6 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var _ backend.Node = &node{}
+
 type node struct {
 	cmd *exec.Cmd
 
@@ -57,17 +59,17 @@ func newNode(cmd *exec.Cmd, nodeDef backend.NodeConfig) (*node, error) {
 	}
 
 	// TODO use defaults from AvalancheGo for ports
-	stakingPort := 9651
+	stakingPort := "9651"
 	if val, ok := nodeDef.Config[config.StakingPortKey]; ok {
-		stakingPort = val.(int)
+		stakingPort = fmt.Sprintf("%v", val)
 	}
-	node.bootstrapIP = fmt.Sprintf("127.0.0.1:%d", stakingPort)
+	node.bootstrapIP = fmt.Sprintf("127.0.0.1:%s", stakingPort)
 
-	httpPort := 9650
+	httpPort := "9650"
 	if val, ok := nodeDef.Config[config.HTTPPortKey]; ok {
-		httpPort = val.(int)
+		httpPort = fmt.Sprintf("%v", val)
 	}
-	node.httpBaseURI = fmt.Sprintf("http://127.0.0.1:%d", httpPort)
+	node.httpBaseURI = fmt.Sprintf("http://127.0.0.1:%s", httpPort)
 
 	return node, nil
 }

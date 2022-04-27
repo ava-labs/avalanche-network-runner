@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner/control"
+	"github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner/ping"
 	"github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner/server"
 	"github.com/spf13/cobra"
@@ -27,7 +27,7 @@ func init() {
 	rootCmd.AddCommand(
 		server.NewCommand(),
 		ping.NewCommand(),
-		control.NewCommand(),
+		client.NewCommand(),
 	)
 }
 

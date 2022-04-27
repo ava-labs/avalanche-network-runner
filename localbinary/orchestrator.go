@@ -5,83 +5,56 @@ package localbinary
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/backend"
-	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
-var (
-	_ backend.NetworkOrchestrator = &orchestrator{}
-	_ backend.NetworkConstructor  = &networkConstructor{}
-	_ backend.Node                = &node{}
-)
+var _ backend.OrchestratorBackend = &orchestrator{}
 
 type orchestrator struct {
-	lock sync.RWMutex
-
 	orchestratorBaseDir string
 	removeBaseDir       bool
 	registry            backend.ExecutorRegistry
-	networks            map[string]backend.Network
+}
+
+type OrchestratorConfig struct {
+	BaseDir           string            `json:"baseDir"`
+	Registry          map[string]string `json:"registry"`
+	DestroyOnTeardown bool              `json:"destroyOnTeardown"`
+}
+
+func NewNetworkOrchestratorFromBytes(configBytes []byte) (backend.NetworkOrchestrator, error) {
+	config := new(OrchestratorConfig)
+	if err := json.Unmarshal(configBytes, config); err != nil {
+		return nil, err
+	}
+
+	return NewNetworkOrchestrator(config), nil
 }
 
 // NewNetworkOrchestrator creates a new orchestator that generates networks using processes started on the local machine
 // If [wipeDir] is true, then the network orchestrator will attempt to wipe the contents of [baseDir] when Teardown is called.
-func NewNetworkOrchestrator(baseDir string, registry backend.ExecutorRegistry, wipeDir bool) backend.NetworkOrchestrator {
-	return &orchestrator{
-		orchestratorBaseDir: baseDir,
-		removeBaseDir:       wipeDir,
-		registry:            registry,
-		networks:            make(map[string]backend.Network),
-	}
+func NewNetworkOrchestrator(config *OrchestratorConfig) backend.NetworkOrchestrator {
+	return backend.NewOrchestrator(&orchestrator{
+		orchestratorBaseDir: config.BaseDir,
+		removeBaseDir:       config.DestroyOnTeardown,
+		registry:            backend.NewExecutorRegistry(config.Registry),
+	})
 }
 
-func (o *orchestrator) CreateNetwork(name string) (backend.Network, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
+func (o *orchestrator) CreateNetworkConstructor(name string) (backend.NetworkConstructor, error) {
 	logrus.Infof("Creating network under name: %s", name)
-	if _, exists := o.networks[name]; exists {
-		return nil, fmt.Errorf("cannot create duplicate network under the name: %s", name)
-	}
-
 	constructor := newNetworkConstructor(filepath.Join(o.orchestratorBaseDir, name), o.registry)
-	network := backend.NewNetwork(constructor)
-	o.networks[name] = network
-	return network, nil
-}
-
-func (o *orchestrator) GetNetwork(name string) (backend.Network, bool) {
-	o.lock.RLock()
-	defer o.lock.RUnlock()
-
-	network, exists := o.networks[name]
-	return network, exists
+	return constructor, nil
 }
 
 func (o *orchestrator) Teardown(ctx context.Context) error {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	logrus.Infof("Tearing down local network orchestrator...")
-	eg := errgroup.Group{}
-	for _, network := range o.networks {
-		network := network
-		eg.Go(func() error {
-			return network.Teardown(ctx)
-		})
-	}
-
-	errs := wrappers.Errs{}
-	errs.Add(eg.Wait())
 	if o.removeBaseDir {
-		errs.Add(os.RemoveAll(o.orchestratorBaseDir))
+		return os.RemoveAll(o.orchestratorBaseDir)
 	}
-	return errs.Err
+	return nil
 }

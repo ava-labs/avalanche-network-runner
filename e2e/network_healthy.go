@@ -17,7 +17,11 @@ import (
 // Forwards the parameters [parentCtx] and [healthCheckFreq] into AwaitHealthy
 func AwaitHealthy(parentCtx context.Context, network backend.Network, healthCheckFreq time.Duration) error {
 	eg, ctx := errgroup.WithContext(parentCtx)
-	for _, node := range network.GetNodes() {
+	nodes, err := network.GetNodes()
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
 		node := node
 		client := health.NewClient(node.GetHTTPBaseURI())
 		eg.Go(func() error {

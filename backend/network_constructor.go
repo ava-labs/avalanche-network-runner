@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ Network = &networkBackend{}
@@ -23,20 +24,30 @@ type NetworkConstructor interface {
 }
 
 type networkBackend struct {
-	lock    sync.RWMutex
-	network NetworkConstructor
+	lock sync.RWMutex
 
-	nodes map[string]Node
+	name    string
+	network NetworkConstructor
+	killed  bool
+
+	removeNetwork func() error
+	nodes         map[string]Node
 }
 
-func NewNetwork(constructor NetworkConstructor) Network {
+func newNetwork(name string, constructor NetworkConstructor, removeNetwork func() error) Network {
 	return &networkBackend{
-		network: constructor,
-		nodes:   make(map[string]Node),
+		name:          name,
+		network:       constructor,
+		removeNetwork: removeNetwork,
+		nodes:         make(map[string]Node),
 	}
 }
 
-func (backend *networkBackend) GetNodes() []Node {
+func (backend *networkBackend) GetName() string {
+	return backend.name
+}
+
+func (backend *networkBackend) GetNodes() ([]Node, error) {
 	backend.lock.RLock()
 	defer backend.lock.RUnlock()
 
@@ -45,15 +56,18 @@ func (backend *networkBackend) GetNodes() []Node {
 		nodes = append(nodes, node)
 	}
 
-	return nodes
+	return nodes, nil
 }
 
-func (backend *networkBackend) GetNode(name string) (Node, bool) {
+func (backend *networkBackend) GetNode(name string) (Node, error) {
 	backend.lock.RLock()
 	defer backend.lock.RUnlock()
 
 	node, exists := backend.nodes[name]
-	return node, exists
+	if !exists {
+		return nil, fmt.Errorf("cannot get non-existent node: %s", name)
+	}
+	return node, nil
 }
 
 func (backend *networkBackend) AddNode(ctx context.Context, config NodeConfig) (Node, error) {
@@ -83,6 +97,54 @@ func (backend *networkBackend) AddNode(ctx context.Context, config NodeConfig) (
 	return node, nil
 }
 
+func (backend *networkBackend) RemoveNode(name string, timeout time.Duration) error {
+	backend.lock.Lock()
+	defer backend.lock.Unlock()
+
+	node, exists := backend.nodes[name]
+	if !exists {
+		return fmt.Errorf("cannot remove non-existent node: %s", name)
+	}
+	delete(backend.nodes, name)
+	return node.Stop(timeout)
+}
+
 func (backend *networkBackend) Teardown(ctx context.Context) error {
-	return backend.network.Teardown(ctx)
+	backend.lock.Lock()
+	defer backend.lock.Unlock()
+
+	// If the backend has already been torn down, consider this a no-op.
+	if backend.killed {
+		return nil
+	}
+
+	// Shut down all of the nodes in the network before calling teardown on the constructor
+	eg := errgroup.Group{}
+	for name, node := range backend.nodes {
+		node := node
+		eg.Go(func() error {
+			return node.Stop(10 * time.Second)
+		})
+		// Remove the node from tracking after we have started a goroutine to kill it.
+		// Note: if Stop fails the network will still be removed from the network tracking.
+		delete(backend.nodes, name)
+	}
+
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+	if err := backend.network.Teardown(ctx); err != nil {
+		return err
+	}
+	// Note: removeNetwork will grab a lock in the parent orchestrator. Therefore, we enforce the invariant that
+	// we will always grab the backend lock prior to the orchestrator lock.
+	//
+	// To accomplish this, we simply never call any function on the network backend from the orchestrator while
+	// holding the orchestrator lock.
+	if err := backend.removeNetwork(); err != nil {
+		return err
+	}
+	// Mark the backend as killed after it has successfully been taken down.
+	backend.killed = true
+	return nil
 }
