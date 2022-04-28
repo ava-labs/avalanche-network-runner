@@ -138,7 +138,7 @@ The network-runner supports avalanchego node configuration at different levels.
         "index-enabled":true
         }
     ```
-2. `--global-node-config` is a JSON string representing a *single* set of avalanchego configs, which will be applied to **all nodes**. This makes it easy to define common properties to all nodes. Whatever is set here will be *combined* with the standard set above.
+2. `--global-node-config` is a JSON string representing a *single* avalanchego config, which will be applied to **all nodes**. This makes it easy to define common properties to all nodes. Whatever is set here will be *combined* with the standard set above.
 3. `--custom-node-configs` is a map of JSON strings representing the *complete* network with individual configs. This allows to configure each node independently. If set, `--number-of-nodes` will be **ignored** to avoid conflicts.
 4. The configs can be combined and will be merged, i.e. one could set global `--global-node-config` entries applied to each node, and also set `--custom-node-configs` for additional entries.
 5. Common `--custom-node-configs` entries override `--global-node-config` entries which override the standard set.
@@ -150,7 +150,6 @@ The network-runner supports avalanchego node configuration at different levels.
       --staking-port
       --public-ipc
     ```
-
 
 
 To wait for all the nodes in the cluster to become healthy:
@@ -268,7 +267,6 @@ See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for deta
 **Note**: The following subnet parameters will be set from the global network configuration to this node:
 `--whitelisted-subnets`
 `--plugin-dir`
-
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
 (See [here](https://github.com/ava-labs/avalanchego/blob/master/network/peer/test_peer.go) for more information.)

@@ -37,6 +37,12 @@ const (
   }`
 )
 
+var ignoreFields = map[string]struct{}{
+	"public-ip":    {},
+	"http-port":    {},
+	"staking-port": {},
+}
+
 type localNetwork struct {
 	logger logging.Logger
 
@@ -136,8 +142,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		nodeNames[i] = nodeName
 		cfg.NodeConfigs[i].Name = nodeName
 
-		var mergedConfig map[string]interface{}
-		mergedConfig, err = mergeNodeConfig(defaultConfig, globalConfig, opts.customNodeConfigs[nodeNames[i]])
+		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, opts.customNodeConfigs[nodeNames[i]])
 		if err != nil {
 			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
@@ -195,13 +200,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // It also skips some entries which are internal to the runner
 func mergeAndCheckForIgnores(base, override map[string]interface{}) {
 	for k, v := range override {
-		if k == "public-ip" {
-			continue
-		}
-		if k == "staking-port" {
-			continue
-		}
-		if k == "http-port" {
+		if _, ok := ignoreFields[k]; ok {
 			continue
 		}
 		base[k] = v
@@ -214,10 +213,9 @@ func mergeAndCheckForIgnores(base, override map[string]interface{}) {
 // customConfig: a custom config provided to be applied to this node. Overrides globalConfig and defaultConfig
 // returns final map of node config entries
 func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]interface{}, customConfig string) (map[string]interface{}, error) {
-	var jsonCustom map[string]interface{}
-
 	mergeAndCheckForIgnores(baseConfig, globalConfig)
 
+	var jsonCustom map[string]interface{}
 	// merge, overwriting entries in default with the global ones
 	if customConfig != "" {
 		if err := json.Unmarshal([]byte(customConfig), &jsonCustom); err != nil {

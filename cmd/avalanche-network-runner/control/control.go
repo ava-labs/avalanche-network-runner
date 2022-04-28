@@ -145,8 +145,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 
 	if customNodeConfigs != "" {
 		nodeConfigs := make(map[string]string)
-		err = json.Unmarshal([]byte(customNodeConfigs), &nodeConfigs)
-		if err != nil {
+		if err := json.Unmarshal([]byte(customNodeConfigs), &nodeConfigs); err != nil {
 			return err
 		}
 		opts = append(opts, client.WithCustomNodeConfigs(nodeConfigs))
@@ -154,8 +153,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 
 	if customVMNameToGenesisPath != "" {
 		customVMs := make(map[string]string)
-		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
-		if err != nil {
+		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
 			return err
 		}
 		opts = append(opts, client.WithCustomVMs(customVMs))
