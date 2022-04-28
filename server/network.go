@@ -113,6 +113,18 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var defaultConfig, globalConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return nil, err
+	}
+
+	if opts.defaultNodeConfig != "" {
+		if err := json.Unmarshal([]byte(opts.defaultNodeConfig), &globalConfig); err != nil {
+			return nil, err
+		}
+	}
+
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
 		nodeName := fmt.Sprintf("node%d", i+1)
@@ -123,7 +135,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		cfg.NodeConfigs[i].Name = nodeName
 
 		var mergedConfig map[string]interface{}
-		mergedConfig, err = mergeNodeConfig(defaultNodeConfig, opts.customNodeConfigs[nodeNames[i]], opts.defaultNodeConfig)
+		mergedConfig, err = mergeNodeConfig(defaultConfig, globalConfig, opts.customNodeConfigs[nodeNames[i]])
 		if err != nil {
 			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
@@ -174,22 +186,17 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-// get the node configs right
-func mergeNodeConfig(defaultConfig string, customConfig string, globalConfig string) (map[string]interface{}, error) {
-	var jsonMerged, jsonCustom, jsonGlobal map[string]interface{}
+// mergeNodeConfig evaluates the final node config.
+// defaultConfig: map of base config to be applied
+// globalConfig: map of global config provided to be applied to all nodes. Overrides defaultConfig
+// customConfig: a custom config provided to be applied to this node. Overrides globalConfig and defaultConfig
+// returns final map of node config entries
+func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]interface{}, customConfig string) (map[string]interface{}, error) {
+	var jsonCustom map[string]interface{}
 
-	if err := json.Unmarshal([]byte(defaultConfig), &jsonMerged); err != nil {
-		return nil, err
-	}
-
-	if globalConfig != "" {
-		if err := json.Unmarshal([]byte(globalConfig), &jsonGlobal); err != nil {
-			return nil, err
-		}
-		// merge, overwriting entries in default with the global ones
-		for k, v := range jsonGlobal {
-			jsonMerged[k] = v
-		}
+	// merge, overwriting entries in default with the global ones
+	for k, v := range globalConfig {
+		baseConfig[k] = v
 	}
 
 	if customConfig != "" {
@@ -198,13 +205,14 @@ func mergeNodeConfig(defaultConfig string, customConfig string, globalConfig str
 		}
 		// merge, overwriting entries in default with the custom ones
 		for k, v := range jsonCustom {
-			jsonMerged[k] = v
+			baseConfig[k] = v
 		}
 	}
 
-	return jsonMerged, nil
+	return baseConfig, nil
 }
 
+// createConfigFileString finalizes the config setup and returns the node config JSON string
 func createConfigFileString(config map[string]interface{}, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
 	config["log-level"] = strings.ToUpper(logLevel)

@@ -341,7 +341,7 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 	}
 }
 
-// Map from VM name to its genesis path.
+// Map from node name to its custom node config
 func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customNodeConfigs = customNodeConfigs

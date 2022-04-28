@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -566,9 +567,19 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
 	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
 
+	var defaultConfig, globalConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return nil, err
+	}
+	if req.StartRequest.GetDefaultNodeConfig() != "" {
+		if err := json.Unmarshal([]byte(req.StartRequest.GetDefaultNodeConfig()), &globalConfig); err != nil {
+			return nil, err
+		}
+	}
+
 	var mergedConfig map[string]interface{}
 	// we only need to merge from the default node config here, as we are only adding one node
-	mergedConfig, err = mergeNodeConfig(defaultNodeConfig, "", req.StartRequest.GetDefaultNodeConfig())
+	mergedConfig, err = mergeNodeConfig(defaultConfig, globalConfig, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}

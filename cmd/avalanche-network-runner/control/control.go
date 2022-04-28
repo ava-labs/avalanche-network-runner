@@ -104,13 +104,13 @@ func newStartCommand() *cobra.Command {
 		&defaultNodeConfig,
 		"default-node-config",
 		"",
-		"default node config as string, applied to all nodes",
+		"[optional] default node config as JSON string, applied to all nodes",
 	)
 	cmd.PersistentFlags().StringVar(
 		&customNodeConfigs,
 		"custom-node-configs",
 		"",
-		"custom node configs as string, for each node individually",
+		"[optional] custom node configs as JSON string of map, for each node individually. Common entries verride `default-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if uses).",
 	)
 	return cmd
 }

@@ -17,7 +17,12 @@ func TestEvalConfig(t *testing.T) {
 	tWhitelistedSubnets := "someSubnet"
 	tPluginDir := "/tmp/plugins"
 
-	config, err := mergeNodeConfig(defaultNodeConfig, "", "")
+	var defaultConfig, globalConfig map[string]interface{}
+
+	err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig)
+	assert.NoError(err)
+
+	config, err := mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
 	finalJSON, err := createConfigFileString(config, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
@@ -40,7 +45,7 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
 
 	// now test a global provided config
-	test2 := `{
+	globalConfigJSON := `{
 		"log-dir":"/home/user/logs",
 		"db-dir":"/home/user/db",
 		"plugin-dir":"/home/user/plugins",
@@ -52,11 +57,11 @@ func TestEvalConfig(t *testing.T) {
 		"network-id":999,
 		"tx-fee":9999999
 		}`
-	var test2Map map[string]interface{}
-	err = json.Unmarshal([]byte(test2), &test2Map)
+
+	err = json.Unmarshal([]byte(globalConfigJSON), &globalConfig)
 	assert.NoError(err)
 
-	config, err = mergeNodeConfig(defaultNodeConfig, "", test2)
+	config, err = mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
 	finalJSON, err = createConfigFileString(config, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
@@ -76,7 +81,8 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
 
 	// same test but as custom only - should have same effect
-	config, err = mergeNodeConfig(defaultNodeConfig, test2, "")
+	customConfigJSON := globalConfigJSON
+	config, err = mergeNodeConfig(defaultConfig, map[string]interface{}{}, customConfigJSON)
 	assert.NoError(err)
 	finalJSON, err = createConfigFileString(config, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
@@ -96,8 +102,8 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
 
 	// finally a combined one with custom and global
-	// test3 represents the global config, test2 the custom. custom should override global
-	test3 := `{
+	// newGlobalConfigJSON represents the global config, globalConfigJSON the custom. custom should override global
+	newGlobalConfigJSON := `{
 		"log-dir":"/home/user/logs",
 		"db-dir":"/home/user/db",
 		"plugin-dir":"/home/user/plugins",
@@ -112,7 +118,10 @@ func TestEvalConfig(t *testing.T) {
 		"http-port":5555,
 		"uptime-requirement":98.5
 		}`
-	config, err = mergeNodeConfig(defaultNodeConfig, test2, test3)
+	err = json.Unmarshal([]byte(newGlobalConfigJSON), &globalConfig)
+	assert.NoError(err)
+
+	config, err = mergeNodeConfig(defaultConfig, globalConfig, customConfigJSON)
 	assert.NoError(err)
 	finalJSON, err = createConfigFileString(config, tLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
