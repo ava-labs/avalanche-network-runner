@@ -270,7 +270,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
 		logLevel           = req.GetLogLevel()
-		defaultNodeConfig  = req.GetDefaultNodeConfig()
+		globalNodeConfig   = req.GetGlobalNodeConfig()
 		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
 	)
@@ -294,7 +294,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
-		zap.String("defaultNodeConfig", defaultNodeConfig),
+		zap.String("defaultNodeConfig", globalNodeConfig),
 	)
 
 	if s.network != nil {
@@ -314,7 +314,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		logLevel:           logLevel,
 		pluginDir:          pluginDir,
 		customVMs:          customVMs,
-		defaultNodeConfig:  defaultNodeConfig,
+		globalNodeConfig:   globalNodeConfig,
 		customNodeConfigs:  customNodeConfigs,
 
 		// to block racey restart
@@ -571,8 +571,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
 		return nil, err
 	}
-	if req.StartRequest.GetDefaultNodeConfig() != "" {
-		if err := json.Unmarshal([]byte(req.StartRequest.GetDefaultNodeConfig()), &globalConfig); err != nil {
+	if req.StartRequest.GetGlobalNodeConfig() != "" {
+		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
 			return nil, err
 		}
 	}

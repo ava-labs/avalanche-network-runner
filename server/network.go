@@ -84,7 +84,7 @@ type localNetworkOptions struct {
 	numNodes           uint32
 	whitelistedSubnets string
 	logLevel           string
-	defaultNodeConfig  string
+	globalNodeConfig   string
 
 	pluginDir         string
 	customVMs         map[string][]byte
@@ -119,8 +119,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	if opts.defaultNodeConfig != "" {
-		if err := json.Unmarshal([]byte(opts.defaultNodeConfig), &globalConfig); err != nil {
+	if opts.globalNodeConfig != "" {
+		if err := json.Unmarshal([]byte(opts.globalNodeConfig), &globalConfig); err != nil {
 			return nil, err
 		}
 	}
