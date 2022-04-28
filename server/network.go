@@ -48,6 +48,8 @@ type localNetwork struct {
 	nodeNames []string
 	nodeInfos map[string]*rpcpb.NodeInfo
 
+	options localNetworkOptions
+
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
 
@@ -167,6 +169,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		binPath: opts.execPath,
 		cfg:     cfg,
+
+		options: opts,
 
 		nodeNames:     nodeNames,
 		nodeInfos:     nodeInfos,

@@ -559,8 +559,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 
 	// use same configs from other nodes
-	whitelistedSubnets = s.network.nodeInfos[s.network.nodeNames[0]].WhitelistedSubnets
-	pluginDir = s.network.nodeInfos[s.network.nodeNames[0]].PluginDir
+	whitelistedSubnets = s.network.options.whitelistedSubnets
+	pluginDir = s.network.options.pluginDir
 
 	rootDataDir := s.clusterInfo.RootDataDir
 
