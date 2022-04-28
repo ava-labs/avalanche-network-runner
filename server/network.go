@@ -186,6 +186,24 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
+// mergeAndCheckForIgnores takes two maps, merging the two and overriding the first with the second
+// if common entries are found.
+// It also skips some entries which are internal to the runner
+func mergeAndCheckForIgnores(base, override map[string]interface{}) {
+	for k, v := range override {
+		if k == "public-ip" {
+			continue
+		}
+		if k == "staking-port" {
+			continue
+		}
+		if k == "http-port" {
+			continue
+		}
+		base[k] = v
+	}
+}
+
 // mergeNodeConfig evaluates the final node config.
 // defaultConfig: map of base config to be applied
 // globalConfig: map of global config provided to be applied to all nodes. Overrides defaultConfig
@@ -194,19 +212,15 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]interface{}, customConfig string) (map[string]interface{}, error) {
 	var jsonCustom map[string]interface{}
 
-	// merge, overwriting entries in default with the global ones
-	for k, v := range globalConfig {
-		baseConfig[k] = v
-	}
+	mergeAndCheckForIgnores(baseConfig, globalConfig)
 
+	// merge, overwriting entries in default with the global ones
 	if customConfig != "" {
 		if err := json.Unmarshal([]byte(customConfig), &jsonCustom); err != nil {
 			return nil, err
 		}
 		// merge, overwriting entries in default with the custom ones
-		for k, v := range jsonCustom {
-			baseConfig[k] = v
-		}
+		mergeAndCheckForIgnores(baseConfig, jsonCustom)
 	}
 
 	return baseConfig, nil

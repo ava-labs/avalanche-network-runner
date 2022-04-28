@@ -55,6 +55,8 @@ func TestEvalConfig(t *testing.T) {
 		"index-enabled":false,
 		"public-ip":"192.168.0.1",
 		"network-id":999,
+		"http-port":777,
+		"staking-port":555,
 		"tx-fee":9999999
 		}`
 
@@ -71,7 +73,6 @@ func TestEvalConfig(t *testing.T) {
 
 	// the custom ones should be there...
 	assert.Equal(controlMap["index-enabled"], false)
-	assert.Equal(controlMap["public-ip"], "192.168.0.1")
 	assert.Equal(controlMap["network-id"], float64(999))
 	assert.Equal(controlMap["tx-fee"], float64(9999999))
 	// ...as well as the common additional ones
@@ -80,6 +81,10 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["db-dir"], tDbDir)
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
 
+	// these ones should be ignored as they are hard-set by the code and required by the runner
+	assert.Equal(controlMap["public-ip"], "127.0.0.1")
+	assert.NotEqual(controlMap["http-port"], 777)
+	assert.NotEqual(controlMap["staking-port"], 555)
 	// same test but as custom only - should have same effect
 	customConfigJSON := globalConfigJSON
 	config, err = mergeNodeConfig(defaultConfig, map[string]interface{}{}, customConfigJSON)
@@ -92,7 +97,6 @@ func TestEvalConfig(t *testing.T) {
 
 	// the custom ones should be there...
 	assert.Equal(controlMap["index-enabled"], false)
-	assert.Equal(controlMap["public-ip"], "192.168.0.1")
 	assert.Equal(controlMap["network-id"], float64(999))
 	assert.Equal(controlMap["tx-fee"], float64(9999999))
 	// ...as well as the common additional ones
@@ -100,6 +104,10 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["log-dir"], tLogDir)
 	assert.Equal(controlMap["db-dir"], tDbDir)
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
+	// these ones should be ignored as they are hard-set by the code and required by the runner
+	assert.Equal(controlMap["public-ip"], "127.0.0.1")
+	assert.NotEqual(controlMap["http-port"], 777)
+	assert.NotEqual(controlMap["staking-port"], 555)
 
 	// finally a combined one with custom and global
 	// newGlobalConfigJSON represents the global config, globalConfigJSON the custom. custom should override global
@@ -131,7 +139,6 @@ func TestEvalConfig(t *testing.T) {
 
 	// the custom ones should be there...
 	assert.Equal(controlMap["index-enabled"], false)
-	assert.Equal(controlMap["public-ip"], "192.168.0.1")
 	assert.Equal(controlMap["network-id"], float64(999))
 	assert.Equal(controlMap["tx-fee"], float64(9999999))
 	// ...as well as the common additional ones
@@ -140,7 +147,9 @@ func TestEvalConfig(t *testing.T) {
 	assert.Equal(controlMap["db-dir"], tDbDir)
 	assert.Equal(controlMap["whitelisted-subnets"], tWhitelistedSubnets)
 	// ...as well as the ones only in the global config
-	assert.Equal(controlMap["staking-port"], float64(11111))
-	assert.Equal(controlMap["http-port"], float64(5555))
 	assert.Equal(controlMap["uptime-requirement"], float64(98.5))
+	// these ones should be ignored as they are hard-set by the code and required by the runner
+	assert.Equal(controlMap["public-ip"], "127.0.0.1")
+	assert.NotEqual(controlMap["staking-port"], float64(11111))
+	assert.NotEqual(controlMap["http-port"], float64(5555))
 }

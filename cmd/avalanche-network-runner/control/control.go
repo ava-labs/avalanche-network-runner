@@ -385,22 +385,10 @@ func newAddNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
-		"",
-		"whitelisted subnets (comma-separated)",
-	)
-	cmd.PersistentFlags().StringVar(
 		&logLevel,
 		"log-level",
 		"",
 		"log level",
-	)
-	cmd.PersistentFlags().StringVar(
-		&pluginDir,
-		"plugin-dir",
-		"",
-		"[optional] plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
@@ -428,6 +416,10 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	opts := []client.OpOption{
+		client.WithLogLevel(logLevel),
+	}
+
 	if defaultNodeConfig != "" {
 		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", defaultNodeConfig)
 		// validate it's valid JSON
@@ -435,13 +427,9 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		if err := json.Unmarshal([]byte(defaultNodeConfig), &js); err != nil {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
+		opts = append(opts, client.WithDefaultNodeConfig(defaultNodeConfig))
 	}
-	opts := []client.OpOption{
-		client.WithPluginDir(pluginDir),
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithLogLevel(logLevel),
-		client.WithDefaultNodeConfig(defaultNodeConfig),
-	}
+
 	if customVMNameToGenesisPath != "" {
 		customVMs := make(map[string]string)
 		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
