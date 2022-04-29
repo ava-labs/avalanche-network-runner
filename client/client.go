@@ -122,6 +122,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
 	}
+	if ret.customNodeConfigs != nil {
+		req.CustomNodeConfigs = ret.customNodeConfigs
+	}
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, req)
