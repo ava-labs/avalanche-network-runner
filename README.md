@@ -247,7 +247,7 @@ avalanche-network-runner control add-node \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
 
-Adding a node also supports some of the same parameters to start the network resp. to run subnets:
+You can also provide additional flags that specify the node's config, and what custom VMs it supports:
 
 ```bash
 	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'

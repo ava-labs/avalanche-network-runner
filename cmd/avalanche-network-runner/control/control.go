@@ -66,6 +66,7 @@ var (
 	numNodes                  uint32
 	pluginDir                 string
 	globalNodeConfig          string
+	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
 )
@@ -395,7 +396,7 @@ func newAddNodeCommand() *cobra.Command {
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&globalNodeConfig,
+		&addNodeConfig,
 		"node-config",
 		"",
 		"node config as string",
@@ -418,14 +419,14 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		client.WithLogLevel(logLevel),
 	}
 
-	if globalNodeConfig != "" {
-		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", globalNodeConfig)
+	if addNodeConfig != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", addNodeConfig)
 		// validate it's valid JSON
 		var js json.RawMessage
-		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
+		if err := json.Unmarshal([]byte(addNodeConfig), &js); err != nil {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
-		opts = append(opts, client.WithGlobalNodeConfig(globalNodeConfig))
+		opts = append(opts, client.WithGlobalNodeConfig(addNodeConfig))
 	}
 
 	if customVMNameToGenesisPath != "" {
