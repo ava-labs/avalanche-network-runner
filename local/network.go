@@ -18,7 +18,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanche-network-runner/utils/beacon"
+	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
