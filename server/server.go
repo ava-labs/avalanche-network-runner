@@ -269,6 +269,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
 		logLevel           = req.GetLogLevel()
+		nodeConfigParam    = req.GetNodeConfig()
 		err                error
 	)
 	if len(rootDataDir) == 0 {
@@ -291,6 +292,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
+		zap.String("nodeConfig", nodeConfigParam),
 	)
 
 	if s.network != nil {
@@ -305,6 +307,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		logLevel:           logLevel,
 		pluginDir:          pluginDir,
 		customVMs:          customVMs,
+		nodeConfigParam:    nodeConfigParam,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -558,7 +561,14 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
 	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
 
-	configFile := createConfigFileString(logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	nodeCfg := defaultNodeConfig
+	if req.StartRequest.GetNodeConfig() != "" {
+		nodeCfg = req.StartRequest.GetNodeConfig()
+	}
+	configFile, err := createConfigFileString(nodeCfg, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	}
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)

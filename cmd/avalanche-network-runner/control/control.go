@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -64,6 +65,7 @@ var (
 	avalancheGoBinPath        string
 	numNodes                  uint32
 	pluginDir                 string
+	nodeConfig                string
 	customVMNameToGenesisPath string
 )
 
@@ -97,6 +99,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
+	cmd.PersistentFlags().StringVar(
+		&nodeConfig,
+		"node-config",
+		"",
+		"node config as string",
+	)
 	return cmd
 }
 
@@ -111,10 +119,22 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	if nodeConfig != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfig)
+
+		// validate it's valid JSON
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(nodeConfig), &js); err != nil {
+			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+		}
+	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithNodeConfig(nodeConfig),
 	}
+
 	if customVMNameToGenesisPath != "" {
 		customVMs := make(map[string]string)
 		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
@@ -163,6 +183,7 @@ func healthFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -370,6 +391,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
+	cmd.PersistentFlags().StringVar(
+		&nodeConfig,
+		"node-config",
+		"",
+		"node config as string",
+	)
 	return cmd
 }
 
@@ -384,10 +411,19 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	if nodeConfig != "" {
+		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", nodeConfig)
+		// validate it's valid JSON
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(nodeConfig), &js); err != nil {
+			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+		}
+	}
 	opts := []client.OpOption{
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 		client.WithLogLevel(logLevel),
+		client.WithNodeConfig(nodeConfig),
 	}
 	if customVMNameToGenesisPath != "" {
 		customVMs := make(map[string]string)
