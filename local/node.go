@@ -155,7 +155,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-        ids.NodeIDFromCert(tlsCert.Leaf),
+		ids.NodeIDFromCert(tlsCert.Leaf),
 	)
 	if err != nil {
 		return nil, err
