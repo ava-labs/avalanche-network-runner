@@ -20,7 +20,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -248,7 +247,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	}
 	for name, node := range nodes {
 		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+		nodeID := node.GetNodeID().String()
 
 		lc.nodeInfos[name].Uri = uri
 		lc.nodeInfos[name].Id = nodeID

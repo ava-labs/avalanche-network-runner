@@ -67,7 +67,7 @@ type localNode struct {
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
 	// Set in network.AddNode
-	nodeID ids.ShortID
+	nodeID ids.NodeID
 	// The ID of the network this node exists in
 	networkID uint32
 	// Allows user to make API calls to this node.
@@ -138,7 +138,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		),
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		VersionParser:        version.NewDefaultApplicationParser(),
+		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
@@ -155,7 +155,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		peer.CertToID(tlsCert.Leaf),
+        ids.NodeIDFromCert(tlsCert.Leaf),
 	)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (node *localNode) GetName() string {
 }
 
 // See node.Node
-func (node *localNode) GetNodeID() ids.ShortID {
+func (node *localNode) GetNodeID() ids.NodeID {
 	return node.nodeID
 }
 

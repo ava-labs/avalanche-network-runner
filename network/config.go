@@ -102,7 +102,7 @@ func NewAvalancheGoGenesis(
 	networkID uint32,
 	xChainBalances []AddrAndBalance,
 	cChainBalances []AddrAndBalance,
-	genesisVdrs []ids.ShortID,
+	genesisVdrs []ids.NodeID,
 ) ([]byte, error) {
 	switch networkID {
 	case constants.TestnetID, constants.MainnetID, constants.LocalID:
@@ -181,7 +181,7 @@ func NewAvalancheGoGenesis(
 		config.InitialStakers = append(
 			config.InitialStakers,
 			genesis.UnparsedStaker{
-				NodeID:        genesisVdr.PrefixedString(constants.NodeIDPrefix),
+				NodeID:        genesisVdr,
 				RewardAddress: rewardAddr,
 				DelegationFee: 10_000,
 			},

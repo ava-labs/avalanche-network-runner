@@ -8,18 +8,17 @@ import (
 	"os"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 )
 
 const genesisNetworkIDKey = "networkID"
 
-func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
+func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
-		return ids.ShortID{}, err
+		return ids.EmptyNodeID, err
 	}
-	nodeID := peer.CertToID(cert.Leaf)
+	nodeID := ids.NodeIDFromCert(cert.Leaf)
 	return nodeID, nil
 }
 

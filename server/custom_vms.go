@@ -194,7 +194,7 @@ func (lc *localNetwork) setupWallet(ctx context.Context, httpRPCEp string) (base
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
-func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platformvm.Client, baseWallet *refreshableWallet, testKeyAddr ids.ShortID) (validatorIDs []ids.ShortID, err error) {
+func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platformvm.Client, baseWallet *refreshableWallet, testKeyAddr ids.ShortID) (validatorIDs []ids.NodeID, err error) {
 	println()
 	color.Outf("{{green}}fetching all nodes from the existing cluster to make sure all nodes are validating the primary network/subnet{{/}}\n")
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
@@ -204,31 +204,23 @@ func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platfor
 	if err != nil {
 		return nil, err
 	}
-	curValidators := make(map[string]struct{})
+	curValidators := make(map[ids.NodeID]struct{})
 	for _, v := range vs {
-		va, ok := v.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("failed to parse validator data: %T %+v", v, v)
-		}
-		nodeID, ok := va["nodeID"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse validator data: %T %+v", va, va)
-		}
-		curValidators[nodeID] = struct{}{}
-		zap.L().Info("current validator", zap.String("node-id", nodeID))
+		curValidators[v.NodeID] = struct{}{}
+		zap.L().Info("current validator", zap.String("node-id", v.NodeID.String()))
 	}
 
 	println()
 	color.Outf("{{green}}adding all nodes as validator for the primary subnet{{/}}\n")
-	validatorIDs = make([]ids.ShortID, 0, len(lc.nodeInfos))
+	validatorIDs = make([]ids.NodeID, 0, len(lc.nodeInfos))
 	for nodeName, nodeInfo := range lc.nodeInfos {
-		nodeID, err := ids.ShortFromPrefixedString(nodeInfo.Id, constants.NodeIDPrefix)
+		nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 		if err != nil {
 			return nil, err
 		}
 		validatorIDs = append(validatorIDs, nodeID)
 
-		_, isValidator := curValidators[nodeInfo.Id]
+		_, isValidator := curValidators[nodeID]
 		if isValidator {
 			zap.L().Info("the node is already validating the primary subnet; skipping",
 				zap.String("node-name", nodeName),
@@ -376,7 +368,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 	return nil
 }
 
-func (lc *localNetwork) addSubnetValidators(ctx context.Context, baseWallet *refreshableWallet, validatorIDs []ids.ShortID) error {
+func (lc *localNetwork) addSubnetValidators(ctx context.Context, baseWallet *refreshableWallet, validatorIDs []ids.NodeID) error {
 	println()
 	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
 	for vmID, vmInfo := range lc.customVMIDToInfo {

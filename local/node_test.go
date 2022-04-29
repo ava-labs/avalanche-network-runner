@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Conn, error) {
+func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert)
 	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
 	// this will block until the ssh handshake is done
@@ -186,7 +186,7 @@ func TestAttachPeer(t *testing.T) {
 	}()
 
 	node := localNode{
-		nodeID:    ids.GenerateTestShortID(),
+		nodeID:    ids.GenerateTestNodeID(),
 		networkID: constants.MainnetID,
 		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
 			return peerConn, nil
