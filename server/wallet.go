@@ -17,7 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 )
 
-const defaultTimeout = 30 * time.Second
+const defaultTimeout = time.Minute
 
 func createDefaultCtx(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
