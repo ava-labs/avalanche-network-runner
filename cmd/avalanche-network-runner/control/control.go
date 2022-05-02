@@ -111,7 +111,7 @@ func newStartCommand() *cobra.Command {
 		&customNodeConfigs,
 		"custom-node-configs",
 		"",
-		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if uses).",
+		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
 	return cmd
 }

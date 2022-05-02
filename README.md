@@ -148,7 +148,7 @@ The network-runner supports avalanchego node configuration at different levels.
       --db-dir
       --http-port
       --staking-port
-      --public-ipc
+      --public-ip
     ```
 
 
