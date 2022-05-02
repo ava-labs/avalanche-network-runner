@@ -151,7 +151,7 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 
 	lc.customVMsReadycCloseOnce.Do(func() {
 		println()
-		color.Outf("{{green}}{{bold}}all custom VMs are ready!!!{{/}}\n")
+		color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
 		close(lc.customVMsReadyc)
 	})
 	return nil
