@@ -51,6 +51,7 @@ type localNetwork struct {
 
 	nw network.Network
 
+	// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 	nodeNames []string
 	nodeInfos map[string]*rpcpb.NodeInfo
 
@@ -135,6 +136,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
+		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 		nodeName := fmt.Sprintf("node%d", i+1)
 		logDir := filepath.Join(opts.rootDataDir, nodeName, "log")
 		dbDir := filepath.Join(opts.rootDataDir, nodeName, "db-dir")

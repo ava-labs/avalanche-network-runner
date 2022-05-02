@@ -211,6 +211,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("can wait for health", func() {
 		// start is async, so wait some time for cluster health
+		// TODO: Don't sleep. Use polling or other mechanism. Apply to all Sleeps in the test.
 		time.Sleep(30 * time.Second)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

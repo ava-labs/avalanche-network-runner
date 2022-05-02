@@ -33,6 +33,8 @@ var (
 	requestTimeout     time.Duration
 )
 
+// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
+
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "control [options]",

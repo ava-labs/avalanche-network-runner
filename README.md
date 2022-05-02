@@ -127,7 +127,7 @@ See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for deta
 
 The network-runner supports avalanchego node configuration at different levels.
 1. If neither `--global-node-config` nor `--custom-node-configs` is supplied, all nodes get a standard set of config options. Currently this set contains:
-    ```bash
+    ```json
         {
         "network-peer-list-gossip-frequency":"250ms",
         "network-max-reconnect-delay":"1s",
@@ -143,7 +143,7 @@ The network-runner supports avalanchego node configuration at different levels.
 4. The configs can be combined and will be merged, i.e. one could set global `--global-node-config` entries applied to each node, and also set `--custom-node-configs` for additional entries.
 5. Common `--custom-node-configs` entries override `--global-node-config` entries which override the standard set.
 6. The following entries will be **ignored in all cases** because the network-runner needs to set them internally to function properly:
-    ```bash
+    ```
       --log-dir
       --db-dir
       --http-port
@@ -151,6 +151,7 @@ The network-runner supports avalanchego node configuration at different levels.
       --public-ip
     ```
 
+**NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101` 
 
 To wait for all the nodes in the cluster to become healthy:
 
@@ -249,7 +250,7 @@ avalanche-network-runner control add-node \
 
 You can also provide additional flags that specify the node's config, and what custom VMs it supports:
 
-```bash
+```
 	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
 	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
 ```
