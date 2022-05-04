@@ -3,34 +3,28 @@
 
 package utils
 
-import (
-	"bufio"
-	"fmt"
-	"strings"
-)
+import "encoding/json"
 
 // Update the JSON body if the matching key is found
 // and replace the value.
 // e.g., "whitelisted-subnets" is the key and value is "a,b,c".
 func UpdateJSONKey(jsonBody string, k string, v string) (string, error) {
-	k = fmt.Sprintf(`"%s":`, k)
-	lines := make([]string, 0)
-	scanner := bufio.NewScanner(strings.NewReader(jsonBody))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, k) {
-			lines = append(lines, line)
-			continue
-		}
+	var config map[string]interface{}
 
-		idx := strings.Index(line, k)
-		if idx == -1 {
-			// should never happen...
-			return "", fmt.Errorf("line %q is missing the key %q", line, k)
-		}
-		line = line[:idx]
-		line += fmt.Sprintf(`%s"%s"`, k, v)
-		lines = append(lines, line)
+	if err := json.Unmarshal([]byte(jsonBody), &config); err != nil {
+		return "", err
 	}
-	return strings.Join(lines, "\n"), scanner.Err()
+
+	if _, ok := config[k]; ok {
+		config[k] = v
+	} else {
+		// if the key wasn't found, no need to marshal again, just return original
+		return jsonBody, nil
+	}
+
+	updatedJSON, err := json.Marshal(config)
+	if err != nil {
+		return "", err
+	}
+	return string(updatedJSON), nil
 }
