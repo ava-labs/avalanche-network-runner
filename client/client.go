@@ -119,8 +119,11 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if len(ret.customVMs) > 0 {
 		req.CustomVms = ret.customVMs
 	}
-	if ret.nodeConfig != "" {
-		req.NodeConfig = &ret.nodeConfig
+	if ret.globalNodeConfig != "" {
+		req.GlobalNodeConfig = &ret.globalNodeConfig
+	}
+	if ret.customNodeConfigs != nil {
+		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
 
 	zap.L().Info("start")
@@ -277,10 +280,11 @@ type Op struct {
 	execPath           string
 	whitelistedSubnets string
 	logLevel           string
-	nodeConfig         string
+	globalNodeConfig   string
 	rootDataDir        string
 	pluginDir          string
 	customVMs          map[string]string
+	customNodeConfigs  map[string]string
 }
 
 type OpOption func(*Op)
@@ -291,9 +295,9 @@ func (op *Op) applyOpts(opts []OpOption) {
 	}
 }
 
-func WithNodeConfig(nodeConfig string) OpOption {
+func WithGlobalNodeConfig(nodeConfig string) OpOption {
 	return func(op *Op) {
-		op.nodeConfig = nodeConfig
+		op.globalNodeConfig = nodeConfig
 	}
 }
 
@@ -337,6 +341,13 @@ func WithPluginDir(pluginDir string) OpOption {
 func WithCustomVMs(customVMs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customVMs = customVMs
+	}
+}
+
+// Map from node name to its custom node config
+func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
+	return func(op *Op) {
+		op.customNodeConfigs = customNodeConfigs
 	}
 }
 

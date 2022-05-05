@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -43,7 +44,17 @@ var (
 	execPath1     string
 	execPath2     string
 
-	newNodeName = "test-add-node"
+	newNodeName       = "test-add-node"
+	customNodeConfigs = map[string]string{
+		"node1": `{"api-admin-enabled":true}`,
+		"node2": `{"api-admin-enabled":true}`,
+		"node3": `{"api-admin-enabled":true}`,
+		"node4": `{"api-admin-enabled":false}`,
+		"node5": `{"api-admin-enabled":false}`,
+		"node6": `{"api-admin-enabled":false}`,
+		"node7": `{"api-admin-enabled":false}`,
+	}
+	numNodes = uint32(5)
 )
 
 func init() {
@@ -200,7 +211,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("can wait for health", func() {
 		// start is async, so wait some time for cluster health
-		time.Sleep(2 * time.Minute)
+		// TODO: Don't sleep. Use polling or other mechanism. Apply to all Sleeps in the test.
+		time.Sleep(30 * time.Second)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		_, err := cli.Health(ctx)
@@ -315,6 +327,64 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("already exists"))
 			gomega.Ω(resp).Should(gomega.BeNil())
 			color.Outf("{{green}}add-node failed as expected")
+		})
+	})
+
+	ginkgo.It("can start with custom config", func() {
+		ginkgo.By("stopping network first", func() {
+			color.Outf("{{red}}shutting down cluster{{/}}\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Stop(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+
+			color.Outf("{{red}}shutting down client{{/}}\n")
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("calling start API with custom config", func() {
+			color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			opts := []client.OpOption{
+				client.WithNumNodes(numNodes),
+				client.WithCustomNodeConfigs(customNodeConfigs),
+			}
+			resp, err := cli.Start(ctx, execPath1, opts...)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+		ginkgo.By("can wait for health", func() {
+			// start is async, so wait some time for cluster health
+			time.Sleep(30 * time.Second)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("overrides num-nodes", func() {
+			color.Outf("{{green}}checking that given num-nodes %d have been overriden by custom configs with %d:\n", numNodes, len(customNodeConfigs))
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			uris, err := cli.URIs(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(uris).Should(gomega.HaveLen(len(customNodeConfigs)))
+			color.Outf("{{green}}expected number of nodes up:{{/}} %q\n", len(customNodeConfigs))
+
+			color.Outf("{{green}}checking correct admin APIs are enabled resp. disabled")
+			// we have 7 nodes, 3 have the admin API enabled, the other 4 disabled
+			// therefore we expect exactly 4 calls to fail and exactly 3 to succeed.
+			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+			errCnt := 0
+			for i := 0; i < len(uris); i++ {
+				cli := admin.NewClient(uris[i])
+				_, err := cli.LockProfile(ctx)
+				if err != nil {
+					errCnt++
+				}
+			}
+			cancel()
+			gomega.Ω(errCnt).Should(gomega.Equal(4))
 		})
 	})
 })

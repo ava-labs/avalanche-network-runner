@@ -109,8 +109,49 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALA
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
+--number-of-nodes=5 \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
+
+Additional optional parameters which can be passed to the start command:
+
+```bash
+  --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
+	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+	--global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+	--custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
+```
+
+`--plugin-dir` and `--custom-vms` are parameters relevant to subnet operation.
+See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
+
+The network-runner supports avalanchego node configuration at different levels.
+1. If neither `--global-node-config` nor `--custom-node-configs` is supplied, all nodes get a standard set of config options. Currently this set contains:
+    ```json
+        {
+        "network-peer-list-gossip-frequency":"250ms",
+        "network-max-reconnect-delay":"1s",
+        "public-ip":"127.0.0.1",
+        "health-check-frequency":"2s",
+        "api-admin-enabled":true,
+        "api-ipcs-enabled":true,
+        "index-enabled":true
+        }
+    ```
+2. `--global-node-config` is a JSON string representing a *single* avalanchego config, which will be applied to **all nodes**. This makes it easy to define common properties to all nodes. Whatever is set here will be *combined* with the standard set above.
+3. `--custom-node-configs` is a map of JSON strings representing the *complete* network with individual configs. This allows to configure each node independently. If set, `--number-of-nodes` will be **ignored** to avoid conflicts.
+4. The configs can be combined and will be merged, i.e. one could set global `--global-node-config` entries applied to each node, and also set `--custom-node-configs` for additional entries.
+5. Common `--custom-node-configs` entries override `--global-node-config` entries which override the standard set.
+6. The following entries will be **ignored in all cases** because the network-runner needs to set them internally to function properly:
+    ```
+      --log-dir
+      --db-dir
+      --http-port
+      --staking-port
+      --public-ip
+    ```
+
+**NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101` 
 
 To wait for all the nodes in the cluster to become healthy:
 
@@ -187,6 +228,46 @@ avalanche-network-runner control restart-node \
 --node-name node1 \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
+
+To add a node (in this case, a new node named `node99`):
+
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+# Note that you can add the new node with a different binary by providing
+# a different execPath
+curl -X POST -k http://localhost:8081/v1/control/addnode -d '{"name":"node99","execPath":"'${AVALANCHEGO_EXEC_PATH}'","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control add-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node99 \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+```
+
+You can also provide additional flags that specify the node's config, and what custom VMs it supports:
+
+```
+	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+```
+
+`--node-config` allows to specify specific avalanchego config parameters to the new node.
+See [here](https://docs.avax.network/build/references/avalanchego-config-flags) for the reference of supported flags.
+
+**Note**: The following parameters will be *ignored* if set in `--node-config`, because the network runner needs to set its own in order to function properly:
+`--log-dir`
+`--db-dir`
+
+`--custom-vms` allows to configure custom VMs supported by this node.
+See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
+
+**Note**: The following subnet parameters will be set from the global network configuration to this node:
+`--whitelisted-subnets`
+`--plugin-dir`
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
 (See [here](https://github.com/ava-labs/avalanchego/blob/master/network/peer/test_peer.go) for more information.)
