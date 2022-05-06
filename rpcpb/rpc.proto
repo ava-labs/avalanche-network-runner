@@ -153,16 +153,16 @@ message ListOfAttachedPeerInfo {
 
 message StartRequest {
   string exec_path                    = 1;
-  optional uint32 num_nodes           = 2;
-  optional string whitelisted_subnets = 3;
-  optional string log_level           = 4;
-  optional string global_node_config  = 5;
+  uint32 num_nodes           = 2;
+  string whitelisted_subnets = 3;
+  string log_level           = 4;
+  string global_node_config  = 5;
   // Used for both database and log files.
-  optional string root_data_dir = 6;
+  string root_data_dir = 6;
 
   // Plugin directory to load all custom VM executables.
   // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 7;
+  string plugin_dir = 7;
 
   // The map of custom VM name to its genesis file path.
   //
@@ -211,13 +211,12 @@ message RestartNodeRequest {
   // Must be a valid node name.
   string name = 1;
 
-  // Optional fields are set to the previous values if empty.
-  optional string exec_path           = 2;
-  optional string whitelisted_subnets = 3;
-  optional string log_level           = 4;
+  string exec_path           = 2;
+  string whitelisted_subnets = 3;
+  string log_level           = 4;
 
   // Used for both database and log files.
-  optional string root_data_dir = 5;
+  string root_data_dir = 5;
 }
 
 message RestartNodeResponse {
