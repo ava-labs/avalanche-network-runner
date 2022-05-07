@@ -102,25 +102,25 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 
 	req := &rpcpb.StartRequest{
 		ExecPath: execPath,
-		NumNodes: &ret.numNodes,
+		NumNodes: ret.numNodes,
 	}
 	if ret.whitelistedSubnets != "" {
-		req.WhitelistedSubnets = &ret.whitelistedSubnets
+		req.WhitelistedSubnets = ret.whitelistedSubnets
 	}
 	if ret.logLevel != "" {
-		req.LogLevel = &ret.logLevel
+		req.LogLevel = ret.logLevel
 	}
 	if ret.rootDataDir != "" {
-		req.RootDataDir = &ret.rootDataDir
+		req.RootDataDir = ret.rootDataDir
 	}
 	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
+		req.PluginDir = ret.pluginDir
 	}
 	if len(ret.customVMs) > 0 {
 		req.CustomVms = ret.customVMs
 	}
 	if ret.globalNodeConfig != "" {
-		req.GlobalNodeConfig = &ret.globalNodeConfig
+		req.GlobalNodeConfig = ret.globalNodeConfig
 	}
 	if ret.customNodeConfigs != nil {
 		req.CustomNodeConfigs = ret.customNodeConfigs
@@ -210,16 +210,16 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 		StartRequest: &rpcpb.StartRequest{},
 	}
 	if ret.whitelistedSubnets != "" {
-		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
+		req.StartRequest.WhitelistedSubnets = ret.whitelistedSubnets
 	}
 	if ret.logLevel != "" {
-		req.StartRequest.LogLevel = &ret.logLevel
+		req.StartRequest.LogLevel = ret.logLevel
 	}
 	if ret.execPath != "" {
 		req.StartRequest.ExecPath = ret.execPath
 	}
 	if ret.pluginDir != "" {
-		req.StartRequest.PluginDir = &ret.pluginDir
+		req.StartRequest.PluginDir = ret.pluginDir
 	}
 
 	zap.L().Info("add node", zap.String("name", name))
@@ -237,16 +237,16 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 
 	req := &rpcpb.RestartNodeRequest{Name: name}
 	if ret.execPath != "" {
-		req.ExecPath = &ret.execPath
+		req.ExecPath = ret.execPath
 	}
 	if ret.whitelistedSubnets != "" {
-		req.WhitelistedSubnets = &ret.whitelistedSubnets
+		req.WhitelistedSubnets = ret.whitelistedSubnets
 	}
 	if ret.logLevel != "" {
-		req.LogLevel = &ret.logLevel
+		req.LogLevel = ret.logLevel
 	}
 	if ret.rootDataDir != "" {
-		req.RootDataDir = &ret.rootDataDir
+		req.RootDataDir = ret.rootDataDir
 	}
 
 	zap.L().Info("restart node", zap.String("name", name))

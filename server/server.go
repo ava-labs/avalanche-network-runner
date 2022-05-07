@@ -206,11 +206,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
 
-	if req.NumNodes == nil {
-		n := DefaultNodes
-		req.NumNodes = &n
+	if req.NumNodes == 0 {
+		req.NumNodes = DefaultNodes
 	}
-	if *req.NumNodes < MinNodes {
+	if req.NumNodes < MinNodes {
 		return nil, ErrNotEnoughNodesForStart
 	}
 	customVMs := make(map[string][]byte)
@@ -554,8 +553,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		}
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
-	if req.StartRequest.LogLevel != nil {
-		logLevel = *req.StartRequest.LogLevel
+	if req.StartRequest.LogLevel != "" {
+		logLevel = req.StartRequest.LogLevel
 	}
 
 	// use same configs from other nodes
