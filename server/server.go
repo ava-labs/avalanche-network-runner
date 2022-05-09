@@ -353,29 +353,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.clusterInfo.Healthy = true
 			s.mu.Unlock()
 		}
-
-		if len(req.GetCustomVms()) == 0 {
-			zap.L().Info("no custom VM installation request, skipping its readiness check")
-		} else {
-			zap.L().Info("waiting for custom VMs readiness")
-			select {
-			case <-s.closed:
-				return
-			case <-s.network.stopc:
-				return
-			case serr := <-s.network.startErrc:
-				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
-				panic(serr)
-			case <-s.network.customVMsReadyc:
-				s.mu.Lock()
-				s.clusterInfo.CustomVmsHealthy = true
-				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-				for vmID, vmInfo := range s.network.customVMIDToInfo {
-					s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
-				}
-				s.mu.Unlock()
-			}
-		}
 	}()
 
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil

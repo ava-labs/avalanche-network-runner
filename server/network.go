@@ -68,24 +68,12 @@ type localNetwork struct {
 
 	// map from VM name to genesis bytes
 	customVMNameToGenesis map[string][]byte
-	// map from VM ID to VM info
-	customVMIDToInfo map[ids.ID]vmInfo
-
-	customVMsReadyc          chan struct{} // closed when subnet installations are complete
-	customVMsReadycCloseOnce sync.Once
-	customVMRestartMu        *sync.RWMutex
 
 	stopc      chan struct{}
 	startDonec chan struct{}
 	startErrc  chan error
 
 	stopOnce sync.Once
-}
-
-type vmInfo struct {
-	info         *rpcpb.CustomVmInfo
-	subnetID     ids.ID
-	blockchainID ids.ID
 }
 
 type localNetworkOptions struct {
@@ -188,9 +176,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		localClusterReadyc: make(chan struct{}),
 
 		customVMNameToGenesis: opts.customVMs,
-		customVMIDToInfo:      make(map[ids.ID]vmInfo),
-		customVMsReadyc:       make(chan struct{}),
-		customVMRestartMu:     opts.restartMu,
 
 		stopc:      make(chan struct{}),
 		startDonec: make(chan struct{}),
@@ -273,19 +258,6 @@ func (lc *localNetwork) start(ctx context.Context) {
 		lc.startErrc <- err
 		return
 	}
-
-	if len(lc.customVMNameToGenesis) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
-		return
-	}
-	if err := lc.installCustomVMs(ctx); err != nil {
-		lc.startErrc <- err
-		return
-	}
-	if err := lc.waitForCustomVMsReady(ctx); err != nil {
-		lc.startErrc <- err
-		return
-	}
 }
 
 var errAborted = errors.New("aborted")
@@ -335,6 +307,7 @@ func (lc *localNetwork) stop(ctx context.Context) {
 	})
 }
 
+// TODO: shall this live in non RPC ANR?
 func (lc *localNetwork) waitForBlockchainReady(ctx context.Context, blockchainID ids.ID) error {
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
