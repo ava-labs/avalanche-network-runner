@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -332,4 +333,57 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		<-lc.startDonec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
+}
+
+func (lc *localNetwork) waitForBlockchainReady(ctx context.Context, blockchainID ids.ID) error {
+	println()
+	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
+
+	hc := lc.nw.Healthy(ctx)
+	select {
+	case <-lc.stopc:
+		return errAborted
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-hc:
+		if err != nil {
+			return err
+		}
+	}
+
+	for nodeName, nodeInfo := range lc.nodeInfos {
+		zap.L().Info("inspecting node log directory for blockchain log",
+			zap.String("node-name", nodeName),
+			zap.String("log-dir", nodeInfo.LogDir),
+		)
+		p := filepath.Join(nodeInfo.LogDir, blockchainID.String()+".log")
+		zap.L().Info("checking log",
+			zap.String("blockchain-id", blockchainID.String()),
+			zap.String("log-path", p),
+		)
+		for {
+			_, err := os.Stat(p)
+			if err == nil {
+				zap.L().Info("found the log", zap.String("log-path", p))
+				break
+			}
+
+			zap.L().Info("log not found yet, retrying...",
+				zap.String("blockchain-id", blockchainID.String()),
+				zap.String("log-path", p),
+				zap.Error(err),
+			)
+			select {
+			case <-lc.stopc:
+				return errAborted
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(10 * time.Second):
+			}
+		}
+	}
+
+	println()
+	color.Outf("{{green}}{{bold}}blockchain is running{{/}}\n")
+	return nil
 }

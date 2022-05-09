@@ -114,6 +114,7 @@ type ControlServiceClient interface {
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	StreamStatus(ctx context.Context, in *StreamStatusRequest, opts ...grpc.CallOption) (ControlService_StreamStatusClient, error)
 	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
+	CheckBlockchain(ctx context.Context, in *CheckBlockchainRequest, opts ...grpc.CallOption) (*CheckBlockchainResponse, error)
 	AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error)
 	RestartNode(ctx context.Context, in *RestartNodeRequest, opts ...grpc.CallOption) (*RestartNodeResponse, error)
 	Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error)
@@ -206,6 +207,15 @@ func (c *controlServiceClient) RemoveNode(ctx context.Context, in *RemoveNodeReq
 	return out, nil
 }
 
+func (c *controlServiceClient) CheckBlockchain(ctx context.Context, in *CheckBlockchainRequest, opts ...grpc.CallOption) (*CheckBlockchainResponse, error) {
+	out := new(CheckBlockchainResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/CheckBlockchain", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *controlServiceClient) AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error) {
 	out := new(AddNodeResponse)
 	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/AddNode", in, out, opts...)
@@ -261,6 +271,7 @@ type ControlServiceServer interface {
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	StreamStatus(*StreamStatusRequest, ControlService_StreamStatusServer) error
 	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
+	CheckBlockchain(context.Context, *CheckBlockchainRequest) (*CheckBlockchainResponse, error)
 	AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error)
 	RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error)
 	Stop(context.Context, *StopRequest) (*StopResponse, error)
@@ -290,6 +301,9 @@ func (UnimplementedControlServiceServer) StreamStatus(*StreamStatusRequest, Cont
 }
 func (UnimplementedControlServiceServer) RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveNode not implemented")
+}
+func (UnimplementedControlServiceServer) CheckBlockchain(context.Context, *CheckBlockchainRequest) (*CheckBlockchainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckBlockchain not implemented")
 }
 func (UnimplementedControlServiceServer) AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddNode not implemented")
@@ -430,6 +444,24 @@ func _ControlService_RemoveNode_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlService_CheckBlockchain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckBlockchainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).CheckBlockchain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/CheckBlockchain",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).CheckBlockchain(ctx, req.(*CheckBlockchainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ControlService_AddNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddNodeRequest)
 	if err := dec(in); err != nil {
@@ -546,6 +578,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveNode",
 			Handler:    _ControlService_RemoveNode_Handler,
+		},
+		{
+			MethodName: "CheckBlockchain",
+			Handler:    _ControlService_CheckBlockchain_Handler,
 		},
 		{
 			MethodName: "AddNode",

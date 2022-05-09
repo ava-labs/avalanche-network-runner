@@ -231,6 +231,11 @@ func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNode
 	return c.controlc.RemoveNode(ctx, &rpcpb.RemoveNodeRequest{Name: name})
 }
 
+func (c *client) CheckBlockchain(ctx context.Context, blockchainIDStr string) (*rpcpb.CheckBlockchainResponse, error) {
+	zap.L().Info("check blockchain", zap.String("blockchain-id", blockchainIDStr))
+	return c.controlc.CheckBlockchain(ctx, &rpcpb.CheckBlockchainRequest{BlockchainId: blockchainIDStr})
+}
+
 func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)

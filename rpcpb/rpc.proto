@@ -64,6 +64,13 @@ service ControlService {
     };
   }
 
+  rpc CheckBlockchain(CheckBlockchainRequest) returns (CheckBlockchainResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/checkblockchain"
+      body: "*"
+    };
+  }
+
   rpc AddNode(AddNodeRequest) returns (AddNodeResponse) {
     option (google.api.http) = {
       post: "/v1/control/addnode"
@@ -230,6 +237,14 @@ message RemoveNodeRequest {
 
 message RemoveNodeResponse {
   ClusterInfo cluster_info = 1;
+}
+
+message CheckBlockchainRequest {
+  string blockchain_id = 1;
+}
+
+message CheckBlockchainResponse {
+  bool blockchain_status = 1;
 }
 
 message AddNodeRequest {

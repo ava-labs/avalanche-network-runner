@@ -24,6 +24,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
@@ -653,6 +654,27 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	}
 
 	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
+func (s *server) CheckBlockchain(ctx context.Context, req *rpcpb.CheckBlockchainRequest) (*rpcpb.CheckBlockchainResponse, error) {
+	zap.L().Debug("received check blockchain request", zap.String("blockchain-id", req.BlockchainId))
+	if info := s.getClusterInfo(); info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	blockchainID, err := ids.FromString(req.BlockchainId)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.network.waitForBlockchainReady(ctx, blockchainID); err != nil {
+		return nil, err
+	}
+
+	return &rpcpb.CheckBlockchainResponse{BlockchainStatus: true}, nil
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
