@@ -37,6 +37,7 @@ type Client interface {
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
 	StreamStatus(ctx context.Context, pushInterval time.Duration) (<-chan *rpcpb.ClusterInfo, error)
 	RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error)
+	CheckBlockchain(ctx context.Context, blockchainID string) (*rpcpb.CheckBlockchainResponse, error)
 	RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
 	AddNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.AddNodeResponse, error)
 	Stop(ctx context.Context) (*rpcpb.StopResponse, error)
