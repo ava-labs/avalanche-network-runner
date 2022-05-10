@@ -37,8 +37,10 @@ import (
 )
 
 type Config struct {
-	Port        string
-	GwPort      string
+	Port   string
+	GwPort string
+	// true to disable grpc-gateway server
+	GwDisabled  bool
 	DialTimeout time.Duration
 }
 
@@ -97,8 +99,7 @@ func New(cfg Config) (Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	gwMux := runtime.NewServeMux()
-	return &server{
+	srv := &server{
 		cfg: cfg,
 
 		closed: make(chan struct{}),
@@ -106,16 +107,20 @@ func New(cfg Config) (Server, error) {
 		ln:         ln,
 		gRPCServer: grpc.NewServer(),
 
-		gwMux: gwMux,
-		gwServer: &http.Server{
-			Addr:    cfg.GwPort,
-			Handler: gwMux,
-		},
-
 		mu: new(sync.RWMutex),
-	}, nil
+	}
+	if !cfg.GwDisabled {
+		srv.gwMux = runtime.NewServeMux()
+		srv.gwServer = &http.Server{
+			Addr:    cfg.GwPort,
+			Handler: srv.gwMux,
+		}
+	}
+
+	return srv, nil
 }
 
+// Blocking call until server listeners return.
 func (s *server) Run(rootCtx context.Context) (err error) {
 	s.rootCtx = rootCtx
 	s.gRPCRegisterOnce.Do(func() {
@@ -130,34 +135,38 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	}()
 
 	gwErrc := make(chan error)
-	go func() {
-		zap.L().Info("dialing gRPC server", zap.String("port", s.cfg.Port))
-		ctx, cancel := context.WithTimeout(rootCtx, s.cfg.DialTimeout)
-		gwConn, err := grpc.DialContext(
-			ctx,
-			"0.0.0.0"+s.cfg.Port,
-			grpc.WithBlock(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		cancel()
-		if err != nil {
-			gwErrc <- err
-			return
-		}
-		defer gwConn.Close()
+	if s.cfg.GwDisabled {
+		zap.L().Info("gRPC gateway server is disabled")
+	} else {
+		go func() {
+			zap.L().Info("dialing gRPC server for gRPC gateway", zap.String("port", s.cfg.Port))
+			ctx, cancel := context.WithTimeout(rootCtx, s.cfg.DialTimeout)
+			gwConn, err := grpc.DialContext(
+				ctx,
+				"0.0.0.0"+s.cfg.Port,
+				grpc.WithBlock(),
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+			)
+			cancel()
+			if err != nil {
+				gwErrc <- err
+				return
+			}
+			defer gwConn.Close()
 
-		if err := rpcpb.RegisterPingServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
-			gwErrc <- err
-			return
-		}
-		if err := rpcpb.RegisterControlServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
-			gwErrc <- err
-			return
-		}
+			if err := rpcpb.RegisterPingServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
+				gwErrc <- err
+				return
+			}
+			if err := rpcpb.RegisterControlServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
+				gwErrc <- err
+				return
+			}
 
-		zap.L().Info("serving gRPC gateway", zap.String("port", s.cfg.GwPort))
-		gwErrc <- s.gwServer.ListenAndServe()
-	}()
+			zap.L().Info("serving gRPC gateway", zap.String("port", s.cfg.GwPort))
+			gwErrc <- s.gwServer.ListenAndServe()
+		}()
+	}
 
 	select {
 	case <-rootCtx.Done():

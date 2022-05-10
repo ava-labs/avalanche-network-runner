@@ -81,6 +81,8 @@ avalanche-network-runner server \
 --log-level debug \
 --port=":8080" \
 --grpc-gateway-port=":8081"
+
+# set "--disable-grpc-gateway" to disable gRPC gateway
 ```
 
 Note that the above command will run until you stop it with `CTRL + C`. You should run further commands in a separate terminal.

@@ -25,6 +25,7 @@ var (
 	logLevel    string
 	port        string
 	gwPort      string
+	gwDisabled  bool
 	dialTimeout time.Duration
 )
 
@@ -38,6 +39,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
 	cmd.PersistentFlags().StringVar(&port, "port", ":8080", "server port")
 	cmd.PersistentFlags().StringVar(&gwPort, "grpc-gateway-port", ":8081", "grpc-gateway server port")
+	cmd.PersistentFlags().BoolVar(&gwDisabled, "disable-grpc-gateway", false, "true to disable grpc-gateway server (overrides --grpc-gateway-port)")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 
 	return cmd
@@ -55,6 +57,7 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 	s, err := server.New(server.Config{
 		Port:        port,
 		GwPort:      gwPort,
+		GwDisabled:  gwDisabled,
 		DialTimeout: dialTimeout,
 	})
 	if err != nil {
