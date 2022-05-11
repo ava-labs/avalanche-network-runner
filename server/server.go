@@ -180,7 +180,8 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		zap.L().Warn("closed gRPC server")
 
 		if s.network != nil {
-			stopCtx, _ := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+			stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+			defer stopCtxCancel()
 			s.network.stop(stopCtx)
 			zap.L().Warn("stoping network")
 		}
