@@ -182,8 +182,8 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		if s.network != nil {
 			stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
 			defer stopCtxCancel()
-			zap.L().Warn("stoping network")
 			s.network.stop(stopCtx)
+			zap.L().Warn("network stopped")
 		}
 
 		<-gRPCErrc
