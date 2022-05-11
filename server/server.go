@@ -178,14 +178,6 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
-
-		if s.network != nil {
-			stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
-			defer stopCtxCancel()
-			s.network.stop(stopCtx)
-			zap.L().Warn("network stopped")
-		}
-
 		<-gRPCErrc
 
 	case err = <-gRPCErrc:
@@ -198,6 +190,13 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
 		<-gRPCErrc
+	}
+
+	if s.network != nil {
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+		defer stopCtxCancel()
+		s.network.stop(stopCtx)
+		zap.L().Warn("network stopped")
 	}
 
 	s.closeOnce.Do(func() {
