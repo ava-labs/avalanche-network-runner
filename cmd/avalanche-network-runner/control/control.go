@@ -386,12 +386,6 @@ func newAddNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&logLevel,
-		"log-level",
-		"",
-		"log level",
-	)
-	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
 		"custom-vms",
 		"",
