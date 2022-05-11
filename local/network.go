@@ -449,13 +449,8 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 		ln.lock.RLock()
 		defer ln.lock.RUnlock()
 
-		nodes := make([]*localNode, 0, len(ln.nodes))
-		for _, node := range ln.nodes {
-			nodes = append(nodes, node)
-		}
-
 		errGr, cctx := errgroup.WithContext(ctx)
-		for _, node := range nodes {
+		for _, node := range ln.nodes {
 			node := node
 			errGr.Go(func() error {
 				// Every constants.HealthCheckInterval, query node for health status.
