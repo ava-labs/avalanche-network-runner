@@ -86,8 +86,9 @@ var (
 )
 
 const (
-	MinNodes     uint32 = 1
-	DefaultNodes uint32 = 5
+	MinNodes            uint32 = 1
+	DefaultNodes        uint32 = 5
+	StopOnSignalTimeout        = 2 * time.Second
 )
 
 func New(cfg Config) (Server, error) {
@@ -189,6 +190,13 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
 		<-gRPCErrc
+	}
+
+	if s.network != nil {
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+		defer stopCtxCancel()
+		s.network.stop(stopCtx)
+		zap.L().Warn("network stopped")
 	}
 
 	s.closeOnce.Do(func() {
