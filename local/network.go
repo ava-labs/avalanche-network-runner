@@ -446,6 +446,8 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	}
 
 	go func() {
+		// TODO: This will block the network for the duration of the health call.
+		// Maybe a better solution can be found.
 		ln.lock.RLock()
 		defer ln.lock.RUnlock()
 
