@@ -8,6 +8,7 @@ import (
 )
 
 var ErrStopped = errors.New("network stopped")
+var ErrUnexpectedNodeStop = errors.New("unexpected node stop")
 
 // Network is an abstraction of an Avalanche network
 type Network interface {

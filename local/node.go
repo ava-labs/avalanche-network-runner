@@ -38,7 +38,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 // AvalancheGo binaries in tests
 type NodeProcess interface {
 	// Start this process
-	Start() error
+	Start(chan struct{}) error
 	// Send a SIGTERM to this process
 	Stop() error
 	// Returns when the process finishes exiting
@@ -46,19 +46,35 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	cmd *exec.Cmd
+	cmd                *exec.Cmd
+	waitResult         chan error
+	unexpectedNodeStop chan struct{}
+	running            bool
 }
 
-func (p *nodeProcessImpl) Start() error {
-	return p.cmd.Start()
+func (p *nodeProcessImpl) Start(unexpectedNodeStop chan struct{}) error {
+	p.unexpectedNodeStop = unexpectedNodeStop
+	p.waitResult = make(chan error)
+	startErr := p.cmd.Start()
+	p.running = true
+	go func() {
+		p.waitResult <- p.cmd.Wait()
+		if p.running {
+			close(p.unexpectedNodeStop)
+			p.running = false
+		}
+	}()
+	return startErr
 }
 
 func (p *nodeProcessImpl) Wait() error {
-	return p.cmd.Wait()
+	return <-p.waitResult
 }
 
 func (p *nodeProcessImpl) Stop() error {
-	return p.cmd.Process.Signal(syscall.SIGTERM)
+	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
+	p.running = false
+	return stopResult
 }
 
 // Gives access to basic node info, and to most avalanchego apis

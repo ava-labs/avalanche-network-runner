@@ -79,6 +79,8 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
+	//
+	unexpectedNodeStop chan struct{}
 }
 
 var (
@@ -406,7 +408,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	if err := nodeProcess.Start(); err != nil {
+	if err := nodeProcess.Start(ln.unexpectedNodeStop); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
 	}
 
@@ -459,6 +461,8 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					select {
+					case <-ln.unexpectedNodeStop:
+						return network.ErrUnexpectedNodeStop
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-cctx.Done():
