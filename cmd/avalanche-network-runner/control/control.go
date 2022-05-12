@@ -27,6 +27,7 @@ func init() {
 
 var (
 	logLevel           string
+	nodeLogLevel       string
 	whitelistedSubnets string
 	endpoint           string
 	dialTimeout        time.Duration
@@ -115,6 +116,7 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
+	cmd.PersistentFlags().StringVar(&nodeLogLevel, "node-log-level", logutil.DefaultLogLevel, "node log level")
 	return cmd
 }
 
@@ -133,6 +135,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithNodeLogLevel(nodeLogLevel),
 	}
 
 	if globalNodeConfig != "" {
@@ -397,6 +400,7 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"node config as string",
 	)
+	cmd.PersistentFlags().StringVar(&nodeLogLevel, "node-log-level", logutil.DefaultLogLevel, "node log level")
 	return cmd
 }
 
@@ -412,7 +416,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	opts := []client.OpOption{
-		client.WithLogLevel(logLevel),
+		client.WithNodeLogLevel(nodeLogLevel),
 	}
 
 	if addNodeConfig != "" {
@@ -474,6 +478,7 @@ func newRestartNodeCommand() *cobra.Command {
 		"",
 		"whitelisted subnets (comma-separated)",
 	)
+	cmd.PersistentFlags().StringVar(&nodeLogLevel, "node-log-level", logutil.DefaultLogLevel, "node log level")
 	return cmd
 }
 
@@ -489,7 +494,13 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.RestartNode(ctx, nodeName, client.WithExecPath(avalancheGoBinPath), client.WithWhitelistedSubnets(whitelistedSubnets))
+	info, err := cli.RestartNode(
+		ctx,
+		nodeName,
+		client.WithExecPath(avalancheGoBinPath),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithNodeLogLevel(nodeLogLevel),
+	)
 	cancel()
 	if err != nil {
 		return err

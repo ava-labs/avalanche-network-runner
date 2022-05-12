@@ -286,7 +286,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		whitelistedSubnets = req.GetWhitelistedSubnets()
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
-		logLevel           = req.GetLogLevel()
+		nodeLogLevel       = req.GetNodeLogLevel()
 		globalNodeConfig   = req.GetGlobalNodeConfig()
 		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
@@ -328,7 +328,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		rootDataDir:        rootDataDir,
 		numNodes:           numNodes,
 		whitelistedSubnets: whitelistedSubnets,
-		logLevel:           logLevel,
+		nodeLogLevel:       nodeLogLevel,
 		pluginDir:          pluginDir,
 		customVMs:          customVMs,
 		globalNodeConfig:   globalNodeConfig,
@@ -553,7 +553,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var logLevel, whitelistedSubnets, pluginDir string
+	var nodeLogLevel, whitelistedSubnets, pluginDir string
 
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
@@ -571,8 +571,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		}
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
-	if req.StartRequest.LogLevel != nil {
-		logLevel = *req.StartRequest.LogLevel
+	if req.StartRequest.NodeLogLevel != nil {
+		nodeLogLevel = *req.StartRequest.NodeLogLevel
 	}
 
 	// use same configs from other nodes
@@ -600,7 +600,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}
-	configFile, err := createConfigFileString(mergedConfig, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	configFile, err := createConfigFileString(mergedConfig, nodeLogLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
@@ -711,9 +711,9 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if req.GetRootDataDir() != "" {
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
-	logLevel := "INFO"
-	if req.GetLogLevel() != "" {
-		logLevel = strings.ToUpper(req.GetLogLevel())
+	nodeLogLevel := "INFO"
+	if req.GetNodeLogLevel() != "" {
+		nodeLogLevel = strings.ToUpper(req.GetNodeLogLevel())
 	}
 
 	nodeConfig.ConfigFile = fmt.Sprintf(`{
@@ -731,8 +731,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	"plugin-dir":"%s",
 	"whitelisted-subnets":"%s"
 }`,
-		logLevel,
-		logLevel,
+		nodeLogLevel,
+		nodeLogLevel,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
 		nodeInfo.PluginDir,

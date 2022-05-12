@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
@@ -92,7 +93,7 @@ type localNetworkOptions struct {
 	rootDataDir        string
 	numNodes           uint32
 	whitelistedSubnets string
-	logLevel           string
+	nodeLogLevel       string
 	globalNodeConfig   string
 
 	pluginDir         string
@@ -112,9 +113,9 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	logLevel := opts.logLevel
-	if logLevel == "" {
-		logLevel = "INFO"
+	nodeLogLevel := opts.nodeLogLevel
+	if nodeLogLevel == "" {
+		nodeLogLevel = "INFO"
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
@@ -149,7 +150,19 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, nodeLogLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+		if err != nil {
+			return nil, err
+		}
+
+        if cfg.NodeConfigs[i].CChainConfigFile == "" {
+            cfg.NodeConfigs[i].CChainConfigFile = "{}"
+        }
+        cchainLogLevel, err := avalanchegoToCorethLogLevel(nodeLogLevel)
+        if err != nil {
+            return err
+        }
+        cfg.NodeConfigs[i].CChainConfigFile, err = utils.UpdateJSONKey(cfg.NodeConfigs[i].CChainConfigFile, "log-level", cchainLogLevel)
 		if err != nil {
 			return nil, err
 		}
@@ -231,10 +244,10 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(config map[string]interface{}, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(config map[string]interface{}, nodeLogLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
-	config["log-level"] = strings.ToUpper(logLevel)
-	config["log-display-level"] = strings.ToUpper(logLevel)
+	config["log-level"] = strings.ToUpper(nodeLogLevel)
+	config["log-display-level"] = strings.ToUpper(nodeLogLevel)
 	if config["log-dir"] != "" {
 		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
 	}
@@ -332,4 +345,27 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		<-lc.startDonec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
+}
+
+func avalanchegoToCorethLogLevel(logLevel string) (string, error) {
+    switch string.ToUpper(logLevel) {
+    case "VERBO":
+        return "trace", nil
+    case "DEBUG":
+        return "debug", nil
+    case "TRACE":
+        return "debug", nil
+    case "INFO":
+        return "info", nil
+    case "WARN":
+        return "warn", nil
+    case "ERROR":
+        return "error", nil
+    case "FATAL":
+        return "crit", nil
+    case "OFF":
+        return "crit", nil
+    default:
+        return "", fmt.Errorf("unknown error level %q", logLevel)
+    }
 }

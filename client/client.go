@@ -107,8 +107,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
-	if ret.logLevel != "" {
-		req.LogLevel = &ret.logLevel
+	if ret.nodeLogLevel != "" {
+		req.NodeLogLevel = &ret.nodeLogLevel
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
@@ -212,8 +212,8 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	if ret.whitelistedSubnets != "" {
 		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
-	if ret.logLevel != "" {
-		req.StartRequest.LogLevel = &ret.logLevel
+	if ret.nodeLogLevel != "" {
+		req.StartRequest.NodeLogLevel = &ret.nodeLogLevel
 	}
 	if ret.execPath != "" {
 		req.StartRequest.ExecPath = ret.execPath
@@ -242,8 +242,8 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
-	if ret.logLevel != "" {
-		req.LogLevel = &ret.logLevel
+	if ret.nodeLogLevel != "" {
+		req.NodeLogLevel = &ret.nodeLogLevel
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
@@ -279,7 +279,7 @@ type Op struct {
 	numNodes           uint32
 	execPath           string
 	whitelistedSubnets string
-	logLevel           string
+	nodeLogLevel       string
 	globalNodeConfig   string
 	rootDataDir        string
 	pluginDir          string
@@ -319,9 +319,9 @@ func WithWhitelistedSubnets(whitelistedSubnets string) OpOption {
 	}
 }
 
-func WithLogLevel(logLevel string) OpOption {
+func WithNodeLogLevel(nodeLogLevel string) OpOption {
 	return func(op *Op) {
-		op.logLevel = logLevel
+		op.nodeLogLevel = nodeLogLevel
 	}
 }
 
