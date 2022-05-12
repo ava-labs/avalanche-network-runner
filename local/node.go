@@ -38,7 +38,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 // AvalancheGo binaries in tests
 type NodeProcess interface {
 	// Start this process
-	Start(chan struct{}) error
+	Start(string, chan string) error
 	// Send a SIGTERM to this process
 	Stop() error
 	// Returns when the process finishes exiting
@@ -46,24 +46,23 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	cmd                  *exec.Cmd
-	running              bool
-	waitReturnCh         chan error
-	unexpectedStopCh     chan struct{}
+	cmd              *exec.Cmd
+	running          bool
+	waitReturnCh     chan error
+	unexpectedStopCh chan string
 }
 
-func (p *nodeProcessImpl) Start(unexpectedStopCh chan struct{}) error {
+func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error {
 	p.unexpectedStopCh = unexpectedStopCh
 	startErr := p.cmd.Start()
 	p.running = true
-	p.waitReturnCh = make(chan error)
+	p.waitReturnCh = make(chan error, 1)
 	go func() {
 		p.waitReturnCh <- p.cmd.Wait()
-        fmt.Println("WAIT END")
 		if p.running {
-            fmt.Println("THIS WAS RUNNING!!!")
+			// Stop() was not called
 			p.running = false
-			p.unexpectedStopCh <- struct{}{}
+			p.unexpectedStopCh <- name
 		}
 	}()
 	return startErr

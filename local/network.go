@@ -80,7 +80,7 @@ type localNetwork struct {
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
 	//
-	unexpectedNodeStop chan struct{}
+	unexpectedNodeStopCh chan string
 }
 
 var (
@@ -228,15 +228,16 @@ func newNetwork(
 
 	// Create the network
 	net := &localNetwork{
-		networkID:          networkID,
-		genesis:            []byte(networkConfig.Genesis),
-		nodes:              map[string]*localNode{},
-		closedOnStopCh:     make(chan struct{}),
-		log:                log,
-		bootstraps:         beacon.NewSet(),
-		newAPIClientF:      newAPIClientF,
-		nodeProcessCreator: nodeProcessCreator,
-		flags:              networkConfig.Flags,
+		networkID:            networkID,
+		genesis:              []byte(networkConfig.Genesis),
+		nodes:                map[string]*localNode{},
+		closedOnStopCh:       make(chan struct{}),
+		log:                  log,
+		bootstraps:           beacon.NewSet(),
+		newAPIClientF:        newAPIClientF,
+		nodeProcessCreator:   nodeProcessCreator,
+		flags:                networkConfig.Flags,
+		unexpectedNodeStopCh: make(chan string),
 	}
 
 	// Sort node configs so beacons start first
@@ -408,7 +409,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	if err := nodeProcess.Start(ln.unexpectedNodeStop); err != nil {
+	if err := nodeProcess.Start(nodeConfig.Name, ln.unexpectedNodeStopCh); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
 	}
 
@@ -461,15 +462,15 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					select {
-					case <-ln.unexpectedNodeStop:
-						return network.ErrUnexpectedNodeStop
+					case nodeName := <-ln.unexpectedNodeStopCh:
+						return fmt.Errorf("unexpected stop of node %q", nodeName)
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-cctx.Done():
 						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 					case <-time.After(healthCheckFreq):
 					}
-					health, err := node.client.HealthAPI().Health(cctx)
+					health, err := node.GetAPIClient().HealthAPI().Health(cctx)
 					if err == nil && health.Healthy {
 						ln.log.Debug("node %q became healthy", node.name)
 						return nil
@@ -597,12 +598,12 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
-	node.client.CChainEthAPI().Close()
-	if err := node.process.Stop(); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
-	}
+	node.GetAPIClient().CChainEthAPI().Close()
+	// Ctrl+C on terminal causes a kill for all process group
+	// so sometimes node is already stopped here
+	node.process.Stop()
 	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
+		return fmt.Errorf("node %q stopped with wait error: %w", nodeName, err)
 	}
 	return nil
 }
