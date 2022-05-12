@@ -34,6 +34,7 @@ func NewCommand() *cobra.Command {
 		Use:   "server [options]",
 		Short: "Start a network runner server.",
 		RunE:  serverFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")

@@ -71,6 +71,7 @@ var (
 	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
+	redirectNodesStdOutErr    bool
 )
 
 func newStartCommand() *cobra.Command {
@@ -78,6 +79,7 @@ func newStartCommand() *cobra.Command {
 		Use:   "start [options]",
 		Short: "Starts the server.",
 		RunE:  startFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
@@ -115,6 +117,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&redirectNodesStdOutErr,
+		"redirect-nodes-stdout-stderr",
+		true,
+		"[optional] redirect all nodes stdout/stderr to server stdout",
+	)
 	return cmd
 }
 
@@ -133,6 +141,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithRedirectNodesStdOutErr(redirectNodesStdOutErr),
 	}
 
 	if globalNodeConfig != "" {

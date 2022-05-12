@@ -97,7 +97,7 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {
-	ret := &Op{numNodes: local.DefaultNumNodes}
+	ret := &Op{numNodes: local.DefaultNumNodes, redirectNodesStdOutErr: true}
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
@@ -125,6 +125,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.customNodeConfigs != nil {
 		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
+	req.RedirectNodesStdOutErr = &ret.redirectNodesStdOutErr
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, req)
@@ -276,15 +277,16 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes           uint32
-	execPath           string
-	whitelistedSubnets string
-	logLevel           string
-	globalNodeConfig   string
-	rootDataDir        string
-	pluginDir          string
-	customVMs          map[string]string
-	customNodeConfigs  map[string]string
+	numNodes               uint32
+	execPath               string
+	whitelistedSubnets     string
+	logLevel               string
+	globalNodeConfig       string
+	rootDataDir            string
+	pluginDir              string
+	customVMs              map[string]string
+	customNodeConfigs      map[string]string
+	redirectNodesStdOutErr bool
 }
 
 type OpOption func(*Op)
@@ -348,6 +350,12 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customNodeConfigs = customNodeConfigs
+	}
+}
+
+func WithRedirectNodesStdOutErr(redirectNodesStdOutErr bool) OpOption {
+	return func(op *Op) {
+		op.redirectNodesStdOutErr = redirectNodesStdOutErr
 	}
 }
 

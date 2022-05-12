@@ -101,6 +101,8 @@ type localNetworkOptions struct {
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
+
+	redirectNodesStdOutErr bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -155,8 +157,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		}
 
 		cfg.NodeConfigs[i].BinaryPath = opts.execPath
-		cfg.NodeConfigs[i].RedirectStdout = true
-		cfg.NodeConfigs[i].RedirectStderr = true
+		cfg.NodeConfigs[i].RedirectStdout = opts.redirectNodesStdOutErr
+		cfg.NodeConfigs[i].RedirectStderr = opts.redirectNodesStdOutErr
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,

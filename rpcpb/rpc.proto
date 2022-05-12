@@ -175,6 +175,7 @@ message StartRequest {
   // even if the VM binary exists on the local plugins directory.
   map<string, string> custom_vms = 8;
   map<string, string> custom_node_configs = 9;
+  optional bool redirect_nodes_std_out_err = 10;
 }
 
 message StartResponse {

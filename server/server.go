@@ -281,15 +281,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	var (
-		execPath           = req.GetExecPath()
-		numNodes           = req.GetNumNodes()
-		whitelistedSubnets = req.GetWhitelistedSubnets()
-		rootDataDir        = req.GetRootDataDir()
-		pid                = int32(os.Getpid())
-		logLevel           = req.GetLogLevel()
-		globalNodeConfig   = req.GetGlobalNodeConfig()
-		customNodeConfigs  = req.GetCustomNodeConfigs()
-		err                error
+		execPath               = req.GetExecPath()
+		numNodes               = req.GetNumNodes()
+		whitelistedSubnets     = req.GetWhitelistedSubnets()
+		rootDataDir            = req.GetRootDataDir()
+		pid                    = int32(os.Getpid())
+		logLevel               = req.GetLogLevel()
+		globalNodeConfig       = req.GetGlobalNodeConfig()
+		customNodeConfigs      = req.GetCustomNodeConfigs()
+		redirectNodesStdOutErr = req.GetRedirectNodesStdOutErr()
+		err                    error
 	)
 	if len(rootDataDir) == 0 {
 		rootDataDir, err = ioutil.TempDir(os.TempDir(), "network-runner-root-data")
@@ -339,6 +340,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		// so it would not deadlock with the acquired lock
 		// in this "Start" method
 		restartMu: s.mu,
+
+		redirectNodesStdOutErr: redirectNodesStdOutErr,
 	})
 	if err != nil {
 		return nil, err
@@ -615,8 +618,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		StakingKey:     string(stakingKey),
 		StakingCert:    string(stakingCert),
 		BinaryPath:     execPath,
-		RedirectStdout: true,
-		RedirectStderr: true,
+		RedirectStdout: s.network.options.redirectNodesStdOutErr,
+		RedirectStderr: s.network.options.redirectNodesStdOutErr,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -739,8 +742,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.WhitelistedSubnets,
 	)
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
-	nodeConfig.RedirectStdout = true
-	nodeConfig.RedirectStderr = true
+	nodeConfig.RedirectStdout = s.network.options.redirectNodesStdOutErr
+	nodeConfig.RedirectStderr = s.network.options.redirectNodesStdOutErr
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
