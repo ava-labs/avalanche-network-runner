@@ -603,6 +603,21 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	return nil
 }
 
+// Save network snapshot
+func (ln *localNetwork) SaveSnapshot(context.Context, string) error {
+	return nil
+}
+
+// Load network snapshot
+func (ln *localNetwork) LoadSnapshot(context.Context, string) error {
+	return nil
+}
+
+// Remove network snapshot
+func (ln *localNetwork) RemoveSnapshot(string) error {
+	return nil
+}
+
 // Assumes [net.lock] is held
 func (ln *localNetwork) isStopped() bool {
 	select {

@@ -39,4 +39,10 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
+	// Save network snapshot
+	SaveSnapshot(context.Context, string) error
+	// Load network snapshot
+	LoadSnapshot(context.Context, string) error
+	// Remove network snapshot
+	RemoveSnapshot(string) error
 }
