@@ -46,29 +46,31 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	cmd                *exec.Cmd
-	waitResult         chan error
-	unexpectedNodeStop chan struct{}
-	running            bool
+	cmd                  *exec.Cmd
+	running              bool
+	waitReturnCh         chan error
+	unexpectedStopCh     chan struct{}
 }
 
-func (p *nodeProcessImpl) Start(unexpectedNodeStop chan struct{}) error {
-	p.unexpectedNodeStop = unexpectedNodeStop
-	p.waitResult = make(chan error)
+func (p *nodeProcessImpl) Start(unexpectedStopCh chan struct{}) error {
+	p.unexpectedStopCh = unexpectedStopCh
 	startErr := p.cmd.Start()
 	p.running = true
+	p.waitReturnCh = make(chan error)
 	go func() {
-		p.waitResult <- p.cmd.Wait()
+		p.waitReturnCh <- p.cmd.Wait()
+        fmt.Println("WAIT END")
 		if p.running {
-			close(p.unexpectedNodeStop)
+            fmt.Println("THIS WAS RUNNING!!!")
 			p.running = false
+			p.unexpectedStopCh <- struct{}{}
 		}
 	}()
 	return startErr
 }
 
 func (p *nodeProcessImpl) Wait() error {
-	return <-p.waitResult
+	return <-p.waitReturnCh
 }
 
 func (p *nodeProcessImpl) Stop() error {
