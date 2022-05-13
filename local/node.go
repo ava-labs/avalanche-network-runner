@@ -43,6 +43,8 @@ type NodeProcess interface {
 	Stop() error
 	// Returns when the process finishes exiting
 	Wait() error
+	// Returns if the process is executing
+	Alive() bool
 }
 
 type nodeProcessImpl struct {
@@ -76,6 +78,10 @@ func (p *nodeProcessImpl) Stop() error {
 	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
 	p.running = false
 	return stopResult
+}
+
+func (p *nodeProcessImpl) Alive() bool {
+	return p.running
 }
 
 // Gives access to basic node info, and to most avalanchego apis
@@ -209,4 +215,8 @@ func (node *localNode) GetP2PPort() uint16 {
 // See node.Node
 func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
+}
+
+func (node *localNode) GetAliveStatus() bool {
+	return node.process.Alive()
 }
