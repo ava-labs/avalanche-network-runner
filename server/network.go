@@ -244,9 +244,14 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
 func createConfigFileString(config map[string]interface{}, nodeLogLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+	// add (but not overwrite) the following entries
+	if config["log-level"] == "" {
+		config["log-level"] = strings.ToUpper(nodeLogLevel)
+	}
+	if config["log-display-level"] == "" {
+		config["log-display-level"] = strings.ToUpper(nodeLogLevel)
+	}
 	// add (or overwrite, if given) the following entries
-	config["log-level"] = strings.ToUpper(nodeLogLevel)
-	config["log-display-level"] = strings.ToUpper(nodeLogLevel)
 	if config["log-dir"] != "" {
 		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
 	}

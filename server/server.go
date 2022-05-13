@@ -746,28 +746,24 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	nodeConfig.ConfigFile = fmt.Sprintf(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"%s",
-	"log-level":"%s",
-	"log-dir":"%s",
-	"db-dir":"%s",
-	"plugin-dir":"%s",
-	"whitelisted-subnets":"%s"
-}`,
-		nodeLogLevel,
+	var defaultConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return nil, err
+	}
+
+	var err error
+	nodeConfig.ConfigFile, err = createConfigFileString(
+		defaultConfig,
 		nodeLogLevel,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
 		nodeInfo.PluginDir,
 		nodeInfo.WhitelistedSubnets,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	}
+
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
 	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
 	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
