@@ -173,8 +173,10 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	case <-rootCtx.Done():
 		zap.L().Warn("root context is done")
 
-		zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
-		<-gwErrc
+		if !s.cfg.GwDisabled {
+			zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
+			<-gwErrc
+		}
 
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
@@ -182,10 +184,12 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 
 	case err = <-gRPCErrc:
 		zap.L().Warn("gRPC server failed", zap.Error(err))
-		zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
-		<-gwErrc
+		if !s.cfg.GwDisabled {
+			zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
+			<-gwErrc
+		}
 
-	case err = <-gwErrc:
+	case err = <-gwErrc: // if disabled, this will never be selected
 		zap.L().Warn("gRPC gateway server failed", zap.Error(err))
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
