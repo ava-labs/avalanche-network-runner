@@ -641,15 +641,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 	s.network.nodeInfos[req.Name] = info
 
-	zap.L().Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
-		return nil, err
-	}
-
-	s.clusterInfo.NodeNames = s.network.nodeNames
-	s.clusterInfo.NodeInfos = s.network.nodeInfos
-	s.clusterInfo.Healthy = true
-
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
