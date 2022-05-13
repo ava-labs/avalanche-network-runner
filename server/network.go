@@ -245,10 +245,10 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 // createConfigFileString finalizes the config setup and returns the node config JSON string
 func createConfigFileString(config map[string]interface{}, nodeLogLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (but not overwrite) the following entries
-	if config["log-level"] == "" {
+	if _, ok := config["log-level"]; !ok {
 		config["log-level"] = strings.ToUpper(nodeLogLevel)
 	}
-	if config["log-display-level"] == "" {
+	if _, ok := config["log-display-level"]; !ok {
 		config["log-display-level"] = strings.ToUpper(nodeLogLevel)
 	}
 	// add (or overwrite, if given) the following entries
