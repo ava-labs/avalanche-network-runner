@@ -40,8 +40,9 @@ type Config struct {
 	Port   string
 	GwPort string
 	// true to disable grpc-gateway server
-	GwDisabled  bool
-	DialTimeout time.Duration
+	GwDisabled          bool
+	DialTimeout         time.Duration
+	RedirectNodesOutput bool
 }
 
 type Server interface {
@@ -290,7 +291,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		whitelistedSubnets = req.GetWhitelistedSubnets()
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
-		logLevel           = req.GetLogLevel()
 		globalNodeConfig   = req.GetGlobalNodeConfig()
 		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
@@ -328,15 +328,15 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:           execPath,
-		rootDataDir:        rootDataDir,
-		numNodes:           numNodes,
-		whitelistedSubnets: whitelistedSubnets,
-		logLevel:           logLevel,
-		pluginDir:          pluginDir,
-		customVMs:          customVMs,
-		globalNodeConfig:   globalNodeConfig,
-		customNodeConfigs:  customNodeConfigs,
+		execPath:            execPath,
+		rootDataDir:         rootDataDir,
+		numNodes:            numNodes,
+		whitelistedSubnets:  whitelistedSubnets,
+		redirectNodesOutput: s.cfg.RedirectNodesOutput,
+		pluginDir:           pluginDir,
+		customVMs:           customVMs,
+		globalNodeConfig:    globalNodeConfig,
+		customNodeConfigs:   customNodeConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -557,7 +557,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var logLevel, whitelistedSubnets, pluginDir string
+	var whitelistedSubnets, pluginDir string
 
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
@@ -574,9 +574,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 			return nil, utils.ErrNotExists
 		}
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
-	}
-	if req.StartRequest.LogLevel != nil {
-		logLevel = *req.StartRequest.LogLevel
 	}
 
 	// use same configs from other nodes
@@ -604,7 +601,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}
-	configFile, err := createConfigFileString(mergedConfig, logLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, pluginDir, whitelistedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
@@ -619,8 +616,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		StakingKey:     string(stakingKey),
 		StakingCert:    string(stakingCert),
 		BinaryPath:     execPath,
-		RedirectStdout: true,
-		RedirectStderr: true,
+		RedirectStdout: s.cfg.RedirectNodesOutput,
+		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -715,36 +712,27 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if req.GetRootDataDir() != "" {
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
-	logLevel := "INFO"
-	if req.GetLogLevel() != "" {
-		logLevel = strings.ToUpper(req.GetLogLevel())
+
+	var defaultConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return nil, err
 	}
 
-	nodeConfig.ConfigFile = fmt.Sprintf(`{
-	"network-peer-list-gossip-frequency":"250ms",
-	"network-max-reconnect-delay":"1s",
-	"public-ip":"127.0.0.1",
-	"health-check-frequency":"2s",
-	"api-admin-enabled":true,
-	"api-ipcs-enabled":true,
-	"index-enabled":true,
-	"log-display-level":"%s",
-	"log-level":"%s",
-	"log-dir":"%s",
-	"db-dir":"%s",
-	"plugin-dir":"%s",
-	"whitelisted-subnets":"%s"
-}`,
-		logLevel,
-		logLevel,
+	var err error
+	nodeConfig.ConfigFile, err = createConfigFileString(
+		defaultConfig,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
 		nodeInfo.PluginDir,
 		nodeInfo.WhitelistedSubnets,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	}
+
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
-	nodeConfig.RedirectStdout = true
-	nodeConfig.RedirectStderr = true
+	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
+	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")

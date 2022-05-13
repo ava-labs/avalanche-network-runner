@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -88,12 +87,12 @@ type vmInfo struct {
 }
 
 type localNetworkOptions struct {
-	execPath           string
-	rootDataDir        string
-	numNodes           uint32
-	whitelistedSubnets string
-	logLevel           string
-	globalNodeConfig   string
+	execPath            string
+	rootDataDir         string
+	numNodes            uint32
+	whitelistedSubnets  string
+	redirectNodesOutput bool
+	globalNodeConfig    string
 
 	pluginDir         string
 	customVMs         map[string][]byte
@@ -110,11 +109,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	logger, err := logFactory.Make("main")
 	if err != nil {
 		return nil, err
-	}
-
-	logLevel := opts.logLevel
-	if logLevel == "" {
-		logLevel = "INFO"
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
@@ -149,14 +143,14 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		if err != nil {
 			return nil, err
 		}
 
 		cfg.NodeConfigs[i].BinaryPath = opts.execPath
-		cfg.NodeConfigs[i].RedirectStdout = true
-		cfg.NodeConfigs[i].RedirectStderr = true
+		cfg.NodeConfigs[i].RedirectStdout = opts.redirectNodesOutput
+		cfg.NodeConfigs[i].RedirectStderr = opts.redirectNodesOutput
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
@@ -231,10 +225,8 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(config map[string]interface{}, logLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(config map[string]interface{}, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
-	config["log-level"] = strings.ToUpper(logLevel)
-	config["log-display-level"] = strings.ToUpper(logLevel)
 	if config["log-dir"] != "" {
 		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
 	}
