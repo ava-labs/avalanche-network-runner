@@ -14,11 +14,12 @@ import (
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
+	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -89,12 +90,13 @@ type vmInfo struct {
 }
 
 type localNetworkOptions struct {
-	execPath           string
-	rootDataDir        string
-	numNodes           uint32
-	whitelistedSubnets string
-	nodeLogLevel       string
-	globalNodeConfig   string
+	execPath            string
+	rootDataDir         string
+	numNodes            uint32
+	whitelistedSubnets  string
+	nodeLogLevel        string
+	redirectNodesOutput bool
+	globalNodeConfig    string
 
 	pluginDir         string
 	customVMs         map[string][]byte
@@ -115,7 +117,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 	nodeLogLevel := opts.nodeLogLevel
 	if nodeLogLevel == "" {
-		nodeLogLevel = "INFO"
+		nodeLogLevel = logutil.DefaultNodeLogLevel
 	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
@@ -155,21 +157,21 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 			return nil, err
 		}
 
-        if cfg.NodeConfigs[i].CChainConfigFile == "" {
-            cfg.NodeConfigs[i].CChainConfigFile = "{}"
-        }
-        cchainLogLevel, err := avalanchegoToCorethLogLevel(nodeLogLevel)
-        if err != nil {
-            return err
-        }
-        cfg.NodeConfigs[i].CChainConfigFile, err = utils.UpdateJSONKey(cfg.NodeConfigs[i].CChainConfigFile, "log-level", cchainLogLevel)
+		if cfg.NodeConfigs[i].CChainConfigFile == "" {
+			cfg.NodeConfigs[i].CChainConfigFile = "{}"
+		}
+		cchainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
+		if err != nil {
+			return nil, err
+		}
+		cfg.NodeConfigs[i].CChainConfigFile, err = utils.UpdateJSONKey(cfg.NodeConfigs[i].CChainConfigFile, "log-level", cchainLogLevel)
 		if err != nil {
 			return nil, err
 		}
 
 		cfg.NodeConfigs[i].BinaryPath = opts.execPath
-		cfg.NodeConfigs[i].RedirectStdout = true
-		cfg.NodeConfigs[i].RedirectStderr = true
+		cfg.NodeConfigs[i].RedirectStdout = opts.redirectNodesOutput
+		cfg.NodeConfigs[i].RedirectStderr = opts.redirectNodesOutput
 
 		nodeInfos[nodeName] = &rpcpb.NodeInfo{
 			Name:               nodeName,
@@ -345,27 +347,4 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		<-lc.startDonec
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
-}
-
-func avalanchegoToCorethLogLevel(logLevel string) (string, error) {
-    switch string.ToUpper(logLevel) {
-    case "VERBO":
-        return "trace", nil
-    case "DEBUG":
-        return "debug", nil
-    case "TRACE":
-        return "debug", nil
-    case "INFO":
-        return "info", nil
-    case "WARN":
-        return "warn", nil
-    case "ERROR":
-        return "error", nil
-    case "FATAL":
-        return "crit", nil
-    case "OFF":
-        return "crit", nil
-    default:
-        return "", fmt.Errorf("unknown error level %q", logLevel)
-    }
 }

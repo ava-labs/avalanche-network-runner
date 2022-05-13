@@ -79,6 +79,7 @@ func newStartCommand() *cobra.Command {
 		Use:   "start [options]",
 		Short: "Starts the server.",
 		RunE:  startFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
@@ -191,6 +192,7 @@ func newHealthCommand() *cobra.Command {
 		Use:   "health [options]",
 		Short: "Requests server health.",
 		RunE:  healthFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	return cmd
 }
@@ -223,6 +225,7 @@ func newURIsCommand() *cobra.Command {
 		Use:   "uris [options]",
 		Short: "Requests server uris.",
 		RunE:  urisFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	return cmd
 }
@@ -254,6 +257,7 @@ func newStatusCommand() *cobra.Command {
 		Use:   "status [options]",
 		Short: "Requests server status.",
 		RunE:  statusFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	return cmd
 }
@@ -287,6 +291,7 @@ func newStreamStatusCommand() *cobra.Command {
 		Use:   "stream-status [options]",
 		Short: "Requests server bootstrap status.",
 		RunE:  streamStatusFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().DurationVar(
 		&pushInterval,
@@ -343,6 +348,7 @@ func newRemoveNodeCommand() *cobra.Command {
 		Use:   "remove-node [options]",
 		Short: "Removes a node.",
 		RunE:  removeNodeFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(&nodeName, "node-name", "", "node name to remove")
 	return cmd
@@ -375,6 +381,7 @@ func newAddNodeCommand() *cobra.Command {
 		Use:   "add-node [options]",
 		Short: "Add a new node to the network",
 		RunE:  addNodeFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&nodeName,
@@ -459,6 +466,7 @@ func newRestartNodeCommand() *cobra.Command {
 		Use:   "restart-node [options]",
 		Short: "Restarts the server.",
 		RunE:  restartNodeFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&nodeName,
@@ -515,6 +523,7 @@ func newAttachPeerCommand() *cobra.Command {
 		Use:   "attach-peer [options]",
 		Short: "Attaches a peer to the node.",
 		RunE:  attachPeerFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&nodeName,
@@ -558,6 +567,7 @@ func newSendOutboundMessageCommand() *cobra.Command {
 		Use:   "send-outbound-message [options]",
 		Short: "Sends an outbound message to an attached peer.",
 		RunE:  sendOutboundMessageFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
 		&nodeName,
@@ -618,6 +628,7 @@ func newStopCommand() *cobra.Command {
 		Use:   "stop [options]",
 		Short: "Requests server stop.",
 		RunE:  stopFunc,
+		Args:  cobra.ExactArgs(0),
 	}
 	return cmd
 }

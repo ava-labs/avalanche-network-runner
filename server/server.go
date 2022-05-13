@@ -22,12 +22,14 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -40,8 +42,9 @@ type Config struct {
 	Port   string
 	GwPort string
 	// true to disable grpc-gateway server
-	GwDisabled  bool
-	DialTimeout time.Duration
+	GwDisabled          bool
+	DialTimeout         time.Duration
+	RedirectNodesOutput bool
 }
 
 type Server interface {
@@ -301,6 +304,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			return nil, err
 		}
 	}
+	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
+		return nil, err
+	}
 
 	s.clusterInfo = &rpcpb.ClusterInfo{
 		Pid:         pid,
@@ -328,15 +334,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:           execPath,
-		rootDataDir:        rootDataDir,
-		numNodes:           numNodes,
-		whitelistedSubnets: whitelistedSubnets,
-		nodeLogLevel:       nodeLogLevel,
-		pluginDir:          pluginDir,
-		customVMs:          customVMs,
-		globalNodeConfig:   globalNodeConfig,
-		customNodeConfigs:  customNodeConfigs,
+		execPath:            execPath,
+		rootDataDir:         rootDataDir,
+		numNodes:            numNodes,
+		whitelistedSubnets:  whitelistedSubnets,
+		nodeLogLevel:        nodeLogLevel,
+		redirectNodesOutput: s.cfg.RedirectNodesOutput,
+		pluginDir:           pluginDir,
+		customVMs:           customVMs,
+		globalNodeConfig:    globalNodeConfig,
+		customNodeConfigs:   customNodeConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -557,7 +564,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var nodeLogLevel, whitelistedSubnets, pluginDir string
+	var whitelistedSubnets, pluginDir string
 
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
@@ -575,8 +582,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		}
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
+
+	nodeLogLevel := s.network.options.nodeLogLevel
 	if req.StartRequest.NodeLogLevel != nil {
 		nodeLogLevel = *req.StartRequest.NodeLogLevel
+	}
+	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
+		return nil, err
 	}
 
 	// use same configs from other nodes
@@ -613,14 +625,21 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
 
+	cChainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
+	if err != nil {
+		return nil, err
+	}
+	cChainConfigFile := fmt.Sprintf("{%q: %q}", "log-level", cChainLogLevel)
+
 	nodeConfig := node.Config{
-		Name:           req.Name,
-		ConfigFile:     configFile,
-		StakingKey:     string(stakingKey),
-		StakingCert:    string(stakingCert),
-		BinaryPath:     execPath,
-		RedirectStdout: true,
-		RedirectStderr: true,
+		Name:             req.Name,
+		ConfigFile:       configFile,
+		CChainConfigFile: cChainConfigFile,
+		StakingKey:       string(stakingKey),
+		StakingCert:      string(stakingCert),
+		BinaryPath:       execPath,
+		RedirectStdout:   s.cfg.RedirectNodesOutput,
+		RedirectStderr:   s.cfg.RedirectNodesOutput,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -715,9 +734,13 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if req.GetRootDataDir() != "" {
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
-	nodeLogLevel := "INFO"
+
+	nodeLogLevel := s.network.options.nodeLogLevel
 	if req.GetNodeLogLevel() != "" {
 		nodeLogLevel = strings.ToUpper(req.GetNodeLogLevel())
+	}
+	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
+		return nil, err
 	}
 
 	nodeConfig.ConfigFile = fmt.Sprintf(`{
@@ -743,8 +766,20 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.WhitelistedSubnets,
 	)
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
-	nodeConfig.RedirectStdout = true
-	nodeConfig.RedirectStderr = true
+	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
+	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
+
+	if nodeConfig.CChainConfigFile == "" {
+		nodeConfig.CChainConfigFile = "{}"
+	}
+	cchainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
+	if err != nil {
+		return nil, err
+	}
+	nodeConfig.CChainConfigFile, err = utils.UpdateJSONKey(nodeConfig.CChainConfigFile, "log-level", cchainLogLevel)
+	if err != nil {
+		return nil, err
+	}
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
