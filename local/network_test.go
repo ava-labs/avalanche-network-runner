@@ -55,6 +55,7 @@ func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, fl
 	process.On("Start", mock.Anything, mock.Anything).Return(errors.New("Start failed"))
 	process.On("Wait").Return(nil)
 	process.On("Stop").Return(nil)
+	process.On("Alive").Return(true)
 	return process, nil
 }
 
@@ -115,6 +116,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process.On("Start", mock.Anything, mock.Anything).Return(nil)
 	process.On("Wait").Return(nil)
 	process.On("Stop").Return(nil)
+	process.On("Alive").Return(true)
 	return process, nil
 }
 

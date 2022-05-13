@@ -899,7 +899,7 @@ func (s *server) handleUnexpectedNodeStop() {
 		nodeName := <-unexpectedNodeStopCh
 		zap.L().Info("received unexpected node stop message", zap.String("node-name", nodeName))
 		s.mu.Lock()
-		if s.clusterInfo != nil {
+		if s.clusterInfo == nil {
 			s.mu.Unlock()
 			return
 		}

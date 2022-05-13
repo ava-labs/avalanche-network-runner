@@ -9,6 +9,20 @@ type NodeProcess struct {
 	mock.Mock
 }
 
+// Alive provides a mock function with given fields:
+func (_m *NodeProcess) Alive() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // Start provides a mock function with given fields: _a0, _a1
 func (_m *NodeProcess) Start(_a0 string, _a1 chan string) error {
 	ret := _m.Called(_a0, _a1)
