@@ -79,7 +79,7 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
-	//
+	// Notification to users of node failure
 	unexpectedNodeStopCh chan string
 }
 
@@ -462,8 +462,6 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					select {
-					case nodeName := <-ln.unexpectedNodeStopCh:
-						return fmt.Errorf("unexpected stop of node %q", nodeName)
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-cctx.Done():
@@ -601,11 +599,18 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	node.GetAPIClient().CChainEthAPI().Close()
 	// Ctrl+C on terminal causes a kill for all process group
 	// so sometimes node is already stopped here
-	node.process.Stop()
+	_ = node.process.Stop()
 	if err := node.process.Wait(); err != nil {
 		return fmt.Errorf("node %q stopped with wait error: %w", nodeName, err)
 	}
 	return nil
+}
+
+func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan string, error) {
+	if ln.isStopped() {
+		return nil, network.ErrStopped
+	}
+	return ln.unexpectedNodeStopCh, nil
 }
 
 // Assumes [net.lock] is held

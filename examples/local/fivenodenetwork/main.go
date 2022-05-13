@@ -73,6 +73,10 @@ func run(log logging.Logger, binaryPath string) error {
 			log.Debug("error stopping network: %w", err)
 		}
 	}()
+	unexpectedNodeStopCh, err := nw.GetUnexpectedNodeStopChannel()
+	if err != nil {
+		return err
+	}
 
 	// When we get a SIGINT or SIGTERM, stop the network and close [closedOnShutdownCh]
 	signalsChan := make(chan os.Signal, 1)
@@ -88,12 +92,22 @@ func run(log logging.Logger, binaryPath string) error {
 	defer cancel()
 	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
-	if err := <-healthyChan; err != nil {
-		return err
+	select {
+	case err := <-healthyChan:
+		if err != nil {
+			return err
+		}
+	case nodeName := <-unexpectedNodeStopCh:
+		return fmt.Errorf("unexpected stop of node %q", nodeName)
 	}
 
 	log.Info("All nodes healthy. Network will run until you CTRL + C to exit...")
 	// Wait until done shutting down network after SIGINT/SIGTERM
-	<-closedOnShutdownCh
-	return nil
+	select {
+	case <-unexpectedNodeStopCh:
+		// Ctrl+C also kills childs before ANR does, so only use the event to stop, no notification
+		return nil
+	case <-closedOnShutdownCh:
+		return nil
+	}
 }

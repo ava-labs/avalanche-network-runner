@@ -39,4 +39,7 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
+	// Returns a channel that receives a message with
+	// node name when a node fails
+	GetUnexpectedNodeStopChannel() (chan string, error)
 }
