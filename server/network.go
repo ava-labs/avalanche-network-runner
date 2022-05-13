@@ -10,16 +10,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
-	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -94,7 +91,6 @@ type localNetworkOptions struct {
 	rootDataDir         string
 	numNodes            uint32
 	whitelistedSubnets  string
-	nodeLogLevel        string
 	redirectNodesOutput bool
 	globalNodeConfig    string
 
@@ -114,8 +110,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	nodeLogLevel := opts.nodeLogLevel
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
 	cfg, err := local.NewDefaultConfigNNodes(opts.execPath, opts.numNodes)
@@ -149,19 +143,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 			return nil, fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, nodeLogLevel, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
-		if err != nil {
-			return nil, err
-		}
-
-		if cfg.NodeConfigs[i].CChainConfigFile == "" {
-			cfg.NodeConfigs[i].CChainConfigFile = "{}"
-		}
-		cchainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
-		if err != nil {
-			return nil, err
-		}
-		cfg.NodeConfigs[i].CChainConfigFile, err = utils.UpdateJSONKey(cfg.NodeConfigs[i].CChainConfigFile, "log-level", cchainLogLevel)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
 		if err != nil {
 			return nil, err
 		}
@@ -243,14 +225,7 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(config map[string]interface{}, nodeLogLevel string, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
-	// add (but not overwrite) the following entries
-	if _, ok := config["log-level"]; !ok {
-		config["log-level"] = strings.ToUpper(nodeLogLevel)
-	}
-	if _, ok := config["log-display-level"]; !ok {
-		config["log-display-level"] = strings.ToUpper(nodeLogLevel)
-	}
+func createConfigFileString(config map[string]interface{}, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
 	if config["log-dir"] != "" {
 		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")

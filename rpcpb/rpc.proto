@@ -155,14 +155,13 @@ message StartRequest {
   string exec_path                    = 1;
   optional uint32 num_nodes           = 2;
   optional string whitelisted_subnets = 3;
-  optional string node_log_level      = 4;
-  optional string global_node_config  = 5;
+  optional string global_node_config  = 4;
   // Used for both database and log files.
-  optional string root_data_dir = 6;
+  optional string root_data_dir = 5;
 
   // Plugin directory to load all custom VM executables.
   // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 7;
+  optional string plugin_dir = 6;
 
   // The map of custom VM name to its genesis file path.
   //
@@ -173,8 +172,8 @@ message StartRequest {
   // If this field is set to none (by default), the node/network-runner
   // does not install the custom VM and does not create the subnet,
   // even if the VM binary exists on the local plugins directory.
-  map<string, string> custom_vms = 8;
-  map<string, string> custom_node_configs = 9;
+  map<string, string> custom_vms = 7;
+  map<string, string> custom_node_configs = 8;
 }
 
 message StartResponse {
@@ -214,10 +213,9 @@ message RestartNodeRequest {
   // Optional fields are set to the previous values if empty.
   optional string exec_path           = 2;
   optional string whitelisted_subnets = 3;
-  optional string node_log_level      = 4;
 
   // Used for both database and log files.
-  optional string root_data_dir = 5;
+  optional string root_data_dir = 4;
 }
 
 message RestartNodeResponse {

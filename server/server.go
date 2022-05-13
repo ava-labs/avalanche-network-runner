@@ -22,14 +22,12 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -293,7 +291,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		whitelistedSubnets = req.GetWhitelistedSubnets()
 		rootDataDir        = req.GetRootDataDir()
 		pid                = int32(os.Getpid())
-		nodeLogLevel       = req.GetNodeLogLevel()
 		globalNodeConfig   = req.GetGlobalNodeConfig()
 		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
@@ -303,12 +300,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		if err != nil {
 			return nil, err
 		}
-	}
-	if nodeLogLevel == "" {
-		nodeLogLevel = logutil.DefaultNodeLogLevel
-	}
-	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
-		return nil, err
 	}
 
 	s.clusterInfo = &rpcpb.ClusterInfo{
@@ -341,7 +332,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		rootDataDir:         rootDataDir,
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
-		nodeLogLevel:        nodeLogLevel,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
 		pluginDir:           pluginDir,
 		customVMs:           customVMs,
@@ -586,14 +576,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
 
-	nodeLogLevel := s.network.options.nodeLogLevel
-	if req.StartRequest.NodeLogLevel != nil {
-		nodeLogLevel = *req.StartRequest.NodeLogLevel
-	}
-	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
-		return nil, err
-	}
-
 	// use same configs from other nodes
 	whitelistedSubnets = s.network.options.whitelistedSubnets
 	pluginDir = s.network.options.pluginDir
@@ -619,7 +601,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}
-	configFile, err := createConfigFileString(mergedConfig, nodeLogLevel, logDir, dbDir, pluginDir, whitelistedSubnets)
+	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, pluginDir, whitelistedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
@@ -628,21 +610,14 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
 
-	cChainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
-	if err != nil {
-		return nil, err
-	}
-	cChainConfigFile := fmt.Sprintf("{%q: %q}", "log-level", cChainLogLevel)
-
 	nodeConfig := node.Config{
-		Name:             req.Name,
-		ConfigFile:       configFile,
-		CChainConfigFile: cChainConfigFile,
-		StakingKey:       string(stakingKey),
-		StakingCert:      string(stakingCert),
-		BinaryPath:       execPath,
-		RedirectStdout:   s.cfg.RedirectNodesOutput,
-		RedirectStderr:   s.cfg.RedirectNodesOutput,
+		Name:           req.Name,
+		ConfigFile:     configFile,
+		StakingKey:     string(stakingKey),
+		StakingCert:    string(stakingCert),
+		BinaryPath:     execPath,
+		RedirectStdout: s.cfg.RedirectNodesOutput,
+		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -738,14 +713,6 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
 
-	nodeLogLevel := s.network.options.nodeLogLevel
-	if req.GetNodeLogLevel() != "" {
-		nodeLogLevel = strings.ToUpper(req.GetNodeLogLevel())
-	}
-	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
-		return nil, err
-	}
-
 	var defaultConfig map[string]interface{}
 	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
 		return nil, err
@@ -754,7 +721,6 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	var err error
 	nodeConfig.ConfigFile, err = createConfigFileString(
 		defaultConfig,
-		nodeLogLevel,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
 		nodeInfo.PluginDir,
@@ -767,18 +733,6 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
 	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
 	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
-
-	if nodeConfig.CChainConfigFile == "" {
-		nodeConfig.CChainConfigFile = "{}"
-	}
-	cchainLogLevel, err := logutil.AvalanchegoToCorethLogLevel(nodeLogLevel)
-	if err != nil {
-		return nil, err
-	}
-	nodeConfig.CChainConfigFile, err = utils.UpdateJSONKey(nodeConfig.CChainConfigFile, "log-level", cchainLogLevel)
-	if err != nil {
-		return nil, err
-	}
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")

@@ -11,7 +11,6 @@ func TestEvalConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	// test using the default config...
-	cmdLogLevel := "TRACE"
 	tLogDir := "/tmp/log"
 	tDbDir := "/tmp/db"
 	tWhitelistedSubnets := "someSubnet"
@@ -24,7 +23,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err := mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
-	finalJSON, err := createConfigFileString(config, cmdLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err := createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	var controlMap map[string]interface{}
@@ -65,7 +64,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err = mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, cmdLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
@@ -89,7 +88,7 @@ func TestEvalConfig(t *testing.T) {
 	customConfigJSON := globalConfigJSON
 	config, err = mergeNodeConfig(defaultConfig, map[string]interface{}{}, customConfigJSON)
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, cmdLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
@@ -131,7 +130,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err = mergeNodeConfig(defaultConfig, globalConfig, customConfigJSON)
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, cmdLogLevel, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
