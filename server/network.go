@@ -293,6 +293,10 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
 
 	hc := lc.nw.Healthy(ctx)
+	unexpectedNodeStopCh, err := lc.nw.GetUnexpectedNodeStopChannel()
+	if err != nil {
+		return err
+	}
 	select {
 	case <-lc.stopc:
 		return errAborted
@@ -302,6 +306,8 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	case nodeName := <-unexpectedNodeStopCh:
+		return fmt.Errorf("unexpected stop of node %q", nodeName)
 	}
 
 	nodes, err := lc.nw.GetAllNodes()
