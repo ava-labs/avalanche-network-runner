@@ -374,6 +374,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.mu.Unlock()
 		}
 
+		go s.handleUnexpectedNodeStop()
+
 		if len(req.GetCustomVms()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
 		} else {
@@ -421,6 +423,7 @@ func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.H
 	}
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
 
 	return &rpcpb.HealthResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -638,6 +641,15 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 	s.network.nodeInfos[req.Name] = info
 
+	zap.L().Info("waiting for local cluster readiness")
+	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+		return nil, err
+	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
+
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
@@ -669,6 +681,8 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
 	}
+
+	s.clusterInfo.Healthy = true
 
 	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -754,6 +768,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	// update with the new config
 	s.network.cfg.NodeConfigs[idx] = nodeConfig
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -873,6 +888,29 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 	info := s.clusterInfo
 	s.mu.RUnlock()
 	return info
+}
+
+func (s *server) handleUnexpectedNodeStop() {
+	unexpectedNodeStopCh, err := s.network.nw.GetUnexpectedNodeStopChannel()
+	if err != nil {
+		panic(err)
+	}
+	for {
+		nodeName := <-unexpectedNodeStopCh
+		zap.L().Info("received unexpected node stop message", zap.String("node-name", nodeName))
+		s.mu.Lock()
+		if s.clusterInfo != nil {
+			s.mu.Unlock()
+			return
+		}
+		_, ok := s.network.nodeInfos[nodeName]
+		if ok {
+			s.network.nodeInfos[nodeName].Alive = false
+			s.clusterInfo.NodeInfos = s.network.nodeInfos
+			s.clusterInfo.Healthy = false
+		}
+		s.mu.Unlock()
+	}
 }
 
 func isClientCanceled(ctxErr error, err error) bool {
