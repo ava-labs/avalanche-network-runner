@@ -304,6 +304,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			return nil, err
 		}
 	}
+	if nodeLogLevel == "" {
+		nodeLogLevel = logutil.DefaultNodeLogLevel
+	}
 	if _, err := logging.ToLevel(nodeLogLevel); err != nil {
 		return nil, err
 	}

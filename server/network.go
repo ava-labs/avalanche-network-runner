@@ -116,9 +116,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}
 
 	nodeLogLevel := opts.nodeLogLevel
-	if nodeLogLevel == "" {
-		nodeLogLevel = logutil.DefaultNodeLogLevel
-	}
 
 	nodeInfos := make(map[string]*rpcpb.NodeInfo)
 	cfg, err := local.NewDefaultConfigNNodes(opts.execPath, opts.numNodes)
