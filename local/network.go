@@ -446,16 +446,18 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	}
 
 	go func() {
-		// TODO: This will block the network for the duration of the health call.
-		// Maybe a better solution can be found.
 		ln.lock.RLock()
-		defer ln.lock.RUnlock()
+		nodes := make([]*localNode, 0, len(ln.nodes))
+		for _, node := range ln.nodes {
+			nodes = append(nodes, node)
+		}
+		ln.lock.RUnlock()
 
 		errGr, cctx := errgroup.WithContext(ctx)
-		for _, node := range ln.nodes {
+		for _, node := range nodes {
 			node := node
 			errGr.Go(func() error {
-				// Every constants.HealthCheckInterval, query node for health status.
+				// Every healthCheckFreq, query node for health status.
 				// Do this until ctx timeout
 				for {
 					select {
