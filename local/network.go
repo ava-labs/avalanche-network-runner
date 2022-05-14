@@ -440,19 +440,20 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
+	ln.lock.RLock()
 	if ln.isStopped() {
 		healthyChan <- network.ErrStopped
+		ln.lock.RUnlock()
 		return healthyChan
 	}
 
-	go func() {
-		ln.lock.RLock()
-		nodes := make([]*localNode, 0, len(ln.nodes))
-		for _, node := range ln.nodes {
-			nodes = append(nodes, node)
-		}
-		ln.lock.RUnlock()
+	nodes := make([]*localNode, 0, len(ln.nodes))
+	for _, node := range ln.nodes {
+		nodes = append(nodes, node)
+	}
+	ln.lock.RUnlock()
 
+	go func() {
 		errGr, cctx := errgroup.WithContext(ctx)
 		for _, node := range nodes {
 			node := node
