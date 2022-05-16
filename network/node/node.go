@@ -35,7 +35,7 @@ type Node interface {
 	// The caller should call StartClose() on the peer when they're done with it.
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
 	// Return true if the node process is executing
-	GetAliveStatus() bool
+	Alive() bool
 }
 
 // Config encapsulates an avalanchego configuration

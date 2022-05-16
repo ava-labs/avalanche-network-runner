@@ -462,7 +462,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 				// Do this until ctx timeout
 				for {
 					// fast response if died previously
-					if !node.GetAliveStatus() {
+					if !node.Alive() {
 						return fmt.Errorf("unexpected stop on node %q", node.GetName())
 					}
 					select {
@@ -473,7 +473,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 					case <-time.After(healthCheckFreq):
 					}
 					// safe check if failed on node start
-					if !node.GetAliveStatus() {
+					if !node.Alive() {
 						return fmt.Errorf("unexpected stop on node %q", node.GetName())
 					}
 					health, err := node.GetAPIClient().HealthAPI().Health(cctx)
