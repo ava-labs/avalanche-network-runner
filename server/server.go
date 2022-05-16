@@ -887,16 +887,16 @@ func (s *server) handleUnexpectedNodeStop() {
 		panic(err)
 	}
 	for {
-		nodeName := <-unexpectedNodeStopCh
-		zap.L().Info("received unexpected node stop message", zap.String("node-name", nodeName))
+		unexpectedStopMsg := <-unexpectedNodeStopCh
+		zap.L().Info("received unexpected node stop message", zap.String("node-name", unexpectedStopMsg.Name))
 		s.mu.Lock()
 		if s.clusterInfo == nil {
 			s.mu.Unlock()
 			return
 		}
-		_, ok := s.network.nodeInfos[nodeName]
+		_, ok := s.network.nodeInfos[unexpectedStopMsg.Name]
 		if ok {
-			s.network.nodeInfos[nodeName].Alive = false
+			s.network.nodeInfos[unexpectedStopMsg.Name].Alive = false
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
 			s.clusterInfo.Healthy = false
 		}

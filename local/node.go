@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -40,7 +41,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 // AvalancheGo binaries in tests
 type NodeProcess interface {
 	// Start this process
-	Start(string, chan string) error
+	Start(string, chan network.UnexpectedStopMsg) error
 	// Send a SIGTERM to this process
 	Stop() error
 	// Returns when the process finishes exiting
@@ -53,7 +54,7 @@ type nodeProcessImpl struct {
 	lock             sync.RWMutex
 	cmd              *exec.Cmd
 	waitReturnCh     chan error
-	unexpectedStopCh chan string
+	unexpectedStopCh chan network.UnexpectedStopMsg
 	state            int
 }
 
@@ -66,7 +67,7 @@ const (
 )
 
 // to be called only on Initial state
-func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error {
+func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan network.UnexpectedStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state != Initial {
@@ -83,7 +84,10 @@ func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error
 		p.state = Stopped
 		p.lock.Unlock()
 		if state != Stopping {
-			p.unexpectedStopCh <- name
+			p.unexpectedStopCh <- network.UnexpectedStopMsg{
+				Name:     name,
+				ExitCode: p.cmd.ProcessState.ExitCode(),
+			}
 		}
 	}()
 	return startErr

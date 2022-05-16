@@ -9,6 +9,11 @@ import (
 
 var ErrStopped = errors.New("network stopped")
 
+type UnexpectedStopMsg struct {
+	Name     string
+	ExitCode int
+}
+
 // Network is an abstraction of an Avalanche network
 type Network interface {
 	// Returns a chan that is closed when
@@ -41,5 +46,5 @@ type Network interface {
 	GetNodeNames() ([]string, error)
 	// Returns a channel that receives a message with
 	// node name when a node fails
-	GetUnexpectedNodeStopChannel() (chan string, error)
+	GetUnexpectedNodeStopChannel() (chan UnexpectedStopMsg, error)
 }
