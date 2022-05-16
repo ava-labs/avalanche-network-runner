@@ -657,7 +657,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, ErrNodeNotFound
 	}
 
-	if err := s.network.nw.RemoveNode(req.Name); err != nil {
+	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 	delete(s.network.nodeInfos, req.Name)
@@ -741,7 +741,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
-	if err := s.network.nw.RemoveNode(req.Name); err != nil {
+	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 

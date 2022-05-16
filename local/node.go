@@ -45,7 +45,7 @@ type NodeProcess interface {
 	// Send a SIGTERM to this process
 	Stop() error
 	// Returns when the process finishes exiting
-	Wait() error
+	Wait(ctx context.Context) error
 	// Returns if the process is executing
 	Alive() bool
 }
@@ -94,14 +94,20 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedStopMsg)
 	return startErr
 }
 
-func (p *nodeProcessImpl) Wait() error {
+func (p *nodeProcessImpl) Wait(ctx context.Context) error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
 	if state != Started && state != Stopping && state != Stopped {
 		return errors.New("wait called on invalid state")
 	}
-	waitReturn := <-p.waitReturnCh
+	var waitReturn error
+	select {
+	case <-ctx.Done():
+		_ = p.cmd.Process.Signal(syscall.SIGKILL)
+		waitReturn = ctx.Err()
+	case waitReturn = <-p.waitReturnCh:
+	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.state = Waited

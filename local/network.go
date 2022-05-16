@@ -569,7 +569,7 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-		if err := ln.removeNode(nodeName); err != nil {
+		if err := ln.removeNode(ctx, nodeName); err != nil {
 			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
@@ -580,15 +580,15 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 }
 
 // Sends a SIGTERM to the given node and removes it from this network
-func (ln *localNetwork) RemoveNode(nodeName string) error {
+func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.removeNode(nodeName)
+	return ln.removeNode(ctx, nodeName)
 }
 
 // Assumes [net.lock] is held
-func (ln *localNetwork) removeNode(nodeName string) error {
+func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	if ln.isStopped() {
 		return network.ErrStopped
 	}
@@ -608,7 +608,7 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	// Ctrl+C on terminal causes a kill for all process group
 	// so sometimes node is already stopped here
 	_ = node.process.Stop()
-	if err := node.process.Wait(); err != nil {
+	if err := node.process.Wait(ctx); err != nil {
 		return fmt.Errorf("node %q stopped with wait error: %w", nodeName, err)
 	}
 	return nil
