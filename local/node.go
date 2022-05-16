@@ -217,6 +217,6 @@ func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
 }
 
-func (node *localNode) GetAliveStatus() bool {
+func (node *localNode) Alive() bool {
 	return node.process.Alive()
 }
