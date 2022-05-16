@@ -3,9 +3,11 @@ package local
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 
@@ -34,6 +36,12 @@ var (
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
+var (
+	errAlreadyStarted = errors.New("already started node")
+	errAlreadyStopped = errors.New("already stopped node")
+	errAlreadyWaited  = errors.New("already waited node")
+)
+
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
@@ -48,39 +56,61 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
+	lock             sync.RWMutex
 	cmd              *exec.Cmd
 	running          bool
+	waited           bool
 	waitReturnCh     chan error
 	unexpectedStopCh chan string
 }
 
 func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.running {
+		return errAlreadyStarted
+	}
 	p.unexpectedStopCh = unexpectedStopCh
 	startErr := p.cmd.Start()
 	p.running = true
 	p.waitReturnCh = make(chan error, 1)
 	go func() {
 		p.waitReturnCh <- p.cmd.Wait()
+		p.lock.Lock()
+		defer p.lock.Unlock()
 		if p.running {
 			// Stop() was not called
 			p.running = false
 			p.unexpectedStopCh <- name
 		}
+		p.waited = true
 	}()
 	return startErr
 }
 
 func (p *nodeProcessImpl) Wait() error {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.waited {
+		return errAlreadyWaited
+	}
 	return <-p.waitReturnCh
 }
 
 func (p *nodeProcessImpl) Stop() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if !p.running {
+		return errAlreadyStopped
+	}
 	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
 	p.running = false
 	return stopResult
 }
 
 func (p *nodeProcessImpl) Alive() bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	return p.running
 }
 
