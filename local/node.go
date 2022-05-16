@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"sync"
+	//"sync"
 	"syscall"
 	"time"
 
@@ -56,7 +56,7 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	lock             sync.RWMutex
+	//lock             sync.RWMutex
 	cmd              *exec.Cmd
 	running          bool
 	waited           bool
@@ -65,8 +65,8 @@ type nodeProcessImpl struct {
 }
 
 func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	//p.lock.Lock()
+	//defer p.lock.Unlock()
 	if p.running {
 		return errAlreadyStarted
 	}
@@ -76,30 +76,30 @@ func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error
 	p.waitReturnCh = make(chan error, 1)
 	go func() {
 		p.waitReturnCh <- p.cmd.Wait()
-		p.lock.Lock()
-		defer p.lock.Unlock()
+		//p.lock.Lock()
+		//defer p.lock.Unlock()
 		if p.running {
 			// Stop() was not called
 			p.running = false
 			p.unexpectedStopCh <- name
 		}
-		p.waited = true
 	}()
 	return startErr
 }
 
 func (p *nodeProcessImpl) Wait() error {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
+	//p.lock.RLock()
+	//defer p.lock.RUnlock()
 	if p.waited {
 		return errAlreadyWaited
 	}
+    p.waited = true
 	return <-p.waitReturnCh
 }
 
 func (p *nodeProcessImpl) Stop() error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	//p.lock.Lock()
+	//defer p.lock.Unlock()
 	if !p.running {
 		return errAlreadyStopped
 	}
@@ -109,8 +109,8 @@ func (p *nodeProcessImpl) Stop() error {
 }
 
 func (p *nodeProcessImpl) Alive() bool {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
+	//p.lock.RLock()
+	//defer p.lock.RUnlock()
 	return p.running
 }
 
