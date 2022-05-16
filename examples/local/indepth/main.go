@@ -163,8 +163,8 @@ func run(log logging.Logger, binaryPath string) error {
 		if err != nil {
 			return err
 		}
-	case nodeName := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q", nodeName)
+	case unexpectedStopMsg := <-unexpectedNodeStopCh:
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
 	}
 
 	// Print the node names

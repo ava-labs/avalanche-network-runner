@@ -41,7 +41,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 // AvalancheGo binaries in tests
 type NodeProcess interface {
 	// Start this process
-	Start(string, chan network.UnexpectedStopMsg) error
+	Start(chan network.UnexpectedStopMsg) error
 	// Send a SIGTERM to this process
 	Stop() error
 	// Returns when the process finishes exiting
@@ -51,6 +51,7 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
+	name             string
 	lock             sync.RWMutex
 	cmd              *exec.Cmd
 	waitReturnCh     chan error
@@ -67,7 +68,7 @@ const (
 )
 
 // to be called only on Initial state
-func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan network.UnexpectedStopMsg) error {
+func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state != Initial {
@@ -85,7 +86,7 @@ func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan network.Unexp
 		p.lock.Unlock()
 		if state != Stopping {
 			p.unexpectedStopCh <- network.UnexpectedStopMsg{
-				Name:     name,
+				Name:     p.name,
 				ExitCode: p.cmd.ProcessState.ExitCode(),
 			}
 		}

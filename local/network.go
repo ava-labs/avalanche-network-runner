@@ -181,7 +181,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return &nodeProcessImpl{cmd: cmd}, nil
+	return &nodeProcessImpl{name: config.Name, cmd: cmd}, nil
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
@@ -409,7 +409,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	if err := nodeProcess.Start(nodeConfig.Name, ln.unexpectedNodeStopCh); err != nil {
+	if err := nodeProcess.Start(ln.unexpectedNodeStopCh); err != nil {
 		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
 	}
 

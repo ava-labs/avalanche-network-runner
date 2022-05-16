@@ -888,7 +888,11 @@ func (s *server) handleUnexpectedNodeStop() {
 	}
 	for {
 		unexpectedStopMsg := <-unexpectedNodeStopCh
-		zap.L().Info("received unexpected node stop message", zap.String("node-name", unexpectedStopMsg.Name))
+		zap.L().Info(
+			"received unexpected node stop message",
+			zap.String("node-name", unexpectedStopMsg.Name),
+			zap.Int("exit-code", unexpectedStopMsg.ExitCode),
+		)
 		s.mu.Lock()
 		if s.clusterInfo == nil {
 			s.mu.Unlock()
