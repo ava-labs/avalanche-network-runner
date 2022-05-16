@@ -83,10 +83,10 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		// wait for server stop
 		serverRunErr := <-errc
 		zap.L().Warn("closed server", zap.Error(serverRunErr))
-	case err = <-errc:
+    case serverRunErr := <-errc:
 		// no need to call server stop here
 		_ = rootCancel
-		zap.L().Warn("server closed", zap.Error(err))
+		zap.L().Warn("server closed", zap.Error(serverRunErr))
 	}
 	return err
 }
