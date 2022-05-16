@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	//"sync"
+	"sync"
 	"syscall"
 	"time"
 
@@ -36,12 +36,6 @@ var (
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
-var (
-	errAlreadyStarted = errors.New("already started node")
-	errAlreadyStopped = errors.New("already stopped node")
-	errAlreadyWaited  = errors.New("already waited node")
-)
-
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
@@ -56,31 +50,39 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	//lock             sync.RWMutex
+	lock             sync.RWMutex
 	cmd              *exec.Cmd
-	running          bool
-	waited           bool
 	waitReturnCh     chan error
 	unexpectedStopCh chan string
+	state            int
 }
 
+const (
+	Initial = iota
+	Started
+	Stopping
+	Stopped
+	Waited
+)
+
+// to be called only on Initial state
 func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error {
-	//p.lock.Lock()
-	//defer p.lock.Unlock()
-	if p.running {
-		return errAlreadyStarted
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.state != Initial {
+		return errors.New("start called on invalid state")
 	}
 	p.unexpectedStopCh = unexpectedStopCh
 	startErr := p.cmd.Start()
-	p.running = true
+	p.state = Started
 	p.waitReturnCh = make(chan error, 1)
 	go func() {
 		p.waitReturnCh <- p.cmd.Wait()
-		//p.lock.Lock()
-		//defer p.lock.Unlock()
-		if p.running {
-			// Stop() was not called
-			p.running = false
+		p.lock.Lock()
+		state := p.state
+		p.state = Stopped
+		p.lock.Unlock()
+		if state != Stopping {
 			p.unexpectedStopCh <- name
 		}
 	}()
@@ -88,30 +90,35 @@ func (p *nodeProcessImpl) Start(name string, unexpectedStopCh chan string) error
 }
 
 func (p *nodeProcessImpl) Wait() error {
-	//p.lock.RLock()
-	//defer p.lock.RUnlock()
-	if p.waited {
-		return errAlreadyWaited
+	p.lock.RLock()
+	state := p.state
+	p.lock.RUnlock()
+	if state != Started && state != Stopping && state != Stopped {
+		return errors.New("wait called on invalid state")
 	}
-    p.waited = true
-	return <-p.waitReturnCh
+	waitReturn := <-p.waitReturnCh
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.state = Waited
+	return waitReturn
 }
 
+// to be called only on Started state
 func (p *nodeProcessImpl) Stop() error {
-	//p.lock.Lock()
-	//defer p.lock.Unlock()
-	if !p.running {
-		return errAlreadyStopped
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.state != Started {
+		return errors.New("stop called on invalid state")
 	}
 	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
-	p.running = false
+	p.state = Stopping
 	return stopResult
 }
 
 func (p *nodeProcessImpl) Alive() bool {
-	//p.lock.RLock()
-	//defer p.lock.RUnlock()
-	return p.running
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.state == Started || p.state == Stopping
 }
 
 // Gives access to basic node info, and to most avalanchego apis
