@@ -52,8 +52,8 @@ type localTestFailedStartProcessCreator struct{}
 
 func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
-	process.On("Start", mock.Anything, mock.Anything).Return(errors.New("Start failed"))
-	process.On("Wait").Return(nil)
+	process.On("Start", mock.Anything).Return(errors.New("Start failed"))
+	process.On("Wait", mock.Anything).Return(nil)
 	process.On("Stop").Return(nil)
 	process.On("Alive").Return(true)
 	return process, nil
@@ -113,8 +113,8 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 // Returns a NodeProcess that always returns nil
 func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
-	process.On("Start", mock.Anything, mock.Anything).Return(nil)
-	process.On("Wait").Return(nil)
+	process.On("Start", mock.Anything).Return(nil)
+	process.On("Wait", mock.Anything).Return(nil)
 	process.On("Stop").Return(nil)
 	process.On("Alive").Return(true)
 	return process, nil
@@ -584,7 +584,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		_, err := net.GetNode(nodeConfig.Name)
 		assert.NoError(err)
-		err = net.RemoveNode(nodeConfig.Name)
+		err = net.RemoveNode(context.Background(), nodeConfig.Name)
 		assert.NoError(err)
 		removedNodes[nodeConfig.Name] = struct{}{}
 		delete(runningNodes, nodeConfig.Name)
@@ -611,16 +611,16 @@ func TestNodeNotFound(t *testing.T) {
 	_, err = net.GetNode(networkConfig.NodeConfigs[1].Name)
 	assert.Error(err)
 	// remove non-existent node
-	err = net.RemoveNode(networkConfig.NodeConfigs[1].Name)
+	err = net.RemoveNode(context.Background(), networkConfig.NodeConfigs[1].Name)
 	assert.Error(err)
 	// remove node
-	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	err = net.RemoveNode(context.Background(), networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
 	// get removed node
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.Error(err)
 	// remove already-removed node
-	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	err = net.RemoveNode(context.Background(), networkConfig.NodeConfigs[0].Name)
 	assert.Error(err)
 }
 
@@ -652,7 +652,7 @@ func TestStoppedNetwork(t *testing.T) {
 	_, err = net.GetNodeNames()
 	assert.EqualValues(err, network.ErrStopped)
 	// RemoveNode failure
-	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
+	assert.EqualValues(net.RemoveNode(context.Background(), networkConfig.NodeConfigs[0].Name), network.ErrStopped)
 	// Healthy failure
 	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 	_, err = net.GetAllNodes()
@@ -826,7 +826,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	// and StderrPipe, we have to wait until after we read from
 	// the pipe before calling Wait.
 	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
-	if err = proc.Wait(); err != nil {
+	if err = proc.Wait(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1214,7 +1214,7 @@ func TestRemoveBeacon(t *testing.T) {
 	assert.NoError(err)
 
 	// remove the beacon node from the network
-	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
+	err = net.RemoveNode(context.Background(), networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
 	assert.Equal(0, net.bootstraps.Len())
 }

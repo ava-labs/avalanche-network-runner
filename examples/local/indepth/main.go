@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	healthyTimeout = 2 * time.Minute
+	healthyTimeout    = 2 * time.Minute
+	removeNodeTimeout = 10 * time.Second
 )
 
 var goPath = os.ExpandEnv("$GOPATH")
@@ -149,7 +150,9 @@ func run(log logging.Logger, binaryPath string) error {
 	// Remove one node
 	nodeToRemove := nodeNames[3]
 	log.Info("removing node %q", nodeToRemove)
-	if err := nw.RemoveNode(nodeToRemove); err != nil {
+	removeNodeCtx, removeNodeCtxCancel := context.WithTimeout(context.Background(), removeNodeTimeout)
+	defer removeNodeCtxCancel()
+	if err := nw.RemoveNode(removeNodeCtx, nodeToRemove); err != nil {
 		return err
 	}
 
