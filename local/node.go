@@ -124,7 +124,7 @@ func (p *nodeProcessImpl) Wait() error {
 	if state == Initial {
 		return errors.New("wait called on invalid state")
 	}
-	if p.state == Waited {
+	if state == Waited {
 		return nil
 	}
 	waitReturn := <-p.waitReturnCh
