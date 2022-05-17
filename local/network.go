@@ -29,14 +29,15 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix = "node-"
-	configFileName        = "config.json"
-	stakingKeyFileName    = "staking.key"
-	stakingCertFileName   = "staking.crt"
-	genesisFileName       = "genesis.json"
-	stopTimeout           = 30 * time.Second
-	healthCheckFreq       = 3 * time.Second
-	DefaultNumNodes       = 5
+	defaultNodeNamePrefix         = "node-"
+	configFileName                = "config.json"
+	stakingKeyFileName            = "staking.key"
+	stakingCertFileName           = "staking.crt"
+	genesisFileName               = "genesis.json"
+	stopTimeout                   = 30 * time.Second
+	healthCheckFreq               = 3 * time.Second
+	DefaultNumNodes               = 5
+	UnexpectedNodeStopMsgBuffSize = 1024
 )
 
 // interface compliance
@@ -237,7 +238,7 @@ func newNetwork(
 		newAPIClientF:        newAPIClientF,
 		nodeProcessCreator:   nodeProcessCreator,
 		flags:                networkConfig.Flags,
-		unexpectedNodeStopCh: make(chan network.UnexpectedNodeStopMsg),
+		unexpectedNodeStopCh: make(chan network.UnexpectedNodeStopMsg, UnexpectedNodeStopMsgBuffSize),
 	}
 
 	// Sort node configs so beacons start first

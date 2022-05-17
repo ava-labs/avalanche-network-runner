@@ -813,7 +813,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = proc.Start(nil); err != nil {
+	if err = proc.Start(make(chan network.UnexpectedNodeStopMsg, 1)); err != nil {
 		t.Fatal(err)
 	}
 
