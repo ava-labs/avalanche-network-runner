@@ -252,6 +252,7 @@ func newNetwork(
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
 		flags:              networkConfig.Flags,
+		nodesConfig:        map[string]node.Config{},
 	}
 
 	// Sort node configs so beacons start first

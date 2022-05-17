@@ -881,9 +881,7 @@ func emptyNetworkConfig() (network.Config, error) {
 		return network.Config{}, err
 	}
 	return network.Config{
-		LogLevel: "DEBUG",
-		Name:     "My Network",
-		Genesis:  string(genesis),
+		Genesis: string(genesis),
 	}, nil
 }
 
@@ -998,6 +996,7 @@ func TestGetConfigEntry(t *testing.T) {
 
 	// case: key not present
 	val, err := getConfigEntry(
+		map[string]interface{}{},
 		map[string]interface{}{"2": "2"},
 		"1",
 		"1",
@@ -1007,6 +1006,7 @@ func TestGetConfigEntry(t *testing.T) {
 
 	// case: key present
 	val, err = getConfigEntry(
+		map[string]interface{}{},
 		map[string]interface{}{"1": "hi", "2": "2"},
 		"1",
 		"1",
@@ -1016,6 +1016,7 @@ func TestGetConfigEntry(t *testing.T) {
 
 	// case: key present wrong type
 	_, err = getConfigEntry(
+		map[string]interface{}{},
 		map[string]interface{}{"1": 1, "2": "2"},
 		"1",
 		"1",

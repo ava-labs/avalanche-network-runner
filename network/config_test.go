@@ -42,8 +42,6 @@ func TestConfigMarshalJSON(t *testing.T) {
 				BinaryPath: "/tmp/some/other/path",
 			},
 		},
-		LogLevel: "DEBUG",
-		Name:     "abcxyz",
 		Flags: map[string]interface{}{
 			"flag-three": "val-three",
 		},
