@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ const (
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	DefaultNumNodes       = 5
+	snapshotsRelPath      = ".avalanche-network-runner/snapshots/"
 )
 
 // interface compliance
@@ -79,6 +81,8 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
+	// Node Name --> Node Config
+	nodesConfig map[string]node.Config
 }
 
 var (
@@ -91,6 +95,8 @@ var (
 	// TODO add method Copy() to network.Config to prevent
 	// accidental overwriting
 	defaultNetworkConfig network.Config
+	// snapshots directory
+	snapshotsDir string
 )
 
 // populate default network config from embedded default directory
@@ -101,9 +107,9 @@ func init() {
 	}
 
 	defaultNetworkConfig = network.Config{
-		Name:        "my network",
+		//Name:        "my network",
 		NodeConfigs: make([]node.Config, DefaultNumNodes),
-		LogLevel:    "INFO",
+		//LogLevel:    "INFO",
 	}
 
 	genesis, err := fs.ReadFile(configsDir, "genesis.json")
@@ -134,6 +140,17 @@ func init() {
 		}
 		defaultNetworkConfig.NodeConfigs[i].CChainConfigFile = string(cChainConfig)
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
+	}
+
+	// create snapshots dir
+	usr, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	snapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
+	err = os.MkdirAll(snapshotsDir, os.ModePerm)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -389,7 +406,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	flags, apiPort, p2pPort, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
+	flags, apiPort, p2pPort, dbPath, logsDir, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -431,6 +448,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: p2pPort,
 		}))
 	}
+	// update node config flags and save node config for snapshot
+	nodeConfig.Flags[config.HTTPPortKey] = apiPort
+	nodeConfig.Flags[config.StakingPortKey] = p2pPort
+	nodeConfig.Flags[config.DBPathKey] = dbPath
+	nodeConfig.Flags[config.LogsDirKey] = logsDir
+	ln.nodesConfig[node.name] = nodeConfig
 	return node, err
 }
 
@@ -604,17 +627,17 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 }
 
 // Save network snapshot
-func (ln *localNetwork) SaveSnapshot(context.Context, string) error {
+func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
 	return nil
 }
 
 // Load network snapshot
-func (ln *localNetwork) LoadSnapshot(context.Context, string) error {
+func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) error {
 	return nil
 }
 
 // Remove network snapshot
-func (ln *localNetwork) RemoveSnapshot(string) error {
+func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	return nil
 }
 
@@ -698,13 +721,24 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 }
 
 // getConfigEntry returns an entry in the config file if it is found, otherwise returns the default value
-func getConfigEntry(configFile map[string]interface{}, flag string, defaultVal string) (string, error) {
+func getConfigEntry(
+	nodeConfigFlags map[string]interface{},
+	configFile map[string]interface{},
+	flag string,
+	defaultVal string,
+) (string, error) {
 	var entry string
+	if val, ok := nodeConfigFlags[flag]; ok {
+		if entry, ok := val.(string); ok {
+			return entry, nil
+		}
+		return "", fmt.Errorf("expected node config flag %q to be string but got %T", flag, entry)
+	}
 	if val, ok := configFile[flag]; ok {
 		if entry, ok := val.(string); ok {
 			return entry, nil
 		}
-		return "", fmt.Errorf("expected flag %q to be string but got %T", flag, entry)
+		return "", fmt.Errorf("expected config file flag %q to be string but got %T", flag, entry)
 	}
 	return defaultVal, nil
 }
@@ -749,34 +783,34 @@ func (ln *localNetwork) buildFlags(
 	configFile map[string]interface{},
 	nodeDir string,
 	nodeConfig *node.Config,
-) ([]string, uint16, uint16, error) {
+) ([]string, uint16, uint16, string, string, error) {
 	// Add flags in [ln.Flags] to [nodeConfig.Flags]
 	// Assumes [nodeConfig.Flags] is non-nil
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbPath, err := getConfigEntry(configFile, config.DBPathKey, nodeDir)
+	dbPath, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, nodeDir)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, "", "", err
 	}
 
 	// Tell the node to put the log directory in [nodeDir/logs] unless given in config file
-	logsDir, err := getConfigEntry(configFile, config.LogsDirKey, filepath.Join(nodeDir, "logs"))
+	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, "logs"))
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, "", "", err
 	}
 
 	// Use random free API port unless given in config file
 	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, "", "", err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
 	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, "", "", err
 	}
 
 	// Flags for AvalancheGo
@@ -793,7 +827,7 @@ func (ln *localNetwork) buildFlags(
 	// and get flag that point the node to those files
 	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, "", "", err
 	}
 	flags = append(flags, fileFlags...)
 
@@ -810,7 +844,7 @@ func (ln *localNetwork) buildFlags(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
 		nodeConfig.Name, nodeDir, logsDir, dbPath, p2pPort, apiPort,
 	)
-	return flags, apiPort, p2pPort, nil
+	return flags, apiPort, p2pPort, dbPath, logsDir, nil
 }
 
 // writeFiles writes the files a node needs on startup.
