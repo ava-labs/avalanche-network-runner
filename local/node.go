@@ -40,19 +40,21 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
-// Expected call sequence: instantiation, Start, Stop, Wait
 type NodeProcess interface {
 	// Start this process
 	// Returns error if not called after instantiation
 	Start(chan network.UnexpectedNodeStopMsg) error
 	// Send a SIGTERM to this process
-	// Returns error if not called after Start
+	// Returns error if called before Start
+	// Returns nil if the process is already stopping/stopped
 	Stop(ctx context.Context) error
 	// Returns when the process finishes exiting
-	// Returns error if not called after Start/Stop
+	// Returns error if called before Start
+	// Returns nil if already waited for the process
 	Wait() error
-	// Returns if the process is executing
-	// Returns false if Start was not called
+	// Returns true if the process is executing
+	// Returns false if the process has been stopped
+	// Returns false if the process has not been started
 	Alive() bool
 }
 
@@ -89,7 +91,11 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 	p.waitReturnCh = make(chan error, 1)
 	p.closeOnStop = make(chan struct{})
 	go func() {
-		p.waitReturnCh <- p.cmd.Wait()
+		// Wait4 to avoid race conditions on stdout/stderr pipes
+		var status syscall.WaitStatus
+		var rusage syscall.Rusage
+		_, err := syscall.Wait4(p.cmd.Process.Pid, &status, 0, &rusage)
+		p.waitReturnCh <- err
 		p.lock.Lock()
 		state := p.state
 		p.state = Stopped
@@ -98,7 +104,7 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 		if state != Stopping {
 			p.unexpectedStopCh <- network.UnexpectedNodeStopMsg{
 				Name:     p.name,
-				ExitCode: p.cmd.ProcessState.ExitCode(),
+				ExitCode: status.ExitStatus(),
 			}
 		}
 	}()
@@ -109,8 +115,11 @@ func (p *nodeProcessImpl) Wait() error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
-	if state != Started && state != Stopping && state != Stopped {
+	if state == Initial {
 		return errors.New("wait called on invalid state")
+	}
+	if p.state == Waited {
+		return nil
 	}
 	waitReturn := <-p.waitReturnCh
 	p.lock.Lock()
@@ -124,8 +133,11 @@ func (p *nodeProcessImpl) Wait() error {
 func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state != Started {
+	if p.state == Initial {
 		return errors.New("stop called on invalid state")
+	}
+	if p.state != Started {
+		return nil
 	}
 	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
 	p.state = Stopping
