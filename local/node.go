@@ -43,8 +43,10 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 type NodeProcess interface {
 	// Start this process
 	// Returns error if not called after instantiation
+	// If process stops without a previous call to Stop(), send notification msg over given channel
 	Start(chan network.UnexpectedNodeStopMsg) error
 	// Send a SIGTERM to this process
+	// If ctx is cancelled, send SIGKILL to this process and descendants
 	// Returns error if called before Start
 	// Returns nil if the process is already stopping/stopped
 	Stop(ctx context.Context) error
@@ -59,13 +61,17 @@ type NodeProcess interface {
 }
 
 type nodeProcessImpl struct {
-	name             string
-	lock             sync.RWMutex
-	cmd              *exec.Cmd
-	waitReturnCh     chan error
+	name string
+	lock sync.RWMutex
+	cmd  *exec.Cmd
+	// to notify Wait() on process stop, and give wait return
+	waitReturnCh chan error
+	// to notify user of not asked process stops
 	unexpectedStopCh chan network.UnexpectedNodeStopMsg
-	state            int
-	closeOnStop      chan struct{}
+	// maintains process state Initial/Started/Stopping/Stopped/Waited
+	state int
+	// to notify SIGKILL goroutine of process end
+	closeOnStop chan struct{}
 }
 
 const (
