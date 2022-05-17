@@ -450,8 +450,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}))
 	}
 	// update node config flags and save node config for snapshot
-	nodeConfig.Flags[config.HTTPPortKey] = apiPort
-	nodeConfig.Flags[config.StakingPortKey] = p2pPort
+	// copy flags in case the user provides the same map for all nodes
+	nodeConfigFlags := make(map[string]interface{})
+	for k, v := range nodeConfig.Flags {
+		nodeConfigFlags[k] = v
+	}
+	nodeConfig.Flags = nodeConfigFlags
+	nodeConfig.Flags[config.HTTPPortKey] = int(apiPort)
+	nodeConfig.Flags[config.StakingPortKey] = int(p2pPort)
 	nodeConfig.Flags[config.DBPathKey] = dbPath
 	nodeConfig.Flags[config.LogsDirKey] = logsDir
 	ln.nodesConfig[node.name] = nodeConfig
