@@ -43,16 +43,16 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 // Expected call sequence: instantiation, Start, Stop, Wait
 type NodeProcess interface {
 	// Start this process
-    // Returns error if not called after instantiation
+	// Returns error if not called after instantiation
 	Start(chan network.UnexpectedNodeStopMsg) error
 	// Send a SIGTERM to this process
-    // Returns error if not called after Start
-	Stop() error
+	// Returns error if not called after Start
+	Stop(ctx context.Context) error
 	// Returns when the process finishes exiting
-    // Returns error if not called after Stop
-	Wait(ctx context.Context) error
+	// Returns error if not called after Start/Stop
+	Wait() error
 	// Returns if the process is executing
-    // Returns false if Start was not called
+	// Returns false if Start was not called
 	Alive() bool
 }
 
@@ -63,6 +63,7 @@ type nodeProcessImpl struct {
 	waitReturnCh     chan error
 	unexpectedStopCh chan network.UnexpectedNodeStopMsg
 	state            int
+	closeOnStop      chan struct{}
 }
 
 const (
@@ -86,11 +87,13 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 	}
 	p.state = Started
 	p.waitReturnCh = make(chan error, 1)
+	p.closeOnStop = make(chan struct{})
 	go func() {
 		p.waitReturnCh <- p.cmd.Wait()
 		p.lock.Lock()
 		state := p.state
 		p.state = Stopped
+		close(p.closeOnStop)
 		p.lock.Unlock()
 		if state != Stopping {
 			p.unexpectedStopCh <- network.UnexpectedNodeStopMsg{
@@ -102,32 +105,23 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 	return nil
 }
 
-// Waits for node normal termination
-// if context is cancelled, assumes a failure in termination
-// and uses SIGKILL over process and descendants
-func (p *nodeProcessImpl) Wait(ctx context.Context) error {
+func (p *nodeProcessImpl) Wait() error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
-	if state != Stopping && state != Stopped {
+	if state != Started && state != Stopping && state != Stopped {
 		return errors.New("wait called on invalid state")
 	}
-	var waitReturn error
-	select {
-	case <-ctx.Done():
-		_ = killDescendants(int32(p.cmd.Process.Pid))
-		_ = p.cmd.Process.Signal(syscall.SIGKILL)
-		waitReturn = ctx.Err()
-	case waitReturn = <-p.waitReturnCh:
-	}
+	waitReturn := <-p.waitReturnCh
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.state = Waited
 	return waitReturn
 }
 
-// to be called only on Started state
-func (p *nodeProcessImpl) Stop() error {
+// if context is cancelled, assumes a failure in termination
+// and uses SIGKILL over process and descendants
+func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state != Started {
@@ -135,6 +129,14 @@ func (p *nodeProcessImpl) Stop() error {
 	}
 	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
 	p.state = Stopping
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = killDescendants(int32(p.cmd.Process.Pid))
+			_ = p.cmd.Process.Signal(syscall.SIGKILL)
+		case <-p.closeOnStop:
+		}
+	}()
 	return stopResult
 }
 

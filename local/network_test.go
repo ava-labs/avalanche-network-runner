@@ -53,8 +53,8 @@ type localTestFailedStartProcessCreator struct{}
 func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Start", mock.Anything).Return(errors.New("Start failed"))
-	process.On("Wait", mock.Anything).Return(nil)
-	process.On("Stop").Return(nil)
+	process.On("Wait").Return(nil)
+	process.On("Stop", mock.Anything).Return(nil)
 	process.On("Alive").Return(true)
 	return process, nil
 }
@@ -114,8 +114,8 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Start", mock.Anything).Return(nil)
-	process.On("Wait", mock.Anything).Return(nil)
-	process.On("Stop").Return(nil)
+	process.On("Wait").Return(nil)
+	process.On("Stop", mock.Anything).Return(nil)
 	process.On("Alive").Return(true)
 	return process, nil
 }
@@ -826,7 +826,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	// and StderrPipe, we have to wait until after we read from
 	// the pipe before calling Wait.
 	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
-	if err = proc.Wait(context.Background()); err != nil {
+	if err = proc.Wait(); err != nil {
 		t.Fatal(err)
 	}
 

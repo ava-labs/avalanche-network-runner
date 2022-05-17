@@ -30,11 +30,11 @@ func (_m *NodeProcess) Alive() bool {
 }
 
 // Start provides a mock function with given fields: _a0
-func (_m *NodeProcess) Start(_a0 chan network.UnexpectedStopMsg) error {
+func (_m *NodeProcess) Start(_a0 chan network.UnexpectedNodeStopMsg) error {
 	ret := _m.Called(_a0)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(chan network.UnexpectedStopMsg) error); ok {
+	if rf, ok := ret.Get(0).(func(chan network.UnexpectedNodeStopMsg) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -43,13 +43,13 @@ func (_m *NodeProcess) Start(_a0 chan network.UnexpectedStopMsg) error {
 	return r0
 }
 
-// Stop provides a mock function with given fields:
-func (_m *NodeProcess) Stop() error {
-	ret := _m.Called()
+// Stop provides a mock function with given fields: ctx
+func (_m *NodeProcess) Stop(ctx context.Context) error {
+	ret := _m.Called(ctx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -57,13 +57,13 @@ func (_m *NodeProcess) Stop() error {
 	return r0
 }
 
-// Wait provides a mock function with given fields: ctx
-func (_m *NodeProcess) Wait(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// Wait provides a mock function with given fields:
+func (_m *NodeProcess) Wait() error {
+	ret := _m.Called()
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -607,8 +607,8 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	node.GetAPIClient().CChainEthAPI().Close()
 	// Ctrl+C on terminal causes a kill for all process group
 	// so sometimes node is already stopped here
-	_ = node.process.Stop()
-	if err := node.process.Wait(ctx); err != nil {
+	_ = node.process.Stop(ctx)
+	if err := node.process.Wait(); err != nil {
 		return fmt.Errorf("node %q stopped with wait error: %w", nodeName, err)
 	}
 	return nil
