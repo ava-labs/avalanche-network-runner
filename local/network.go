@@ -80,7 +80,7 @@ type localNetwork struct {
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
 	// Notification to users of node failure
-	unexpectedNodeStopCh chan network.UnexpectedStopMsg
+	unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg
 }
 
 var (
@@ -237,7 +237,7 @@ func newNetwork(
 		newAPIClientF:        newAPIClientF,
 		nodeProcessCreator:   nodeProcessCreator,
 		flags:                networkConfig.Flags,
-		unexpectedNodeStopCh: make(chan network.UnexpectedStopMsg),
+		unexpectedNodeStopCh: make(chan network.UnexpectedNodeStopMsg),
 	}
 
 	// Sort node configs so beacons start first
@@ -614,7 +614,7 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
-func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan network.UnexpectedStopMsg, error) {
+func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan network.UnexpectedNodeStopMsg, error) {
 	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}

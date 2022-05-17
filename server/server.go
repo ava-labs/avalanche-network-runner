@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -374,7 +375,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.mu.Unlock()
 		}
 
-		go s.handleUnexpectedNodeStop()
+		unexpectedNodeStopCh, err := s.network.nw.GetUnexpectedNodeStopChannel()
+		if err != nil {
+			// this shall not happend
+			panic(err)
+		}
+		go s.handleUnexpectedNodeStop(unexpectedNodeStopCh)
 
 		if len(req.GetCustomVms()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
@@ -881,11 +887,7 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 	return info
 }
 
-func (s *server) handleUnexpectedNodeStop() {
-	unexpectedNodeStopCh, err := s.network.nw.GetUnexpectedNodeStopChannel()
-	if err != nil {
-		panic(err)
-	}
+func (s *server) handleUnexpectedNodeStop(unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg) {
 	for {
 		unexpectedStopMsg := <-unexpectedNodeStopCh
 		zap.L().Info(
@@ -900,6 +902,10 @@ func (s *server) handleUnexpectedNodeStop() {
 		}
 		_, ok := s.network.nodeInfos[unexpectedStopMsg.Name]
 		if ok {
+			zap.L().Warn(
+				"node with unexpected stop message not found in nodeInfos",
+				zap.String("node-name", unexpectedStopMsg.Name),
+			)
 			s.network.nodeInfos[unexpectedStopMsg.Name].Alive = false
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
 			s.clusterInfo.Healthy = false

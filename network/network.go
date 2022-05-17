@@ -9,7 +9,7 @@ import (
 
 var ErrStopped = errors.New("network stopped")
 
-type UnexpectedStopMsg struct {
+type UnexpectedNodeStopMsg struct {
 	Name     string
 	ExitCode int
 }
@@ -46,5 +46,5 @@ type Network interface {
 	GetNodeNames() ([]string, error)
 	// Returns a channel that receives a message with
 	// node name when a node fails
-	GetUnexpectedNodeStopChannel() (chan UnexpectedStopMsg, error)
+	GetUnexpectedNodeStopChannel() (chan UnexpectedNodeStopMsg, error)
 }

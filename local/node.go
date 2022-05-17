@@ -40,14 +40,19 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
+// Expected call sequence: instantiation, Start, Stop, Wait
 type NodeProcess interface {
 	// Start this process
-	Start(chan network.UnexpectedStopMsg) error
+    // Returns error if not called after instantiation
+	Start(chan network.UnexpectedNodeStopMsg) error
 	// Send a SIGTERM to this process
+    // Returns error if not called after Start
 	Stop() error
 	// Returns when the process finishes exiting
+    // Returns error if not called after Stop
 	Wait(ctx context.Context) error
 	// Returns if the process is executing
+    // Returns false if Start was not called
 	Alive() bool
 }
 
@@ -56,7 +61,7 @@ type nodeProcessImpl struct {
 	lock             sync.RWMutex
 	cmd              *exec.Cmd
 	waitReturnCh     chan error
-	unexpectedStopCh chan network.UnexpectedStopMsg
+	unexpectedStopCh chan network.UnexpectedNodeStopMsg
 	state            int
 }
 
@@ -69,14 +74,16 @@ const (
 )
 
 // to be called only on Initial state
-func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedStopMsg) error {
+func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state != Initial {
 		return errors.New("start called on invalid state")
 	}
 	p.unexpectedStopCh = unexpectedStopCh
-	startErr := p.cmd.Start()
+	if err := p.cmd.Start(); err != nil {
+		return err
+	}
 	p.state = Started
 	p.waitReturnCh = make(chan error, 1)
 	go func() {
@@ -86,20 +93,23 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedStopMsg)
 		p.state = Stopped
 		p.lock.Unlock()
 		if state != Stopping {
-			p.unexpectedStopCh <- network.UnexpectedStopMsg{
+			p.unexpectedStopCh <- network.UnexpectedNodeStopMsg{
 				Name:     p.name,
 				ExitCode: p.cmd.ProcessState.ExitCode(),
 			}
 		}
 	}()
-	return startErr
+	return nil
 }
 
+// Waits for node normal termination
+// if context is cancelled, assumes a failure in termination
+// and uses SIGKILL over process and descendants
 func (p *nodeProcessImpl) Wait(ctx context.Context) error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
-	if state != Started && state != Stopping && state != Stopped {
+	if state != Stopping && state != Stopped {
 		return errors.New("wait called on invalid state")
 	}
 	var waitReturn error
