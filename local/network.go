@@ -614,6 +614,7 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	_ = ln.bootstraps.RemoveByID(node.nodeID)
 
 	delete(ln.nodes, nodeName)
+	delete(ln.nodesConfig, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
