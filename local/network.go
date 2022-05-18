@@ -680,6 +680,12 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	if ln.isStopped() {
 		return network.ErrStopped
 	}
+	// check if snapshot already exists
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	_, err := os.Stat(snapshotDir)
+	if err == nil {
+		return fmt.Errorf("snapshot path %q already exists", snapshotDir)
+	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
 	nodesDbPath := map[string]string{}
@@ -706,13 +712,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		return err
 	}
 	// create main snapshot dirs
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	snapshotLogDir := filepath.Join(snapshotDir, "log")
-	_, err := os.Stat(snapshotDir)
-	if err == nil {
-		return fmt.Errorf("snapshot path %q already exists", snapshotDir)
-	}
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
 		return err
