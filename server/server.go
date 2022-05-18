@@ -869,6 +869,25 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
 }
 
+func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {
+	zap.L().Info("received save snapshot request", zap.String("snapshot-name", req.SnapshotName))
+	info := s.getClusterInfo()
+	if info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName); err != nil {
+		return nil, err
+	}
+	s.network = nil
+	info.Healthy = false
+	s.clusterInfo = nil
+
+	return &rpcpb.SaveSnapshotResponse{}, nil
+}
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	zap.L().Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	nw, err := local.NewNetwork(nil, "", "")

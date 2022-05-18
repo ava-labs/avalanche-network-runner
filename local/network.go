@@ -680,6 +680,9 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	if ln.isStopped() {
 		return network.ErrStopped
 	}
+	if len(snapshotName) == 0 {
+		return fmt.Errorf("invalid snapshotName %q", snapshotName)
+	}
 	// check if snapshot already exists
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
