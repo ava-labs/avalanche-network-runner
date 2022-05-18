@@ -650,3 +650,133 @@ func stopFunc(cmd *cobra.Command, args []string) error {
 	color.Outf("{{green}}stop response:{{/}} %+v\n", info)
 	return nil
 }
+
+var snapshotName string
+var snapshotsDir string
+
+func newSaveSnapshotCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "save-snapshot [options]",
+		Short: "Requests server to save network snapshot.",
+		RunE:  saveSnapshotFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be created with the current network state")
+	return cmd
+}
+
+func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.SaveSnapshot(ctx, snapshotName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}save-snapshot response:{{/}} %+v\n", resp)
+	return nil
+}
+
+func newLoadSnapshotCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "load-snapshot [options]",
+		Short: "Requests server to load network snapshot.",
+		RunE:  loadSnapshotFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be loaded into a new network")
+	return cmd
+}
+
+func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.LoadSnapshot(ctx, snapshotName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}load-snapshot response:{{/}} %+v\n", resp)
+	return nil
+}
+
+func newRemoveSnapshotCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "remove-snapshot [options]",
+		Short: "Requests server to remove network snapshot.",
+		RunE:  removeSnapshotFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be removed")
+	return cmd
+}
+
+func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	resp, err := cli.RemoveSnapshot(snapshotName)
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}remove-snapshot response:{{/}} %+v\n", resp)
+	return nil
+}
+
+func newGetSnapshotNamesCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get-snapshots [options]",
+		Short: "Requests server to get list of snapshot.",
+		RunE:  getSnapshotNamesFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	return cmd
+}
+
+func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
+	cli, err := client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	snapshotNames, err := cli.GetSnapshotNames()
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}Snapshots:{{/}} %q\n", snapshotNames)
+	return nil
+}

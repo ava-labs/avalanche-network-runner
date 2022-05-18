@@ -43,6 +43,10 @@ type Client interface {
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
+	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
+	LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error)
+	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
+	GetSnapshotNames(ctx context.Context) (*rpcpb.GetSnapshotNamesResponse, error)
 }
 
 type client struct {
@@ -257,6 +261,30 @@ func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerI
 		Op:       op,
 		Bytes:    msgBody,
 	})
+}
+
+func (c *client) SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error) {
+	zap.L().Info("save snapshot", zap.String("snapshot-name", snapshotName))
+	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName})
+}
+
+func (c *client) LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error) {
+	zap.L().Info("load snapshot", zap.String("snapshot-name", snapshotName))
+	return c.controlc.LoadSnapshot(ctx, &rpcpb.LoadSnapshotRequest{SnapshotName: snapshotName})
+}
+
+func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error) {
+	zap.L().Info("remove snapshot", zap.String("snapshot-name", snapshotName))
+	return c.controlc.RemoveSnapshot(ctx, &rpcpb.RemoveSnapshotRequest{SnapshotName: snapshotName})
+}
+
+func (c *client) GetSnapshotNames() (*rpcpb.GetSnapshotNamesResponse, error) {
+	zap.L().Info("save snapshot")
+	resp, err := c.controlc.GetSnapshotNames(ctx, &rpcpb.GetSnapshotNamesRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.SnapshotNames, nil
 }
 
 func (c *client) Close() error {
