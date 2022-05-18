@@ -68,8 +68,11 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewDefaultNetwork(log, binaryPath)
+	nw, err := local.NewNetwork(log, "", "")
 	if err != nil {
+		return err
+	}
+	if err := nw.LoadConfig(context.Background(), local.NewDefaultConfig(binaryPath)); err != nil {
 		return err
 	}
 	defer func() { // Stop the network when this function returns
