@@ -87,10 +87,14 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
-	// Node Name --> Node Config
-	nodesConfig map[string]node.Config
-	// To persistently save network
+	// directory where networks can be persistently saved (snapshot)
 	snapshotsDir string
+	// Node Name --> Node Config (snapshot)
+	nodesConfig map[string]node.Config
+	// Node Name --> Node dbPath (snapshot)
+	nodesDbPath map[string]string
+	// Node Name --> Node logsDir (snapshot)
+	nodesLogsDir map[string]string
 	// To keep track of network initialization
 	defined bool
 }
@@ -261,6 +265,8 @@ func newNetwork(
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
 		nodesConfig:        map[string]node.Config{},
+		nodesDbPath:        map[string]string{},
+		nodesLogsDir:       map[string]string{},
 		rootDir:            rootDir,
 		snapshotsDir:       snapshotsDir,
 	}
@@ -459,18 +465,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: p2pPort,
 		}))
 	}
-	// update node config flags and save node config for snapshot
-	// copy flags in case the user provides the same map for all nodes
-	nodeConfigFlags := make(map[string]interface{})
-	for k, v := range nodeConfig.Flags {
-		nodeConfigFlags[k] = v
-	}
-	nodeConfig.Flags = nodeConfigFlags
-	nodeConfig.Flags[config.HTTPPortKey] = int(apiPort)
-	nodeConfig.Flags[config.StakingPortKey] = int(p2pPort)
-	nodeConfig.Flags[config.DBPathKey] = dbPath
-	nodeConfig.Flags[config.LogsDirKey] = logsDir
+	// record info for snapshot
 	ln.nodesConfig[node.name] = nodeConfig
+	ln.nodesDbPath[node.name] = dbPath
+	ln.nodesLogsDir[node.name] = logsDir
 	return node, err
 }
 
@@ -655,7 +653,10 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	_ = ln.bootstraps.RemoveByID(node.nodeID)
 
 	delete(ln.nodes, nodeName)
+	// snapshot
 	delete(ln.nodesConfig, nodeName)
+	delete(ln.nodesDbPath, nodeName)
+	delete(ln.nodesLogsDir, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -669,6 +670,7 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 }
 
 // Save network snapshot
+// Network is stopped in order to do a safe preservation
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -680,9 +682,25 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
-	for k, v := range ln.nodesConfig {
-		nodesConfig[k] = v
+	nodesDbPath := map[string]string{}
+	nodesLogsDir := map[string]string{}
+	for nodeName, nodeConfig := range ln.nodesConfig {
+		// make copy for the case the user gave the same map to all nodes
+		nodeConfigFlags := make(map[string]interface{})
+		for fk, fv := range nodeConfig.Flags {
+			nodeConfigFlags[fk] = fv
+		}
+		nodeConfig.Flags = nodeConfigFlags
+		nodesConfig[nodeName] = nodeConfig
+		nodesDbPath[nodeName] = ln.nodesDbPath[nodeName]
+		nodesLogsDir[nodeName] = ln.nodesLogsDir[nodeName]
 	}
+	// update node flags with currently used ports
+	for nodeName, nodeConfig := range nodesConfig {
+		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
+		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
+	}
+
 	// stop network to safely save snapshot
 	if err := ln.stop(ctx); err != nil {
 		return err
@@ -705,13 +723,13 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	// save db+logs
 	for _, nodeConfig := range nodesConfig {
-		sourceDbDir, ok := nodeConfig.Flags[config.DBPathKey].(string)
+		sourceDbDir, ok := nodesDbPath[nodeConfig.Name]
 		if !ok {
-			return fmt.Errorf("failure loading key %s from node config flags", config.DBPathKey)
+			return fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
-		sourceLogDir, ok := nodeConfig.Flags[config.LogsDirKey].(string)
+		sourceLogDir, ok := nodesLogsDir[nodeConfig.Name]
 		if !ok {
-			return fmt.Errorf("failure loading key %s from node config flags", config.LogsDirKey)
+			return fmt.Errorf("failure obtaining logs dir for node %q", nodeConfig.Name)
 		}
 		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
 		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
@@ -731,8 +749,6 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	for _, nodeConfig := range nodesConfig {
 		// no need to save this, will be generated automatically on snapshot load
-		delete(nodeConfig.Flags, config.DBPathKey)
-		delete(nodeConfig.Flags, config.LogsDirKey)
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")

@@ -43,6 +43,7 @@ type Network interface {
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
 	// Save network snapshot
+	// Network is stopped in order to do a safe preservation
 	SaveSnapshot(context.Context, string) error
 	// Load network snapshot
 	LoadSnapshot(context.Context, string) error
