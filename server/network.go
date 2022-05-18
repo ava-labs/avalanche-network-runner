@@ -253,7 +253,12 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.cfg, os.TempDir())
+	nw, err := local.NewNetwork(lc.logger, os.TempDir(), "")
+	if err != nil {
+		lc.startErrc <- err
+		return
+	}
+	err = nw.LoadConfig(ctx, lc.cfg)
 	if err != nil {
 		lc.startErrc <- err
 		return
