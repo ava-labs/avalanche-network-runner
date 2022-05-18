@@ -717,10 +717,10 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
 		targetLogDir := filepath.Join(snapshotLogDir, nodeConfig.Name)
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
-			return fmt.Errorf("failure saving node %q db dir: %w", err)
+			return fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
 		}
 		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
-			return fmt.Errorf("failure saving node %q log dir: %w", err)
+			return fmt.Errorf("failure saving node %q log dir: %w", nodeConfig.Name, err)
 		}
 	}
 	// save network conf
@@ -778,10 +778,10 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 		targetDbDir := filepath.Join(baseTargetDir, "db")
 		targetLogDir := filepath.Join(baseTargetDir, "log")
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
-			return fmt.Errorf("failure loading node %q db dir: %w", err)
+			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}
 		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
-			return fmt.Errorf("failure loading node %q log dir: %w", err)
+			return fmt.Errorf("failure loading node %q log dir: %w", nodeConfig.Name, err)
 		}
 		nodeConfig.Flags[config.DBPathKey] = targetDbDir
 		nodeConfig.Flags[config.LogsDirKey] = targetLogDir
