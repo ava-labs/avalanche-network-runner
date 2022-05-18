@@ -16,7 +16,11 @@ func UpdateJSONKey(jsonBody string, k string, v string) (string, error) {
 	}
 
 	if _, ok := config[k]; ok {
-		config[k] = v
+		if v == "" {
+			delete(config, k)
+		} else {
+			config[k] = v
+		}
 	} else {
 		// if the key wasn't found, no need to marshal again, just return original
 		return jsonBody, nil

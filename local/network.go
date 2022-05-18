@@ -708,6 +708,23 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
 		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
 	}
+	// make copy of network flags
+	networkConfigFlags := make(map[string]interface{})
+	for fk, fv := range ln.flags {
+		networkConfigFlags[fk] = fv
+	}
+	// remove all log dir references
+	delete(networkConfigFlags, config.LogsDirKey)
+	for nodeName, nodeConfig := range nodesConfig {
+		configFile := nodeConfig.ConfigFile
+		configFile, err := utils.UpdateJSONKey(configFile, config.LogsDirKey, "")
+		if err != nil {
+			return err
+		}
+		nodeConfig.ConfigFile = configFile
+		delete(nodeConfig.Flags, config.LogsDirKey)
+		nodesConfig[nodeName] = nodeConfig
+	}
 
 	// stop network to safely save snapshot
 	if err := ln.stop(ctx); err != nil {
@@ -734,7 +751,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	// save network conf
 	networkConfig := network.Config{
 		Genesis:     string(ln.genesis),
-		Flags:       ln.flags,
+		Flags:       networkConfigFlags,
 		NodeConfigs: []node.Config{},
 	}
 	for _, nodeConfig := range nodesConfig {
