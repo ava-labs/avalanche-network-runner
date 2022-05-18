@@ -46,7 +46,7 @@ type Client interface {
 	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
 	LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
-	GetSnapshotNames(ctx context.Context) (*rpcpb.GetSnapshotNamesResponse, error)
+	GetSnapshotNames(ctx context.Context) ([]string, error)
 }
 
 type client struct {
@@ -278,8 +278,8 @@ func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcp
 	return c.controlc.RemoveSnapshot(ctx, &rpcpb.RemoveSnapshotRequest{SnapshotName: snapshotName})
 }
 
-func (c *client) GetSnapshotNames() (*rpcpb.GetSnapshotNamesResponse, error) {
-	zap.L().Info("save snapshot")
+func (c *client) GetSnapshotNames(ctx context.Context) ([]string, error) {
+	zap.L().Info("get snapshot names")
 	resp, err := c.controlc.GetSnapshotNames(ctx, &rpcpb.GetSnapshotNamesRequest{})
 	if err != nil {
 		return nil, err

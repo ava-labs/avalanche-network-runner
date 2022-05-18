@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -866,6 +867,32 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, false)
 	sent := attachedPeer.Send(msg)
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
+}
+
+func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
+	zap.L().Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
+	nw, err := local.NewNetwork(nil, "", "")
+	if err != nil {
+		return nil, err
+	}
+	err = nw.RemoveSnapshot(req.SnapshotName)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.RemoveSnapshotResponse{}, nil
+}
+
+func (s *server) GetSnapshotNames(ctx context.Context, req *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
+	zap.L().Info("get snapshot names")
+	nw, err := local.NewNetwork(nil, "", "")
+	if err != nil {
+		return nil, err
+	}
+	snapshotNames, err := nw.GetSnapshotNames()
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.GetSnapshotNamesResponse{SnapshotNames: snapshotNames}, nil
 }
 
 func (s *server) getClusterInfo() *rpcpb.ClusterInfo {

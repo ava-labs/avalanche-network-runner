@@ -652,7 +652,6 @@ func stopFunc(cmd *cobra.Command, args []string) error {
 }
 
 var snapshotName string
-var snapshotsDir string
 
 func newSaveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -742,7 +741,9 @@ func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	resp, err := cli.RemoveSnapshot(snapshotName)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.RemoveSnapshot(ctx, snapshotName)
+	cancel()
 	if err != nil {
 		return err
 	}
@@ -753,7 +754,7 @@ func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 func newGetSnapshotNamesCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get-snapshots [options]",
+		Use:   "get-snapshot-names [options]",
 		Short: "Requests server to get list of snapshot.",
 		RunE:  getSnapshotNamesFunc,
 		Args:  cobra.ExactArgs(0),
@@ -772,7 +773,9 @@ func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	snapshotNames, err := cli.GetSnapshotNames()
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	snapshotNames, err := cli.GetSnapshotNames(ctx)
+	cancel()
 	if err != nil {
 		return err
 	}
