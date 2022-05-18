@@ -348,6 +348,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err != nil {
 		return nil, err
 	}
+	if err := s.network.fillDefaultConfig(); err != nil {
+		return nil, err
+	}
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
@@ -869,6 +872,97 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
 }
 
+func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
+	// if timeout is too small or not set, default to 5-min
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
+		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+	} else {
+		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// If [clusterInfo] is already populated, the server has already been started.
+	if s.clusterInfo != nil {
+		return nil, ErrAlreadyBootstrapped
+	}
+
+	var (
+		pid = int32(os.Getpid())
+		err error
+	)
+
+	rootDataDir, err := ioutil.TempDir(os.TempDir(), "network-runner-root-data")
+	if err != nil {
+		return nil, err
+	}
+
+	s.clusterInfo = &rpcpb.ClusterInfo{
+		Pid:         pid,
+		RootDataDir: rootDataDir,
+		Healthy:     false,
+	}
+
+	zap.L().Info("starting",
+		zap.Int32("pid", pid),
+		zap.String("rootDataDir", rootDataDir),
+	)
+
+	if s.network != nil {
+		return nil, ErrAlreadyBootstrapped
+	}
+
+	s.network, err = newLocalNetwork(localNetworkOptions{
+		rootDataDir: rootDataDir,
+
+		// to block racey restart
+		// "s.network.start" runs asynchronously
+		// so it would not deadlock with the acquired lock
+		// in this "Start" method
+		restartMu: s.mu,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// start non-blocking to load snapshot
+	// the user is expected to poll cluster status
+	go s.network.loadSnapshot(ctx, req.SnapshotName)
+
+	// update cluster info non-blocking
+	// the user is expected to poll this latest information
+	// to decide cluster/subnet readiness
+	go func() {
+		zap.L().Info("waiting for local cluster readiness")
+		select {
+		case <-s.closed:
+			return
+		case <-s.network.stopc:
+			// TODO: fix race from shutdown
+			return
+		case serr := <-s.network.startErrc:
+			zap.L().Warn("snapshot load failed to complete", zap.Error(serr))
+			s.mu.Lock()
+			s.network = nil
+			s.clusterInfo = nil
+			s.mu.Unlock()
+			return
+		case <-s.network.localClusterReadyc:
+			s.mu.Lock()
+			s.clusterInfo.NodeNames = s.network.nodeNames
+			s.clusterInfo.NodeInfos = s.network.nodeInfos
+			s.clusterInfo.Healthy = true
+			s.mu.Unlock()
+		}
+	}()
+
+	return &rpcpb.LoadSnapshotResponse{}, nil
+}
+
 func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {
 	zap.L().Info("received save snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	info := s.getClusterInfo()
@@ -888,6 +982,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 	return &rpcpb.SaveSnapshotResponse{}, nil
 }
+
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	zap.L().Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	nw, err := local.NewNetwork(nil, "", "")

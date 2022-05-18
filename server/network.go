@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -111,70 +112,13 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-	cfg, err := local.NewDefaultConfigNNodes(opts.execPath, opts.numNodes)
-	if err != nil {
-		return nil, err
-	}
-
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
-
-	if opts.globalNodeConfig != "" {
-		if err := json.Unmarshal([]byte(opts.globalNodeConfig), &globalConfig); err != nil {
-			return nil, err
-		}
-	}
-
-	nodeNames := make([]string, len(cfg.NodeConfigs))
-	for i := range cfg.NodeConfigs {
-		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
-		nodeName := fmt.Sprintf("node%d", i+1)
-		logDir := filepath.Join(opts.rootDataDir, nodeName, "log")
-		dbDir := filepath.Join(opts.rootDataDir, nodeName, "db-dir")
-
-		nodeNames[i] = nodeName
-		cfg.NodeConfigs[i].Name = nodeName
-
-		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, opts.customNodeConfigs[nodeNames[i]])
-		if err != nil {
-			return nil, fmt.Errorf("failed merging provided configs: %w", err)
-		}
-
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.NodeConfigs[i].BinaryPath = opts.execPath
-		cfg.NodeConfigs[i].RedirectStdout = opts.redirectNodesOutput
-		cfg.NodeConfigs[i].RedirectStderr = opts.redirectNodesOutput
-
-		nodeInfos[nodeName] = &rpcpb.NodeInfo{
-			Name:               nodeName,
-			ExecPath:           opts.execPath,
-			Uri:                "",
-			Id:                 "",
-			LogDir:             logDir,
-			DbDir:              dbDir,
-			PluginDir:          opts.pluginDir,
-			WhitelistedSubnets: opts.whitelistedSubnets,
-			Config:             []byte(cfg.NodeConfigs[i].ConfigFile),
-		}
-	}
-
 	return &localNetwork{
 		logger: logger,
 
 		binPath: opts.execPath,
-		cfg:     cfg,
 
 		options: opts,
 
-		nodeNames:     nodeNames,
-		nodeInfos:     nodeInfos,
 		apiClis:       make(map[string]api.Client),
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
@@ -188,7 +132,67 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		stopc:      make(chan struct{}),
 		startDonec: make(chan struct{}),
 		startErrc:  make(chan error, 1),
+
+		nodeInfos: make(map[string]*rpcpb.NodeInfo),
+		nodeNames: []string{},
 	}, nil
+}
+
+func (lc *localNetwork) fillDefaultConfig() error {
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
+	if err != nil {
+		return err
+	}
+
+	var defaultConfig, globalConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return err
+	}
+
+	if lc.options.globalNodeConfig != "" {
+		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalConfig); err != nil {
+			return err
+		}
+	}
+
+	for i := range cfg.NodeConfigs {
+		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
+		nodeName := fmt.Sprintf("node%d", i+1)
+		logDir := filepath.Join(lc.options.rootDataDir, nodeName, "log")
+		dbDir := filepath.Join(lc.options.rootDataDir, nodeName, "db-dir")
+
+		lc.nodeNames = append(lc.nodeNames, nodeName)
+		cfg.NodeConfigs[i].Name = nodeName
+
+		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
+		if err != nil {
+			return fmt.Errorf("failed merging provided configs: %w", err)
+		}
+
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.options.pluginDir, lc.options.whitelistedSubnets)
+		if err != nil {
+			return err
+		}
+
+		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
+		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
+
+		lc.nodeInfos[nodeName] = &rpcpb.NodeInfo{
+			Name:               nodeName,
+			ExecPath:           lc.options.execPath,
+			Uri:                "",
+			Id:                 "",
+			LogDir:             logDir,
+			DbDir:              dbDir,
+			PluginDir:          lc.options.pluginDir,
+			WhitelistedSubnets: lc.options.whitelistedSubnets,
+			Config:             []byte(cfg.NodeConfigs[i].ConfigFile),
+		}
+	}
+
+	lc.cfg = cfg
+	return nil
 }
 
 // mergeAndCheckForIgnores takes two maps, merging the two and overriding the first with the second
@@ -284,6 +288,30 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}
 }
 
+func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
+	defer func() {
+		close(lc.startDonec)
+	}()
+
+	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
+	nw, err := local.NewNetwork(lc.logger, os.TempDir(), "")
+	if err != nil {
+		lc.startErrc <- err
+		return
+	}
+	err = nw.LoadSnapshot(ctx, snapshotName)
+	if err != nil {
+		lc.startErrc <- err
+		return
+	}
+	lc.nw = nw
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrc <- err
+		return
+	}
+}
+
 var errAborted = errors.New("aborted")
 
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
@@ -305,10 +333,20 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for name, node := range nodes {
+	nodeNames := []string{}
+	for name := range nodes {
+		nodeNames = append(nodeNames, name)
+	}
+	sort.Strings(nodeNames)
+
+	for _, name := range nodeNames {
+		node := nodes[name]
 		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
 
+		if _, ok := lc.nodeInfos[name]; !ok {
+			lc.nodeInfos[name] = &rpcpb.NodeInfo{}
+		}
 		lc.nodeInfos[name].Uri = uri
 		lc.nodeInfos[name].Id = nodeID
 
