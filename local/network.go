@@ -85,6 +85,10 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// Node Name --> Node Config
 	nodesConfig map[string]node.Config
+    // To persistently save network
+    snapshotsDir string
+    // To keep track of network initialization
+    defined bool
 }
 
 var (
@@ -98,7 +102,7 @@ var (
 	// accidental overwriting
 	defaultNetworkConfig network.Config
 	// snapshots directory
-	snapshotsDir string
+	defaultSnapshotsDir string
 )
 
 // populate default network config from embedded default directory
@@ -149,8 +153,8 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	snapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
-	err = os.MkdirAll(snapshotsDir, os.ModePerm)
+	defaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
+	err = os.MkdirAll(defaultSnapshotsDir, os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
@@ -202,13 +206,14 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
-// Files (e.g. logs, databases) default to being written at directory [dir].
+// Files (e.g. logs, databases) default to being written at directory [rootDir].
 // If there isn't a directory at [dir] one will be created.
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
-	dir string,
+	rootDir string,
+	snapshotsDir string,
 ) (network.Network, error) {
 	return newNetwork(
 		log,
@@ -219,7 +224,8 @@ func NewNetwork(
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
-		dir,
+		rootDir,
+        snapshotsDir,
 	)
 }
 
@@ -231,64 +237,32 @@ func newNetwork(
 	networkConfig network.Config,
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
-	dir string,
+	rootDir string,
+    snapshotsDir string,
 ) (network.Network, error) {
-	if err := networkConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("config failed validation: %w", err)
+	if rootDir == "" {
+		rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
+		if err != nil {
+			return nil, err
+		}
 	}
-	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
-
-	networkID, err := utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
-	}
-
+    if snapshotsDir == "" {
+        snapshotsDir = defaultSnapshotsDir
+    }
 	// Create the network
 	net := &localNetwork{
-		networkID:          networkID,
-		genesis:            []byte(networkConfig.Genesis),
 		nodes:              map[string]*localNode{},
 		closedOnStopCh:     make(chan struct{}),
 		log:                log,
 		bootstraps:         beacon.NewSet(),
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
-		flags:              networkConfig.Flags,
 		nodesConfig:        map[string]node.Config{},
+        rootDir:            rootDir,
+        snapshotsDir:       snapshotsDir,
 	}
-
-	// Sort node configs so beacons start first
-	var nodeConfigs []node.Config
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if nodeConfig.IsBeacon {
-			nodeConfigs = append(nodeConfigs, nodeConfig)
-		}
-	}
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		if !nodeConfig.IsBeacon {
-			nodeConfigs = append(nodeConfigs, nodeConfig)
-		}
-	}
-
-	if dir == "" {
-		net.rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		net.rootDir = dir
-	}
-
-	for _, nodeConfig := range nodeConfigs {
-		if _, err := net.addNode(nodeConfig); err != nil {
-			if err := net.stop(context.Background()); err != nil {
-				// Clean up nodes already created
-				log.Debug("error stopping network: %s", err)
-			}
-			return nil, fmt.Errorf("error adding node %s: %s", nodeConfig.Name, err)
-		}
-	}
-	return net, nil
+    err := net.LoadConfig(networkConfig)
+    return net, err
 }
 
 // NewDefaultNetwork returns a new network using a pre-defined
@@ -328,7 +302,7 @@ func newDefaultNetwork(
 	nodeProcessCreator NodeProcessCreator,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return newNetwork(log, config, newAPIClientF, nodeProcessCreator, "")
+	return newNetwork(log, config, newAPIClientF, nodeProcessCreator, "", "")
 }
 
 // NewDefaultConfig creates a new default network config
@@ -374,6 +348,53 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	return netConfig, nil
 }
 
+func (ln *localNetwork) LoadConfig(networkConfig network.Config) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+    return ln.loadConfig(networkConfig)
+}
+
+func (ln *localNetwork) loadConfig(networkConfig network.Config) error {
+	if err := networkConfig.Validate(); err != nil {
+		return fmt.Errorf("config failed validation: %w", err)
+	}
+	log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
+
+    ln.genesis = []byte(networkConfig.Genesis)
+
+	ln.networkID, err := utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
+	if err != nil {
+		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
+
+    ln.flags = networkConfig.Flags
+
+	// Sort node configs so beacons start first
+	var nodeConfigs []node.Config
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		if !nodeConfig.IsBeacon {
+			nodeConfigs = append(nodeConfigs, nodeConfig)
+		}
+	}
+
+	for _, nodeConfig := range nodeConfigs {
+		if _, err := ln.addNode(nodeConfig); err != nil {
+			if err := ln.stop(context.Background()); err != nil {
+				// Clean up nodes already created
+				log.Debug("error stopping network: %s", err)
+			}
+			return fmt.Errorf("error adding node %s: %s", nodeConfig.Name, err)
+		}
+	}
+    ln.defined = true
+	return nil
+}
+
 // See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
@@ -384,6 +405,9 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
+    if !ln.defined {
+        return nil, network.ErrUndefined
+    }
 	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
@@ -471,6 +495,12 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 	healthyChan := make(chan error, 1)
 
+	// Return unhealthy if the network is undefined
+    if !ln.defined {
+		healthyChan <- network.ErrUndefined
+		return healthyChan
+    }
+
 	// Return unhealthy if the network is stopped
 	if ln.isStopped() {
 		healthyChan <- network.ErrStopped
@@ -519,6 +549,10 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
+    if !ln.defined {
+        return nil, network.ErrUndefined
+    }
+
 	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
@@ -534,6 +568,10 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 func (ln *localNetwork) GetNodeNames() ([]string, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
+
+    if !ln.defined {
+        return nil, network.ErrUndefined
+    }
 
 	if ln.isStopped() {
 		return nil, network.ErrStopped
@@ -552,6 +590,10 @@ func (ln *localNetwork) GetNodeNames() ([]string, error) {
 func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
+
+    if !ln.defined {
+        return nil, network.ErrUndefined
+    }
 
 	if ln.isStopped() {
 		return nil, network.ErrStopped
@@ -573,6 +615,9 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 
 // Assumes [net.lock] is held
 func (ln *localNetwork) stop(ctx context.Context) error {
+    if !ln.defined {
+        return network.ErrUndefined
+    }
 	if ln.isStopped() {
 		ln.log.Debug("stop() called multiple times")
 		return network.ErrStopped
@@ -610,6 +655,9 @@ func (ln *localNetwork) RemoveNode(nodeName string) error {
 
 // Assumes [net.lock] is held
 func (ln *localNetwork) removeNode(nodeName string) error {
+    if !ln.defined {
+        return network.ErrUndefined
+    }
 	if ln.isStopped() {
 		return network.ErrStopped
 	}
@@ -640,6 +688,12 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+    if !ln.defined {
+        return network.ErrUndefined
+    }
+	if ln.isStopped() {
+		return network.ErrStopped
+	}
 	// keep copy of node info that will be remove by stop
 	nodesConfig := map[string]node.Config{}
 	for k, v := range ln.nodesConfig {
@@ -650,7 +704,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		return err
 	}
 	// create main snapshot dirs
-	snapshotDir := filepath.Join(snapshotsDir, snapshotName)
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
