@@ -636,6 +636,31 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 
 // Save network snapshot
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
+	snapshotDir := filepath.Join(snapshotsDir, snapshotName)
+	_, err := os.Stat(snapshotDir)
+	if err == nil {
+		return fmt.Errorf("snapshot path %q already exists", snapshotDir)
+	}
+	err = os.MkdirAll(snapshotDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	networkConfig := network.Config{
+		Genesis:     string(ln.genesis),
+		Flags:       ln.flags,
+		NodeConfigs: []node.Config{},
+	}
+	for _, nodeConfig := range ln.nodesConfig {
+		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
+	}
+	networkConfigJSON, err := json.Marshal(networkConfig)
+	if err != nil {
+		return err
+	}
+	err = createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
