@@ -23,8 +23,10 @@ import (
 	"github.com/ava-labs/avalanchego/staking"
 	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/beacon"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	dircopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -637,23 +639,47 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 // Save network snapshot
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
 	snapshotDir := filepath.Join(snapshotsDir, snapshotName)
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"), constants.NetworkName(ln.networkID))
+	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
 	if err == nil {
 		return fmt.Errorf("snapshot path %q already exists", snapshotDir)
 	}
-	err = os.MkdirAll(snapshotDir, os.ModePerm)
+	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
+	err = os.MkdirAll(snapshotLogDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	// save db+logs
+	for _, nodeConfig := range ln.nodesConfig {
+		sourceDbDir, ok := nodeConfig.Flags[config.DBPathKey].(string)
+		if !ok {
+			return fmt.Errorf("failure loading key %s from node config flags", config.DBPathKey)
+		}
+		sourceLogDir, ok := nodeConfig.Flags[config.LogsDirKey].(string)
+		if !ok {
+			return fmt.Errorf("failure loading key %s from node config flags", config.LogsDirKey)
+		}
+		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
+		dircopy.Copy(sourceDbDir, snapshotDbDir)
+		dircopy.Copy(sourceLogDir, snapshotLogDir)
+	}
+	// save network conf
 	networkConfig := network.Config{
 		Genesis:     string(ln.genesis),
 		Flags:       ln.flags,
 		NodeConfigs: []node.Config{},
 	}
 	for _, nodeConfig := range ln.nodesConfig {
+		// no need to save this, will be generated automatically on snapshot load
+		delete(nodeConfig.Flags, config.DBPathKey)
+		delete(nodeConfig.Flags, config.LogsDirKey)
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
 	}
-	networkConfigJSON, err := json.Marshal(networkConfig)
+	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -822,7 +848,7 @@ func (ln *localNetwork) buildFlags(
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbPath, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, nodeDir)
+	dbPath, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, "db"))
 	if err != nil {
 		return nil, 0, 0, "", "", err
 	}
