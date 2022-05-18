@@ -130,11 +130,13 @@ func TestNewNetworkEmpty(t *testing.T) {
 	networkConfig.NodeConfigs = nil
 	net, err := newNetwork(
 		logging.NoLog{},
-		networkConfig,
 		newMockAPISuccessful,
 		&localTestProcessUndefNodeProcessCreator{},
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	// Assert that GetNodeNames() returns an empty list
 	names, err := net.GetNodeNames()
@@ -186,11 +188,13 @@ func TestNewNetworkOneNode(t *testing.T) {
 	creator := newLocalTestOneNodeCreator(assert, networkConfig)
 	net, err := newNetwork(
 		logging.NoLog{},
-		networkConfig,
 		newMockAPISuccessful,
 		creator,
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 
 	// Assert that GetNodeNames() includes only the 1 node's name
@@ -209,13 +213,15 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
-	_, err := newNetwork(
+	net, err := newNetwork(
 		logging.NoLog{},
-		networkConfig,
 		newMockAPISuccessful,
 		&localTestFailedStartProcessCreator{},
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.Error(err)
 }
 
@@ -449,7 +455,9 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	assert := assert.New(t)
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, err := newNetwork(logging.NoLog{}, tt.config, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+			net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+			assert.NoError(err)
+			err = net.LoadConfig(context.Background(), tt.config)
 			assert.Error(err)
 		})
 	}
@@ -461,7 +469,9 @@ func TestUnhealthyNetwork(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIUnhealthy, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPIUnhealthy, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	assert.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
@@ -475,7 +485,9 @@ func TestGeneratedNodesNames(t *testing.T) {
 	for i := range networkConfig.NodeConfigs {
 		networkConfig.NodeConfigs[i].Name = ""
 	}
-	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	nodeNameMap := make(map[string]bool)
 	nodeNames, err := net.GetNodeNames()
@@ -486,13 +498,16 @@ func TestGeneratedNodesNames(t *testing.T) {
 	assert.EqualValues(len(nodeNameMap), len(networkConfig.NodeConfigs))
 }
 
-// TestGenerateDefaultNetwork create a default network with GenerateDefaultNetwork and
+// TestGenerateDefaultNetwork create a default network with config from NewDefaultConfig and
 // check expected number of nodes, node names, and avalanchego node ids
 func TestGenerateDefaultNetwork(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	binaryPath := "pepito"
-	net, err := newDefaultNetwork(logging.NoLog{}, binaryPath, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{})
+	networkConfig := NewDefaultConfig(binaryPath)
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	names, err := net.GetNodeNames()
@@ -540,7 +555,9 @@ func TestNetworkFromConfig(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	assert.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	runningNodes := make(map[string]struct{})
@@ -562,7 +579,9 @@ func TestNetworkNodeOps(t *testing.T) {
 	// Start a new, empty network
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), emptyNetworkConfig)
 	assert.NoError(err)
 	runningNodes := make(map[string]struct{})
 
@@ -598,7 +617,9 @@ func TestNodeNotFound(t *testing.T) {
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
 	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), emptyNetworkConfig)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -629,7 +650,9 @@ func TestStoppedNetwork(t *testing.T) {
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
 	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), emptyNetworkConfig)
 	assert.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	assert.NoError(err)
@@ -661,7 +684,9 @@ func TestGetAllNodes(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
-	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	err = net.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 
 	nodes, err := net.GetAllNodes()
@@ -693,7 +718,7 @@ func TestFlags(t *testing.T) {
 			"common-config-flag":     "this should be added",
 		}
 	}
-	nw, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
+	nw, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, one flag should have been overridden by the node configs
 		expectedFlags: map[string]interface{}{
 			"test-network-config-flag": "something",
@@ -704,7 +729,10 @@ func TestFlags(t *testing.T) {
 		assert: assert,
 	},
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = nw.LoadConfig(context.Background(), networkConfig)
 	if ok := assert.NoError(err); !ok {
 		t.Fatal("assertion failed")
 	}
@@ -722,13 +750,16 @@ func TestFlags(t *testing.T) {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = flags
 	}
-	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
+	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only node configs should exist
 		expectedFlags: flags,
 		assert:        assert,
 	},
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = nw.LoadConfig(context.Background(), networkConfig)
 	if ok := assert.NoError(err); !ok {
 		t.Fatal("assertion failed")
 	}
@@ -745,13 +776,16 @@ func TestFlags(t *testing.T) {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = nil
 	}
-	nw, err = newNetwork(logging.NoLog{}, networkConfig, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
+	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only flags from the network config should exist
 		expectedFlags: flags,
 		assert:        assert,
 	},
 		"",
+		"",
 	)
+	assert.NoError(err)
+	err = nw.LoadConfig(context.Background(), networkConfig)
 	assert.NoError(err)
 	err = nw.Stop(context.Background())
 	assert.NoError(err)
@@ -1202,7 +1236,9 @@ func TestRemoveBeacon(t *testing.T) {
 	// create a network with no nodes in it
 	emptyNetworkConfig, err := emptyNetworkConfig()
 	assert.NoError(err)
-	netIntf, err := newNetwork(logging.NoLog{}, emptyNetworkConfig, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "")
+	netIntf, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
+	assert.NoError(err)
+	netIntf.LoadConfig(context.Background(), emptyNetworkConfig)
 	assert.NoError(err)
 	net := netIntf.(*localNetwork)
 
