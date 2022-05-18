@@ -436,19 +436,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 // See network.Network
 func (ln *localNetwork) Healthy(ctx context.Context) chan error {
+	ln.lock.RLock()
 	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
 	if ln.isStopped() {
+		ln.lock.RUnlock()
 		healthyChan <- network.ErrStopped
 		return healthyChan
 	}
 
 	go func() {
-		// TODO: This will block the network for the duration of the health call.
+		// TODO: This will block the network for the duration of the health check.
 		// Maybe a better solution can be found.
-		ln.lock.RLock()
 		defer ln.lock.RUnlock()
 
 		errGr, cctx := errgroup.WithContext(ctx)
