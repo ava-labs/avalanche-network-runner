@@ -12,6 +12,8 @@ var ErrStopped = errors.New("network stopped")
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
+	// Load network config
+	LoadConfig(context.Context, Config) error
 	// Returns a chan that is closed when
 	// all the nodes in the network are healthy.
 	// If an error is sent on this channel, at least 1

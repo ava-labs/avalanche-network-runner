@@ -64,10 +64,13 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewDefaultNetwork(log, binaryPath)
+	nw, err := local.NewNetwork(log, "", "")
 	if err != nil {
 		return err
 	}
+    if err := nw.LoadConfig(context.Background(), local.NewDefaultConfig(binaryPath)); err != nil {
+        return err
+    }
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
 			log.Debug("error stopping network: %w", err)
@@ -90,6 +93,11 @@ func run(log logging.Logger, binaryPath string) error {
 	log.Info("waiting for all nodes to report healthy...")
 	if err := <-healthyChan; err != nil {
 		return err
+	}
+
+	err = nw.SaveSnapshot(context.Background(), "pepe")
+	if err != nil {
+		fmt.Printf("error saving snapshot %s\n", err)
 	}
 
 	log.Info("All nodes healthy. Network will run until you CTRL + C to exit...")
