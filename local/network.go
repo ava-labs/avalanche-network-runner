@@ -715,12 +715,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	// create main snapshot dirs
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
-	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	err = os.MkdirAll(snapshotLogDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -780,7 +775,7 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
 	}
-	// load db+logs
+	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
 		baseTargetDir := filepath.Join(filepath.Join(ln.rootDir, "from_snapshot"), nodeConfig.Name)
