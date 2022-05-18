@@ -93,7 +93,7 @@ type localNetwork struct {
 	nodesConfig map[string]node.Config
 	// Node Name --> Node dbPath (snapshot)
 	nodesDbPath map[string]string
-	// Node Name --> Node logsDir (snapshot)
+	// Node Name --> Node logsDir
 	nodesLogsDir map[string]string
 	// To keep track of network initialization
 	defined bool
@@ -468,6 +468,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// record info for snapshot
 	ln.nodesConfig[node.name] = nodeConfig
 	ln.nodesDbPath[node.name] = dbPath
+	// record logs dir for vm checks
 	ln.nodesLogsDir[node.name] = logsDir
 	return node, err
 }
@@ -692,7 +693,6 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
 	nodesDbPath := map[string]string{}
-	nodesLogsDir := map[string]string{}
 	for nodeName, nodeConfig := range ln.nodesConfig {
 		// make copy for the case the user gave the same map to all nodes
 		nodeConfigFlags := make(map[string]interface{})
@@ -702,7 +702,6 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		nodeConfig.Flags = nodeConfigFlags
 		nodesConfig[nodeName] = nodeConfig
 		nodesDbPath[nodeName] = ln.nodesDbPath[nodeName]
-		nodesLogsDir[nodeName] = ln.nodesLogsDir[nodeName]
 	}
 	// update node flags with currently used ports
 	for nodeName, nodeConfig := range nodesConfig {
@@ -725,24 +724,16 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	if err != nil {
 		return err
 	}
-	// save db+logs
+	// save db
 	for _, nodeConfig := range nodesConfig {
 		sourceDbDir, ok := nodesDbPath[nodeConfig.Name]
 		if !ok {
 			return fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
-		sourceLogDir, ok := nodesLogsDir[nodeConfig.Name]
-		if !ok {
-			return fmt.Errorf("failure obtaining logs dir for node %q", nodeConfig.Name)
-		}
 		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
 		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
-		targetLogDir := filepath.Join(snapshotLogDir, nodeConfig.Name)
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
 			return fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
-		}
-		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
-			return fmt.Errorf("failure saving node %q log dir: %w", nodeConfig.Name, err)
 		}
 	}
 	// save network conf
@@ -775,7 +766,6 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	}
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
-	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		return fmt.Errorf("snapshot path %q does not exists", snapshotDir)
@@ -793,18 +783,12 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	// load db+logs
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
-		sourceLogDir := filepath.Join(snapshotLogDir, nodeConfig.Name)
 		baseTargetDir := filepath.Join(filepath.Join(ln.rootDir, "from_snapshot"), nodeConfig.Name)
 		targetDbDir := filepath.Join(baseTargetDir, "db")
-		targetLogDir := filepath.Join(baseTargetDir, "log")
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}
-		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
-			return fmt.Errorf("failure loading node %q log dir: %w", nodeConfig.Name, err)
-		}
 		nodeConfig.Flags[config.DBPathKey] = targetDbDir
-		nodeConfig.Flags[config.LogsDirKey] = targetLogDir
 	}
 	return ln.loadConfig(ctx, networkConfig)
 }
