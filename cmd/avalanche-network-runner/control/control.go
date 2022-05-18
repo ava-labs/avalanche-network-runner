@@ -58,6 +58,10 @@ func NewCommand() *cobra.Command {
 		newAttachPeerCommand(),
 		newSendOutboundMessageCommand(),
 		newStopCommand(),
+		newSaveSnapshotCommand(),
+		newLoadSnapshotCommand(),
+		newRemoveSnapshotCommand(),
+		newGetSnapshotNamesCommand(),
 	)
 
 	return cmd
