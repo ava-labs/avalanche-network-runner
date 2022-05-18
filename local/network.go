@@ -4,9 +4,11 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -330,6 +332,9 @@ func (ln *localNetwork) LoadConfig(ctx context.Context, networkConfig network.Co
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
+	if ln.defined {
+		return errors.New("configuration already loaded")
+	}
 	if err := networkConfig.Validate(); err != nil {
 		return fmt.Errorf("config failed validation: %w", err)
 	}
@@ -741,7 +746,45 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 
 // Load network snapshot
 func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) error {
-	return nil
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+	if ln.defined {
+		return errors.New("configuration already loaded")
+	}
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotName)
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
+	snapshotLogDir := filepath.Join(snapshotDir, "log")
+	_, err := os.Stat(snapshotDir)
+	if err != nil {
+		return fmt.Errorf("snapshot path %q does not exists", snapshotDir)
+	}
+	// load network config
+	networkConfigJSON, err := ioutil.ReadFile(filepath.Join(snapshotDir, "network.json"))
+	if err != nil {
+		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
+	}
+	networkConfig := network.Config{}
+	err = json.Unmarshal(networkConfigJSON, &networkConfig)
+	if err != nil {
+		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
+	}
+	// load db+logs
+	for _, nodeConfig := range networkConfig.NodeConfigs {
+		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
+		sourceLogDir := filepath.Join(snapshotLogDir, nodeConfig.Name)
+		baseTargetDir := filepath.Join(filepath.Join(ln.rootDir, "from_snapshot"), nodeConfig.Name)
+		targetDbDir := filepath.Join(baseTargetDir, "db")
+		targetLogDir := filepath.Join(baseTargetDir, "log")
+		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
+			return fmt.Errorf("failure loading node %q db dir: %w", err)
+		}
+		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
+			return fmt.Errorf("failure loading node %q log dir: %w", err)
+		}
+		nodeConfig.Flags[config.DBPathKey] = targetDbDir
+		nodeConfig.Flags[config.LogsDirKey] = targetLogDir
+	}
+	return ln.loadConfig(ctx, networkConfig)
 }
 
 // Remove network snapshot
@@ -860,8 +903,10 @@ func getPort(
 	if portIntf, ok := flags[portKey]; ok {
 		if portFromFlags, ok := portIntf.(int); ok {
 			port = uint16(portFromFlags)
+		} else if portFromFlags, ok := portIntf.(float64); ok {
+			port = uint16(portFromFlags)
 		} else {
-			return 0, fmt.Errorf("expected flag %q to be int but got %T", portKey, portIntf)
+			return 0, fmt.Errorf("expected flag %q to be int/float64 but got %T", portKey, portIntf)
 		}
 	} else if portIntf, ok := configFile[portKey]; ok {
 		if portFromConfigFile, ok := portIntf.(float64); ok {
