@@ -638,8 +638,20 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 
 // Save network snapshot
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+	// keep copy of node info that will be remove by stop
+	nodesConfig := map[string]node.Config{}
+	for k, v := range ln.nodesConfig {
+		nodesConfig[k] = v
+	}
+	// stop network to safely save snapshot
+	if err := ln.stop(ctx); err != nil {
+		return err
+	}
+	// create main snapshot dirs
 	snapshotDir := filepath.Join(snapshotsDir, snapshotName)
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"), constants.NetworkName(ln.networkID))
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
 	if err == nil {
@@ -654,7 +666,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		return err
 	}
 	// save db+logs
-	for _, nodeConfig := range ln.nodesConfig {
+	for _, nodeConfig := range nodesConfig {
 		sourceDbDir, ok := nodeConfig.Flags[config.DBPathKey].(string)
 		if !ok {
 			return fmt.Errorf("failure loading key %s from node config flags", config.DBPathKey)
@@ -664,8 +676,14 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 			return fmt.Errorf("failure loading key %s from node config flags", config.LogsDirKey)
 		}
 		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
-		dircopy.Copy(sourceDbDir, snapshotDbDir)
-		dircopy.Copy(sourceLogDir, snapshotLogDir)
+		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
+		targetLogDir := filepath.Join(snapshotLogDir, nodeConfig.Name)
+		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
+			return fmt.Errorf("failure saving node %q db dir: %w", err)
+		}
+		if err := dircopy.Copy(sourceLogDir, targetLogDir); err != nil {
+			return fmt.Errorf("failure saving node %q log dir: %w", err)
+		}
 	}
 	// save network conf
 	networkConfig := network.Config{
@@ -673,7 +691,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		Flags:       ln.flags,
 		NodeConfigs: []node.Config{},
 	}
-	for _, nodeConfig := range ln.nodesConfig {
+	for _, nodeConfig := range nodesConfig {
 		// no need to save this, will be generated automatically on snapshot load
 		delete(nodeConfig.Flags, config.DBPathKey)
 		delete(nodeConfig.Flags, config.LogsDirKey)
