@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,7 @@ const (
 	healthCheckFreq       = 3 * time.Second
 	DefaultNumNodes       = 5
 	snapshotsRelPath      = ".avalanche-network-runner/snapshots/"
+	snapshotPrefix        = "anr-snapshot-"
 )
 
 // interface compliance
@@ -150,7 +152,7 @@ func init() {
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
-	// create snapshots dir
+	// create default snapshots dir
 	usr, err := user.Current()
 	if err != nil {
 		panic(err)
@@ -676,7 +678,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	if ln.isStopped() {
 		return network.ErrStopped
 	}
-	// keep copy of node info that will be remove by stop
+	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
 	for k, v := range ln.nodesConfig {
 		nodesConfig[k] = v
@@ -686,7 +688,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		return err
 	}
 	// create main snapshot dirs
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotName)
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
@@ -751,7 +753,7 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	if ln.defined {
 		return errors.New("configuration already loaded")
 	}
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotName)
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	snapshotLogDir := filepath.Join(snapshotDir, "log")
 	_, err := os.Stat(snapshotDir)
@@ -789,7 +791,32 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 
 // Remove network snapshot
 func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
+	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	_, err := os.Stat(snapshotDir)
+	if err != nil {
+		return fmt.Errorf("snapshot path %q does not exists", snapshotDir)
+	}
+	if err := os.RemoveAll(snapshotDir); err != nil {
+		return fmt.Errorf("failure removing snapshot path %q", snapshotDir)
+	}
 	return nil
+}
+
+// Get network snapshots
+func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
+	_, err := os.Stat(ln.snapshotsDir)
+	if err != nil {
+		return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
+	}
+	matches, err := filepath.Glob(filepath.Join(ln.snapshotsDir, snapshotPrefix+"*"))
+	if err != nil {
+		return nil, err
+	}
+	snapshots := []string{}
+	for _, match := range matches {
+		snapshots = append(snapshots, strings.TrimPrefix(filepath.Base(match), snapshotPrefix))
+	}
+	return snapshots, nil
 }
 
 // Assumes [net.lock] is held

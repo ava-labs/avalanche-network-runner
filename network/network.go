@@ -48,4 +48,6 @@ type Network interface {
 	LoadSnapshot(context.Context, string) error
 	// Remove network snapshot
 	RemoveSnapshot(string) error
+	// Get name of available snapshots
+	GetSnapshotNames() ([]string, error)
 }
