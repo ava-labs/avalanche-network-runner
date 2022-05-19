@@ -305,6 +305,29 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
 		lc.startErrc <- err
 		return
 	}
+	node, err := nw.GetNode(lc.nodeNames[0])
+	if err != nil {
+		lc.startErrc <- err
+		return
+	}
+	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+	if err != nil {
+		lc.startErrc <- err
+		return
+	}
+	for _, blockchain := range blockchains {
+		lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
+			info: &rpcpb.CustomVmInfo{
+				VmName:       blockchain.Name,
+				VmId:         blockchain.VMID.String(),
+				SubnetId:     blockchain.SubnetID.String(),
+				BlockchainId: blockchain.ID.String(),
+			},
+			subnetID:     blockchain.SubnetID,
+			blockchainID: blockchain.ID,
+		}
+	}
+	close(lc.customVMsReadyc)
 }
 
 var errAborted = errors.New("aborted")

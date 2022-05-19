@@ -952,6 +952,32 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
 			s.clusterInfo.Healthy = true
+			s.clusterInfo.CustomVmsHealthy = true
+			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
+			for vmID, vmInfo := range s.network.customVMIDToInfo {
+				s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
+			}
+			s.mu.Unlock()
+		}
+		select {
+		case <-s.closed:
+			return
+		case <-s.network.stopc:
+			return
+		case serr := <-s.network.startErrc:
+			zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
+			s.mu.Lock()
+			s.network = nil
+			s.clusterInfo = nil
+			s.mu.Unlock()
+			return
+		case <-s.network.customVMsReadyc:
+			s.mu.Lock()
+			s.clusterInfo.CustomVmsHealthy = true
+			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
+			for vmID, vmInfo := range s.network.customVMIDToInfo {
+				s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
+			}
 			s.mu.Unlock()
 		}
 	}()
