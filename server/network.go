@@ -311,29 +311,37 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
 		lc.startErrc <- err
 		return
 	}
-	node, err := nw.GetNode(lc.nodeNames[0])
-	if err != nil {
+	if err := lc.updateSubnetInfo(ctx); err != nil {
 		lc.startErrc <- err
 		return
+	}
+	close(lc.customVMsReadyc)
+}
+
+func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
+	node, err := lc.nw.GetNode(lc.nodeNames[0])
+	if err != nil {
+		return err
 	}
 	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 	if err != nil {
-		lc.startErrc <- err
-		return
+		return err
 	}
 	for _, blockchain := range blockchains {
-		lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
-			info: &rpcpb.CustomVmInfo{
-				VmName:       blockchain.Name,
-				VmId:         blockchain.VMID.String(),
-				SubnetId:     blockchain.SubnetID.String(),
-				BlockchainId: blockchain.ID.String(),
-			},
-			subnetID:     blockchain.SubnetID,
-			blockchainID: blockchain.ID,
+		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
+			lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
+				info: &rpcpb.CustomVmInfo{
+					VmName:       blockchain.Name,
+					VmId:         blockchain.VMID.String(),
+					SubnetId:     blockchain.SubnetID.String(),
+					BlockchainId: blockchain.ID.String(),
+				},
+				subnetID:     blockchain.SubnetID,
+				blockchainID: blockchain.ID,
+			}
 		}
 	}
-	close(lc.customVMsReadyc)
+	return nil
 }
 
 var errAborted = errors.New("aborted")
@@ -390,6 +398,28 @@ func (lc *localNetwork) updateNodeInfo() error {
 		lc.nodeInfos[name].LogDir = node.GetLogsDir()
 		lc.nodeInfos[name].DbDir = node.GetDbDir()
 		lc.nodeInfos[name].Config = []byte(node.GetConfigFile())
+		var configFileMap map[string]interface{}
+		if err := json.Unmarshal([]byte(lc.nodeInfos[name].Config), &configFileMap); err != nil {
+			return err
+		}
+		buildDirIntf, ok := configFileMap[config.BuildDirKey]
+		if ok {
+			buildDir, ok := buildDirIntf.(string)
+			if ok {
+				lc.nodeInfos[name].PluginDir = filepath.Join(buildDir, "plugins")
+			} else {
+				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
+			}
+		}
+		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
+		if ok {
+			whitelistedSubnets, ok := whitelistedSubnetsIntf.(string)
+			if ok {
+				lc.nodeInfos[name].WhitelistedSubnets = whitelistedSubnets
+			} else {
+				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
+			}
+		}
 	}
 	return nil
 }

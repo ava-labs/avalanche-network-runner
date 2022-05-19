@@ -952,11 +952,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
 			s.clusterInfo.Healthy = true
-			s.clusterInfo.CustomVmsHealthy = true
-			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-			for vmID, vmInfo := range s.network.customVMIDToInfo {
-				s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
-			}
 			s.mu.Unlock()
 		}
 		select {
