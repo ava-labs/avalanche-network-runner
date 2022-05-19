@@ -419,10 +419,6 @@ func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.H
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.network.nodeNames = make([]string, 0)
-	for name := range s.network.nodeInfos {
-		s.network.nodeNames = append(s.network.nodeNames, name)
-	}
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 

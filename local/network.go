@@ -91,8 +91,8 @@ type localNetwork struct {
 	snapshotsDir string
 	// Node Name --> Node Config (snapshot)
 	nodesConfig map[string]node.Config
-	// Node Name --> Node dbPath (snapshot)
-	nodesDbPath map[string]string
+	// Node Name --> Node dbDir (snapshot)
+	nodesDbDir map[string]string
 	// Node Name --> Node logsDir
 	nodesLogsDir map[string]string
 	// To keep track of network initialization
@@ -265,7 +265,7 @@ func newNetwork(
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
 		nodesConfig:        map[string]node.Config{},
-		nodesDbPath:        map[string]string{},
+		nodesDbDir:         map[string]string{},
 		nodesLogsDir:       map[string]string{},
 		rootDir:            rootDir,
 		snapshotsDir:       snapshotsDir,
@@ -423,7 +423,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	flags, apiPort, p2pPort, dbPath, logsDir, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
+	flags, apiPort, p2pPort, dbDir, logsDir, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -454,6 +454,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		apiPort:     apiPort,
 		p2pPort:     p2pPort,
 		getConnFunc: defaultGetConnFunc,
+		dbDir:       dbDir,
+		logsDir:     logsDir,
+		binaryPath:  nodeConfig.BinaryPath,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -467,7 +470,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	// record info for snapshot
 	ln.nodesConfig[node.name] = nodeConfig
-	ln.nodesDbPath[node.name] = dbPath
+	ln.nodesDbDir[node.name] = dbDir
 	// record logs dir for vm checks
 	ln.nodesLogsDir[node.name] = logsDir
 	return node, err
@@ -656,7 +659,7 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	delete(ln.nodes, nodeName)
 	// snapshot
 	delete(ln.nodesConfig, nodeName)
-	delete(ln.nodesDbPath, nodeName)
+	delete(ln.nodesDbDir, nodeName)
 	delete(ln.nodesLogsDir, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
@@ -692,7 +695,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
-	nodesDbPath := map[string]string{}
+	nodesDbDir := map[string]string{}
 	for nodeName, nodeConfig := range ln.nodesConfig {
 		// make copy for the case the user gave the same map to all nodes
 		nodeConfigFlags := make(map[string]interface{})
@@ -701,7 +704,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		}
 		nodeConfig.Flags = nodeConfigFlags
 		nodesConfig[nodeName] = nodeConfig
-		nodesDbPath[nodeName] = ln.nodesDbPath[nodeName]
+		nodesDbDir[nodeName] = ln.nodesDbDir[nodeName]
 	}
 	// update node flags with currently used ports
 	for nodeName, nodeConfig := range nodesConfig {
@@ -738,7 +741,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	// save db
 	for _, nodeConfig := range nodesConfig {
-		sourceDbDir, ok := nodesDbPath[nodeConfig.Name]
+		sourceDbDir, ok := nodesDbDir[nodeConfig.Name]
 		if !ok {
 			return fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
@@ -985,7 +988,7 @@ func (ln *localNetwork) buildFlags(
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbPath, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, "db"))
+	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, "db"))
 	if err != nil {
 		return nil, 0, 0, "", "", err
 	}
@@ -1012,7 +1015,7 @@ func (ln *localNetwork) buildFlags(
 	// Flags for AvalancheGo
 	flags := []string{
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		fmt.Sprintf("--%s=%s", config.DBPathKey, dbPath),
+		fmt.Sprintf("--%s=%s", config.DBPathKey, dbDir),
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
@@ -1038,9 +1041,9 @@ func (ln *localNetwork) buildFlags(
 
 	ln.log.Info(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, nodeDir, logsDir, dbPath, p2pPort, apiPort,
+		nodeConfig.Name, nodeDir, logsDir, dbDir, p2pPort, apiPort,
 	)
-	return flags, apiPort, p2pPort, dbPath, logsDir, nil
+	return flags, apiPort, p2pPort, dbDir, logsDir, nil
 }
 
 // writeFiles writes the files a node needs on startup.

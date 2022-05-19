@@ -13,7 +13,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
@@ -59,8 +58,6 @@ type localNetwork struct {
 
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
-
-	apiClis map[string]api.Client
 
 	localClusterReadyc          chan struct{} // closed when local network is ready/healthy
 	localClusterReadycCloseOnce sync.Once
@@ -119,7 +116,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		apiClis:       make(map[string]api.Client),
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
 		localClusterReadyc: make(chan struct{}),
@@ -329,6 +325,21 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		}
 	}
 
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	for _, name := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[name]
+		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
+	}
+	lc.localClusterReadycCloseOnce.Do(func() {
+		close(lc.localClusterReadyc)
+	})
+	return nil
+}
+
+func (lc *localNetwork) updateNodeInfo() error {
 	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
@@ -338,25 +349,22 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		nodeNames = append(nodeNames, name)
 	}
 	sort.Strings(nodeNames)
-
-	for _, name := range nodeNames {
+	lc.nodeNames = nodeNames
+	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-
 		if _, ok := lc.nodeInfos[name]; !ok {
 			lc.nodeInfos[name] = &rpcpb.NodeInfo{}
 		}
-		lc.nodeInfos[name].Uri = uri
-		lc.nodeInfos[name].Id = nodeID
-
-		lc.apiClis[name] = node.GetAPIClient()
-		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeID, uri)
+		lc.nodeInfos[name].Name = node.GetName()
+		lc.nodeInfos[name].Uri = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
+		lc.nodeInfos[name].Id = node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
+		lc.nodeInfos[name].ExecPath = node.GetBinaryPath()
+		lc.nodeInfos[name].LogDir = node.GetLogsDir()
+		lc.nodeInfos[name].DbDir = node.GetDbDir()
+		//lc.nodeInfos[name].Config
+		//lc.nodeInfos[name].PluginDir
+		//lc.nodeInfos[name].WhitelistedSubnets
 	}
-
-	lc.localClusterReadycCloseOnce.Do(func() {
-		close(lc.localClusterReadyc)
-	})
 	return nil
 }
 
