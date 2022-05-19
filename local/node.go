@@ -80,10 +80,14 @@ type localNode struct {
 	p2pPort uint16
 	// Returns a connection to this node
 	getConnFunc getConnFunc
-	binaryPath  string
-	dbDir       string
-	logsDir     string
-	configFile  string
+	// The binary path executed by this node
+	binaryPath string
+	// The db dir of the node
+	dbDir string
+	// The logs dir of the node
+	logsDir string
+	// The config file contents used for the node
+	configFile string
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -198,18 +202,22 @@ func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
 }
 
+// See node.Node
 func (node *localNode) GetBinaryPath() string {
 	return node.binaryPath
 }
 
+// See node.Node
 func (node *localNode) GetDbDir() string {
 	return node.dbDir
 }
 
+// See node.Node
 func (node *localNode) GetLogsDir() string {
 	return node.logsDir
 }
 
+// See node.Node
 func (node *localNode) GetConfigFile() string {
 	return node.configFile
 }
