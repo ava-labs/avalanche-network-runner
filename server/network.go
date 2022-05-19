@@ -106,7 +106,6 @@ type localNetworkOptions struct {
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
 	lcfg.Directory = opts.rootDataDir
-	fmt.Println(opts.rootDataDir)
 	logFactory := logging.NewFactory(lcfg)
 	logger, err := logFactory.Make("main")
 	if err != nil {
@@ -169,11 +168,15 @@ func (lc *localNetwork) fillDefaultConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		pluginDir := filepath.Clean(lc.options.pluginDir)
-		if filepath.Base(pluginDir) != "plugins" {
-			return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+		buildDir := ""
+		if lc.options.pluginDir != "" {
+			pluginDir := filepath.Clean(lc.options.pluginDir)
+			if filepath.Base(pluginDir) != "plugins" {
+				return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+			}
+			buildDir = filepath.Dir(pluginDir)
 		}
-		buildDir := filepath.Dir(pluginDir)
+
 		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
@@ -293,22 +296,24 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}
 }
 
-func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
+func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
 	defer func() {
 		close(lc.startDonec)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
 	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
-		lc.startErrc <- err
-		return
+		return err
 	}
 	err = nw.LoadSnapshot(ctx, snapshotName)
 	if err != nil {
-		lc.startErrc <- err
-		return
+		return err
 	}
 	lc.nw = nw
+	return nil
+}
+
+func (lc *localNetwork) loadSnapshotWait(ctx context.Context) {
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrc <- err
 		return

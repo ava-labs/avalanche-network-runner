@@ -352,6 +352,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 	if err := s.network.fillDefaultConfig(); err != nil {
+		s.network = nil
 		return nil, err
 	}
 
@@ -930,9 +931,17 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		return nil, err
 	}
 
-	// start non-blocking to load snapshot
+	// blocking load snapshot to soon get not found snapshot errors
+	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
+		zap.L().Warn("snapshot load failed to complete", zap.Error(err))
+		s.network = nil
+		s.clusterInfo = nil
+		return nil, err
+	}
+
+	// start non-blocking wait to load snapshot results
 	// the user is expected to poll cluster status
-	go s.network.loadSnapshot(ctx, req.SnapshotName)
+	go s.network.loadSnapshotWait(ctx)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -996,6 +1005,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 	defer s.mu.Unlock()
 
 	if err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName); err != nil {
+		zap.L().Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
 	}
 	s.network = nil
@@ -1013,6 +1023,7 @@ func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRe
 	}
 	err = nw.RemoveSnapshot(req.SnapshotName)
 	if err != nil {
+		zap.L().Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
 	return &rpcpb.RemoveSnapshotResponse{}, nil

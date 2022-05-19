@@ -692,7 +692,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err == nil {
-		return fmt.Errorf("snapshot path %q already exists", snapshotDir)
+		return fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
@@ -784,7 +784,7 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
-		return fmt.Errorf("snapshot path %q does not exists", snapshotDir)
+		return fmt.Errorf("snapshot %q does not exists", snapshotName)
 	}
 	// load network config
 	networkConfigJSON, err := ioutil.ReadFile(filepath.Join(snapshotDir, "network.json"))
@@ -813,7 +813,7 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
-		return fmt.Errorf("snapshot path %q does not exists", snapshotDir)
+		return fmt.Errorf("snapshot %q does not exists", snapshotName)
 	}
 	if err := os.RemoveAll(snapshotDir); err != nil {
 		return fmt.Errorf("failure removing snapshot path %q", snapshotDir)
