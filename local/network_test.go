@@ -643,19 +643,19 @@ func TestStoppedNetwork(t *testing.T) {
 	assert.EqualValues(net.Stop(context.Background()), network.ErrStopped)
 	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
-	assert.EqualValues(err, network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, err)
 	// GetNode failure
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.EqualValues(err, network.ErrStopped)
 	// second GetNodeNames should return no nodes
 	_, err = net.GetNodeNames()
-	assert.EqualValues(err, network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, err)
 	// RemoveNode failure
-	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, net.RemoveNode(networkConfig.NodeConfigs[0].Name))
 	// Healthy failure
 	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 	_, err = net.GetAllNodes()
-	assert.EqualValues(network.ErrStopped, err)
+	assert.EqualValues(err, network.ErrStopped)
 }
 
 func TestGetAllNodes(t *testing.T) {

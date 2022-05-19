@@ -462,7 +462,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 	// so that we calls to Healthy() below immediately return.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go func() {
+	go func(ctx context.Context) {
 		// This goroutine runs until [ln.Stop] is called
 		// or this function returns.
 		select {
@@ -470,7 +470,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 			cancel()
 		case <-ctx.Done():
 		}
-	}()
+	}(ctx)
 
 	errGr, ctx := errgroup.WithContext(ctx)
 	for _, node := range ln.nodes {
@@ -547,7 +547,7 @@ func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 }
 
 func (ln *localNetwork) Stop(ctx context.Context) error {
-	var err error
+	err := network.ErrStopped
 	ln.stopOnce.Do(
 		func() {
 			ln.onStopCtxCancel()
