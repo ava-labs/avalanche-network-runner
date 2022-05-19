@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -1214,4 +1215,53 @@ func TestRemoveBeacon(t *testing.T) {
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
 	assert.Equal(0, net.bootstraps.Len())
+}
+
+// Returns an API client where:
+// * The Health API's Health method always returns an error after the
+//   given context is cancelled.
+// * The CChainEthAPI's Close method may be called
+// * Only the above 2 methods may be called
+func newMockAPIHealthyBlocks(ipAddr string, port uint16) api.Client {
+	healthClient := &healthmocks.Client{}
+	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool { return true }), mock.Anything).Return(
+		func(ctx context.Context, _ ...rpc.Option) *health.APIHealthReply {
+			<-ctx.Done()
+			return nil
+		},
+		func(ctx context.Context, _ ...rpc.Option) error {
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	)
+	// ethClient used when removing nodes, to close websocket connection
+	ethClient := &apimocks.EthClient{}
+	ethClient.On("Close").Return()
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	client.On("CChainEthAPI").Return(ethClient)
+	return client
+}
+
+// Assert that if the network's Stop method is called while
+// a call to Healthy is ongoing, Healthy returns immediately.
+func TestHealthyDuringNetworkStop(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := testNetworkConfig(t)
+	// Calls to a node's Healthy() function blocks until context cancelled
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIHealthyBlocks, &localTestSuccessfulNodeProcessCreator{}, "")
+	assert.NoError(err)
+
+	healthyChan := make(chan error)
+	go func() {
+		healthyChan <- net.Healthy(context.Background())
+	}()
+	err = net.Stop(context.Background())
+	assert.NoError(err)
+	select {
+	case err := <-healthyChan:
+		assert.Error(err)
+	case <-time.After(3 * time.Second):
+		assert.Fail("Healthy should've returned immediately because network closed")
+	}
 }
