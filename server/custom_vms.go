@@ -136,7 +136,8 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 
 	println()
 	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
-	for _, nodeInfo := range lc.nodeInfos {
+	for _, nodeName := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
 		for vmID, vmInfo := range lc.customVMIDToInfo {
 			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
 		}

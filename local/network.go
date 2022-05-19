@@ -87,14 +87,8 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
-	// directory where networks can be persistently saved (snapshot)
+	// directory where networks can be persistently saved
 	snapshotsDir string
-	// Node Name --> Node Config (snapshot)
-	nodesConfig map[string]node.Config
-	// Node Name --> Node dbDir (snapshot)
-	nodesDbDir map[string]string
-	// Node Name --> Node logsDir
-	nodesLogsDir map[string]string
 	// To keep track of network initialization
 	defined bool
 }
@@ -264,9 +258,6 @@ func newNetwork(
 		bootstraps:         beacon.NewSet(),
 		newAPIClientF:      newAPIClientF,
 		nodeProcessCreator: nodeProcessCreator,
-		nodesConfig:        map[string]node.Config{},
-		nodesDbDir:         map[string]string{},
-		nodesLogsDir:       map[string]string{},
 		rootDir:            rootDir,
 		snapshotsDir:       snapshotsDir,
 	}
@@ -456,8 +447,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		getConnFunc: defaultGetConnFunc,
 		dbDir:       dbDir,
 		logsDir:     logsDir,
-		binaryPath:  nodeConfig.BinaryPath,
-		configFile:  nodeConfig.ConfigFile,
+		config:      nodeConfig,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -469,11 +459,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: p2pPort,
 		}))
 	}
-	// record info for snapshot
-	ln.nodesConfig[node.name] = nodeConfig
-	ln.nodesDbDir[node.name] = dbDir
-	// record logs dir for vm checks
-	ln.nodesLogsDir[node.name] = logsDir
 	return node, err
 }
 
@@ -658,10 +643,6 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	_ = ln.bootstraps.RemoveByID(node.nodeID)
 
 	delete(ln.nodes, nodeName)
-	// snapshot
-	delete(ln.nodesConfig, nodeName)
-	delete(ln.nodesDbDir, nodeName)
-	delete(ln.nodesLogsDir, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
@@ -697,7 +678,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
 	nodesDbDir := map[string]string{}
-	for nodeName, nodeConfig := range ln.nodesConfig {
+	for nodeName, node := range ln.nodes {
+		nodeConfig := node.config
 		// make copy for the case the user gave the same map to all nodes
 		nodeConfigFlags := make(map[string]interface{})
 		for fk, fv := range nodeConfig.Flags {
@@ -705,7 +687,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		}
 		nodeConfig.Flags = nodeConfigFlags
 		nodesConfig[nodeName] = nodeConfig
-		nodesDbDir[nodeName] = ln.nodesDbDir[nodeName]
+		nodesDbDir[nodeName] = node.GetDbDir()
 	}
 	// update node flags with currently used ports
 	for nodeName, nodeConfig := range nodesConfig {
