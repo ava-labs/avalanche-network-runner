@@ -137,7 +137,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-func (lc *localNetwork) fillDefaultConfig() error {
+func (lc *localNetwork) createConfig() error {
 	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
 	if err != nil {
 		return err
@@ -185,18 +185,6 @@ func (lc *localNetwork) fillDefaultConfig() error {
 		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
-
-		lc.nodeInfos[nodeName] = &rpcpb.NodeInfo{
-			Name:               nodeName,
-			ExecPath:           lc.options.execPath,
-			Uri:                "",
-			Id:                 "",
-			LogDir:             logDir,
-			DbDir:              dbDir,
-			PluginDir:          lc.options.pluginDir,
-			WhitelistedSubnets: lc.options.whitelistedSubnets,
-			Config:             []byte(cfg.NodeConfigs[i].ConfigFile),
-		}
 	}
 
 	lc.cfg = cfg
@@ -247,10 +235,14 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.DBPathKey))
 	}
 	configFileMap[config.DBPathKey] = dbDir
-	configFileMap[config.BuildDirKey] = buildDir
+	if buildDir != "" {
+		configFileMap[config.BuildDirKey] = buildDir
+	}
 	// need to whitelist subnet ID to create custom VM chain
 	// ref. vms/platformvm/createChain
-	configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	if whitelistedSubnets != "" {
+		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	}
 
 	finalJSON, err := json.Marshal(configFileMap)
 	if err != nil {
@@ -393,39 +385,45 @@ func (lc *localNetwork) updateNodeInfo() error {
 	}
 	sort.Strings(nodeNames)
 	lc.nodeNames = nodeNames
+	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		if _, ok := lc.nodeInfos[name]; !ok {
-			lc.nodeInfos[name] = &rpcpb.NodeInfo{}
-		}
-		lc.nodeInfos[name].Name = node.GetName()
-		lc.nodeInfos[name].Uri = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-		lc.nodeInfos[name].Id = node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-		lc.nodeInfos[name].ExecPath = node.GetBinaryPath()
-		lc.nodeInfos[name].LogDir = node.GetLogsDir()
-		lc.nodeInfos[name].DbDir = node.GetDbDir()
-		lc.nodeInfos[name].Config = []byte(node.GetConfigFile())
+		configFile := []byte(node.GetConfigFile())
+		var pluginDir string
+		var whitelistedSubnets string
 		var configFileMap map[string]interface{}
-		if err := json.Unmarshal([]byte(lc.nodeInfos[name].Config), &configFileMap); err != nil {
+		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
 			return err
 		}
 		buildDirIntf, ok := configFileMap[config.BuildDirKey]
 		if ok {
 			buildDir, ok := buildDirIntf.(string)
 			if ok {
-				lc.nodeInfos[name].PluginDir = filepath.Join(buildDir, "plugins")
+				if buildDir != "" {
+					pluginDir = filepath.Join(buildDir, "plugins")
+				}
 			} else {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
 			}
 		}
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
 		if ok {
-			whitelistedSubnets, ok := whitelistedSubnetsIntf.(string)
-			if ok {
-				lc.nodeInfos[name].WhitelistedSubnets = whitelistedSubnets
-			} else {
+			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
+			if !ok {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
 			}
+		}
+
+		lc.nodeInfos[name] = &rpcpb.NodeInfo{
+			Name:               node.GetName(),
+			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
+			Id:                 node.GetNodeID().PrefixedString(constants.NodeIDPrefix),
+			ExecPath:           node.GetBinaryPath(),
+			LogDir:             node.GetLogsDir(),
+			DbDir:              node.GetDbDir(),
+			Config:             []byte(node.GetConfigFile()),
+			PluginDir:          pluginDir,
+			WhitelistedSubnets: whitelistedSubnets,
 		}
 	}
 	return nil

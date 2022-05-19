@@ -351,7 +351,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err != nil {
 		return nil, err
 	}
-	if err := s.network.fillDefaultConfig(); err != nil {
+	if err := s.network.createConfig(); err != nil {
 		s.network = nil
 		return nil, err
 	}
@@ -628,20 +628,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, err
 	}
 
-	s.network.nodeNames = append(s.network.nodeNames, req.Name)
-
-	info := &rpcpb.NodeInfo{
-		Name:               req.Name,
-		ExecPath:           execPath,
-		Uri:                "",
-		Id:                 "",
-		LogDir:             logDir,
-		DbDir:              dbDir,
-		WhitelistedSubnets: whitelistedSubnets,
-		Config:             []byte(configFile),
-	}
-	s.network.nodeInfos[req.Name] = info
-
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
@@ -661,18 +647,14 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	if err := s.network.nw.RemoveNode(req.Name); err != nil {
 		return nil, err
 	}
-	delete(s.network.nodeInfos, req.Name)
-	s.network.nodeNames = make([]string, 0)
-	for name := range s.network.nodeInfos {
-		s.network.nodeNames = append(s.network.nodeNames, name)
-	}
-	s.clusterInfo.NodeNames = s.network.nodeNames
-	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	zap.L().Info("waiting for local cluster readiness")
 	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
 	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -757,6 +739,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	// update with the new config
 	s.network.cfg.NodeConfigs[idx] = nodeConfig
+	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
