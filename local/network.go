@@ -463,7 +463,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
-		// This goroutine runs until Stop is called
+		// This goroutine runs until [ln.Stop] is called
 		// or this function returns.
 		select {
 		case <-ln.onStopCtx.Done():
@@ -479,17 +479,15 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 			// Every [healthCheckFreq], query node for health status.
 			// Do this until ctx timeout or network closed.
 			for {
-				select {
-				case <-ln.onStopCtx.Done():
-					return network.ErrStopped
-				case <-cctx.Done():
-					return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
-				case <-time.After(healthCheckFreq):
-				}
 				health, err := node.client.HealthAPI().Health(cctx)
 				if err == nil && health.Healthy {
 					ln.log.Debug("node %q became healthy", node.name)
 					return nil
+				}
+				select {
+				case <-cctx.Done():
+					return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
+				case <-time.After(healthCheckFreq):
 				}
 			}
 		})
