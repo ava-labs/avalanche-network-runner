@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -257,7 +256,7 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, os.TempDir(), lc.options.snapshotsDir)
+	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
 		lc.startErrc <- err
 		return
