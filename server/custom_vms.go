@@ -32,11 +32,7 @@ func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
-	uris := make([]string, 0, len(lc.nodeInfos))
-	for _, i := range lc.nodeInfos {
-		uris = append(uris, i.Uri)
-	}
-	httpRPCEp := uris[0]
+	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
 	baseWallet, avaxAssetID, testKeyAddr, err := lc.setupWallet(ctx, httpRPCEp)
@@ -56,11 +52,7 @@ func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
 
 	println()
 	color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
-	uris = make([]string, 0, len(lc.nodeInfos))
-	for _, i := range lc.nodeInfos {
-		uris = append(uris, i.Uri)
-	}
-	httpRPCEp = uris[0]
+	httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
 	baseWallet.refresh(httpRPCEp)
 	zap.L().Info("set up base wallet with pre-funded test key",
 		zap.String("http-rpc-endpoint", httpRPCEp),
@@ -324,18 +316,10 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 	}
 	sort.Strings(whitelistedSubnetIDs)
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
-	for nodeName, v := range lc.nodeInfos {
-		zap.L().Info("updating node info",
-			zap.String("node-name", nodeName),
-			zap.String("whitelisted-subnets", whitelistedSubnets),
-		)
-		v.WhitelistedSubnets = whitelistedSubnets
-		lc.nodeInfos[nodeName] = v
-	}
 	for i := range lc.cfg.NodeConfigs {
 		nodeName := lc.cfg.NodeConfigs[i].Name
 
-		zap.L().Info("updating node config and info",
+		zap.L().Info("updating node config",
 			zap.String("node-name", nodeName),
 			zap.String("whitelisted-subnets", whitelistedSubnets),
 		)
@@ -345,10 +329,6 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 		if err != nil {
 			return err
 		}
-
-		v := lc.nodeInfos[nodeName]
-		v.Config = []byte(lc.cfg.NodeConfigs[i].ConfigFile)
-		lc.nodeInfos[nodeName] = v
 	}
 	zap.L().Info("restarting all nodes to whitelist subnet",
 		zap.Strings("whitelisted-subnets", whitelistedSubnetIDs),
