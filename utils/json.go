@@ -5,25 +5,19 @@ package utils
 
 import "encoding/json"
 
-// Update the JSON body if the matching key is found
-// and replace the value.
+// Set k=v in JSON string
 // e.g., "whitelisted-subnets" is the key and value is "a,b,c".
-func UpdateJSONKey(jsonBody string, k string, v string) (string, error) {
+func SetJSONKey(jsonBody string, k string, v string) (string, error) {
 	var config map[string]interface{}
 
 	if err := json.Unmarshal([]byte(jsonBody), &config); err != nil {
 		return "", err
 	}
 
-	if _, ok := config[k]; ok {
-		if v == "" {
-			delete(config, k)
-		} else {
-			config[k] = v
-		}
+	if v == "" {
+		delete(config, k)
 	} else {
-		// if the key wasn't found, no need to marshal again, just return original
-		return jsonBody, nil
+		config[k] = v
 	}
 
 	updatedJSON, err := json.Marshal(config)

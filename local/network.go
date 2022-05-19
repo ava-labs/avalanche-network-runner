@@ -721,7 +721,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
 		configFile := nodeConfig.ConfigFile
-		configFile, err := utils.UpdateJSONKey(configFile, config.LogsDirKey, "")
+		configFile, err := utils.SetJSONKey(configFile, config.LogsDirKey, "")
 		if err != nil {
 			return err
 		}

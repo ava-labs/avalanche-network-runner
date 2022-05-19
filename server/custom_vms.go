@@ -341,7 +341,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 		)
 
 		// replace WhitelistedSubnetsKey flag
-		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.UpdateJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
+		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.SetJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
 		if err != nil {
 			return err
 		}
