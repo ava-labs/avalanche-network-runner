@@ -906,8 +906,7 @@ func testNetworkConfig(t *testing.T) network.Config {
 func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	healthyCh := net.Healthy(ctx)
-	return <-healthyCh
+	return net.Healthy(ctx)
 }
 
 func TestAddNetworkFlags(t *testing.T) {

@@ -91,16 +91,18 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
 
-	hc := lc.nw.Healthy(ctx)
-	select {
-	case <-lc.stopc:
-		return errAborted
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-hc:
-		if err != nil {
-			return err
+	healthyCtx, healthyCtxCancel := context.WithCancel(ctx)
+	defer healthyCtxCancel()
+	go func() {
+		select {
+		case <-lc.stopc:
+			healthyCtxCancel()
+		case <-healthyCtx.Done():
 		}
+	}()
+
+	if err := lc.nw.Healthy(healthyCtx); err != nil {
+		return err
 	}
 
 	for nodeName, nodeInfo := range lc.nodeInfos {
