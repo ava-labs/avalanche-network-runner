@@ -305,6 +305,7 @@ message LoadSnapshotRequest {
 }
 
 message LoadSnapshotResponse {
+  ClusterInfo cluster_info = 1;
 }
 
 message RemoveSnapshotRequest {

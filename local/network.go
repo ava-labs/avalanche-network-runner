@@ -457,6 +457,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		dbDir:       dbDir,
 		logsDir:     logsDir,
 		binaryPath:  nodeConfig.BinaryPath,
+		configFile:  nodeConfig.ConfigFile,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.

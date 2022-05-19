@@ -103,6 +103,7 @@ type localNetworkOptions struct {
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	lcfg := logging.DefaultConfig
 	lcfg.Directory = opts.rootDataDir
+	fmt.Println(opts.rootDataDir)
 	logFactory := logging.NewFactory(lcfg)
 	logger, err := logFactory.Make("main")
 	if err != nil {
@@ -288,9 +289,8 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
 	defer func() {
 		close(lc.startDonec)
 	}()
-
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, os.TempDir(), "")
+	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, "")
 	if err != nil {
 		lc.startErrc <- err
 		return
@@ -301,7 +301,6 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
 		return
 	}
 	lc.nw = nw
-
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrc <- err
 		return
@@ -361,9 +360,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 		lc.nodeInfos[name].ExecPath = node.GetBinaryPath()
 		lc.nodeInfos[name].LogDir = node.GetLogsDir()
 		lc.nodeInfos[name].DbDir = node.GetDbDir()
-		//lc.nodeInfos[name].Config
-		//lc.nodeInfos[name].PluginDir
-		//lc.nodeInfos[name].WhitelistedSubnets
+		lc.nodeInfos[name].Config = []byte(node.GetConfigFile())
 	}
 	return nil
 }

@@ -956,7 +956,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		}
 	}()
 
-	return &rpcpb.LoadSnapshotResponse{}, nil
+	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {

@@ -37,6 +37,7 @@ type Node interface {
 	GetBinaryPath() string
 	GetDbDir() string
 	GetLogsDir() string
+	GetConfigFile() string
 }
 
 // Config encapsulates an avalanchego configuration

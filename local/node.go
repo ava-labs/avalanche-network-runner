@@ -83,6 +83,7 @@ type localNode struct {
 	binaryPath  string
 	dbDir       string
 	logsDir     string
+	configFile  string
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -207,4 +208,8 @@ func (node *localNode) GetDbDir() string {
 
 func (node *localNode) GetLogsDir() string {
 	return node.logsDir
+}
+
+func (node *localNode) GetConfigFile() string {
+	return node.configFile
 }
