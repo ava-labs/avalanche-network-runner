@@ -472,20 +472,20 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 		}
 	}()
 
-	errGr, cctx := errgroup.WithContext(ctx)
+	errGr, ctx := errgroup.WithContext(ctx)
 	for _, node := range ln.nodes {
 		node := node
 		errGr.Go(func() error {
 			// Every [healthCheckFreq], query node for health status.
 			// Do this until ctx timeout or network closed.
 			for {
-				health, err := node.client.HealthAPI().Health(cctx)
+				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
 					ln.log.Debug("node %q became healthy", node.name)
 					return nil
 				}
 				select {
-				case <-cctx.Done():
+				case <-ctx.Done():
 					return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
 				case <-time.After(healthCheckFreq):
 				}
