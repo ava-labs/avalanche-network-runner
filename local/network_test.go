@@ -1256,6 +1256,8 @@ func TestHealthyDuringNetworkStop(t *testing.T) {
 	go func() {
 		healthyChan <- net.Healthy(context.Background())
 	}()
+	// Sleep to make sure that the health API call is actually in progress
+	time.Sleep(healthCheckFreq + 500*time.Millisecond)
 	err = net.Stop(context.Background())
 	assert.NoError(err)
 	select {
