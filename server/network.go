@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -166,7 +167,12 @@ func (lc *localNetwork) fillDefaultConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.options.pluginDir, lc.options.whitelistedSubnets)
+		pluginDir := filepath.Clean(lc.options.pluginDir)
+		if filepath.Base(pluginDir) != "plugins" {
+			return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+		}
+		buildDir := filepath.Dir(pluginDir)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
 		}
@@ -226,22 +232,22 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(config map[string]interface{}, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(configFileMap map[string]interface{}, logDir string, dbDir string, buildDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
-	if config["log-dir"] != "" {
-		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
+	if configFileMap[config.LogsDirKey] != "" {
+		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.LogsDirKey))
 	}
-	config["log-dir"] = logDir
-	if config["db-dir"] != "" {
-		zap.L().Warn("ignoring 'db-dir' config entry provided; the network runner needs to set its own")
+	configFileMap[config.LogsDirKey] = logDir
+	if configFileMap[config.DBPathKey] != "" {
+		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.DBPathKey))
 	}
-	config["db-dir"] = dbDir
-	config["plugin-dir"] = pluginDir
+	configFileMap[config.DBPathKey] = dbDir
+	configFileMap[config.BuildDirKey] = buildDir
 	// need to whitelist subnet ID to create custom VM chain
 	// ref. vms/platformvm/createChain
-	config["whitelisted-subnets"] = whitelistedSubnets
+	configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
 
-	finalJSON, err := json.Marshal(config)
+	finalJSON, err := json.Marshal(configFileMap)
 	if err != nil {
 		return "", err
 	}

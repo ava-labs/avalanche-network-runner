@@ -799,8 +799,7 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
-		baseTargetDir := filepath.Join(filepath.Join(ln.rootDir, "from_snapshot"), nodeConfig.Name)
-		targetDbDir := filepath.Join(baseTargetDir, "db")
+		targetDbDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), "db")
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}

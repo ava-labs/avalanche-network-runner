@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -316,7 +317,7 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) (err error) {
 	println()
-	color.Outf("{{green}}restarting each node with --whitelisted-subnets{{/}}\n")
+	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
 	whitelistedSubnetIDs := make([]string, 0, len(lc.customVMIDToInfo))
 	for _, vmInfo := range lc.customVMIDToInfo {
 		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
@@ -339,8 +340,8 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) 
 			zap.String("whitelisted-subnets", whitelistedSubnets),
 		)
 
-		// replace "whitelisted-subnets" flag
-		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.UpdateJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, "whitelisted-subnets", whitelistedSubnets)
+		// replace WhitelistedSubnetsKey flag
+		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.UpdateJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
 		if err != nil {
 			return err
 		}
