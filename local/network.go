@@ -115,9 +115,7 @@ func init() {
 	}
 
 	defaultNetworkConfig = network.Config{
-		//Name:        "my network",
 		NodeConfigs: make([]node.Config, DefaultNumNodes),
-		//LogLevel:    "INFO",
 	}
 
 	genesis, err := fs.ReadFile(configsDir, "genesis.json")
