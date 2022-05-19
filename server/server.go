@@ -44,6 +44,7 @@ type Config struct {
 	GwDisabled          bool
 	DialTimeout         time.Duration
 	RedirectNodesOutput bool
+	SnapshotsDir        string
 }
 
 type Server interface {
@@ -344,6 +345,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		// so it would not deadlock with the acquired lock
 		// in this "Start" method
 		restartMu: s.mu,
+
+		snapshotsDir: s.cfg.SnapshotsDir,
 	})
 	if err != nil {
 		return nil, err
@@ -920,6 +923,8 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		// so it would not deadlock with the acquired lock
 		// in this "Start" method
 		restartMu: s.mu,
+
+		snapshotsDir: s.cfg.SnapshotsDir,
 	})
 	if err != nil {
 		return nil, err
@@ -1002,7 +1007,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	zap.L().Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
-	nw, err := local.NewNetwork(nil, "", "")
+	nw, err := local.NewNetwork(nil, "", s.cfg.SnapshotsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,7 +1020,7 @@ func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRe
 
 func (s *server) GetSnapshotNames(ctx context.Context, req *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
 	zap.L().Info("get snapshot names")
-	nw, err := local.NewNetwork(nil, "", "")
+	nw, err := local.NewNetwork(nil, "", s.cfg.SnapshotsDir)
 	if err != nil {
 		return nil, err
 	}

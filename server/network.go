@@ -99,6 +99,8 @@ type localNetworkOptions struct {
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
+
+	snapshotsDir string
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -260,7 +262,7 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, os.TempDir(), "")
+	nw, err := local.NewNetwork(lc.logger, os.TempDir(), lc.options.snapshotsDir)
 	if err != nil {
 		lc.startErrc <- err
 		return
@@ -296,7 +298,7 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) {
 		close(lc.startDonec)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, "")
+	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
 		lc.startErrc <- err
 		return
