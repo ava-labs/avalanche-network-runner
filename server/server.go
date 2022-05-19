@@ -974,7 +974,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		case <-s.network.stopc:
 			return
 		case serr := <-s.network.startErrc:
-			zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
+			zap.L().Warn("snapshot load failed to complete", zap.Error(serr))
 			s.mu.Lock()
 			s.network = nil
 			s.clusterInfo = nil
