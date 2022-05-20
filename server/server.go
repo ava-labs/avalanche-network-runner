@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -267,7 +266,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			); err != nil {
 				return nil, err
 			}
-			b, err := ioutil.ReadFile(vmGenesisFilePath)
+			b, err := os.ReadFile(vmGenesisFilePath)
 			if err != nil {
 				return nil, err
 			}
@@ -298,7 +297,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		err                error
 	)
 	if len(rootDataDir) == 0 {
-		rootDataDir, err = ioutil.TempDir(os.TempDir(), "network-runner-root-data")
+		rootDataDir, err = os.MkdirTemp(os.TempDir(), "network-runner-root-data")
 		if err != nil {
 			return nil, err
 		}
@@ -879,7 +878,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		err error
 	)
 
-	rootDataDir, err := ioutil.TempDir(os.TempDir(), "network-runner-root-data")
+	rootDataDir, err := os.MkdirTemp(os.TempDir(), "network-runner-root-data")
 	if err != nil {
 		return nil, err
 	}

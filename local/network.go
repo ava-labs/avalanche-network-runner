@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -767,7 +766,7 @@ func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) e
 		return fmt.Errorf("snapshot %q does not exists", snapshotName)
 	}
 	// load network config
-	networkConfigJSON, err := ioutil.ReadFile(filepath.Join(snapshotDir, "network.json"))
+	networkConfigJSON, err := os.ReadFile(filepath.Join(snapshotDir, "network.json"))
 	if err != nil {
 		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
 	}

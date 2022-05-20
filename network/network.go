@@ -12,8 +12,12 @@ var ErrStopped = errors.New("network stopped")
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
-	// Load network config
+	// Initializes and starts the network using the given config
+	// To be executed after network creation. Enables the other calls.
 	LoadConfig(context.Context, Config) error
+	// Initializes and starts network using the given snapshot
+	// To be executed after network creation. Enables the other calls.
+	LoadSnapshot(context.Context, string) error
 	// Returns a chan that is closed when
 	// all the nodes in the network are healthy.
 	// If an error is sent on this channel, at least 1
@@ -45,8 +49,6 @@ type Network interface {
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
 	SaveSnapshot(context.Context, string) error
-	// Load network snapshot
-	LoadSnapshot(context.Context, string) error
 	// Remove network snapshot
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
