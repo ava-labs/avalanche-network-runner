@@ -11,7 +11,7 @@ var ErrStopped = errors.New("network stopped")
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
-	// Returns true if all the nodes in the network are healthy.
+	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.
 	Healthy(context.Context) error
