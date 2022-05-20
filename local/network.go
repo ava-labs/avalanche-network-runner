@@ -66,8 +66,9 @@ type localNetwork struct {
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
 	nodeProcessCreator NodeProcessCreator
-	// Closed when network is done shutting down
-	closedOnStopCh chan struct{}
+	stopOnce           sync.Once
+	// Closed when Stop begins.
+	onStopCh chan struct{}
 	// For node name generation
 	nextNodeSuffix uint64
 	// Node Name --> Node
@@ -166,7 +167,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	if config.RedirectStdout {
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			return nil, fmt.Errorf("Could not create stdout pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stdout pipe: %s", err)
 		}
 		// redirect stdout and assign a color to the text
 		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
@@ -174,7 +175,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	if config.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
-			return nil, fmt.Errorf("Could not create stderr pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stderr pipe: %s", err)
 		}
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
@@ -229,7 +230,7 @@ func newNetwork(
 		networkID:          networkID,
 		genesis:            []byte(networkConfig.Genesis),
 		nodes:              map[string]*localNode{},
-		closedOnStopCh:     make(chan struct{}),
+		onStopCh:           make(chan struct{}),
 		log:                log,
 		bootstraps:         beacon.NewSet(),
 		newAPIClientF:      newAPIClientF,
@@ -359,14 +360,15 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	if ln.stopCalled() {
+		return nil, network.ErrStopped
+	}
+
 	return ln.addNode(nodeConfig)
 }
 
-// Assumes [ln.lock] is held.
+// Assumes [ln.lock] is held and [ln.Stop] hasn't been called.
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
-	if ln.isStopped() {
-		return nil, network.ErrStopped
-	}
 
 	if nodeConfig.Flags == nil {
 		nodeConfig.Flags = make(map[string]interface{})
@@ -435,51 +437,53 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 }
 
 // See network.Network
-func (ln *localNetwork) Healthy(ctx context.Context) chan error {
+func (ln *localNetwork) Healthy(ctx context.Context) error {
+	ln.lock.RLock()
+	defer ln.lock.RUnlock()
+
 	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
-	healthyChan := make(chan error, 1)
 
 	// Return unhealthy if the network is stopped
-	if ln.isStopped() {
-		healthyChan <- network.ErrStopped
-		return healthyChan
+	if ln.stopCalled() {
+		return network.ErrStopped
 	}
 
-	go func() {
-		// TODO: This will block the network for the duration of the health call.
-		// Maybe a better solution can be found.
-		ln.lock.RLock()
-		defer ln.lock.RUnlock()
+	// Derive a new context that's cancelled when Stop is called,
+	// so that we calls to Healthy() below immediately return.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func(ctx context.Context) {
+		// This goroutine runs until [ln.Stop] is called
+		// or this function returns.
+		select {
+		case <-ln.onStopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}(ctx)
 
-		errGr, cctx := errgroup.WithContext(ctx)
-		for _, node := range ln.nodes {
-			node := node
-			errGr.Go(func() error {
-				// Every constants.HealthCheckInterval, query node for health status.
-				// Do this until ctx timeout
-				for {
-					select {
-					case <-ln.closedOnStopCh:
-						return network.ErrStopped
-					case <-cctx.Done():
-						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
-					case <-time.After(healthCheckFreq):
-					}
-					health, err := node.client.HealthAPI().Health(cctx)
-					if err == nil && health.Healthy {
-						ln.log.Debug("node %q became healthy", node.name)
-						return nil
-					}
+	errGr, ctx := errgroup.WithContext(ctx)
+	for _, node := range ln.nodes {
+		node := node
+		errGr.Go(func() error {
+			// Every [healthCheckFreq], query node for health status.
+			// Do this until ctx timeout or network closed.
+			for {
+				health, err := node.client.HealthAPI().Health(ctx)
+				if err == nil && health.Healthy {
+					ln.log.Debug("node %q became healthy", node.name)
+					return nil
 				}
-			})
-		}
-		// Wait until all nodes are ready or timeout
-		if err := errGr.Wait(); err != nil {
-			healthyChan <- err
-		}
-		close(healthyChan)
-	}()
-	return healthyChan
+				select {
+				case <-ctx.Done():
+					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", node.GetName())
+				case <-time.After(healthCheckFreq):
+				}
+			}
+		})
+	}
+	// Wait until all nodes are ready or timeout
+	return errGr.Wait()
 }
 
 // See network.Network
@@ -487,7 +491,7 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if ln.isStopped() {
+	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
 
@@ -503,7 +507,7 @@ func (ln *localNetwork) GetNodeNames() ([]string, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if ln.isStopped() {
+	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
 
@@ -521,7 +525,7 @@ func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if ln.isStopped() {
+	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
 
@@ -533,18 +537,22 @@ func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 }
 
 func (ln *localNetwork) Stop(ctx context.Context) error {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
+	err := network.ErrStopped
+	ln.stopOnce.Do(
+		func() {
+			close(ln.onStopCh)
 
-	return ln.stop(ctx)
+			ln.lock.Lock()
+			defer ln.lock.Unlock()
+
+			err = ln.stop(ctx)
+		},
+	)
+	return err
 }
 
-// Assumes [net.lock] is held
+// Assumes [ln.lock] is held.
 func (ln *localNetwork) stop(ctx context.Context) error {
-	if ln.isStopped() {
-		ln.log.Debug("stop() called multiple times")
-		return network.ErrStopped
-	}
 	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
 	errs := wrappers.Errs{}
@@ -563,24 +571,23 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 			errs.Add(err)
 		}
 	}
-	close(ln.closedOnStopCh)
 	ln.log.Info("done stopping network")
 	return errs.Err
 }
 
-// Sends a SIGTERM to the given node and removes it from this network
+// Sends a SIGTERM to the given node and removes it from this network.
 func (ln *localNetwork) RemoveNode(nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	if ln.stopCalled() {
+		return network.ErrStopped
+	}
 	return ln.removeNode(nodeName)
 }
 
-// Assumes [net.lock] is held
+// Assumes [ln.lock] is held.
 func (ln *localNetwork) removeNode(nodeName string) error {
-	if ln.isStopped() {
-		return network.ErrStopped
-	}
 	ln.log.Debug("removing node %q", nodeName)
 	node, ok := ln.nodes[nodeName]
 	if !ok {
@@ -603,10 +610,10 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	return nil
 }
 
-// Assumes [net.lock] is held
-func (ln *localNetwork) isStopped() bool {
+// Returns whether Stop has been called.
+func (ln *localNetwork) stopCalled() bool {
 	select {
-	case <-ln.closedOnStopCh:
+	case <-ln.onStopCh:
 		return true
 	default:
 		return false

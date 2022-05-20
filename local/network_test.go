@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -642,19 +643,19 @@ func TestStoppedNetwork(t *testing.T) {
 	assert.EqualValues(net.Stop(context.Background()), network.ErrStopped)
 	// AddNode failure
 	_, err = net.AddNode(networkConfig.NodeConfigs[1])
-	assert.EqualValues(err, network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, err)
 	// GetNode failure
 	_, err = net.GetNode(networkConfig.NodeConfigs[0].Name)
 	assert.EqualValues(err, network.ErrStopped)
 	// second GetNodeNames should return no nodes
 	_, err = net.GetNodeNames()
-	assert.EqualValues(err, network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, err)
 	// RemoveNode failure
-	assert.EqualValues(net.RemoveNode(networkConfig.NodeConfigs[0].Name), network.ErrStopped)
+	assert.EqualValues(network.ErrStopped, net.RemoveNode(networkConfig.NodeConfigs[0].Name))
 	// Healthy failure
 	assert.EqualValues(awaitNetworkHealthy(net, defaultHealthyTimeout), network.ErrStopped)
 	_, err = net.GetAllNodes()
-	assert.EqualValues(network.ErrStopped, err)
+	assert.EqualValues(err, network.ErrStopped)
 }
 
 func TestGetAllNodes(t *testing.T) {
@@ -906,8 +907,7 @@ func testNetworkConfig(t *testing.T) network.Config {
 func awaitNetworkHealthy(net network.Network, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	healthyCh := net.Healthy(ctx)
-	return <-healthyCh
+	return net.Healthy(ctx)
 }
 
 func TestAddNetworkFlags(t *testing.T) {
@@ -1215,4 +1215,57 @@ func TestRemoveBeacon(t *testing.T) {
 	err = net.RemoveNode(networkConfig.NodeConfigs[0].Name)
 	assert.NoError(err)
 	assert.Equal(0, net.bootstraps.Len())
+}
+
+// Returns an API client where:
+// * The Health API's Health method always returns an error after the
+//   given context is cancelled.
+// * The CChainEthAPI's Close method may be called
+// * Only the above 2 methods may be called
+func newMockAPIHealthyBlocks(ipAddr string, port uint16) api.Client {
+	healthClient := &healthmocks.Client{}
+	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool { return true }), mock.Anything).Return(
+		func(ctx context.Context, _ ...rpc.Option) *health.APIHealthReply {
+			<-ctx.Done()
+			return nil
+		},
+		func(ctx context.Context, _ ...rpc.Option) error {
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	)
+	// ethClient used when removing nodes, to close websocket connection
+	ethClient := &apimocks.EthClient{}
+	ethClient.On("Close").Return()
+	client := &apimocks.Client{}
+	client.On("HealthAPI").Return(healthClient)
+	client.On("CChainEthAPI").Return(ethClient)
+	return client
+}
+
+// Assert that if the network's Stop method is called while
+// a call to Healthy is ongoing, Healthy returns immediately.
+func TestHealthyDuringNetworkStop(t *testing.T) {
+	assert := assert.New(t)
+	networkConfig := testNetworkConfig(t)
+	// Calls to a node's Healthy() function blocks until context cancelled
+	net, err := newNetwork(logging.NoLog{}, networkConfig, newMockAPIHealthyBlocks, &localTestSuccessfulNodeProcessCreator{}, "")
+	assert.NoError(err)
+
+	healthyChan := make(chan error)
+	go func() {
+		healthyChan <- net.Healthy(context.Background())
+	}()
+	// Wait to make sure we're actually blocking on Health API call
+	time.Sleep(500 * time.Millisecond)
+	err = net.Stop(context.Background())
+	assert.NoError(err)
+	select {
+	case err := <-healthyChan:
+		assert.Error(err)
+	case <-time.After(1 * time.Second):
+		// Since [net.Stop] was called, [net.Healthy] should immediately return.
+		// We assume that it will do so within 1 second.
+		assert.Fail("Healthy should've returned immediately because network closed")
+	}
 }
