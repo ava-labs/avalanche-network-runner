@@ -69,13 +69,6 @@ type localNetwork struct {
 	stopOnce           sync.Once
 	// Closed when Stop begins.
 	onStopCh chan struct{}
-	// True if Stop has returned.
-	// This field only exists so that in removeNode,
-	// we know whether Stop has already completed, in
-	// which case we return an error, or not, in which
-	// case we proceed to remove all nodes.
-	// [lock] must be held while accessing this field.
-	stopped bool
 	// For node name generation
 	nextNodeSuffix uint64
 	// Node Name --> Node
@@ -367,14 +360,15 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addNode(nodeConfig)
-}
-
-// Assumes [ln.lock] is held.
-func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
+
+	return ln.addNode(nodeConfig)
+}
+
+// Assumes [ln.lock] is held and [ln.Stop] hasn't been called.
+func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	if nodeConfig.Flags == nil {
 		nodeConfig.Flags = make(map[string]interface{})
@@ -557,7 +551,7 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 	return err
 }
 
-// Assumes [ln.lock] is held
+// Assumes [ln.lock] is held.
 func (ln *localNetwork) stop(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
@@ -578,24 +572,22 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 		}
 	}
 	ln.log.Info("done stopping network")
-	ln.stopped = true
 	return errs.Err
 }
 
-// Sends a SIGTERM to the given node and removes it from this network
+// Sends a SIGTERM to the given node and removes it from this network.
 func (ln *localNetwork) RemoveNode(nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	if ln.stopCalled() {
+		return network.ErrStopped
+	}
 	return ln.removeNode(nodeName)
 }
 
-// Assumes [ln.lock] is held
+// Assumes [ln.lock] is held.
 func (ln *localNetwork) removeNode(nodeName string) error {
-	if ln.stopped {
-		return network.ErrStopped
-	}
-
 	ln.log.Debug("removing node %q", nodeName)
 	node, ok := ln.nodes[nodeName]
 	if !ok {
