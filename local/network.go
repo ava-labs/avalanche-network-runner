@@ -67,10 +67,8 @@ type localNetwork struct {
 	// Used to create new node processes
 	nodeProcessCreator NodeProcessCreator
 	stopOnce           sync.Once
-	// Cancelled when Stop begins.
-	onStopCtx context.Context
-	// Cancels [onStopCtx]
-	onStopCtxCancel func()
+	// Closed when Stop begins.
+	onStopCh chan struct{}
 	// True if Stop has returned.
 	// This field only exists so that in removeNode,
 	// we know whether Stop has already completed, in
@@ -234,14 +232,12 @@ func newNetwork(
 		return nil, fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
 
-	onStopCtx, onStopCtxCancel := context.WithCancel(context.Background())
 	// Create the network
 	net := &localNetwork{
 		networkID:          networkID,
 		genesis:            []byte(networkConfig.Genesis),
 		nodes:              map[string]*localNode{},
-		onStopCtx:          onStopCtx,
-		onStopCtxCancel:    onStopCtxCancel,
+		onStopCh:           make(chan struct{}),
 		log:                log,
 		bootstraps:         beacon.NewSet(),
 		newAPIClientF:      newAPIClientF,
@@ -466,7 +462,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 		// This goroutine runs until [ln.Stop] is called
 		// or this function returns.
 		select {
-		case <-ln.onStopCtx.Done():
+		case <-ln.onStopCh:
 			cancel()
 		case <-ctx.Done():
 		}
@@ -486,7 +482,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 				}
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
+					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", node.GetName())
 				case <-time.After(healthCheckFreq):
 				}
 			}
@@ -550,7 +546,7 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 	err := network.ErrStopped
 	ln.stopOnce.Do(
 		func() {
-			ln.onStopCtxCancel()
+			close(ln.onStopCh)
 
 			ln.lock.Lock()
 			defer ln.lock.Unlock()
@@ -625,7 +621,7 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 // Returns whether Stop has been called.
 func (ln *localNetwork) stopCalled() bool {
 	select {
-	case <-ln.onStopCtx.Done():
+	case <-ln.onStopCh:
 		return true
 	default:
 		return false
