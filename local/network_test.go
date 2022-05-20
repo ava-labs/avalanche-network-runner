@@ -1263,7 +1263,9 @@ func TestHealthyDuringNetworkStop(t *testing.T) {
 	select {
 	case err := <-healthyChan:
 		assert.Error(err)
-	case <-time.After(3 * time.Second):
+	case <-time.After(1 * time.Second):
+		// Since [net.Stop] was called, [net.Healthy] should immediately return.
+		// We assume that it will do so within 1 second.
 		assert.Fail("Healthy should've returned immediately because network closed")
 	}
 }
