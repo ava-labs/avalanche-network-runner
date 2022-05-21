@@ -352,16 +352,8 @@ var errAborted = errors.New("aborted")
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
 
-	hc := lc.nw.Healthy(ctx)
-	select {
-	case <-lc.stopc:
-		return errAborted
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-hc:
-		if err != nil {
-			return err
-		}
+	if err := lc.nw.Healthy(ctx); err != nil {
+		return err
 	}
 
 	if err := lc.updateNodeInfo(); err != nil {

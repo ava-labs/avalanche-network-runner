@@ -18,15 +18,10 @@ type Network interface {
 	// Initializes and starts network using the given snapshot
 	// To be executed after network creation. Enables the other calls.
 	LoadSnapshot(context.Context, string) error
-	// Returns a chan that is closed when
-	// all the nodes in the network are healthy.
-	// If an error is sent on this channel, at least 1
-	// node didn't become healthy before the timeout.
-	// If an error isn't sent on the channel before it
-	// closes, all the nodes are healthy.
+	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.
-	Healthy(context.Context) chan error
+	Healthy(context.Context) error
 	// Stop all the nodes.
 	// Returns ErrStopped if Stop() was previously called.
 	Stop(context.Context) error
