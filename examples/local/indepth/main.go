@@ -35,9 +35,6 @@ func shutdownOnSignal(
 ) {
 	sig := <-signalChan
 	log.Info("got OS signal %s", sig)
-	if err := n.Stop(context.Background()); err != nil {
-		log.Debug("error while stopping network: %s", err)
-	}
 	signal.Reset()
 	close(signalChan)
 	close(closedOnShutdownChan)
@@ -75,7 +72,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Debug("error stopping network: %w", err)
+			log.Info(fmt.Sprintf("error stopping network: %s", err))
 		}
 	}()
 	unexpectedNodeStopCh, err := nw.GetUnexpectedNodeStopChannel()
@@ -102,8 +99,10 @@ func run(log logging.Logger, binaryPath string) error {
 		if err != nil {
 			return err
 		}
-	case nodeName := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q", nodeName)
+	case unexpectedStopMsg := <-unexpectedNodeStopCh:
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
+	case <-closedOnShutdownCh:
+		return nil
 	}
 
 	// Print the node names
@@ -168,6 +167,8 @@ func run(log logging.Logger, binaryPath string) error {
 		}
 	case unexpectedStopMsg := <-unexpectedNodeStopCh:
 		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
+	case <-closedOnShutdownCh:
+		return nil
 	}
 
 	// Print the node names
@@ -180,9 +181,8 @@ func run(log logging.Logger, binaryPath string) error {
 	log.Info("Network will run until you CTRL + C to exit...")
 	// Wait until done shutting down network after SIGINT/SIGTERM
 	select {
-	case <-unexpectedNodeStopCh:
-		// Ctrl+C also kills childs before ANR does, so only use the event to stop, no notification
-		return nil
+	case unexpectedStopMsg := <-unexpectedNodeStopCh:
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
 	case <-closedOnShutdownCh:
 		return nil
 	}

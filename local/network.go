@@ -606,11 +606,11 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.GetAPIClient().CChainEthAPI().Close()
-	// Ctrl+C on terminal causes a kill for all process group
-	// so sometimes node is already stopped here
-	_ = node.process.Stop(ctx)
+	if err := node.process.Stop(ctx); err != nil {
+		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
+	}
 	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %q stopped with wait error: %w", nodeName, err)
+		return fmt.Errorf("node %s stopped with error: %w", nodeName, err)
 	}
 	return nil
 }
