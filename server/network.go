@@ -50,7 +50,6 @@ type localNetwork struct {
 
 	nw network.Network
 
-	// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 	nodeNames []string
 	nodeInfos map[string]*rpcpb.NodeInfo
 

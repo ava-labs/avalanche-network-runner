@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix = "node-"
+	defaultNodeNamePrefix = "node"
 	configFileName        = "config.json"
 	stakingKeyFileName    = "staking.key"
 	stakingCertFileName   = "staking.crt"
@@ -249,6 +249,7 @@ func newNetwork(
 	}
 	// Create the network
 	net := &localNetwork{
+		nextNodeSuffix:     1,
 		nodes:              map[string]*localNode{},
 		closedOnStopCh:     make(chan struct{}),
 		log:                log,
@@ -867,8 +868,14 @@ func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, no
 func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 	// If no name was given, use default name pattern
 	if len(nodeConfig.Name) == 0 {
-		nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
-		ln.nextNodeSuffix++
+		for {
+			nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
+			ln.nextNodeSuffix++
+			_, ok := ln.nodes[nodeConfig.Name]
+			if !ok {
+				break
+			}
+		}
 	}
 	// Enforce name uniqueness
 	if _, ok := ln.nodes[nodeConfig.Name]; ok {

@@ -435,14 +435,14 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				Genesis: "{\"networkID\": 0}",
 				NodeConfigs: []node.Config{
 					{
-						Name:        "node0",
+						Name:        "node1",
 						BinaryPath:  "pepe",
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[0].StakingKey,
 						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
 					},
 					{
-						Name:        "node0",
+						Name:        "node1",
 						BinaryPath:  "pepe",
 						IsBeacon:    true,
 						StakingKey:  refNetworkConfig.NodeConfigs[1].StakingKey,
@@ -518,23 +518,23 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 		ID   string
 	}{
 		{
-			"node-0",
+			"node1",
 			"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
 		},
 		{
-			"node-1",
+			"node2",
 			"NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
 		},
 		{
-			"node-2",
+			"node3",
 			"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
 		},
 		{
-			"node-3",
+			"node4",
 			"NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
 		},
 		{
-			"node-4",
+			"node5",
 			"NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
 		},
 	} {
@@ -990,20 +990,21 @@ func TestSetNodeName(t *testing.T) {
 	assert := assert.New(t)
 
 	ln := &localNetwork{
-		nodes: make(map[string]*localNode),
+		nodes:          make(map[string]*localNode),
+		nextNodeSuffix: 1,
 	}
 
 	// Case: No name given
 	config := &node.Config{Name: ""}
 	err := ln.setNodeName(config)
 	assert.NoError(err)
-	assert.Equal("node-0", config.Name)
+	assert.Equal("node1", config.Name)
 
 	// Case: No name given again
 	config.Name = ""
 	err = ln.setNodeName(config)
 	assert.NoError(err)
-	assert.Equal("node-1", config.Name)
+	assert.Equal("node2", config.Name)
 
 	// Case: name given
 	config.Name = "hi"
@@ -1015,7 +1016,7 @@ func TestSetNodeName(t *testing.T) {
 	config.Name = ""
 	err = ln.setNodeName(config)
 	assert.NoError(err)
-	assert.Equal("node-2", config.Name)
+	assert.Equal("node3", config.Name)
 
 	// Case: name already present
 	config.Name = "hi"
