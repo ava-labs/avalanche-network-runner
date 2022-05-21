@@ -182,7 +182,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return &nodeProcessImpl{name: config.Name, cmd: cmd}, nil
+	return newNodeProcessImpl(config.Name, cmd), nil
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
