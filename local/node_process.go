@@ -44,14 +44,14 @@ type nodeProcessImpl struct {
 	name string
 	lock sync.RWMutex
 	cmd  *exec.Cmd
-	// to notify Wait() on process stop, and give wait return
-	waitReturnCh chan error
 	// to notify user of not asked process stops
 	unexpectedStopCh chan network.UnexpectedNodeStopMsg
 	// maintains process state Initial/Started/Stopping/Stopped/Waited
 	state processState
-	// to notify SIGKILL goroutine of process end
-	closeOnStop chan struct{}
+	// to notify on process stop
+	closedOnStop chan struct{}
+	// wait return
+	waitReturn error
 }
 
 type processState int
@@ -68,8 +68,7 @@ func newNodeProcessImpl(name string, cmd *exec.Cmd) *nodeProcessImpl {
 	return &nodeProcessImpl{
 		name:         name,
 		cmd:          cmd,
-		waitReturnCh: make(chan error, 1),
-		closeOnStop:  make(chan struct{}),
+		closedOnStop: make(chan struct{}),
 	}
 }
 
@@ -90,11 +89,11 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 		var status syscall.WaitStatus
 		var rusage syscall.Rusage
 		_, err := syscall.Wait4(p.cmd.Process.Pid, &status, 0, &rusage)
-		p.waitReturnCh <- err
 		p.lock.Lock()
 		state := p.state
 		p.state = Stopped
-		close(p.closeOnStop)
+		p.waitReturn = err
+		close(p.closedOnStop)
 		p.lock.Unlock()
 		if state != Stopping {
 			p.unexpectedStopCh <- network.UnexpectedNodeStopMsg{
@@ -116,11 +115,11 @@ func (p *nodeProcessImpl) Wait() error {
 	if state == Waited {
 		return nil
 	}
-	waitReturn := <-p.waitReturnCh
+	<-p.closedOnStop
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.state = Waited
-	return waitReturn
+	return p.waitReturn
 }
 
 // if context is cancelled, assumes a failure in termination
@@ -141,7 +140,7 @@ func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 		case <-ctx.Done():
 			_ = killDescendants(int32(p.cmd.Process.Pid))
 			_ = p.cmd.Process.Signal(syscall.SIGKILL)
-		case <-p.closeOnStop:
+		case <-p.closedOnStop:
 		}
 	}()
 	return stopResult
