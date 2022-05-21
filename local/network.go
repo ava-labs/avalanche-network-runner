@@ -616,6 +616,8 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 }
 
 func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan network.UnexpectedNodeStopMsg, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 	if ln.isStopped() {
 		return nil, network.ErrStopped
 	}
