@@ -46,7 +46,7 @@ type nodeProcessImpl struct {
 	cmd  *exec.Cmd
 	// to notify user of not asked process stops
 	unexpectedStopCh chan network.UnexpectedNodeStopMsg
-	// maintains process state Initial/Started/Stopping/Stopped/Waited
+	// maintains process state Initial/Started/Stopping/Stopped
 	state processState
 	// to notify on process stop
 	closedOnStop chan struct{}
@@ -57,11 +57,14 @@ type nodeProcessImpl struct {
 type processState int
 
 const (
+	// state just after creating the node process
 	Initial processState = iota
+	// process has been started and not yet asked to stop or found to be stopped
 	Started
+	// process has been asked to stop
 	Stopping
+	// process is verified to be stopped
 	Stopped
-	Waited
 )
 
 func newNodeProcessImpl(name string, cmd *exec.Cmd) *nodeProcessImpl {
@@ -112,14 +115,13 @@ func (p *nodeProcessImpl) Wait() error {
 	if state == Initial {
 		return errors.New("wait called on invalid state")
 	}
-	if state == Waited {
-		return nil
-	}
 	<-p.closedOnStop
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.state = Waited
-	return p.waitReturn
+	// only return wait err first time is called
+	waitReturn := p.waitReturn
+	p.waitReturn = nil
+	return waitReturn
 }
 
 // if context is cancelled, assumes a failure in termination
