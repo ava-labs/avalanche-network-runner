@@ -48,7 +48,7 @@ type nodeProcessImpl struct {
 	unexpectedStopCh chan network.UnexpectedNodeStopMsg
 	// maintains process state Initial/Started/Stopping/Stopped
 	state processState
-	// to notify on process stop
+	// closed when the AvalancheGo process returns
 	closedOnStop chan struct{}
 	// wait return
 	waitReturn error
