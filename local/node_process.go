@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -118,13 +119,13 @@ func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	if p.state != node.Started {
 		return nil
 	}
-	stopResult := p.cmd.Process.Signal(syscall.SIGTERM)
+	stopResult := p.cmd.Process.Signal(os.Interrupt)
 	p.state = node.Stopping
 	go func() {
 		select {
 		case <-ctx.Done():
 			_ = killDescendants(int32(p.cmd.Process.Pid))
-			_ = p.cmd.Process.Signal(syscall.SIGKILL)
+			_ = p.cmd.Process.Signal(os.Kill)
 		case <-p.closedOnStop:
 		}
 	}()
