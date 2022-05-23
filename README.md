@@ -655,16 +655,10 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-  // Returns a chan that is closed when
-  // all the nodes in the network are healthy.
-  // If an error is sent on this channel, at least 1
-  // node didn't become healthy before the timeout.
-  // If an error isn't sent on the channel before it
-  // closes, all the nodes are healthy.
+  // Returns nil if all the nodes in the network are healthy.
   // A stopped network is considered unhealthy.
   // Timeout is given by the context parameter.
-  // [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
-  Healthy(context.Context) chan error
+  Healthy(context.Context) error
   // Stop all the nodes.
   // Returns ErrStopped if Stop() was previously called.
   Stop(context.Context) error

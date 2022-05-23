@@ -87,17 +87,9 @@ func run(log logging.Logger, binaryPath string) error {
 	// Wait until the nodes in the network are ready
 	ctx, cancel := context.WithTimeout(context.Background(), healthyTimeout)
 	defer cancel()
-	healthyChan := nw.Healthy(ctx)
 	log.Info("waiting for all nodes to report healthy...")
-	select {
-	case err := <-healthyChan:
-		if err != nil {
-			return err
-		}
-	case unexpectedStopMsg := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.NodeName, unexpectedStopMsg.ExitCode)
-	case <-closedOnShutdownCh:
-		return nil
+	if err := nw.Healthy(ctx); err != nil {
+		return err
 	}
 
 	log.Info("All nodes healthy. Network will run until you CTRL + C to exit...")
