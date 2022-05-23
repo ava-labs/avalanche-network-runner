@@ -83,7 +83,7 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 		p.lock.Unlock()
 		if state != node.Stopping {
 			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
-				Name:     p.name,
+				NodeName: p.name,
 				ExitCode: status.ExitStatus(),
 			}
 		}

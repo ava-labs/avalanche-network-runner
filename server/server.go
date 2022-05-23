@@ -889,28 +889,36 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 
 func (s *server) handleUnexpectedNodeStop(unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg) {
 	for {
-		unexpectedStopMsg := <-unexpectedNodeStopCh
-		zap.L().Info(
-			"received unexpected node stop message",
-			zap.String("node-name", unexpectedStopMsg.Name),
-			zap.Int("exit-code", unexpectedStopMsg.ExitCode),
-		)
-		s.mu.Lock()
-		if s.clusterInfo == nil {
-			s.mu.Unlock()
+		select {
+		case <-s.closed:
 			return
-		}
-		_, ok := s.network.nodeInfos[unexpectedStopMsg.Name]
-		if ok {
-			zap.L().Warn(
-				"node with unexpected stop message not found in nodeInfos",
-				zap.String("node-name", unexpectedStopMsg.Name),
+		case <-s.network.stopc:
+			return
+		case <-s.network.startErrc:
+			return
+		case unexpectedStopMsg := <-unexpectedNodeStopCh:
+			zap.L().Info(
+				"received unexpected node stop message",
+				zap.String("node-name", unexpectedStopMsg.NodeName),
+				zap.Int("exit-code", unexpectedStopMsg.ExitCode),
 			)
-			s.network.nodeInfos[unexpectedStopMsg.Name].Alive = false
-			s.clusterInfo.NodeInfos = s.network.nodeInfos
-			s.clusterInfo.Healthy = false
+			s.mu.Lock()
+			if s.clusterInfo == nil {
+				s.mu.Unlock()
+				return
+			}
+			_, ok := s.network.nodeInfos[unexpectedStopMsg.NodeName]
+			if ok {
+				zap.L().Warn(
+					"node with unexpected stop message not found in nodeInfos",
+					zap.String("node-name", unexpectedStopMsg.NodeName),
+				)
+				s.network.nodeInfos[unexpectedStopMsg.NodeName].Alive = false
+				s.clusterInfo.NodeInfos = s.network.nodeInfos
+				s.clusterInfo.Healthy = false
+			}
+			s.mu.Unlock()
 		}
-		s.mu.Unlock()
 	}
 }
 

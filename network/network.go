@@ -10,7 +10,7 @@ import (
 var ErrStopped = errors.New("network stopped")
 
 type UnexpectedNodeStopMsg struct {
-	Name     string
+	NodeName string
 	ExitCode int
 }
 
