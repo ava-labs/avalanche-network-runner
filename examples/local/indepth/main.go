@@ -35,6 +35,9 @@ func shutdownOnSignal(
 ) {
 	sig := <-signalChan
 	log.Info("got OS signal %s", sig)
+	if err := n.Stop(context.Background()); err != nil {
+		log.Info(fmt.Sprintf("error stopping network: %s", err))
+	}
 	signal.Reset()
 	close(signalChan)
 	close(closedOnShutdownChan)
