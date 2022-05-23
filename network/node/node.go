@@ -13,6 +13,20 @@ import (
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 )
 
+// State of the node's process
+type ProcessState int
+
+const (
+	// state just after creating the node process
+	Initial ProcessState = iota
+	// process has been started and not yet asked to stop or found to be stopped
+	Started
+	// process has been asked to stop
+	Stopping
+	// process is verified to be stopped
+	Stopped
+)
+
 // Node represents an AvalancheGo node
 type Node interface {
 	// Return this node's name, which is unique
@@ -34,8 +48,8 @@ type Node interface {
 	// It's left to the caller to maintain a reference to the returned peer.
 	// The caller should call StartClose() on the peer when they're done with it.
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
-	// Return true if the node process is executing
-	Alive() bool
+	// Return the state of the node process
+	Status() ProcessState
 }
 
 // Config encapsulates an avalanchego configuration

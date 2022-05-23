@@ -456,30 +456,30 @@ func (ln *localNetwork) Healthy(ctx context.Context) chan error {
 		defer ln.lock.RUnlock()
 
 		errGr, cctx := errgroup.WithContext(ctx)
-		for _, node := range ln.nodes {
-			node := node
+		for _, lnNode := range ln.nodes {
+			lnNode := lnNode
 			errGr.Go(func() error {
 				// Every constants.HealthCheckInterval, query node for health status.
 				// Do this until ctx timeout
 				for {
 					// fast response if died previously
-					if !node.Alive() {
-						return fmt.Errorf("unexpected stop on node %q", node.GetName())
+					if lnNode.Status() != node.Started {
+						return fmt.Errorf("unexpected stop on node %q", lnNode.GetName())
 					}
 					select {
 					case <-ln.closedOnStopCh:
 						return network.ErrStopped
 					case <-cctx.Done():
-						return fmt.Errorf("node %q failed to become healthy within timeout", node.GetName())
+						return fmt.Errorf("node %q failed to become healthy within timeout", lnNode.GetName())
 					case <-time.After(healthCheckFreq):
 					}
 					// safe check if failed on node start
-					if !node.Alive() {
-						return fmt.Errorf("unexpected stop on node %q", node.GetName())
+					if lnNode.Status() != node.Started {
+						return fmt.Errorf("unexpected stop on node %q", lnNode.GetName())
 					}
-					health, err := node.GetAPIClient().HealthAPI().Health(cctx)
+					health, err := lnNode.GetAPIClient().HealthAPI().Health(cctx)
 					if err == nil && health.Healthy {
-						ln.log.Debug("node %q became healthy", node.name)
+						ln.log.Debug("node %q became healthy", lnNode.GetName())
 						return nil
 					}
 				}

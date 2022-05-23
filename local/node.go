@@ -165,8 +165,8 @@ func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
 }
 
-func (node *localNode) Alive() bool {
-	return node.process.Alive()
+func (node *localNode) Status() node.ProcessState {
+	return node.process.Status()
 }
 
 func killDescendants(pid int32) error {
