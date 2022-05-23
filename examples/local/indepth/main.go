@@ -100,7 +100,7 @@ func run(log logging.Logger, binaryPath string) error {
 			return err
 		}
 	case unexpectedStopMsg := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.NodeName, unexpectedStopMsg.ExitCode)
 	case <-closedOnShutdownCh:
 		return nil
 	}
@@ -166,7 +166,7 @@ func run(log logging.Logger, binaryPath string) error {
 			return err
 		}
 	case unexpectedStopMsg := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.NodeName, unexpectedStopMsg.ExitCode)
 	case <-closedOnShutdownCh:
 		return nil
 	}
@@ -182,7 +182,7 @@ func run(log logging.Logger, binaryPath string) error {
 	// Wait until done shutting down network after SIGINT/SIGTERM
 	select {
 	case unexpectedStopMsg := <-unexpectedNodeStopCh:
-		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.Name, unexpectedStopMsg.ExitCode)
+		return fmt.Errorf("unexpected stop of node %q with exit status %d", unexpectedStopMsg.NodeName, unexpectedStopMsg.ExitCode)
 	case <-closedOnShutdownCh:
 		return nil
 	}
