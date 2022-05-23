@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"fmt"
 	"net"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -22,7 +21,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/shirou/gopsutil/process"
 )
 
 // interface compliance
@@ -167,25 +165,4 @@ func (node *localNode) GetAPIPort() uint16 {
 
 func (node *localNode) Status() node.ProcessState {
 	return node.process.Status()
-}
-
-func killDescendants(pid int32) error {
-	procs, err := process.Processes()
-	if err != nil {
-		return err
-	}
-	for _, proc := range procs {
-		ppid, err := proc.Ppid()
-		if err != nil {
-			return err
-		}
-		if ppid != pid {
-			continue
-		}
-		if err := killDescendants(proc.Pid); err != nil {
-			return err
-		}
-		_ = syscall.Kill(int(proc.Pid), syscall.SIGKILL)
-	}
-	return nil
 }

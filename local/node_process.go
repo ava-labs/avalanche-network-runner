@@ -9,6 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/shirou/gopsutil/process"
 )
 
 // interface compliance
@@ -134,4 +135,25 @@ func (p *nodeProcessImpl) Status() node.ProcessState {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.state
+}
+
+func killDescendants(pid int32) error {
+	procs, err := process.Processes()
+	if err != nil {
+		return err
+	}
+	for _, proc := range procs {
+		ppid, err := proc.Ppid()
+		if err != nil {
+			return err
+		}
+		if ppid != pid {
+			continue
+		}
+		if err := killDescendants(proc.Pid); err != nil {
+			return err
+		}
+		_ = proc.Kill()
+	}
+	return nil
 }
