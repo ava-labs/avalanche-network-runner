@@ -14,6 +14,7 @@ import (
 )
 
 // State of the node's process
+// One of Initial/Started/Stopping/Stopped
 type ProcessState int
 
 const (

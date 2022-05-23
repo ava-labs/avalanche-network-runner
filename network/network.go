@@ -46,5 +46,7 @@ type Network interface {
 	GetNodeNames() ([]string, error)
 	// Returns a channel that receives a message with
 	// node name when a node fails
+	// The user shall continously read the channel in order
+	// to prevent gourutine leak
 	GetUnexpectedNodeStopChannel() (chan UnexpectedNodeStopMsg, error)
 }

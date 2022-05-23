@@ -42,8 +42,6 @@ type nodeProcessImpl struct {
 	name string
 	lock sync.RWMutex
 	cmd  *exec.Cmd
-	// to notify user of not asked process stops
-	unexpectedStopCh chan network.UnexpectedNodeStopMsg
 	// maintains process state Initial/Started/Stopping/Stopped
 	state node.ProcessState
 	// closed when the AvalancheGo process returns
@@ -67,7 +65,6 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 	if p.state != node.Initial {
 		return errors.New("start called on invalid state")
 	}
-	p.unexpectedStopCh = unexpectedStopCh
 	if err := p.cmd.Start(); err != nil {
 		return err
 	}
@@ -84,7 +81,7 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 		close(p.closedOnStop)
 		p.lock.Unlock()
 		if state != node.Stopping {
-			p.unexpectedStopCh <- network.UnexpectedNodeStopMsg{
+			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
 				Name:     p.name,
 				ExitCode: status.ExitStatus(),
 			}
