@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
@@ -467,23 +468,24 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 	}(ctx)
 
 	errGr, ctx := errgroup.WithContext(ctx)
-	for _, lnNode := range ln.nodes {
-		lnNode := lnNode
+	for _, node := range ln.nodes {
+		node := node
+		nodeName := node.GetName()
 		errGr.Go(func() error {
 			// Every [healthCheckFreq], query node for health status.
 			// Do this until ctx timeout or network closed.
 			for {
-				if lnNode.Status() != node.Started {
-					return fmt.Errorf("unexpected stop on node %q", lnNode.GetName())
+				if node.Status() != status.Running {
+					return fmt.Errorf("unexpected stop on node %q", nodeName)
 				}
-				health, err := lnNode.client.HealthAPI().Health(ctx)
+				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
-					ln.log.Debug("node %q became healthy", lnNode.GetName())
+					ln.log.Debug("node %q became healthy", nodeName)
 					return nil
 				}
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", lnNode.GetName())
+					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", nodeName)
 				case <-time.After(healthCheckFreq):
 				}
 			}
@@ -560,23 +562,14 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
-	defer cancel()
 	errs := wrappers.Errs{}
 	for nodeName := range ln.nodes {
-		select {
-		case <-ctx.Done():
-			// In practice we'll probably never time out here,
-			// and the caller probably won't cancel a call
-			// to stop(), but we include this to respect the
-			// network.Network interface.
-			return ctx.Err()
-		default:
-		}
+		ctx, cancel := context.WithTimeout(ctx, stopTimeout)
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
+		cancel()
 	}
 	ln.log.Info("done stopping network")
 	return errs.Err
@@ -607,12 +600,12 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
-	node.GetAPIClient().CChainEthAPI().Close()
+	node.client.CChainEthAPI().Close()
 	if err := node.process.Stop(ctx); err != nil {
 		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
 	}
 	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %s stopped with error: %w", nodeName, err)
+		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
 	}
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
 	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
@@ -56,7 +57,7 @@ func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, fl
 	process.On("Start", mock.Anything).Return(errors.New("Start failed"))
 	process.On("Wait").Return(nil)
 	process.On("Stop", mock.Anything).Return(nil)
-	process.On("Status").Return(node.Started)
+	process.On("Status").Return(status.Running)
 	return process, nil
 }
 
@@ -117,7 +118,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process.On("Start", mock.Anything).Return(nil)
 	process.On("Wait").Return(nil)
 	process.On("Stop", mock.Anything).Return(nil)
-	process.On("Status").Return(node.Started)
+	process.On("Status").Return(status.Running)
 	return process, nil
 }
 

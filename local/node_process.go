@@ -10,6 +10,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/shirou/gopsutil/process"
 )
 
@@ -37,7 +38,7 @@ type NodeProcess interface {
 	// Returns nil if already waited for the process.
 	Wait() error
 	// Returns the state of the process
-	Status() node.ProcessState
+	Status() status.Status
 }
 
 type nodeProcessImpl struct {
@@ -45,7 +46,7 @@ type nodeProcessImpl struct {
 	lock sync.RWMutex
 	cmd  *exec.Cmd
 	// maintains process state Initial/Started/Stopping/Stopped
-	state node.ProcessState
+	state status.Status
 	// closed when the AvalancheGo process returns
 	closedOnStop chan struct{}
 	// wait return
@@ -64,28 +65,28 @@ func newNodeProcessImpl(name string, cmd *exec.Cmd) *nodeProcessImpl {
 func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state != node.Initial {
+	if p.state != status.Initial {
 		return errors.New("start called on invalid state")
 	}
 	if err := p.cmd.Start(); err != nil {
 		return err
 	}
-	p.state = node.Started
+	p.state = status.Running
 	go func() {
 		// Wait4 to avoid race conditions on stdout/stderr pipes
-		var status syscall.WaitStatus
+		var waitStatus syscall.WaitStatus
 		var rusage syscall.Rusage
-		_, err := syscall.Wait4(p.cmd.Process.Pid, &status, 0, &rusage)
+		_, err := syscall.Wait4(p.cmd.Process.Pid, &waitStatus, 0, &rusage)
 		p.lock.Lock()
 		state := p.state
-		p.state = node.Stopped
+		p.state = status.Stopped
 		p.waitReturn = err
 		close(p.closedOnStop)
 		p.lock.Unlock()
-		if state != node.Stopping {
+		if state != status.Stopping {
 			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
 				NodeName: p.name,
-				ExitCode: status.ExitStatus(),
+				ExitCode: waitStatus.ExitStatus(),
 			}
 		}
 	}()
@@ -96,7 +97,7 @@ func (p *nodeProcessImpl) Wait() error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
-	if state == node.Initial {
+	if state == status.Initial {
 		return errors.New("wait called on invalid state")
 	}
 	<-p.closedOnStop
@@ -113,14 +114,14 @@ func (p *nodeProcessImpl) Wait() error {
 func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state == node.Initial {
+	if p.state == status.Initial {
 		return errors.New("stop called on invalid state")
 	}
-	if p.state != node.Started {
+	if p.state != status.Running {
 		return nil
 	}
 	stopResult := p.cmd.Process.Signal(os.Interrupt)
-	p.state = node.Stopping
+	p.state = status.Stopping
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -132,7 +133,7 @@ func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	return stopResult
 }
 
-func (p *nodeProcessImpl) Status() node.ProcessState {
+func (p *nodeProcessImpl) Status() status.Status {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.state
