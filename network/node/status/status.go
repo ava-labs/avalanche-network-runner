@@ -4,13 +4,23 @@ package status
 type Status byte
 
 const (
-	// state just after creating the node process.
-	// TODO remove?
-	Initial Status = iota
-	// process has been started and not yet asked to stop or found to be stopped
-	Running
-	// process has been asked to stop
+	// Process is running and hasn't been asked to stop.
+	Running = iota + 1
+	// Process has been asked to stop.
 	Stopping
-	// process is verified to be stopped
+	// Process has exited.
 	Stopped
 )
+
+func (s Status) String() string {
+	switch s {
+	case Running:
+		return "running"
+	case Stopping:
+		return "stopping"
+	case Stopped:
+		return "stopped"
+	default:
+		return "invalid status"
+	}
+}

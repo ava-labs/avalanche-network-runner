@@ -2,11 +2,10 @@ package local
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
@@ -18,16 +17,20 @@ var _ NodeProcess = (*nodeProcess)(nil)
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
-	// Send a SIGTERM to this process.
-	// If ctx is cancelled, send SIGKILL to this process and descendants.
-	// Returns error if called before Start.
-	// Returns nil if the process is already stopping/stopped.
+	// Sends a SIGTINT to this process and returns when the process
+	// has exited or when [ctx] is cancelled.
+	// If [ctx] is cancelled, sends a SIGKILL to this process and descendants
+	// and returns [ctx.Err()].
+	// Otherwise, returns nil when the process exits.
+	// Subsequent calls to [Stop] always return nil.
 	Stop(ctx context.Context) error
-	// Returns when the process finishes exiting.
-	// Returns error if called before Start.
-	// Returns nil if already waited for the process.
+	// Returns when the process exits.
+	// Returns an error if there was a process-level problem
+	// (i.e. the process couldn't run) or if the process's
+	// exit code was non-zero.
+	// Subsequent calls to [Wait] always return the same value.
 	Wait() error
-	// Returns the state of the process
+	// Returns the status of the process.
 	Status() status.Status
 }
 
@@ -37,10 +40,13 @@ type nodeProcess struct {
 	cmd  *exec.Cmd
 	// Process status
 	state status.Status
-	// closed when the AvalancheGo process returns
+	// Closed when the process exits.
+	// If closed, [onExitErr] is guaranteed to be set.
 	closedOnStop chan struct{}
-	// wait return
-	waitReturn error
+	// Set when the process exits.
+	// Non-nil if there was a process-level problem or
+	// if the process has a non-zero exit code.
+	onExitErr error
 }
 
 func newNodeProcess(name string, cmd *exec.Cmd) (*nodeProcess, error) {
@@ -53,37 +59,35 @@ func newNodeProcess(name string, cmd *exec.Cmd) (*nodeProcess, error) {
 	return np, np.start(make(chan network.UnexpectedNodeStopMsg))
 }
 
-// TODO update comment
-// to be called only on Initial state
-// start this process.
+// Start this process.
+// Must only be called once.
 // Returns error if not called after instantiation.
 // returns error if the process already started.
 // If process stops without a previous call to Stop(), send notification msg over given channel.
 func (p *nodeProcess) start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state != status.Initial {
-		return errors.New("start called on invalid state")
-	}
-	if err := p.cmd.Start(); err != nil {
-		return err
-	}
+
 	p.state = status.Running
-	go func() {
-		// Wait4 to avoid race conditions on stdout/stderr pipes
-		var waitStatus syscall.WaitStatus
-		var rusage syscall.Rusage
-		_, err := syscall.Wait4(p.cmd.Process.Pid, &waitStatus, 0, &rusage)
-		p.lock.Lock()
-		state := p.state
+	if err := p.cmd.Start(); err != nil {
 		p.state = status.Stopped
-		p.waitReturn = err
+		return fmt.Errorf("couldn't start process: %w", err)
+	}
+
+	go func() {
+		// Wait for the process to exit.
+		err := p.cmd.Wait()
+		p.lock.Lock()
+		prevState := p.state
+		p.state = status.Stopped
+		p.onExitErr = err
 		close(p.closedOnStop)
 		p.lock.Unlock()
-		if state != status.Stopping {
+		// If [Stop] wasn't called, send a message on [unexpectedStopCh].
+		if prevState != status.Stopping {
 			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
 				NodeName: p.name,
-				ExitCode: waitStatus.ExitStatus(),
+				ExitCode: p.cmd.ProcessState.ExitCode(),
 			}
 		}
 	}()
@@ -91,48 +95,42 @@ func (p *nodeProcess) start(unexpectedStopCh chan network.UnexpectedNodeStopMsg)
 }
 
 func (p *nodeProcess) Wait() error {
-	p.lock.RLock()
-	state := p.state
-	p.lock.RUnlock()
-	if state == status.Initial {
-		return errors.New("wait called on invalid state")
-	}
 	<-p.closedOnStop
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	// only return wait err first time is called
-	waitReturn := p.waitReturn
-	p.waitReturn = nil
-	return waitReturn
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.onExitErr
 }
 
-// if context is cancelled, assumes a failure in termination
-// and uses SIGKILL over process and descendants
 func (p *nodeProcess) Stop(ctx context.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state == status.Initial {
-		return errors.New("stop called on invalid state")
-	}
+
 	if p.state != status.Running {
 		return nil
 	}
-	stopResult := p.cmd.Process.Signal(os.Interrupt)
 	p.state = status.Stopping
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = killDescendants(int32(p.cmd.Process.Pid))
-			_ = p.cmd.Process.Signal(os.Kill)
-		case <-p.closedOnStop:
-		}
-	}()
-	return stopResult
+
+	// There isn't anything to do with this error.
+	// Either the process got the signal, in which case
+	// we should wait until it exits, or it didn't,
+	// in which case we should wait until the context
+	// is cancelled and then try to SIGKILL it.
+	_ = p.cmd.Process.Signal(os.Interrupt)
+
+	select {
+	case <-ctx.Done():
+		_ = killDescendants(int32(p.cmd.Process.Pid))
+		_ = p.cmd.Process.Signal(os.Kill)
+		return ctx.Err()
+	case <-p.closedOnStop:
+		return nil
+	}
 }
 
 func (p *nodeProcess) Status() status.Status {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
+
 	return p.state
 }
 
