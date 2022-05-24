@@ -14,10 +14,10 @@ var ErrStopped = errors.New("network stopped")
 type Network interface {
 	// Initializes and starts the network using the given config
 	// To be executed after network creation. Enables the other calls.
-	LoadConfig(context.Context, Config) error
+	StartFromConfig(context.Context, Config) error
 	// Initializes and starts network using the given snapshot
 	// To be executed after network creation. Enables the other calls.
-	LoadSnapshot(context.Context, string) error
+	StartFromSnapshot(context.Context, string) error
 	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.

@@ -72,7 +72,7 @@ func run(log logging.Logger, binaryPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := nw.LoadConfig(context.Background(), local.NewDefaultConfig(binaryPath)); err != nil {
+	if err := nw.StartFromConfig(context.Background(), local.NewDefaultConfig(binaryPath)); err != nil {
 		return err
 	}
 	defer func() { // Stop the network when this function returns

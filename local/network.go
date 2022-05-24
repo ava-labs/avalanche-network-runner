@@ -324,7 +324,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	return netConfig, nil
 }
 
-func (ln *localNetwork) LoadConfig(ctx context.Context, networkConfig network.Config) error {
+func (ln *localNetwork) StartFromConfig(ctx context.Context, networkConfig network.Config) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	if ln.wasDefined() {
@@ -760,8 +760,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	return nil
 }
 
-// Load network snapshot
-func (ln *localNetwork) LoadSnapshot(ctx context.Context, snapshotName string) error {
+// start network from snapshot
+func (ln *localNetwork) StartFromSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	if ln.wasDefined() {

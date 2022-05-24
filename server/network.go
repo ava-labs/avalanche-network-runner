@@ -260,7 +260,7 @@ func (lc *localNetwork) start(ctx context.Context) {
 		lc.startErrc <- err
 		return
 	}
-	err = nw.LoadConfig(ctx, lc.cfg)
+	err = nw.StartFromConfig(ctx, lc.cfg)
 	if err != nil {
 		lc.startErrc <- err
 		return
@@ -295,7 +295,7 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 	if err != nil {
 		return err
 	}
-	err = nw.LoadSnapshot(ctx, snapshotName)
+	err = nw.StartFromSnapshot(ctx, snapshotName)
 	if err != nil {
 		return err
 	}
