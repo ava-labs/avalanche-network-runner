@@ -42,8 +42,10 @@ const (
 	stopTimeout           = 30 * time.Second
 	healthCheckFreq       = 3 * time.Second
 	DefaultNumNodes       = 5
-	snapshotsRelPath      = ".avalanche-network-runner/snapshots/"
 	snapshotPrefix        = "anr-snapshot-"
+	rootDirPrefix         = "avalanche-network-runner-"
+	defaultDbSubdir       = "db"
+	defaultLogsSubdir     = "logs"
 )
 
 // interface compliance
@@ -58,6 +60,8 @@ var (
 	}
 	chainConfigSubDir  = "chainConfigs"
 	cChainConfigSubDir = filepath.Join(chainConfigSubDir, "C")
+
+	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -241,7 +245,7 @@ func newNetwork(
 ) (network.Network, error) {
 	var err error
 	if rootDir == "" {
-		rootDir, err = os.MkdirTemp("", "avalanche-network-runner-*")
+		rootDir, err = os.MkdirTemp("", fmt.Sprintf("%s-*", rootDirPrefix))
 		if err != nil {
 			return nil, err
 		}
@@ -685,7 +689,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	nodesDbDir := map[string]string{}
 	for nodeName, node := range ln.nodes {
 		nodeConfig := node.config
-		// make copy for the case the user gave the same map to all nodes
+		// depending on how the user generated the config, different nodes config flags
+		// may point to the same map, so we made a copy to avoid always modifying the same value
 		nodeConfigFlags := make(map[string]interface{})
 		for fk, fv := range nodeConfig.Flags {
 			nodeConfigFlags[fk] = fv
@@ -694,7 +699,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		nodesConfig[nodeName] = nodeConfig
 		nodesDbDir[nodeName] = node.GetDbDir()
 	}
-	// update node flags with currently used ports
+	// we change nodeConfig.Flags so as to preserve in snapshot the current node ports
 	for nodeName, nodeConfig := range nodesConfig {
 		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
 		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
@@ -707,12 +712,10 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	// remove all log dir references
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
-		configFile := nodeConfig.ConfigFile
-		configFile, err := utils.SetJSONKey(configFile, config.LogsDirKey, "")
+		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
 		if err != nil {
 			return err
 		}
-		nodeConfig.ConfigFile = configFile
 		delete(nodeConfig.Flags, config.LogsDirKey)
 		nodesConfig[nodeName] = nodeConfig
 	}
@@ -722,7 +725,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 		return err
 	}
 	// create main snapshot dirs
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
 		return err
@@ -753,11 +756,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	if err != nil {
 		return err
 	}
-	err = createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
-	if err != nil {
-		return err
-	}
-	return nil
+	return createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
 }
 
 // start network from snapshot
@@ -768,10 +767,14 @@ func (ln *localNetwork) StartFromSnapshot(ctx context.Context, snapshotName stri
 		return errors.New("configuration already loaded")
 	}
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, "db"))
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
-		return fmt.Errorf("snapshot %q does not exists", snapshotName)
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+		} else {
+			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
+		}
 	}
 	// load network config
 	networkConfigJSON, err := os.ReadFile(filepath.Join(snapshotDir, "network.json"))
@@ -786,7 +789,7 @@ func (ln *localNetwork) StartFromSnapshot(ctx context.Context, snapshotName stri
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
-		targetDbDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), "db")
+		targetDbDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDbSubdir)
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}
@@ -800,10 +803,14 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
-		return fmt.Errorf("snapshot %q does not exists", snapshotName)
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+		} else {
+			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
+		}
 	}
 	if err := os.RemoveAll(snapshotDir); err != nil {
-		return fmt.Errorf("failure removing snapshot path %q", snapshotDir)
+		return fmt.Errorf("failure removing snapshot path %q: %w", snapshotDir, err)
 	}
 	return nil
 }
@@ -812,7 +819,11 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
 	_, err := os.Stat(ln.snapshotsDir)
 	if err != nil {
-		return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
+		} else {
+			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", ln.snapshotsDir, err)
+		}
 	}
 	matches, err := filepath.Glob(filepath.Join(ln.snapshotsDir, snapshotPrefix+"*"))
 	if err != nil {
@@ -988,13 +999,13 @@ func (ln *localNetwork) buildFlags(
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, "db"))
+	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDbSubdir))
 	if err != nil {
 		return nil, 0, 0, "", "", err
 	}
 
 	// Tell the node to put the log directory in [nodeDir/logs] unless given in config file
-	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, "logs"))
+	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, defaultLogsSubdir))
 	if err != nil {
 		return nil, 0, 0, "", "", err
 	}

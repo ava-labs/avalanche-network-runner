@@ -691,13 +691,12 @@ func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
 }
 
 func newGetSnapshotNamesCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "get-snapshot-names [options]",
 		Short: "Requests server to get list of snapshot.",
 		RunE:  getSnapshotNamesFunc,
 		Args:  cobra.ExactArgs(0),
 	}
-	return cmd
 }
 
 func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {

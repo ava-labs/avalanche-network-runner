@@ -68,7 +68,11 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewNetwork(log, "", "")
+	nw, err := local.NewNetwork(
+		log,
+		"", // use ANR default rootDir for locating logs/dbs/configs
+		"", // use ANR defalts snapshotsDir for locating snapshots
+	)
 	if err != nil {
 		return err
 	}
