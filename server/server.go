@@ -565,6 +565,10 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
 	}
+	// fix if not given
+	if req.StartRequest == nil {
+		req.StartRequest = &rpcpb.StartRequest{}
+	}
 	// user can override bin path for this node...
 	execPath := req.StartRequest.ExecPath
 	if execPath == "" {
