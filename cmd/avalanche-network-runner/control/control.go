@@ -124,11 +124,7 @@ func newStartCommand() *cobra.Command {
 }
 
 func startFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -199,15 +195,10 @@ func newHealthCommand() *cobra.Command {
 }
 
 func healthFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
-
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -232,11 +223,7 @@ func newURIsCommand() *cobra.Command {
 }
 
 func urisFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -264,11 +251,7 @@ func newStatusCommand() *cobra.Command {
 }
 
 func statusFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -304,11 +287,7 @@ func newStreamStatusCommand() *cobra.Command {
 }
 
 func streamStatusFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -356,11 +335,7 @@ func newRemoveNodeCommand() *cobra.Command {
 }
 
 func removeNodeFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -412,11 +387,7 @@ func newAddNodeCommand() *cobra.Command {
 }
 
 func addNodeFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -488,11 +459,7 @@ func newRestartNodeCommand() *cobra.Command {
 }
 
 func restartNodeFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -531,11 +498,7 @@ func newAttachPeerCommand() *cobra.Command {
 }
 
 func attachPeerFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -593,11 +556,7 @@ func newSendOutboundMessageCommand() *cobra.Command {
 }
 
 func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -630,11 +589,7 @@ func newStopCommand() *cobra.Command {
 }
 
 func stopFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -651,32 +606,25 @@ func stopFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var snapshotName string
-
 func newSaveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "save-snapshot [options]",
+		Use:   "save-snapshot snapshot-name",
 		Short: "Requests server to save network snapshot.",
 		RunE:  saveSnapshotFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be created with the current network state")
 	return cmd
 }
 
 func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.SaveSnapshot(ctx, snapshotName)
+	resp, err := cli.SaveSnapshot(ctx, args[0])
 	cancel()
 	if err != nil {
 		return err
@@ -688,28 +636,23 @@ func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 func newLoadSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "load-snapshot [options]",
+		Use:   "load-snapshot snapshot-name",
 		Short: "Requests server to load network snapshot.",
 		RunE:  loadSnapshotFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be loaded into a new network")
 	return cmd
 }
 
 func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.LoadSnapshot(ctx, snapshotName)
+	resp, err := cli.LoadSnapshot(ctx, args[0])
 	cancel()
 	if err != nil {
 		return err
@@ -721,28 +664,23 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 func newRemoveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-snapshot [options]",
+		Use:   "remove-snapshot snapshot-name",
 		Short: "Requests server to remove network snapshot.",
 		RunE:  removeSnapshotFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(&snapshotName, "snapshot-name", "", "name of the snapshot that will be removed")
 	return cmd
 }
 
 func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.RemoveSnapshot(ctx, snapshotName)
+	resp, err := cli.RemoveSnapshot(ctx, args[0])
 	cancel()
 	if err != nil {
 		return err
@@ -763,11 +701,7 @@ func newGetSnapshotNamesCommand() *cobra.Command {
 }
 
 func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
@@ -782,4 +716,12 @@ func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
 
 	color.Outf("{{green}}Snapshots:{{/}} %q\n", snapshotNames)
 	return nil
+}
+
+func newClient() (client.Client, error) {
+	return client.New(client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    endpoint,
+		DialTimeout: dialTimeout,
+	})
 }
