@@ -116,7 +116,7 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 					zap.Error(err),
 				)
 				select {
-				case <-lc.stopc:
+				case <-lc.stopCh:
 					return errAborted
 				case <-ctx.Done():
 					return ctx.Err()
@@ -135,10 +135,10 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 		}
 	}
 
-	lc.customVMsReadycCloseOnce.Do(func() {
+	lc.customVMsReadyChCloseOnce.Do(func() {
 		println()
 		color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
-		close(lc.customVMsReadyc)
+		close(lc.customVMsReadyCh)
 	})
 	return nil
 }

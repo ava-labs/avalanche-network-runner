@@ -367,13 +367,13 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		select {
 		case <-s.closed:
 			return
-		case <-s.network.stopc:
+		case <-s.network.stopCh:
 			// TODO: fix race from shutdown
 			return
-		case serr := <-s.network.startErrc:
+		case serr := <-s.network.startErrCh:
 			zap.L().Warn("start failed to complete", zap.Error(serr))
 			panic(serr)
-		case <-s.network.localClusterReadyc:
+		case <-s.network.localClusterReadyCh:
 			s.mu.Lock()
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -388,12 +388,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			select {
 			case <-s.closed:
 				return
-			case <-s.network.stopc:
+			case <-s.network.stopCh:
 				return
-			case serr := <-s.network.startErrc:
+			case serr := <-s.network.startErrCh:
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-s.network.customVMsReadyc:
+			case <-s.network.customVMsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
@@ -937,17 +937,17 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		select {
 		case <-s.closed:
 			return
-		case <-s.network.stopc:
+		case <-s.network.stopCh:
 			// TODO: fix race from shutdown
 			return
-		case serr := <-s.network.startErrc:
+		case serr := <-s.network.startErrCh:
 			zap.L().Warn("snapshot load failed to complete", zap.Error(serr))
 			s.mu.Lock()
 			s.network = nil
 			s.clusterInfo = nil
 			s.mu.Unlock()
 			return
-		case <-s.network.localClusterReadyc:
+		case <-s.network.localClusterReadyCh:
 			s.mu.Lock()
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -957,16 +957,16 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		select {
 		case <-s.closed:
 			return
-		case <-s.network.stopc:
+		case <-s.network.stopCh:
 			return
-		case serr := <-s.network.startErrc:
+		case serr := <-s.network.startErrCh:
 			zap.L().Warn("snapshot load failed to complete", zap.Error(serr))
 			s.mu.Lock()
 			s.network = nil
 			s.clusterInfo = nil
 			s.mu.Unlock()
 			return
-		case <-s.network.customVMsReadyc:
+		case <-s.network.customVMsReadyCh:
 			s.mu.Lock()
 			s.clusterInfo.CustomVmsHealthy = true
 			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)

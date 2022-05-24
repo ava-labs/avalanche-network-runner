@@ -58,21 +58,21 @@ type localNetwork struct {
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
 
-	localClusterReadyc          chan struct{} // closed when local network is ready/healthy
-	localClusterReadycCloseOnce sync.Once
+	localClusterReadyCh          chan struct{} // closed when local network is ready/healthy
+	localClusterReadyChCloseOnce sync.Once
 
 	// map from VM name to genesis bytes
 	customVMNameToGenesis map[string][]byte
 	// map from VM ID to VM info
 	customVMIDToInfo map[ids.ID]vmInfo
 
-	customVMsReadyc          chan struct{} // closed when subnet installations are complete
-	customVMsReadycCloseOnce sync.Once
-	customVMRestartMu        *sync.RWMutex
+	customVMsReadyCh          chan struct{} // closed when subnet installations are complete
+	customVMsReadyChCloseOnce sync.Once
+	customVMRestartMu         *sync.RWMutex
 
-	stopc      chan struct{}
-	startDonec chan struct{}
-	startErrc  chan error
+	stopCh      chan struct{}
+	startDoneCh chan struct{}
+	startErrCh  chan error
 
 	stopOnce sync.Once
 }
@@ -119,16 +119,16 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
-		localClusterReadyc: make(chan struct{}),
+		localClusterReadyCh: make(chan struct{}),
 
 		customVMNameToGenesis: opts.customVMs,
 		customVMIDToInfo:      make(map[ids.ID]vmInfo),
-		customVMsReadyc:       make(chan struct{}),
+		customVMsReadyCh:      make(chan struct{}),
 		customVMRestartMu:     opts.restartMu,
 
-		stopc:      make(chan struct{}),
-		startDonec: make(chan struct{}),
-		startErrc:  make(chan error, 1),
+		stopCh:      make(chan struct{}),
+		startDoneCh: make(chan struct{}),
+		startErrCh:  make(chan error, 1),
 
 		nodeInfos: make(map[string]*rpcpb.NodeInfo),
 		nodeNames: []string{},
@@ -251,24 +251,24 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 
 func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
-		close(lc.startDonec)
+		close(lc.startDoneCh)
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
 	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	err = nw.StartFromConfig(ctx, lc.cfg)
 	if err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	lc.nw = nw
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 
@@ -277,18 +277,18 @@ func (lc *localNetwork) start(ctx context.Context) {
 		return
 	}
 	if err := lc.installCustomVMs(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	if err := lc.waitForCustomVMsReady(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 }
 
 func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
 	defer func() {
-		close(lc.startDonec)
+		close(lc.startDoneCh)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
 	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
@@ -305,11 +305,11 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context) {
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	for _, nodeName := range lc.nodeNames {
@@ -318,7 +318,7 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context) {
 			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
 		}
 	}
-	close(lc.customVMsReadyc)
+	close(lc.customVMsReadyCh)
 }
 
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
@@ -364,8 +364,8 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		nodeInfo := lc.nodeInfos[name]
 		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
 	}
-	lc.localClusterReadycCloseOnce.Do(func() {
-		close(lc.localClusterReadyc)
+	lc.localClusterReadyChCloseOnce.Do(func() {
+		close(lc.localClusterReadyCh)
 	})
 	return nil
 }
@@ -427,9 +427,9 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
-		close(lc.stopc)
+		close(lc.stopCh)
 		serr := lc.nw.Stop(ctx)
-		<-lc.startDonec
+		<-lc.startDoneCh
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
 }
