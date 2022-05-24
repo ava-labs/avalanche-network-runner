@@ -24,9 +24,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// interface compliance
 var (
 	_ getConnFunc = defaultGetConnFunc
+	_ node.Node   = (*localNode)(nil)
 )
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)

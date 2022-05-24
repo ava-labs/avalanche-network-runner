@@ -184,7 +184,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return newNodeProcessImpl(config.Name, cmd), nil
+	return newNodeProcess(config.Name, cmd)
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
@@ -408,13 +408,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
+	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
 	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create new node process: %s", err)
-	}
-	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	if err := nodeProcess.Start(ln.unexpectedNodeStopCh); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
+		return nil, fmt.Errorf(
+			"couldn't create new node process with binary %q and flags %v: %w",
+			nodeConfig.BinaryPath, flags, err,
+		)
 	}
 
 	// Create a wrapper for this node so we can reference it later

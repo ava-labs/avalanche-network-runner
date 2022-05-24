@@ -53,12 +53,7 @@ func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config,
 type localTestFailedStartProcessCreator struct{}
 
 func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	process := &mocks.NodeProcess{}
-	process.On("Start", mock.Anything).Return(errors.New("Start failed"))
-	process.On("Wait").Return(nil)
-	process.On("Stop", mock.Anything).Return(nil)
-	process.On("Status").Return(status.Running)
-	return process, nil
+	return nil, errors.New("an error")
 }
 
 type localTestProcessUndefNodeProcessCreator struct{}
@@ -115,7 +110,6 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 // Returns a NodeProcess that always returns nil
 func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
-	process.On("Start", mock.Anything).Return(nil)
 	process.On("Wait").Return(nil)
 	process.On("Stop", mock.Anything).Return(nil)
 	process.On("Status").Return(status.Running)
@@ -813,9 +807,6 @@ func TestChildCmdRedirection(t *testing.T) {
 	}
 	proc, err := npc.NewNodeProcess(testConfig, testOutput)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err = proc.Start(make(chan network.UnexpectedNodeStopMsg, 1)); err != nil {
 		t.Fatal(err)
 	}
 

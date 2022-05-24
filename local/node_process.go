@@ -9,25 +9,15 @@ import (
 	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
-	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/shirou/gopsutil/process"
 )
 
-// interface compliance
-var (
-	_ node.Node   = (*localNode)(nil)
-	_ NodeProcess = (*nodeProcessImpl)(nil)
-)
+var _ NodeProcess = (*nodeProcess)(nil)
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
-	// Start this process.
-	// Returns error if not called after instantiation.
-	// returns error if the process already started.
-	// If process stops without a previous call to Stop(), send notification msg over given channel.
-	Start(chan network.UnexpectedNodeStopMsg) error
 	// Send a SIGTERM to this process.
 	// If ctx is cancelled, send SIGKILL to this process and descendants.
 	// Returns error if called before Start.
@@ -41,11 +31,11 @@ type NodeProcess interface {
 	Status() status.Status
 }
 
-type nodeProcessImpl struct {
+type nodeProcess struct {
 	name string
 	lock sync.RWMutex
 	cmd  *exec.Cmd
-	// maintains process state Initial/Started/Stopping/Stopped
+	// Process status
 	state status.Status
 	// closed when the AvalancheGo process returns
 	closedOnStop chan struct{}
@@ -53,16 +43,23 @@ type nodeProcessImpl struct {
 	waitReturn error
 }
 
-func newNodeProcessImpl(name string, cmd *exec.Cmd) *nodeProcessImpl {
-	return &nodeProcessImpl{
+func newNodeProcess(name string, cmd *exec.Cmd) (*nodeProcess, error) {
+	np := &nodeProcess{
 		name:         name,
 		cmd:          cmd,
 		closedOnStop: make(chan struct{}),
 	}
+	// TODO pass in channel
+	return np, np.start(make(chan network.UnexpectedNodeStopMsg))
 }
 
+// TODO update comment
 // to be called only on Initial state
-func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
+// start this process.
+// Returns error if not called after instantiation.
+// returns error if the process already started.
+// If process stops without a previous call to Stop(), send notification msg over given channel.
+func (p *nodeProcess) start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state != status.Initial {
@@ -93,7 +90,7 @@ func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStop
 	return nil
 }
 
-func (p *nodeProcessImpl) Wait() error {
+func (p *nodeProcess) Wait() error {
 	p.lock.RLock()
 	state := p.state
 	p.lock.RUnlock()
@@ -111,7 +108,7 @@ func (p *nodeProcessImpl) Wait() error {
 
 // if context is cancelled, assumes a failure in termination
 // and uses SIGKILL over process and descendants
-func (p *nodeProcessImpl) Stop(ctx context.Context) error {
+func (p *nodeProcess) Stop(ctx context.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.state == status.Initial {
@@ -133,7 +130,7 @@ func (p *nodeProcessImpl) Stop(ctx context.Context) error {
 	return stopResult
 }
 
-func (p *nodeProcessImpl) Status() status.Status {
+func (p *nodeProcess) Status() status.Status {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.state
