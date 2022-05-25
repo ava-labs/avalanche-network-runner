@@ -765,7 +765,7 @@ type lockedBuffer struct {
 
 // Write is locked for the lockedBuffer
 func (m *lockedBuffer) Write(b []byte) (int, error) {
-	defer func() { close(m.writtenCh) }()
+	defer close(m.writtenCh)
 	return m.Buffer.Write(b)
 }
 
@@ -800,40 +800,39 @@ func TestChildCmdRedirection(t *testing.T) {
 
 	// now create the node process and check it will be prepended and colored
 	testConfig := node.Config{
-		BinaryPath:     "echo",
+		BinaryPath:     "sh",
 		RedirectStdout: true,
 		RedirectStderr: true,
 		Name:           mockNodeName,
 	}
-	proc, err := npc.NewNodeProcess(testConfig, testOutput)
+	// Sleep for a second after echoing so that we have a chance to read from the stdout pipe
+	// before it closes when the process exits and Wait() returns.
+	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
+	proc, err := npc.NewNodeProcess(testConfig, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// lock read access to the buffer
 	<-buf.writtenCh
-	newResult := buf.String()
+	result := buf.String()
 
 	// wait for the process to finish.
-	// Note that, according to the specification of StdoutPipe
-	// and StderrPipe, we have to wait until after we read from
-	// the pipe before calling Wait.
-	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
 	if err = proc.Wait(); err != nil {
 		t.Fatal(err)
 	}
 
 	// now do the checks:
 	// the new string should contain the node name
-	if !strings.Contains(newResult, mockNodeName) {
+	if !strings.Contains(result, mockNodeName) {
 		t.Fatalf("expected subcommand to contain node name %s, but it didn't", mockNodeName)
 	}
 
 	// and it should have a specific length:
 	//             the actual output   + the color terminal escape sequence      + node name    + []<space> + color terminal reset escape sequence
 	expectedLen := len(expectedResult) + len(utils.NewColorPicker().NextColor()) + len(mockNodeName) + 3 + len(logging.Reset)
-	if len(newResult) != expectedLen {
-		t.Fatalf("expected string length to be %d, but it was %d", expectedLen, len(newResult))
+	if len(result) != expectedLen {
+		t.Fatalf("expected string length to be %d, but it was %d", expectedLen, len(result))
 	}
 }
 
