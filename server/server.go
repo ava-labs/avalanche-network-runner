@@ -995,7 +995,6 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, err
 	}
 	s.network = nil
-	info.Healthy = false
 	s.clusterInfo = nil
 
 	return &rpcpb.SaveSnapshotResponse{}, nil

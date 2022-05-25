@@ -166,6 +166,7 @@ func (lc *localNetwork) createConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
+		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
 		buildDir := ""
 		if lc.options.pluginDir != "" {
 			pluginDir := filepath.Clean(lc.options.pluginDir)
@@ -295,8 +296,7 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 	if err != nil {
 		return err
 	}
-	err = nw.StartFromSnapshot(ctx, snapshotName)
-	if err != nil {
+	if err := nw.StartFromSnapshot(ctx, snapshotName); err != nil {
 		return err
 	}
 	lc.nw = nw
