@@ -256,12 +256,7 @@ func (lc *localNetwork) start(ctx context.Context) {
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
-	if err != nil {
-		lc.startErrCh <- err
-		return
-	}
-	err = nw.StartFromConfig(ctx, lc.cfg)
+	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
 		lc.startErrCh <- err
 		return
@@ -292,11 +287,8 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 		close(lc.startDoneCh)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.options.rootDataDir, lc.options.snapshotsDir)
+	nw, err := local.NewNetworkFromSnapshot(lc.logger, snapshotName, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
-		return err
-	}
-	if err := nw.StartFromSnapshot(ctx, snapshotName); err != nil {
 		return err
 	}
 	lc.nw = nw

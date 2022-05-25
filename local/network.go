@@ -217,11 +217,11 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 // Snapshots are saved to snapshotsDir, defaults to defaultSnapshotsDir if not given
 func NewNetwork(
 	log logging.Logger,
-    networkConfig network.Config,
+	networkConfig network.Config,
 	rootDir string,
 	snapshotsDir string,
 ) (network.Network, error) {
-    net, err := newNetwork(
+	net, err := newNetwork(
 		log,
 		api.NewAPIClient,
 		&nodeProcessCreator{
@@ -232,11 +232,11 @@ func NewNetwork(
 		rootDir,
 		snapshotsDir,
 	)
-    if err != nil {
-        return net, err
-    }
-    err = net.loadConfig(ctx, networkConfig)
-    return net, err
+	if err != nil {
+		return net, err
+	}
+	err = net.loadConfig(context.Background(), networkConfig)
+	return net, err
 }
 
 // See NewNetwork.
@@ -248,7 +248,7 @@ func newNetwork(
 	nodeProcessCreator NodeProcessCreator,
 	rootDir string,
 	snapshotsDir string,
-) (network.Network, error) {
+) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
 		rootDir, err = os.MkdirTemp("", fmt.Sprintf("%s-*", rootDirPrefix))
@@ -274,7 +274,33 @@ func newNetwork(
 	return net, nil
 }
 
-// NewDefaultConfig creates a new default network config
+// NewNetwork returns a new network from the given snapshot
+func NewNetworkFromSnapshot(
+	log logging.Logger,
+	snapshotName string,
+	rootDir string,
+	snapshotsDir string,
+) (network.Network, error) {
+	net, err := newNetwork(
+		log,
+		api.NewAPIClient,
+		&nodeProcessCreator{
+			colorPicker: utils.NewColorPicker(),
+			stdout:      os.Stdout,
+			stderr:      os.Stderr,
+		},
+		rootDir,
+		snapshotsDir,
+	)
+	if err != nil {
+		return net, err
+	}
+	err = net.loadSnapshot(context.Background(), snapshotName)
+	return net, err
+}
+
+// NewDefaultNetwork returns a new network using a pre-defined
+// network configuration.
 // The following addresses are pre-funded:
 // X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
 // X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
@@ -292,6 +318,15 @@ func newNetwork(
 // * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
 // * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
 // * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+) (network.Network, error) {
+	config := NewDefaultConfig(binaryPath)
+	return NewNetwork(log, config, "", "")
+}
+
+// NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
@@ -757,7 +792,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 }
 
 // start network from snapshot
-func (ln *localNetwork) StartFromSnapshot(ctx context.Context, snapshotName string) error {
+func (ln *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	if ln.wasDefined() {

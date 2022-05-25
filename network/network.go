@@ -12,12 +12,6 @@ var ErrStopped = errors.New("network stopped")
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
-	// Initializes and starts the network using the given config
-	// To be executed after network creation. Enables the other calls.
-	StartFromConfig(context.Context, Config) error
-	// Initializes and starts network using the given snapshot
-	// To be executed after network creation. Enables the other calls.
-	StartFromSnapshot(context.Context, string) error
 	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.

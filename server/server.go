@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -1002,12 +1001,12 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	zap.L().Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
-	nw, err := local.NewNetwork(nil, "", s.cfg.SnapshotsDir)
-	if err != nil {
-		return nil, err
+	info := s.getClusterInfo()
+	if info == nil {
+		return nil, ErrNotBootstrapped
 	}
-	err = nw.RemoveSnapshot(req.SnapshotName)
-	if err != nil {
+
+	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
 		zap.L().Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
@@ -1016,11 +1015,12 @@ func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRe
 
 func (s *server) GetSnapshotNames(ctx context.Context, req *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
 	zap.L().Info("get snapshot names")
-	nw, err := local.NewNetwork(nil, "", s.cfg.SnapshotsDir)
-	if err != nil {
-		return nil, err
+	info := s.getClusterInfo()
+	if info == nil {
+		return nil, ErrNotBootstrapped
 	}
-	snapshotNames, err := nw.GetSnapshotNames()
+
+	snapshotNames, err := s.network.nw.GetSnapshotNames()
 	if err != nil {
 		return nil, err
 	}
