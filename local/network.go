@@ -562,12 +562,12 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 func (ln *localNetwork) stop(ctx context.Context) error {
 	errs := wrappers.Errs{}
 	for nodeName := range ln.nodes {
-		ctx, cancel := context.WithTimeout(ctx, stopTimeout)
-		if err := ln.removeNode(ctx, nodeName); err != nil {
+		stopCtx, stopCtxCancel := context.WithTimeout(ctx, stopTimeout)
+		if err := ln.removeNode(stopCtx, nodeName); err != nil {
 			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
-		cancel()
+		stopCtxCancel()
 	}
 	ln.log.Info("done stopping network")
 	return errs.Err
@@ -600,7 +600,7 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
 	if err := node.process.Stop(ctx); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
+		return fmt.Errorf("error sending SIGTERM to node %q: %w", nodeName, err)
 	}
 	if err := node.process.Wait(); err != nil {
 		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
