@@ -913,11 +913,9 @@ func (s *server) handleUnhealthy() {
 				zap.Error(err),
 			)
 			s.mu.Lock()
-			if s.clusterInfo == nil {
-				s.mu.Unlock()
-				return
+			if s.clusterInfo != nil {
+				s.clusterInfo.Healthy = false
 			}
-			s.clusterInfo.Healthy = false
 			s.mu.Unlock()
 		}
 	}
