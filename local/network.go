@@ -93,9 +93,6 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// directory where networks can be persistently saved
 	snapshotsDir string
-	// To keep track of network initialization
-	definedLock sync.RWMutex
-	defined     bool
 }
 
 var (
@@ -398,10 +395,6 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
-	ln.definedLock.Lock()
-	ln.defined = true
-	ln.definedLock.Unlock()
-
 	for _, nodeConfig := range nodeConfigs {
 		if _, err := ln.addNode(nodeConfig); err != nil {
 			if err := ln.stop(ctx); err != nil {
@@ -420,9 +413,6 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if !ln.wasDefined() {
-		return nil, network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
@@ -508,11 +498,6 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 
 	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 
-	// Return unhealthy if the network is undefined
-	if !ln.wasDefined() {
-		return network.ErrUndefined
-	}
-
 	// Return unhealthy if the network is stopped
 	if ln.stopCalled() {
 		return network.ErrStopped
@@ -561,9 +546,6 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if !ln.wasDefined() {
-		return nil, network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
@@ -580,9 +562,6 @@ func (ln *localNetwork) GetNodeNames() ([]string, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if !ln.wasDefined() {
-		return nil, network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
@@ -601,9 +580,6 @@ func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
 
-	if !ln.wasDefined() {
-		return nil, network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return nil, network.ErrStopped
 	}
@@ -616,10 +592,6 @@ func (ln *localNetwork) GetAllNodes() (map[string]node.Node, error) {
 }
 
 func (ln *localNetwork) Stop(ctx context.Context) error {
-	if !ln.wasDefined() {
-		return network.ErrUndefined
-	}
-
 	err := network.ErrStopped
 	ln.stopOnce.Do(
 		func() {
@@ -662,10 +634,6 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 func (ln *localNetwork) RemoveNode(nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-
-	if !ln.wasDefined() {
-		return network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
@@ -701,9 +669,6 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	if !ln.wasDefined() {
-		return network.ErrUndefined
-	}
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
@@ -795,9 +760,6 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 func (ln *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	if ln.wasDefined() {
-		return errors.New("configuration already loaded")
-	}
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
 	_, err := os.Stat(snapshotDir)
@@ -876,13 +838,6 @@ func (ln *localNetwork) stopCalled() bool {
 	default:
 		return false
 	}
-}
-
-// Returns whether the network has been defined
-func (ln *localNetwork) wasDefined() bool {
-	ln.definedLock.Lock()
-	defer ln.definedLock.Unlock()
-	return ln.defined
 }
 
 // createFileAndWrite creates a file with the given path and
