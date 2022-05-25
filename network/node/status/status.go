@@ -5,7 +5,7 @@ type Status byte
 
 const (
 	// Process is running and hasn't been asked to stop.
-	Running = iota + 1
+	Running Status = iota + 1
 	// Process has been asked to stop.
 	Stopping
 	// Process has exited.

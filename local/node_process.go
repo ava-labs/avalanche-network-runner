@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/shirou/gopsutil/process"
 )
@@ -41,12 +40,14 @@ type nodeProcess struct {
 	// Process status
 	state status.Status
 	// Closed when the process exits.
-	// If closed, [onExitErr] is guaranteed to be set.
+	// If closed, [onExitErr] and [exitCode] are guaranteed to be set.
 	closedOnStop chan struct{}
 	// Set when the process exits.
 	// Non-nil if there was a process-level problem or
-	// if the process has a non-zero exit code.
+	// if the process had a non-zero exit code.
 	onExitErr error
+	// Set when the process exits.
+	exitCode int
 }
 
 func newNodeProcess(name string, cmd *exec.Cmd) (*nodeProcess, error) {
@@ -55,16 +56,12 @@ func newNodeProcess(name string, cmd *exec.Cmd) (*nodeProcess, error) {
 		cmd:          cmd,
 		closedOnStop: make(chan struct{}),
 	}
-	// TODO pass in channel
-	return np, np.start(make(chan network.UnexpectedNodeStopMsg))
+	return np, np.start()
 }
 
 // Start this process.
 // Must only be called once.
-// Returns error if not called after instantiation.
-// returns error if the process already started.
-// If process stops without a previous call to Stop(), send notification msg over given channel.
-func (p *nodeProcess) start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
+func (p *nodeProcess) start() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -78,18 +75,11 @@ func (p *nodeProcess) start(unexpectedStopCh chan network.UnexpectedNodeStopMsg)
 		// Wait for the process to exit.
 		err := p.cmd.Wait()
 		p.lock.Lock()
-		prevState := p.state
 		p.state = status.Stopped
 		p.onExitErr = err
+		p.exitCode = p.cmd.ProcessState.ExitCode()
 		close(p.closedOnStop)
 		p.lock.Unlock()
-		// If [Stop] wasn't called, send a message on [unexpectedStopCh].
-		if prevState != status.Stopping {
-			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
-				NodeName: p.name,
-				ExitCode: p.cmd.ProcessState.ExitCode(),
-			}
-		}
 	}()
 	return nil
 }

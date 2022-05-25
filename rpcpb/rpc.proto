@@ -141,7 +141,6 @@ message NodeInfo {
   string plugin_dir           = 7;
   string whitelisted_subnets  = 8;
   bytes config                = 9;
-  bool alive                  = 10;
 }
 
 message AttachedPeerInfo {

@@ -30,15 +30,14 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix         = "node-"
-	configFileName                = "config.json"
-	stakingKeyFileName            = "staking.key"
-	stakingCertFileName           = "staking.crt"
-	genesisFileName               = "genesis.json"
-	stopTimeout                   = 30 * time.Second
-	healthCheckFreq               = 3 * time.Second
-	DefaultNumNodes               = 5
-	UnexpectedNodeStopMsgBuffSize = 1024
+	defaultNodeNamePrefix = "node-"
+	configFileName        = "config.json"
+	stakingKeyFileName    = "staking.key"
+	stakingCertFileName   = "staking.crt"
+	genesisFileName       = "genesis.json"
+	stopTimeout           = 30 * time.Second
+	healthCheckFreq       = 3 * time.Second
+	DefaultNumNodes       = 5
 )
 
 // interface compliance
@@ -82,8 +81,6 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
-	// Notification to users of node failure
-	unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg
 }
 
 var (
@@ -231,16 +228,15 @@ func newNetwork(
 
 	// Create the network
 	net := &localNetwork{
-		networkID:            networkID,
-		genesis:              []byte(networkConfig.Genesis),
-		nodes:                map[string]*localNode{},
-		onStopCh:             make(chan struct{}),
-		log:                  log,
-		bootstraps:           beacon.NewSet(),
-		newAPIClientF:        newAPIClientF,
-		nodeProcessCreator:   nodeProcessCreator,
-		flags:                networkConfig.Flags,
-		unexpectedNodeStopCh: make(chan network.UnexpectedNodeStopMsg, UnexpectedNodeStopMsgBuffSize),
+		networkID:          networkID,
+		genesis:            []byte(networkConfig.Genesis),
+		nodes:              map[string]*localNode{},
+		onStopCh:           make(chan struct{}),
+		log:                log,
+		bootstraps:         beacon.NewSet(),
+		newAPIClientF:      newAPIClientF,
+		nodeProcessCreator: nodeProcessCreator,
+		flags:              networkConfig.Flags,
 	}
 
 	// Sort node configs so beacons start first
@@ -476,7 +472,9 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 			// Do this until ctx timeout or network closed.
 			for {
 				if node.Status() != status.Running {
-					return fmt.Errorf("unexpected stop on node %q", nodeName)
+					// If we had stopped this node ourselves, it wouldn't be in [ln.nodes].
+					// Since it is, it means the node stopped unexpectedly.
+					return fmt.Errorf("node %q stopped unexpectedly", nodeName)
 				}
 				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
@@ -608,15 +606,6 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
 	}
 	return nil
-}
-
-func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan network.UnexpectedNodeStopMsg, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	if ln.stopCalled() {
-		return nil, network.ErrStopped
-	}
-	return ln.unexpectedNodeStopCh, nil
 }
 
 // Returns whether Stop has been called.
