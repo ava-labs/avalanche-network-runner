@@ -217,10 +217,11 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 // Snapshots are saved to snapshotsDir, defaults to defaultSnapshotsDir if not given
 func NewNetwork(
 	log logging.Logger,
+    networkConfig network.Config,
 	rootDir string,
 	snapshotsDir string,
 ) (network.Network, error) {
-	return newNetwork(
+    net, err := newNetwork(
 		log,
 		api.NewAPIClient,
 		&nodeProcessCreator{
@@ -231,6 +232,11 @@ func NewNetwork(
 		rootDir,
 		snapshotsDir,
 	)
+    if err != nil {
+        return net, err
+    }
+    err = net.loadConfig(ctx, networkConfig)
+    return net, err
 }
 
 // See NewNetwork.
@@ -326,15 +332,6 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
 	}
 	return netConfig, nil
-}
-
-func (ln *localNetwork) StartFromConfig(ctx context.Context, networkConfig network.Config) error {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	if ln.wasDefined() {
-		return errors.New("configuration already loaded")
-	}
-	return ln.loadConfig(ctx, networkConfig)
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
