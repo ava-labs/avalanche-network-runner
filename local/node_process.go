@@ -71,17 +71,22 @@ func (p *nodeProcess) start() error {
 		return fmt.Errorf("couldn't start process: %w", err)
 	}
 
-	go func() {
-		// Wait for the process to exit.
-		err := p.cmd.Wait()
-		p.lock.Lock()
-		p.state = status.Stopped
-		p.onExitErr = err
-		p.exitCode = p.cmd.ProcessState.ExitCode()
-		close(p.closedOnStop)
-		p.lock.Unlock()
-	}()
+	go p.awaitExit()
 	return nil
+}
+
+// Wait for the process to exit.
+// When it does, update the state and close [p.closedOnStop]
+func (p *nodeProcess) awaitExit() {
+	err := p.cmd.Wait()
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.state = status.Stopped
+	p.onExitErr = err
+	p.exitCode = p.cmd.ProcessState.ExitCode()
+	close(p.closedOnStop)
 }
 
 func (p *nodeProcess) Wait() error {
@@ -93,24 +98,27 @@ func (p *nodeProcess) Wait() error {
 
 func (p *nodeProcess) Stop(ctx context.Context) error {
 	p.lock.Lock()
-	defer p.lock.Unlock()
-
 	if p.state != status.Running {
+		p.lock.Unlock()
 		return nil
 	}
 	p.state = status.Stopping
+	proc := p.cmd.Process
+	// We have to unlock here so that [p.awaitExit] can grab the lock
+	// and close [p.closedOnStop].
+	p.lock.Unlock()
 
 	// There isn't anything to do with this error.
 	// Either the process got the signal, in which case
 	// we should wait until it exits, or it didn't,
 	// in which case we should wait until the context
 	// is cancelled and then try to SIGKILL it.
-	_ = p.cmd.Process.Signal(os.Interrupt)
+	_ = proc.Signal(os.Interrupt)
 
 	select {
 	case <-ctx.Done():
-		_ = killDescendants(int32(p.cmd.Process.Pid))
-		_ = p.cmd.Process.Signal(os.Kill)
+		_ = killDescendants(int32(proc.Pid))
+		_ = proc.Signal(os.Kill)
 		return ctx.Err()
 	case <-p.closedOnStop:
 		return nil
