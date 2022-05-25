@@ -98,9 +98,7 @@ type localNetwork struct {
 var (
 	//go:embed default
 	embeddedDefaultNetworkConfigDir embed.FS
-	// Pre-defined network configuration. The ImplSpecificConfig
-	// field of each node in [defaultNetworkConfig.NodeConfigs]
-	// is not defined.
+	// Pre-defined network configuration.
 	// [defaultNetworkConfig] should not be modified.
 	// TODO add method Copy() to network.Config to prevent
 	// accidental overwriting
