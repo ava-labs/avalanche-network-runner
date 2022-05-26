@@ -199,6 +199,42 @@ stream-status \
 --endpoint="0.0.0.0:8080"
 ```
 
+To save the network to a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control save-snapshot snapshotName
+```
+
+To load a network from a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName
+```
+
+To get the list of snapshots:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/getsnapshotnames
+
+# or
+avalanche-network-runner control get-snapshot-names
+```
+
+To remove a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control remove-snapshot snapshotName
+```
+
 To remove (stop) a node:
 
 ```bash
@@ -593,10 +629,6 @@ type Config struct {
   // May have length 0
   // (i.e. network may have no nodes on creation.)
   NodeConfigs []node.Config `json:"nodeConfigs"`
-  // Log level for the whole network
-  LogLevel string `json:"logLevel"`
-  // Name for the network
-  Name string `json:"name"`
   // Flags that will be passed to each node in this network.
   // It can be empty.
   // Config flags may also be passed in a node's config struct
@@ -648,6 +680,24 @@ func NewDefaultNetwork(
 
 The associated pre-defined configuration is also available to users by calling `NewDefaultConfig` function.
 
+## Network Snapshots
+
+A given network state, including the node ports and the full blockchain state, can be saved to a named
+snapshot, and loaded after that.
+
+```
+// Save network snapshot
+// Network is stopped in order to do a safe preservation
+// Returns the full local path to the snapshot dir
+SaveSnapshot(context.Context, string) (string, error)
+// Remove network snapshot
+RemoveSnapshot(string) error
+// Get name of available snapshots
+GetSnapshotNames() ([]string, error)
+```
+
+To create a new network from a snapshot, function `NewNetworkFromSnapshot` is provided.
+
 ## Network Interaction
 
 The network runner allows users to interact with an AvalancheGo network using the `network.Network` interface:
@@ -655,40 +705,71 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-  // Returns nil if all the nodes in the network are healthy.
-  // A stopped network is considered unhealthy.
-  // Timeout is given by the context parameter.
-  Healthy(context.Context) error
-  // Stop all the nodes.
-  // Returns ErrStopped if Stop() was previously called.
-  Stop(context.Context) error
-  // Start a new node with the given config.
-  // Returns ErrStopped if Stop() was previously called.
-  AddNode(node.Config) (node.Node, error)
-  // Stop the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  RemoveNode(name string) error
-  // Return the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNode(name string) (node.Node, error)
-  // Returns the names of all nodes in this network.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNodeNames() ([]string, error)
-  // TODO add methods
+	// Returns nil if all the nodes in the network are healthy.
+	// A stopped network is considered unhealthy.
+	// Timeout is given by the context parameter.
+	Healthy(context.Context) error
+	// Stop all the nodes.
+	// Returns ErrStopped if Stop() was previously called.
+	Stop(context.Context) error
+	// Start a new node with the given config.
+	// Returns ErrStopped if Stop() was previously called.
+	AddNode(node.Config) (node.Node, error)
+	// Stop the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	RemoveNode(name string) error
+	// Return the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNode(name string) (node.Node, error)
+	// Return all the nodes in this network.
+	// Node name --> Node.
+	// Returns ErrStopped if Stop() was previously called.
+	GetAllNodes() (map[string]node.Node, error)
+	// Returns the names of all nodes in this network.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNodeNames() ([]string, error)
+	// Save network snapshot
+	// Network is stopped in order to do a safe preservation
+    // Returns the full local path to the snapshot dir
+	SaveSnapshot(context.Context, string) (string, error)
+	// Remove network snapshot
+	RemoveSnapshot(string) error
+	// Get name of available snapshots
+	GetSnapshotNames() ([]string, error)
 }
 ```
 
 and allows users to interact with a node using the `node.Node` interface:
 
 ```go
-// An AvalancheGo node
+// Node represents an AvalancheGo node
 type Node interface {
-    // Return this node's name, which is unique
-    // across all the nodes in its network.
-    GetName() string
-    // Return this node's Avalanche node ID.
-    GetNodeID() ids.ShortID
-    // Return a client that can be used to make API calls.
-    GetAPIClient() api.Client
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
+	// Return this node's Avalanche node ID.
+	GetNodeID() ids.ShortID
+	// Return a client that can be used to make API calls.
+	GetAPIClient() api.Client
+	// Return this node's IP (e.g. 127.0.0.1).
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTP API port.
+	GetAPIPort() uint16
+	// Starts a new test peer, connects it to the given node, and returns the peer.
+	// [handler] defines how the test peer handles messages it receives.
+	// The test peer can be used to send messages to the node it's attached to.
+	// It's left to the caller to maintain a reference to the returned peer.
+	// The caller should call StartClose() on the peer when they're done with it.
+	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
+	// Return this node's avalanchego binary path
+	GetBinaryPath() string
+	// Return this node's db dir
+	GetDbDir() string
+	// Return this node's logs dir
+	GetLogsDir() string
+	// Return this node's config file contents
+	GetConfigFile() string
 }
 ```
