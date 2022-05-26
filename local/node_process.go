@@ -2,159 +2,157 @@ package local
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
-	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/shirou/gopsutil/process"
 )
 
-// interface compliance
-var (
-	_ node.Node   = (*localNode)(nil)
-	_ NodeProcess = (*nodeProcessImpl)(nil)
-)
+var _ NodeProcess = (*nodeProcess)(nil)
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
 type NodeProcess interface {
-	// Start this process.
-	// Returns error if not called after instantiation.
-	// returns error if the process already started.
-	// If process stops without a previous call to Stop(), send notification msg over given channel.
-	Start(chan network.UnexpectedNodeStopMsg) error
-	// Send a SIGTERM to this process.
-	// If ctx is cancelled, send SIGKILL to this process and descendants.
-	// Returns error if called before Start.
-	// Returns nil if the process is already stopping/stopped.
-	Stop(ctx context.Context) error
-	// Returns when the process finishes exiting.
-	// Returns error if called before Start.
-	// Returns nil if already waited for the process.
-	Wait() error
-	// Returns the state of the process
-	Status() node.ProcessState
+	// Sends a SIGINT to this process and returns the process's
+	// exit code.
+	// If [ctx] is cancelled, sends a SIGKILL to this process and descendants.
+	// We assume sending a SIGKILL to a process will always successfully kill it.
+	// Subsequent calls to [Stop] have no effect.
+	Stop(ctx context.Context) int
+	// Returns the status of the process.
+	Status() status.Status
 }
 
-type nodeProcessImpl struct {
+type nodeProcess struct {
 	name string
+	log  logging.Logger
 	lock sync.RWMutex
 	cmd  *exec.Cmd
-	// maintains process state Initial/Started/Stopping/Stopped
-	state node.ProcessState
-	// closed when the AvalancheGo process returns
+	// Process status
+	state status.Status
+	// Closed when the process exits.
 	closedOnStop chan struct{}
-	// wait return
-	waitReturn error
 }
 
-func newNodeProcessImpl(name string, cmd *exec.Cmd) *nodeProcessImpl {
-	return &nodeProcessImpl{
+func newNodeProcess(name string, log logging.Logger, cmd *exec.Cmd) (*nodeProcess, error) {
+	np := &nodeProcess{
 		name:         name,
+		log:          log,
 		cmd:          cmd,
 		closedOnStop: make(chan struct{}),
 	}
+	return np, np.start()
 }
 
-// to be called only on Initial state
-func (p *nodeProcessImpl) Start(unexpectedStopCh chan network.UnexpectedNodeStopMsg) error {
+// Start this process.
+// Must only be called once.
+func (p *nodeProcess) start() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.state != node.Initial {
-		return errors.New("start called on invalid state")
-	}
+
+	p.state = status.Running
 	if err := p.cmd.Start(); err != nil {
-		return err
-	}
-	p.state = node.Started
-	go func() {
-		// Wait4 to avoid race conditions on stdout/stderr pipes
-		var status syscall.WaitStatus
-		var rusage syscall.Rusage
-		_, err := syscall.Wait4(p.cmd.Process.Pid, &status, 0, &rusage)
-		p.lock.Lock()
-		state := p.state
-		p.state = node.Stopped
-		p.waitReturn = err
+		p.state = status.Stopped
 		close(p.closedOnStop)
-		p.lock.Unlock()
-		if state != node.Stopping {
-			unexpectedStopCh <- network.UnexpectedNodeStopMsg{
-				NodeName: p.name,
-				ExitCode: status.ExitStatus(),
-			}
-		}
-	}()
+		return fmt.Errorf("couldn't start process: %w", err)
+	}
+
+	go p.awaitExit()
 	return nil
 }
 
-func (p *nodeProcessImpl) Wait() error {
-	p.lock.RLock()
-	state := p.state
-	p.lock.RUnlock()
-	if state == node.Initial {
-		return errors.New("wait called on invalid state")
+// Wait for the process to exit.
+// When it does, update the state and close [p.closedOnStop]
+func (p *nodeProcess) awaitExit() {
+	if err := p.cmd.Wait(); err != nil {
+		p.log.Debug("node %q returned error on wait: %s", p.name, err)
 	}
-	<-p.closedOnStop
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	// only return wait err first time is called
-	waitReturn := p.waitReturn
-	p.waitReturn = nil
-	return waitReturn
+
+	p.state = status.Stopped
+	close(p.closedOnStop)
 }
 
-// if context is cancelled, assumes a failure in termination
-// and uses SIGKILL over process and descendants
-func (p *nodeProcessImpl) Stop(ctx context.Context) error {
+func (p *nodeProcess) Stop(ctx context.Context) int {
 	p.lock.Lock()
-	defer p.lock.Unlock()
-	if p.state == node.Initial {
-		return errors.New("stop called on invalid state")
+
+	// The process is already stopped.
+	if p.state == status.Stopped {
+		exitCode := p.cmd.ProcessState.ExitCode()
+		p.lock.Unlock()
+		return exitCode
 	}
-	if p.state != node.Started {
-		return nil
+
+	// There's another call to Stop executing right now.
+	// Wait for it to finish.
+	if p.state == status.Stopping {
+		p.lock.Unlock()
+		<-p.closedOnStop
+		p.lock.RLock()
+		defer p.lock.RUnlock()
+
+		return p.cmd.ProcessState.ExitCode()
 	}
-	stopResult := p.cmd.Process.Signal(os.Interrupt)
-	p.state = node.Stopping
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = killDescendants(int32(p.cmd.Process.Pid))
-			_ = p.cmd.Process.Signal(os.Kill)
-		case <-p.closedOnStop:
+
+	p.state = status.Stopping
+	proc := p.cmd.Process
+	// We have to unlock here so that [p.awaitExit] can grab the lock
+	// and close [p.closedOnStop].
+	p.lock.Unlock()
+
+	if err := proc.Signal(os.Interrupt); err != nil {
+		p.log.Warn("sending SIGINT errored: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		p.log.Warn("context cancelled while waiting for node %q to stop", p.name)
+		killDescendants(int32(proc.Pid), p.log)
+		if err := proc.Signal(os.Kill); err != nil {
+			p.log.Warn("sending SIGKILL errored: %w", err)
 		}
-	}()
-	return stopResult
-}
+	case <-p.closedOnStop:
+	}
 
-func (p *nodeProcessImpl) Status() node.ProcessState {
+	<-p.closedOnStop
 	p.lock.RLock()
 	defer p.lock.RUnlock()
+
+	return p.cmd.ProcessState.ExitCode()
+
+}
+
+func (p *nodeProcess) Status() status.Status {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
 	return p.state
 }
 
-func killDescendants(pid int32) error {
+func killDescendants(pid int32, log logging.Logger) {
 	procs, err := process.Processes()
 	if err != nil {
-		return err
+		log.Warn("couldn't get processes: %s", err)
+		return
 	}
 	for _, proc := range procs {
 		ppid, err := proc.Ppid()
 		if err != nil {
-			return err
+			log.Warn("couldn't get process ID: %s", err)
+			continue
 		}
 		if ppid != pid {
 			continue
 		}
-		if err := killDescendants(proc.Pid); err != nil {
-			return err
+		killDescendants(proc.Pid, log)
+		if err := proc.Kill(); err != nil {
+			log.Warn("error killing process %d: %s", proc.Pid, err)
 		}
-		_ = proc.Kill()
 	}
-	return nil
 }

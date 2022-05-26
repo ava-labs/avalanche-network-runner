@@ -298,7 +298,6 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 		lc.nodeInfos[name].Uri = uri
 		lc.nodeInfos[name].Id = nodeID
-		lc.nodeInfos[name].Alive = true
 
 		lc.apiClis[name] = node.GetAPIClient()
 		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeID, uri)

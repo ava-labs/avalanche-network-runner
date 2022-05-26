@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
@@ -29,15 +30,14 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix         = "node-"
-	configFileName                = "config.json"
-	stakingKeyFileName            = "staking.key"
-	stakingCertFileName           = "staking.crt"
-	genesisFileName               = "genesis.json"
-	stopTimeout                   = 30 * time.Second
-	healthCheckFreq               = 3 * time.Second
-	DefaultNumNodes               = 5
-	UnexpectedNodeStopMsgBuffSize = 1024
+	defaultNodeNamePrefix = "node-"
+	configFileName        = "config.json"
+	stakingKeyFileName    = "staking.key"
+	stakingCertFileName   = "staking.crt"
+	genesisFileName       = "genesis.json"
+	stopTimeout           = 30 * time.Second
+	healthCheckFreq       = 3 * time.Second
+	DefaultNumNodes       = 5
 )
 
 // interface compliance
@@ -81,8 +81,6 @@ type localNetwork struct {
 	rootDir string
 	// Flags to apply to all nodes if not present
 	flags map[string]interface{}
-	// Notification to users of node failure
-	unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg
 }
 
 var (
@@ -143,10 +141,11 @@ func init() {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
+	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
 }
 
 type nodeProcessCreator struct {
+	log logging.Logger
 	// If this node's stdout or stderr are redirected, [colorPicker] determines
 	// the color of logs printed to stdout and/or stderr
 	colorPicker utils.ColorPicker
@@ -161,7 +160,7 @@ type nodeProcessCreator struct {
 // NewNodeProcess creates a new process of the passed binary
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(config.BinaryPath, args...)
 	// assign a new color to this process (might not be used if the config isn't set for it)
@@ -183,7 +182,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return newNodeProcessImpl(config.Name, cmd), nil
+	return newNodeProcess(config.Name, npc.log, cmd)
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
@@ -201,6 +200,7 @@ func NewNetwork(
 		api.NewAPIClient,
 		&nodeProcessCreator{
 			colorPicker: utils.NewColorPicker(),
+			log:         log,
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
@@ -230,16 +230,15 @@ func newNetwork(
 
 	// Create the network
 	net := &localNetwork{
-		networkID:            networkID,
-		genesis:              []byte(networkConfig.Genesis),
-		nodes:                map[string]*localNode{},
-		onStopCh:             make(chan struct{}),
-		log:                  log,
-		bootstraps:           beacon.NewSet(),
-		newAPIClientF:        newAPIClientF,
-		nodeProcessCreator:   nodeProcessCreator,
-		flags:                networkConfig.Flags,
-		unexpectedNodeStopCh: make(chan network.UnexpectedNodeStopMsg, UnexpectedNodeStopMsgBuffSize),
+		networkID:          networkID,
+		genesis:            []byte(networkConfig.Genesis),
+		nodes:              map[string]*localNode{},
+		onStopCh:           make(chan struct{}),
+		log:                log,
+		bootstraps:         beacon.NewSet(),
+		newAPIClientF:      newAPIClientF,
+		nodeProcessCreator: nodeProcessCreator,
+		flags:              networkConfig.Flags,
 	}
 
 	// Sort node configs so beacons start first
@@ -300,6 +299,7 @@ func NewDefaultNetwork(
 	binaryPath string,
 ) (network.Network, error) {
 	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{
+		log:         log,
 		colorPicker: utils.NewColorPicker(),
 		stdout:      os.Stdout,
 		stderr:      os.Stderr,
@@ -407,13 +407,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't create new node process: %s", err)
-	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	if err := nodeProcess.Start(ln.unexpectedNodeStopCh); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, ln.log, flags...)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"couldn't create new node process with binary %q and flags %v: %w",
+			nodeConfig.BinaryPath, flags, err,
+		)
 	}
 
 	// Create a wrapper for this node so we can reference it later
@@ -467,23 +467,26 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 	}(ctx)
 
 	errGr, ctx := errgroup.WithContext(ctx)
-	for _, lnNode := range ln.nodes {
-		lnNode := lnNode
+	for _, node := range ln.nodes {
+		node := node
+		nodeName := node.GetName()
 		errGr.Go(func() error {
 			// Every [healthCheckFreq], query node for health status.
 			// Do this until ctx timeout or network closed.
 			for {
-				if lnNode.Status() != node.Started {
-					return fmt.Errorf("unexpected stop on node %q", lnNode.GetName())
+				if node.Status() != status.Running {
+					// If we had stopped this node ourselves, it wouldn't be in [ln.nodes].
+					// Since it is, it means the node stopped unexpectedly.
+					return fmt.Errorf("node %q stopped unexpectedly", nodeName)
 				}
-				health, err := lnNode.client.HealthAPI().Health(ctx)
+				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
-					ln.log.Debug("node %q became healthy", lnNode.GetName())
+					ln.log.Debug("node %q became healthy", nodeName)
 					return nil
 				}
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", lnNode.GetName())
+					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", nodeName)
 				case <-time.After(healthCheckFreq):
 				}
 			}
@@ -560,23 +563,14 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
-	defer cancel()
 	errs := wrappers.Errs{}
 	for nodeName := range ln.nodes {
-		select {
-		case <-ctx.Done():
-			// In practice we'll probably never time out here,
-			// and the caller probably won't cancel a call
-			// to stop(), but we include this to respect the
-			// network.Network interface.
-			return ctx.Err()
-		default:
-		}
-		if err := ln.removeNode(ctx, nodeName); err != nil {
+		stopCtx, stopCtxCancel := context.WithTimeout(ctx, stopTimeout)
+		if err := ln.removeNode(stopCtx, nodeName); err != nil {
 			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
+		stopCtxCancel()
 	}
 	ln.log.Info("done stopping network")
 	return errs.Err
@@ -607,23 +601,11 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	delete(ln.nodes, nodeName)
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
-	node.GetAPIClient().CChainEthAPI().Close()
-	if err := node.process.Stop(ctx); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
-	}
-	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %s stopped with error: %w", nodeName, err)
+	node.client.CChainEthAPI().Close()
+	if exitCode := node.process.Stop(ctx); exitCode != 0 {
+		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
 	return nil
-}
-
-func (ln *localNetwork) GetUnexpectedNodeStopChannel() (chan network.UnexpectedNodeStopMsg, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	if ln.stopCalled() {
-		return nil, network.ErrStopped
-	}
-	return ln.unexpectedNodeStopCh, nil
 }
 
 // Returns whether Stop has been called.

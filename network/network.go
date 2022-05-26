@@ -9,11 +9,6 @@ import (
 
 var ErrStopped = errors.New("network stopped")
 
-type UnexpectedNodeStopMsg struct {
-	NodeName string
-	ExitCode int
-}
-
 // Network is an abstraction of an Avalanche network
 type Network interface {
 	// Returns nil if all the nodes in the network are healthy.
@@ -39,9 +34,4 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
-	// Returns a channel that receives a message with
-	// node name when a node fails
-	// The user shall continously read the channel in order
-	// to prevent gourutine leak
-	GetUnexpectedNodeStopChannel() (chan UnexpectedNodeStopMsg, error)
 }

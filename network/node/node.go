@@ -7,25 +7,11 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
-)
-
-// State of the node's process
-// One of Initial/Started/Stopping/Stopped
-type ProcessState int
-
-const (
-	// state just after creating the node process
-	Initial ProcessState = iota
-	// process has been started and not yet asked to stop or found to be stopped
-	Started
-	// process has been asked to stop
-	Stopping
-	// process is verified to be stopped
-	Stopped
 )
 
 // Node represents an AvalancheGo node
@@ -50,7 +36,7 @@ type Node interface {
 	// The caller should call StartClose() on the peer when they're done with it.
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
 	// Return the state of the node process
-	Status() ProcessState
+	Status() status.Status
 }
 
 // Config encapsulates an avalanchego configuration

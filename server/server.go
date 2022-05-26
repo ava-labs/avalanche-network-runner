@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -35,6 +34,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	healthCheckFreq    = 10 * time.Second
+	healthCheckTimeout = time.Minute
 )
 
 type Config struct {
@@ -83,14 +87,13 @@ var (
 	ErrNotBootstrapped                    = errors.New("not bootstrapped")
 	ErrNodeNotFound                       = errors.New("node not found")
 	ErrPeerNotFound                       = errors.New("peer not found")
-	ErrUnexpectedType                     = errors.New("unexpected type")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
 )
 
 const (
 	MinNodes            uint32 = 1
 	DefaultNodes        uint32 = 5
-	StopOnSignalTimeout        = 2 * time.Second
+	stopOnSignalTimeout        = 15 * time.Second
 )
 
 func New(cfg Config) (Server, error) {
@@ -199,7 +202,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	}
 
 	if s.network != nil {
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopOnSignalTimeout)
 		defer stopCtxCancel()
 		s.network.stop(stopCtx)
 		zap.L().Warn("network stopped")
@@ -216,15 +219,15 @@ func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingR
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
 }
 
-const DefaultStartTimeout = 5 * time.Minute
+const defaultStartTimeout = 5 * time.Minute
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -375,12 +378,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.mu.Unlock()
 		}
 
-		unexpectedNodeStopCh, err := s.network.nw.GetUnexpectedNodeStopChannel()
-		if err != nil {
-			// this shall not happend
-			panic(err)
-		}
-		go s.handleUnexpectedNodeStop(unexpectedNodeStopCh)
+		go s.handleUnhealthy()
 
 		if len(req.GetCustomVms()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
@@ -887,7 +885,9 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 	return info
 }
 
-func (s *server) handleUnexpectedNodeStop(unexpectedNodeStopCh chan network.UnexpectedNodeStopMsg) {
+func (s *server) handleUnhealthy() {
+	timer := time.NewTimer(healthCheckFreq)
+
 	for {
 		select {
 		case <-s.closed:
@@ -896,28 +896,23 @@ func (s *server) handleUnexpectedNodeStop(unexpectedNodeStopCh chan network.Unex
 			return
 		case <-s.network.startErrc:
 			return
-		case unexpectedStopMsg := <-unexpectedNodeStopCh:
+		case <-timer.C:
+			ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
+			err := s.network.nw.Healthy(ctx)
+			cancel()
+			if err == nil {
+				continue
+			}
 			zap.L().Info(
-				"received unexpected node stop message",
-				zap.String("node-name", unexpectedStopMsg.NodeName),
-				zap.Int("exit-code", unexpectedStopMsg.ExitCode),
+				"network is unhealthy",
+				zap.Error(err),
 			)
 			s.mu.Lock()
-			if s.clusterInfo == nil {
-				s.mu.Unlock()
-				return
-			}
-			_, ok := s.network.nodeInfos[unexpectedStopMsg.NodeName]
-			if ok {
-				zap.L().Warn(
-					"node with unexpected stop message not found in nodeInfos",
-					zap.String("node-name", unexpectedStopMsg.NodeName),
-				)
-				s.network.nodeInfos[unexpectedStopMsg.NodeName].Alive = false
-				s.clusterInfo.NodeInfos = s.network.nodeInfos
+			if s.clusterInfo != nil {
 				s.clusterInfo.Healthy = false
 			}
 			s.mu.Unlock()
+			timer.Reset(healthCheckFreq)
 		}
 	}
 }

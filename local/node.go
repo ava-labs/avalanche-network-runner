@@ -9,6 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
@@ -23,9 +24,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// interface compliance
 var (
 	_ getConnFunc = defaultGetConnFunc
+	_ node.Node   = (*localNode)(nil)
 )
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
@@ -163,6 +164,6 @@ func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
 }
 
-func (node *localNode) Status() node.ProcessState {
+func (node *localNode) Status() status.Status {
 	return node.process.Status()
 }
