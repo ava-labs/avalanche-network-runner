@@ -93,7 +93,7 @@ var (
 const (
 	MinNodes            uint32 = 1
 	DefaultNodes        uint32 = 5
-	stopOnSignalTimeout        = 2 * time.Second
+	stopOnSignalTimeout        = 15 * time.Second
 )
 
 func New(cfg Config) (Server, error) {
@@ -886,14 +886,9 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 }
 
 func (s *server) handleUnhealthy() {
-	timer := time.NewTimer(0)
-	if !timer.Stop() {
-		<-timer.C
-	}
-	defer timer.Stop()
+	timer := time.NewTimer(healthCheckFreq)
 
 	for {
-		timer.Reset(healthCheckFreq)
 		select {
 		case <-s.closed:
 			return
@@ -917,6 +912,7 @@ func (s *server) handleUnhealthy() {
 				s.clusterInfo.Healthy = false
 			}
 			s.mu.Unlock()
+			timer.Reset(healthCheckFreq)
 		}
 	}
 }

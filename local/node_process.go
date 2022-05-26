@@ -88,6 +88,7 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 		p.lock.Unlock()
 		return exitCode
 	}
+
 	// There's another call to Stop executing right now.
 	// Wait for it to finish.
 	if p.state == status.Stopping {
