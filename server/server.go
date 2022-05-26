@@ -52,10 +52,10 @@ type Server interface {
 type server struct {
 	cfg Config
 
-	rootCtx    context.Context
-	cancelFunc context.CancelFunc // allow the Start context to be cancelled
-	closeOnce  sync.Once
-	closed     chan struct{}
+	rootCtx        context.Context
+	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
+	closeOnce      sync.Once
+	closed         chan struct{}
 
 	ln               net.Listener
 	gRPCServer       *grpc.Server
@@ -189,7 +189,6 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		zap.L().Warn("gRPC server failed", zap.Error(err))
 		if !s.cfg.GwDisabled {
 			zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
-			zap.L().Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
 			<-gwErrc
 		}
 
@@ -205,7 +204,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		defer stopCtxCancel()
 		// we need to cancel the Start context so that any pending action with that context
 		// can be cancelled
-		s.cancelFunc()
+		s.startCtxCancel()
 		s.network.stop(stopCtx)
 		zap.L().Warn("network stopped")
 	}
@@ -363,11 +362,11 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
 	// We may need to cancel the context, for example if the client hits Ctrl-C
-	var cancellableCtx context.Context
-	cancellableCtx, s.cancelFunc = context.WithCancel(ctx)
+	var startCtx context.Context
+	startCtx, s.startCtxCancel = context.WithCancel(ctx)
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	go s.network.start(cancellableCtx)
+	go s.network.start(startCtx)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -768,6 +767,10 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// cancel possible concurrent still running start
+	if s.startCtxCancel != nil {
+		s.startCtxCancel()
+	}
 	s.network.stop(ctx)
 	s.network = nil
 	info.Healthy = false
