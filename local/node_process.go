@@ -134,23 +134,24 @@ func (p *nodeProcess) Status() status.Status {
 	return p.state
 }
 
-func killDescendants(pid int32, log logging.Logger) error {
+func killDescendants(pid int32, log logging.Logger) {
 	procs, err := process.Processes()
 	if err != nil {
-		return err
+		log.Warn("couldn't get processes: %s", err)
+		return
 	}
 	for _, proc := range procs {
 		ppid, err := proc.Ppid()
 		if err != nil {
-			return err
+			log.Warn("couldn't get process ID: %s", err)
+			continue
 		}
 		if ppid != pid {
 			continue
 		}
-		if err := killDescendants(proc.Pid, log); err != nil {
-			return err
+		killDescendants(proc.Pid, log)
+		if err := proc.Kill(); err != nil {
+			log.Warn("error killing process %d: %s", proc.Pid, err)
 		}
-		_ = proc.Kill()
 	}
-	return nil
 }
