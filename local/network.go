@@ -664,20 +664,20 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
-func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) error {
+func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	if ln.stopCalled() {
-		return network.ErrStopped
+		return "", network.ErrStopped
 	}
 	if len(snapshotName) == 0 {
-		return fmt.Errorf("invalid snapshotName %q", snapshotName)
+		return "", fmt.Errorf("invalid snapshotName %q", snapshotName)
 	}
 	// check if snapshot already exists
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err == nil {
-		return fmt.Errorf("snapshot %q already exists", snapshotName)
+		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
@@ -709,7 +709,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	for nodeName, nodeConfig := range nodesConfig {
 		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
 		if err != nil {
-			return err
+			return "", err
 		}
 		delete(nodeConfig.Flags, config.LogsDirKey)
 		nodesConfig[nodeName] = nodeConfig
@@ -717,24 +717,24 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 
 	// stop network to safely save snapshot
 	if err := ln.stop(ctx); err != nil {
-		return err
+		return "", err
 	}
 	// create main snapshot dirs
 	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// save db
 	for _, nodeConfig := range nodesConfig {
 		sourceDbDir, ok := nodesDbDir[nodeConfig.Name]
 		if !ok {
-			return fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
+			return "", fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
 		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
 		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
 		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
-			return fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
+			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
 		}
 	}
 	// save network conf
@@ -749,9 +749,13 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) e
 	}
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {
-		return err
+		return "", err
 	}
-	return createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
+	err = createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
+	if err != nil {
+		return "", err
+	}
+	return snapshotDir, nil
 }
 
 // start network from snapshot

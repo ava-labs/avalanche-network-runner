@@ -37,7 +37,7 @@ type Network interface {
 	GetNodeNames() ([]string, error)
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
-	SaveSnapshot(context.Context, string) error
+	SaveSnapshot(context.Context, string) (string, error)
 	// Remove network snapshot
 	RemoveSnapshot(string) error
 	// Get name of available snapshots

@@ -989,14 +989,15 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName); err != nil {
+	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
+	if err != nil {
 		zap.L().Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
 	}
 	s.network = nil
 	s.clusterInfo = nil
 
-	return &rpcpb.SaveSnapshotResponse{}, nil
+	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
 }
 
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
