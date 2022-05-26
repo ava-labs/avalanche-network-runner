@@ -682,21 +682,21 @@ The associated pre-defined configuration is also available to users by calling `
 
 ## Network Snapshots
 
-A given network state, including the node ports and the full blockchain state, can be saved to a named
-snapshot, and loaded after that.
+A given network state, including the node ports and the full blockchain state, can be saved to a named snapshot. 
+The network can then be restarted from such a snapshot any time later.
 
 ```
 // Save network snapshot
-// Network is stopped in order to do a safe preservation
+// Network is stopped in order to do a safe persistence
 // Returns the full local path to the snapshot dir
 SaveSnapshot(context.Context, string) (string, error)
 // Remove network snapshot
 RemoveSnapshot(string) error
-// Get name of available snapshots
+// Get names of all available snapshots
 GetSnapshotNames() ([]string, error)
 ```
 
-To create a new network from a snapshot, function `NewNetworkFromSnapshot` is provided.
+To create a new network from a snapshot, the function `NewNetworkFromSnapshot` is provided.
 
 ## Network Interaction
 
@@ -755,7 +755,7 @@ type Node interface {
 	GetURL() string
 	// Return this node's P2P (staking) port.
 	GetP2PPort() uint16
-	// Return this node's HTP API port.
+	// Return this node's HTTP API port.
 	GetAPIPort() uint16
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.

@@ -26,7 +26,7 @@ type Node interface {
 	GetURL() string
 	// Return this node's P2P (staking) port.
 	GetP2PPort() uint16
-	// Return this node's HTP API port.
+	// Return this node's HTTP API port.
 	GetAPIPort() uint16
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.
