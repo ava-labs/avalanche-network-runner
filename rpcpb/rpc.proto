@@ -298,6 +298,7 @@ message SaveSnapshotRequest {
 }
 
 message SaveSnapshotResponse {
+  string snapshot_path = 1;
 }
 
 message LoadSnapshotRequest {
