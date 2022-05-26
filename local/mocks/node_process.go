@@ -32,28 +32,14 @@ func (_m *NodeProcess) Status() status.Status {
 }
 
 // Stop provides a mock function with given fields: ctx
-func (_m *NodeProcess) Stop(ctx context.Context) error {
+func (_m *NodeProcess) Stop(ctx context.Context) int {
 	ret := _m.Called(ctx)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+	var r0 int
+	if rf, ok := ret.Get(0).(func(context.Context) int); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Wait provides a mock function with given fields:
-func (_m *NodeProcess) Wait() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int)
 	}
 
 	return r0

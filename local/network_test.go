@@ -46,19 +46,19 @@ var (
 
 type localTestSuccessfulNodeProcessCreator struct{}
 
-func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	return newMockProcessSuccessful(config, flags...)
+func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+	return newMockProcessSuccessful(config, log, flags...)
 }
 
 type localTestFailedStartProcessCreator struct{}
 
-func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
-	return nil, errors.New("an error")
+func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+	return nil, errors.New("error on purpose for test")
 }
 
 type localTestProcessUndefNodeProcessCreator struct{}
 
-func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
 	return newMockProcessUndef(config, flags...)
 }
 
@@ -67,11 +67,11 @@ type localTestFlagCheckProcessCreator struct {
 	assert        *assert.Assertions
 }
 
-func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
 	if ok := lt.assert.EqualValues(lt.expectedFlags, config.Flags); !ok {
 		return nil, errors.New("assertion failed: flags not equal value")
 	}
-	return newMockProcessSuccessful(config, flags...)
+	return newMockProcessSuccessful(config, log, flags...)
 }
 
 // Returns an API client where:
@@ -108,10 +108,10 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 }
 
 // Returns a NodeProcess that always returns nil
-func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
+func newMockProcessSuccessful(node.Config, logging.Logger, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Wait").Return(nil)
-	process.On("Stop", mock.Anything).Return(nil)
+	process.On("Stop", mock.Anything).Return(0)
 	process.On("Status").Return(status.Running)
 	return process, nil
 }
@@ -156,7 +156,7 @@ func newLocalTestOneNodeCreator(assert *assert.Assertions, networkConfig network
 
 // Assert that the node's config is being passed correctly
 // to the function that starts the node process.
-func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
 	lt.assert.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
 	lt.assert.EqualValues(expectedConfig.CChainConfigFile, config.CChainConfigFile)
@@ -172,7 +172,7 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...s
 		lt.assert.True(ok)
 		lt.assert.EqualValues(v, gotV)
 	}
-	return lt.successCreator.NewNodeProcess(config, flags...)
+	return lt.successCreator.NewNodeProcess(config, log, flags...)
 }
 
 // Start a network with one node.
@@ -779,6 +779,7 @@ func TestChildCmdRedirection(t *testing.T) {
 		writtenCh: make(chan struct{}),
 	}
 	npc := &nodeProcessCreator{
+		log:         logging.NoLog{},
 		stdout:      buf,
 		stderr:      buf,
 		colorPicker: utils.NewColorPicker(),
@@ -808,7 +809,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	// Sleep for a second after echoing so that we have a chance to read from the stdout pipe
 	// before it closes when the process exits and Wait() returns.
 	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
-	proc, err := npc.NewNodeProcess(testConfig, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
+	proc, err := npc.NewNodeProcess(testConfig, logging.NoLog{}, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -818,9 +819,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	result := buf.String()
 
 	// wait for the process to finish.
-	if err = proc.Wait(); err != nil {
-		t.Fatal(err)
-	}
+	_ = proc.Stop(context.Background())
 
 	// now do the checks:
 	// the new string should contain the node name

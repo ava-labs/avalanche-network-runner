@@ -141,10 +141,11 @@ func init() {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
+	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
 }
 
 type nodeProcessCreator struct {
+	log logging.Logger
 	// If this node's stdout or stderr are redirected, [colorPicker] determines
 	// the color of logs printed to stdout and/or stderr
 	colorPicker utils.ColorPicker
@@ -159,7 +160,7 @@ type nodeProcessCreator struct {
 // NewNodeProcess creates a new process of the passed binary
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(config.BinaryPath, args...)
 	// assign a new color to this process (might not be used if the config isn't set for it)
@@ -181,7 +182,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return newNodeProcess(config.Name, cmd)
+	return newNodeProcess(config.Name, npc.log, cmd)
 }
 
 // NewNetwork returns a new network from the given config that uses the given log.
@@ -199,6 +200,7 @@ func NewNetwork(
 		api.NewAPIClient,
 		&nodeProcessCreator{
 			colorPicker: utils.NewColorPicker(),
+			log:         log,
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
@@ -297,6 +299,7 @@ func NewDefaultNetwork(
 	binaryPath string,
 ) (network.Network, error) {
 	return newDefaultNetwork(log, binaryPath, api.NewAPIClient, &nodeProcessCreator{
+		log:         log,
 		colorPicker: utils.NewColorPicker(),
 		stdout:      os.Stdout,
 		stderr:      os.Stderr,
@@ -405,7 +408,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Start the AvalancheGo node and pass it the flags defined above
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, ln.log, flags...)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"couldn't create new node process with binary %q and flags %v: %w",
@@ -599,11 +602,8 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
-	if err := node.process.Stop(ctx); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %q: %w", nodeName, err)
-	}
-	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
+	if exitCode := node.process.Stop(ctx); exitCode != 0 {
+		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
 	return nil
 }
