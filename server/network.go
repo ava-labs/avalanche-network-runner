@@ -295,7 +295,7 @@ func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 	return nil
 }
 
-func (lc *localNetwork) loadSnapshotWait(ctx context.Context) {
+func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
@@ -310,7 +310,7 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context) {
 			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
 		}
 	}
-	close(lc.customVMsReadyCh)
+	close(loadSnapshotReadyCh)
 }
 
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {

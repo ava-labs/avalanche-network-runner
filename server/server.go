@@ -926,7 +926,8 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	// start non-blocking wait to load snapshot results
 	// the user is expected to poll cluster status
-	go s.network.loadSnapshotWait(ctx)
+	loadSnapshotReadyCh := make(chan struct{})
+	go s.network.loadSnapshotWait(ctx, loadSnapshotReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -945,7 +946,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			s.clusterInfo = nil
 			s.mu.Unlock()
 			return
-		case <-s.network.customVMsReadyCh:
+		case <-loadSnapshotReadyCh:
 			s.mu.Lock()
 			s.clusterInfo.Healthy = true
 			s.clusterInfo.NodeNames = s.network.nodeNames
