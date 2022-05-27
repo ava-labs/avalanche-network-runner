@@ -19,7 +19,7 @@ type Node interface {
 	// across all the nodes in its network.
 	GetName() string
 	// Return this node's Avalanche node ID.
-	GetNodeID() ids.ShortID
+	GetNodeID() ids.NodeID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
 	// Return this node's IP (e.g. 127.0.0.1).

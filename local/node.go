@@ -18,8 +18,8 @@ import (
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,7 +67,7 @@ type localNode struct {
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
 	// Set in network.AddNode
-	nodeID ids.ShortID
+	nodeID ids.NodeID
 	// The ID of the network this node exists in
 	networkID uint32
 	// Allows user to make API calls to this node.
@@ -123,16 +123,15 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	ip := avago_utils.IPDesc{
+	ip := ips.IPPort{
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
 	config := &peer.Config{
-		Metrics:              metrics,
-		MessageCreator:       mc,
-		Log:                  logging.NoLog{},
-		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
-		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
+		Metrics:             metrics,
+		MessageCreator:      mc,
+		Log:                 logging.NoLog{},
+		InboundMsgThrottler: throttling.NewNoInboundThrottler(),
 		Network: peer.NewTestNetwork(
 			mc,
 			node.networkID,
@@ -144,7 +143,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		),
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		VersionParser:        version.NewDefaultApplicationParser(),
+		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
@@ -161,7 +160,13 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		peer.CertToID(tlsCert.Leaf),
+		ids.NodeIDFromCert(tlsCert.Leaf),
+		peer.NewThrottledMessageQueue(
+			config.Metrics,
+			ids.NodeIDFromCert(tlsCert.Leaf),
+			logging.NoLog{},
+			throttling.NewNoOutboundThrottler(),
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -176,7 +181,7 @@ func (node *localNode) GetName() string {
 }
 
 // See node.Node
-func (node *localNode) GetNodeID() ids.ShortID {
+func (node *localNode) GetNodeID() ids.NodeID {
 	return node.nodeID
 }
 
