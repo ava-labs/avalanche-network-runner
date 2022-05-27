@@ -759,10 +759,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
 	zap.L().Debug("received stop request")
-	info := s.getClusterInfo()
-	if info == nil {
-		return nil, ErrNotBootstrapped
-	}
+	info := &rpcpb.ClusterInfo{}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -773,9 +770,9 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 	}
 	s.network.stop(ctx)
 	s.network = nil
-	info.Healthy = false
 	s.clusterInfo = nil
 
+	info.Healthy = false
 	return &rpcpb.StopResponse{ClusterInfo: info}, nil
 }
 
