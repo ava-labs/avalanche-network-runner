@@ -16,11 +16,14 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/network/throttling"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/networking/tracker"
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/math/meter"
+	"github.com/ava-labs/avalanchego/utils/resource"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -127,6 +130,10 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
+	resourceTracker, err := tracker.NewResourceTracker(prometheus.NewRegistry(), resource.NoUsage, meter.ContinuousFactory{}, 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
 	config := &peer.Config{
 		Metrics:             metrics,
 		MessageCreator:      mc,
@@ -150,6 +157,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
+		ResourceTracker:      resourceTracker,
 	}
 	_, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
