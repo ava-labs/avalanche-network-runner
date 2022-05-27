@@ -756,7 +756,7 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 
 	info := s.getClusterInfo()
 	if info == nil {
-		info := &rpcpb.ClusterInfo{}
+		info = &rpcpb.ClusterInfo{}
 	}
 
 	s.mu.Lock()
