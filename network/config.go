@@ -42,10 +42,6 @@ type Config struct {
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config `json:"nodeConfigs"`
-	// Log level for the whole network
-	LogLevel string `json:"logLevel"`
-	// Name for the network
-	Name string `json:"name"`
 	// Flags that will be passed to each node in this network.
 	// It can be empty.
 	// Config flags may also be passed in a node's config struct

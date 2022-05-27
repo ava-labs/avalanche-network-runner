@@ -8,15 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
-	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -50,7 +50,6 @@ type localNetwork struct {
 
 	nw network.Network
 
-	// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 	nodeNames []string
 	nodeInfos map[string]*rpcpb.NodeInfo
 
@@ -59,23 +58,21 @@ type localNetwork struct {
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
 
-	apiClis map[string]api.Client
-
-	localClusterReadyc          chan struct{} // closed when local network is ready/healthy
-	localClusterReadycCloseOnce sync.Once
+	localClusterReadyCh          chan struct{} // closed when local network is ready/healthy
+	localClusterReadyChCloseOnce sync.Once
 
 	// map from VM name to genesis bytes
 	customVMNameToGenesis map[string][]byte
 	// map from VM ID to VM info
 	customVMIDToInfo map[ids.ID]vmInfo
 
-	customVMsReadyc          chan struct{} // closed when subnet installations are complete
-	customVMsReadycCloseOnce sync.Once
-	customVMRestartMu        *sync.RWMutex
+	customVMsReadyCh          chan struct{} // closed when subnet installations are complete
+	customVMsReadyChCloseOnce sync.Once
+	customVMRestartMu         *sync.RWMutex
 
-	stopc      chan struct{}
-	startDonec chan struct{}
-	startErrc  chan error
+	stopCh      chan struct{}
+	startDoneCh chan struct{}
+	startErrCh  chan error
 
 	stopOnce sync.Once
 }
@@ -100,6 +97,8 @@ type localNetworkOptions struct {
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
+
+	snapshotsDir string
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -111,84 +110,84 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	nodeInfos := make(map[string]*rpcpb.NodeInfo)
-	cfg, err := local.NewDefaultConfigNNodes(opts.execPath, opts.numNodes)
-	if err != nil {
-		return nil, err
-	}
-
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
-
-	if opts.globalNodeConfig != "" {
-		if err := json.Unmarshal([]byte(opts.globalNodeConfig), &globalConfig); err != nil {
-			return nil, err
-		}
-	}
-
-	nodeNames := make([]string, len(cfg.NodeConfigs))
-	for i := range cfg.NodeConfigs {
-		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
-		nodeName := fmt.Sprintf("node%d", i+1)
-		logDir := filepath.Join(opts.rootDataDir, nodeName, "log")
-		dbDir := filepath.Join(opts.rootDataDir, nodeName, "db-dir")
-
-		nodeNames[i] = nodeName
-		cfg.NodeConfigs[i].Name = nodeName
-
-		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, opts.customNodeConfigs[nodeNames[i]])
-		if err != nil {
-			return nil, fmt.Errorf("failed merging provided configs: %w", err)
-		}
-
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, opts.pluginDir, opts.whitelistedSubnets)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.NodeConfigs[i].BinaryPath = opts.execPath
-		cfg.NodeConfigs[i].RedirectStdout = opts.redirectNodesOutput
-		cfg.NodeConfigs[i].RedirectStderr = opts.redirectNodesOutput
-
-		nodeInfos[nodeName] = &rpcpb.NodeInfo{
-			Name:               nodeName,
-			ExecPath:           opts.execPath,
-			Uri:                "",
-			Id:                 "",
-			LogDir:             logDir,
-			DbDir:              dbDir,
-			PluginDir:          opts.pluginDir,
-			WhitelistedSubnets: opts.whitelistedSubnets,
-			Config:             []byte(cfg.NodeConfigs[i].ConfigFile),
-		}
-	}
-
 	return &localNetwork{
 		logger: logger,
 
 		binPath: opts.execPath,
-		cfg:     cfg,
 
 		options: opts,
 
-		nodeNames:     nodeNames,
-		nodeInfos:     nodeInfos,
-		apiClis:       make(map[string]api.Client),
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
-		localClusterReadyc: make(chan struct{}),
+		localClusterReadyCh: make(chan struct{}),
 
 		customVMNameToGenesis: opts.customVMs,
 		customVMIDToInfo:      make(map[ids.ID]vmInfo),
-		customVMsReadyc:       make(chan struct{}),
+		customVMsReadyCh:      make(chan struct{}),
 		customVMRestartMu:     opts.restartMu,
 
-		stopc:      make(chan struct{}),
-		startDonec: make(chan struct{}),
-		startErrc:  make(chan error, 1),
+		stopCh:      make(chan struct{}),
+		startDoneCh: make(chan struct{}),
+		startErrCh:  make(chan error, 1),
+
+		nodeInfos: make(map[string]*rpcpb.NodeInfo),
+		nodeNames: []string{},
 	}, nil
+}
+
+func (lc *localNetwork) createConfig() error {
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
+	if err != nil {
+		return err
+	}
+
+	var defaultConfig, globalConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return err
+	}
+
+	if lc.options.globalNodeConfig != "" {
+		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalConfig); err != nil {
+			return err
+		}
+	}
+
+	for i := range cfg.NodeConfigs {
+		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
+		nodeName := fmt.Sprintf("node%d", i+1)
+		logDir := filepath.Join(lc.options.rootDataDir, nodeName, "log")
+		dbDir := filepath.Join(lc.options.rootDataDir, nodeName, "db-dir")
+
+		lc.nodeNames = append(lc.nodeNames, nodeName)
+		cfg.NodeConfigs[i].Name = nodeName
+
+		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
+		if err != nil {
+			return fmt.Errorf("failed merging provided configs: %w", err)
+		}
+
+		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
+		buildDir := ""
+		if lc.options.pluginDir != "" {
+			pluginDir := filepath.Clean(lc.options.pluginDir)
+			if filepath.Base(pluginDir) != "plugins" {
+				return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+			}
+			buildDir = filepath.Dir(pluginDir)
+		}
+
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
+		if err != nil {
+			return err
+		}
+
+		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
+		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
+	}
+
+	lc.cfg = cfg
+	return nil
 }
 
 // mergeAndCheckForIgnores takes two maps, merging the two and overriding the first with the second
@@ -225,22 +224,26 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(config map[string]interface{}, logDir string, dbDir string, pluginDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(configFileMap map[string]interface{}, logDir string, dbDir string, buildDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
-	if config["log-dir"] != "" {
-		zap.L().Warn("ignoring 'log-dir' config entry provided; the network runner needs to set its own")
+	if configFileMap[config.LogsDirKey] != "" {
+		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.LogsDirKey))
 	}
-	config["log-dir"] = logDir
-	if config["db-dir"] != "" {
-		zap.L().Warn("ignoring 'db-dir' config entry provided; the network runner needs to set its own")
+	configFileMap[config.LogsDirKey] = logDir
+	if configFileMap[config.DBPathKey] != "" {
+		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.DBPathKey))
 	}
-	config["db-dir"] = dbDir
-	config["plugin-dir"] = pluginDir
+	configFileMap[config.DBPathKey] = dbDir
+	if buildDir != "" {
+		configFileMap[config.BuildDirKey] = buildDir
+	}
 	// need to whitelist subnet ID to create custom VM chain
 	// ref. vms/platformvm/createChain
-	config["whitelisted-subnets"] = whitelistedSubnets
+	if whitelistedSubnets != "" {
+		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	}
 
-	finalJSON, err := json.Marshal(config)
+	finalJSON, err := json.Marshal(configFileMap)
 	if err != nil {
 		return "", err
 	}
@@ -249,19 +252,19 @@ func createConfigFileString(config map[string]interface{}, logDir string, dbDir 
 
 func (lc *localNetwork) start(ctx context.Context) {
 	defer func() {
-		close(lc.startDonec)
+		close(lc.startDoneCh)
 	}()
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.cfg, os.TempDir())
+	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	lc.nw = nw
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 
@@ -270,13 +273,70 @@ func (lc *localNetwork) start(ctx context.Context) {
 		return
 	}
 	if err := lc.installCustomVMs(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
 	if err := lc.waitForCustomVMsReady(ctx); err != nil {
-		lc.startErrc <- err
+		lc.startErrCh <- err
 		return
 	}
+}
+
+func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
+	defer func() {
+		close(lc.startDoneCh)
+	}()
+	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
+	nw, err := local.NewNetworkFromSnapshot(lc.logger, snapshotName, lc.options.rootDataDir, lc.options.snapshotsDir)
+	if err != nil {
+		return err
+	}
+	lc.nw = nw
+	return nil
+}
+
+func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+	for _, nodeName := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
+		for vmID, vmInfo := range lc.customVMIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
+		}
+	}
+	close(loadSnapshotReadyCh)
+}
+
+func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
+	node, err := lc.nw.GetNode(lc.nodeNames[0])
+	if err != nil {
+		return err
+	}
+	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+	if err != nil {
+		return err
+	}
+	for _, blockchain := range blockchains {
+		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
+			lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
+				info: &rpcpb.CustomVmInfo{
+					VmName:       blockchain.Name,
+					VmId:         blockchain.VMID.String(),
+					SubnetId:     blockchain.SubnetID.String(),
+					BlockchainId: blockchain.ID.String(),
+				},
+				subnetID:     blockchain.SubnetID,
+				blockchainID: blockchain.ID,
+			}
+		}
+	}
+	return nil
 }
 
 var errAborted = errors.New("aborted")
@@ -288,32 +348,80 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		return err
 	}
 
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	for _, name := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[name]
+		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
+	}
+	lc.localClusterReadyChCloseOnce.Do(func() {
+		close(lc.localClusterReadyCh)
+	})
+	return nil
+}
+
+func (lc *localNetwork) updateNodeInfo() error {
 	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
 	}
-	for name, node := range nodes {
-		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-		nodeID := node.GetNodeID().PrefixedString(constants.NodeIDPrefix)
-
-		lc.nodeInfos[name].Uri = uri
-		lc.nodeInfos[name].Id = nodeID
-
-		lc.apiClis[name] = node.GetAPIClient()
-		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeID, uri)
+	nodeNames := []string{}
+	for name := range nodes {
+		nodeNames = append(nodeNames, name)
 	}
+	sort.Strings(nodeNames)
+	lc.nodeNames = nodeNames
+	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
+	for _, name := range lc.nodeNames {
+		node := nodes[name]
+		configFile := []byte(node.GetConfigFile())
+		var pluginDir string
+		var whitelistedSubnets string
+		var configFileMap map[string]interface{}
+		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
+			return err
+		}
+		buildDirIntf, ok := configFileMap[config.BuildDirKey]
+		if ok {
+			buildDir, ok := buildDirIntf.(string)
+			if ok {
+				if buildDir != "" {
+					pluginDir = filepath.Join(buildDir, "plugins")
+				}
+			} else {
+				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
+			}
+		}
+		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
+		if ok {
+			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
+			if !ok {
+				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
+			}
+		}
 
-	lc.localClusterReadycCloseOnce.Do(func() {
-		close(lc.localClusterReadyc)
-	})
+		lc.nodeInfos[name] = &rpcpb.NodeInfo{
+			Name:               node.GetName(),
+			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
+			Id:                 node.GetNodeID().PrefixedString(constants.NodeIDPrefix),
+			ExecPath:           node.GetBinaryPath(),
+			LogDir:             node.GetLogsDir(),
+			DbDir:              node.GetDbDir(),
+			Config:             []byte(node.GetConfigFile()),
+			PluginDir:          pluginDir,
+			WhitelistedSubnets: whitelistedSubnets,
+		}
+	}
 	return nil
 }
 
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
-		close(lc.stopc)
+		close(lc.stopCh)
 		serr := lc.nw.Stop(ctx)
-		<-lc.startDonec
+		<-lc.startDoneCh
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
 	})
 }

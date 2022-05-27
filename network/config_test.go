@@ -10,13 +10,13 @@ import (
 )
 
 func TestConfigMarshalJSON(t *testing.T) {
-	jsonNetcfg := "{\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"binaryPath\":\"/tmp/some/file/path\",\"name\":\"node0\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"configFile\":\"config-file-blablabla1\",\"cchainConfigFile\":\"cchain-config-file-blablabla1\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}},{\"binaryPath\":\"/tmp/some/other/path\",\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"configFile\":\"config-file-blablabla3\",\"cchainConfigFile\":\"cchain-config-file-blablabla3\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\",\"flags\":{\"flag-three\":\"val-three\"}}"
+	jsonNetcfg := "{\"genesis\":\"in the beginning there was a token\",\"nodeConfigs\":[{\"binaryPath\":\"/tmp/some/file/path\",\"name\":\"node1\",\"isBeacon\":true,\"stakingKey\":\"key123\",\"stakingCert\":\"cert123\",\"configFile\":\"config-file-blablabla1\",\"cchainConfigFile\":\"cchain-config-file-blablabla1\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}},{\"binaryPath\":\"/tmp/some/other/path\",\"name\":\"node2\",\"isBeacon\":false,\"stakingKey\":\"key789\",\"stakingCert\":\"cert789\",\"configFile\":\"config-file-blablabla3\",\"cchainConfigFile\":\"cchain-config-file-blablabla3\",\"flags\":{\"flag-one\":\"val-one\",\"flag-two\":2}}],\"logLevel\":\"DEBUG\",\"name\":\"abcxyz\",\"flags\":{\"flag-three\":\"val-three\"}}"
 
 	control := network.Config{
 		Genesis: "in the beginning there was a token",
 		NodeConfigs: []node.Config{
 			{
-				Name:             "node0",
+				Name:             "node1",
 				IsBeacon:         true,
 				StakingKey:       "key123",
 				StakingCert:      "cert123",
@@ -42,8 +42,6 @@ func TestConfigMarshalJSON(t *testing.T) {
 				BinaryPath: "/tmp/some/other/path",
 			},
 		},
-		LogLevel: "DEBUG",
-		Name:     "abcxyz",
 		Flags: map[string]interface{}{
 			"flag-three": "val-three",
 		},

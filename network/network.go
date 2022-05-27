@@ -7,6 +7,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
+var ErrUndefined = errors.New("undefined network")
 var ErrStopped = errors.New("network stopped")
 
 // Network is an abstraction of an Avalanche network
@@ -34,4 +35,12 @@ type Network interface {
 	// Returns the names of all nodes in this network.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNodeNames() ([]string, error)
+	// Save network snapshot
+	// Network is stopped in order to do a safe preservation
+	// Returns the full local path to the snapshot dir
+	SaveSnapshot(context.Context, string) (string, error)
+	// Remove network snapshot
+	RemoveSnapshot(string) error
+	// Get name of available snapshots
+	GetSnapshotNames() ([]string, error)
 }

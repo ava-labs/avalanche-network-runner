@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -31,11 +32,7 @@ func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
-	uris := make([]string, 0, len(lc.nodeInfos))
-	for _, i := range lc.nodeInfos {
-		uris = append(uris, i.Uri)
-	}
-	httpRPCEp := uris[0]
+	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
 	baseWallet, avaxAssetID, testKeyAddr, err := lc.setupWallet(ctx, httpRPCEp)
@@ -55,11 +52,7 @@ func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
 
 	println()
 	color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
-	uris = make([]string, 0, len(lc.nodeInfos))
-	for _, i := range lc.nodeInfos {
-		uris = append(uris, i.Uri)
-	}
-	httpRPCEp = uris[0]
+	httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
 	baseWallet.refresh(httpRPCEp)
 	zap.L().Info("set up base wallet with pre-funded test key",
 		zap.String("http-rpc-endpoint", httpRPCEp),
@@ -123,7 +116,7 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 					zap.Error(err),
 				)
 				select {
-				case <-lc.stopc:
+				case <-lc.stopCh:
 					return errAborted
 				case <-ctx.Done():
 					return ctx.Err()
@@ -135,16 +128,17 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 
 	println()
 	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
-	for _, i := range lc.nodeInfos {
+	for _, nodeName := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
 		for vmID, vmInfo := range lc.customVMIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, i.GetUri(), vmInfo.blockchainID.String())
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
 		}
 	}
 
-	lc.customVMsReadycCloseOnce.Do(func() {
+	lc.customVMsReadyChCloseOnce.Do(func() {
 		println()
 		color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
-		close(lc.customVMsReadyc)
+		close(lc.customVMsReadyCh)
 	})
 	return nil
 }
@@ -308,38 +302,26 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) (err error) {
 	println()
-	color.Outf("{{green}}restarting each node with --whitelisted-subnets{{/}}\n")
+	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
 	whitelistedSubnetIDs := make([]string, 0, len(lc.customVMIDToInfo))
 	for _, vmInfo := range lc.customVMIDToInfo {
 		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
 	}
 	sort.Strings(whitelistedSubnetIDs)
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
-	for nodeName, v := range lc.nodeInfos {
-		zap.L().Info("updating node info",
-			zap.String("node-name", nodeName),
-			zap.String("whitelisted-subnets", whitelistedSubnets),
-		)
-		v.WhitelistedSubnets = whitelistedSubnets
-		lc.nodeInfos[nodeName] = v
-	}
 	for i := range lc.cfg.NodeConfigs {
 		nodeName := lc.cfg.NodeConfigs[i].Name
 
-		zap.L().Info("updating node config and info",
+		zap.L().Info("updating node config",
 			zap.String("node-name", nodeName),
 			zap.String("whitelisted-subnets", whitelistedSubnets),
 		)
 
-		// replace "whitelisted-subnets" flag
-		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.UpdateJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, "whitelisted-subnets", whitelistedSubnets)
+		// replace WhitelistedSubnetsKey flag
+		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.SetJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
 		if err != nil {
 			return err
 		}
-
-		v := lc.nodeInfos[nodeName]
-		v.Config = []byte(lc.cfg.NodeConfigs[i].ConfigFile)
-		lc.nodeInfos[nodeName] = v
 	}
 	zap.L().Info("restarting all nodes to whitelist subnet",
 		zap.Strings("whitelisted-subnets", whitelistedSubnetIDs),

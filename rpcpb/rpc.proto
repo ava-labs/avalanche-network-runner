@@ -98,6 +98,34 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc SaveSnapshot(SaveSnapshotRequest) returns (SaveSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/savesnapshot"
+      body: "*"
+    };
+  }
+
+  rpc LoadSnapshot(LoadSnapshotRequest) returns (LoadSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/loadsnapshot"
+      body: "*"
+    };
+  }
+
+  rpc RemoveSnapshot(RemoveSnapshotRequest) returns (RemoveSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/removesnapshot"
+      body: "*"
+    };
+  }
+
+  rpc GetSnapshotNames(GetSnapshotNamesRequest) returns (GetSnapshotNamesResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/getsnapshotnames"
+      body: "*"
+    };
+  }
 }
 
 message ClusterInfo {
@@ -263,4 +291,34 @@ message SendOutboundMessageRequest {
 
 message SendOutboundMessageResponse {
   bool sent = 1;
+}
+
+message SaveSnapshotRequest {
+  string snapshot_name = 1;
+}
+
+message SaveSnapshotResponse {
+  string snapshot_path = 1;
+}
+
+message LoadSnapshotRequest {
+  string snapshot_name = 1;
+}
+
+message LoadSnapshotResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message RemoveSnapshotRequest {
+  string snapshot_name = 1;
+}
+
+message RemoveSnapshotResponse {
+}
+
+message GetSnapshotNamesRequest {
+}
+
+message GetSnapshotNamesResponse {
+  repeated string snapshot_names = 1;
 }
