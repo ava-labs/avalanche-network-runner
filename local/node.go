@@ -48,6 +48,11 @@ type NodeProcess interface {
 	Wait() error
 }
 
+const (
+	peerMsgQueueBufferSize      = 1024
+	peerResourceTrackerDuration = 10 * time.Second
+)
+
 type nodeProcessImpl struct {
 	cmd *exec.Cmd
 }
@@ -134,7 +139,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		prometheus.NewRegistry(),
 		resource.NoUsage,
 		meter.ContinuousFactory{},
-		10*time.Second,
+		peerResourceTrackerDuration,
 	)
 	if err != nil {
 		return nil, err
@@ -174,11 +179,10 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		conn,
 		cert,
 		ids.NodeIDFromCert(tlsCert.Leaf),
-		peer.NewThrottledMessageQueue(
+		peer.NewBlockingMessageQueue(
 			config.Metrics,
-			ids.NodeIDFromCert(tlsCert.Leaf),
 			logging.NoLog{},
-			throttling.NewNoOutboundThrottler(),
+			peerMsgQueueBufferSize,
 		),
 	)
 	if err != nil {
