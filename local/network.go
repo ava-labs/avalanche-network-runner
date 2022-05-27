@@ -230,8 +230,7 @@ func NewNetwork(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadConfig(context.Background(), networkConfig)
-	return net, err
+	return net, net.loadConfig(context.Background(), networkConfig)
 }
 
 // See NewNetwork.
