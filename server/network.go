@@ -19,7 +19,6 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
 )
@@ -405,7 +404,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
 			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
-			Id:                 node.GetNodeID().PrefixedString(constants.NodeIDPrefix),
+			Id:                 node.GetNodeID().String(),
 			ExecPath:           node.GetBinaryPath(),
 			LogDir:             node.GetLogsDir(),
 			DbDir:              node.GetDbDir(),

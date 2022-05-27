@@ -853,7 +853,7 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	}
 
 	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, false)
-	sent := attachedPeer.Send(msg)
+	sent := attachedPeer.Send(ctx, msg)
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
 }
 

@@ -53,7 +53,9 @@ func shutdownOnSignal(
 // The network runs until the user provides a SIGINT or SIGTERM.
 func main() {
 	// Create the logger
-	logFactory := logging.NewFactory(logging.DefaultConfig)
+	loggingConfig := logging.Config{}
+	loggingConfig.DisplayLevel = logging.Info
+	logFactory := logging.NewFactory(loggingConfig)
 	log, err := logFactory.Make("main")
 	if err != nil {
 		fmt.Println(err)
