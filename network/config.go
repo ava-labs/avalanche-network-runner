@@ -112,7 +112,11 @@ func NewAvalancheGoGenesis(
 	}
 
 	// Address that controls stake doesn't matter -- generate it randomly
-	genesisVdrStakeAddr, _ := address.Format("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
+	genesisVdrStakeAddr, _ := address.Format(
+		"X",
+		constants.GetHRP(networkID),
+		ids.GenerateTestShortID().Bytes(),
+	)
 	config := genesis.UnparsedConfig{
 		NetworkID: networkID,
 		Allocations: []genesis.UnparsedAllocation{
