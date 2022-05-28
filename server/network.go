@@ -69,9 +69,10 @@ type localNetwork struct {
 	customVMsReadyChCloseOnce sync.Once
 	customVMRestartMu         *sync.RWMutex
 
-	stopCh      chan struct{}
-	startDoneCh chan struct{}
-	startErrCh  chan error
+	stopCh         chan struct{}
+	startDoneCh    chan struct{}
+	startErrCh     chan error
+	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
 
 	stopOnce sync.Once
 }
@@ -252,10 +253,16 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	return string(finalJSON), nil
 }
 
-func (lc *localNetwork) start(ctx context.Context) {
+func (lc *localNetwork) start(argCtx context.Context) {
 	defer func() {
 		close(lc.startDoneCh)
 	}()
+
+	// start triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
 	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
@@ -422,6 +429,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopCh)
+		// cancel possible concurrent still running start
+		if lc.startCtxCancel != nil {
+			lc.startCtxCancel()
+		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
 		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)

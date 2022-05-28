@@ -182,6 +182,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.gRPCServer.Stop()
 		zap.L().Warn("closed gRPC server")
 		<-gRPCErrc
+		zap.L().Warn("gRPC terminated")
 
 	case err = <-gRPCErrc:
 		zap.L().Warn("gRPC server failed", zap.Error(err))
@@ -749,19 +750,24 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
 	zap.L().Debug("received stop request")
-	info := s.getClusterInfo()
-	if info == nil {
-		return nil, ErrNotBootstrapped
-	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	info := s.clusterInfo
+	if info == nil {
+		info = &rpcpb.ClusterInfo{}
+	}
+
 	s.network.stop(ctx)
 	s.network = nil
-	info.Healthy = false
 	s.clusterInfo = nil
 
+	info.Healthy = false
 	return &rpcpb.StopResponse{ClusterInfo: info}, nil
 }
 
