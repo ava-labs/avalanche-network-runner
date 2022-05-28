@@ -16,11 +16,14 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/network/throttling"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/networking/tracker"
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/math/meter"
+	"github.com/ava-labs/avalanchego/utils/resource"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -45,6 +48,11 @@ type NodeProcess interface {
 	Wait() error
 }
 
+const (
+	peerMsgQueueBufferSize      = 1024
+	peerResourceTrackerDuration = 10 * time.Second
+)
+
 type nodeProcessImpl struct {
 	cmd *exec.Cmd
 }
@@ -67,7 +75,7 @@ type localNode struct {
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
 	// Set in network.AddNode
-	nodeID ids.ShortID
+	nodeID ids.NodeID
 	// The ID of the network this node exists in
 	networkID uint32
 	// Allows user to make API calls to this node.
@@ -123,16 +131,24 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	ip := avago_utils.IPDesc{
+	ip := ips.IPPort{
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
+	resourceTracker, err := tracker.NewResourceTracker(
+		prometheus.NewRegistry(),
+		resource.NoUsage,
+		meter.ContinuousFactory{},
+		peerResourceTrackerDuration,
+	)
+	if err != nil {
+		return nil, err
+	}
 	config := &peer.Config{
-		Metrics:              metrics,
-		MessageCreator:       mc,
-		Log:                  logging.NoLog{},
-		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
-		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
+		Metrics:             metrics,
+		MessageCreator:      mc,
+		Log:                 logging.NoLog{},
+		InboundMsgThrottler: throttling.NewNoInboundThrottler(),
 		Network: peer.NewTestNetwork(
 			mc,
 			node.networkID,
@@ -144,13 +160,14 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		),
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		VersionParser:        version.NewDefaultApplicationParser(),
+		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
+		ResourceTracker:      resourceTracker,
 	}
 	_, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
@@ -161,7 +178,12 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		peer.CertToID(tlsCert.Leaf),
+		ids.NodeIDFromCert(tlsCert.Leaf),
+		peer.NewBlockingMessageQueue(
+			config.Metrics,
+			logging.NoLog{},
+			peerMsgQueueBufferSize,
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -176,7 +198,7 @@ func (node *localNode) GetName() string {
 }
 
 // See node.Node
-func (node *localNode) GetNodeID() ids.ShortID {
+func (node *localNode) GetNodeID() ids.NodeID {
 	return node.nodeID
 }
 

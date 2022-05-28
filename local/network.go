@@ -23,9 +23,9 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	dircopy "github.com/otiai10/copy"
@@ -480,7 +480,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
 	if nodeConfig.IsBeacon {
-		err = ln.bootstraps.Add(beacon.New(nodeID, avago_utils.IPDesc{
+		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
 			IP:   net.IPv6loopback,
 			Port: p2pPort,
 		}))

@@ -24,7 +24,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/rpc"
 	"github.com/stretchr/testify/assert"
@@ -543,7 +542,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 		node, err := net.GetNode(nodeInfo.name)
 		assert.NoError(err)
 		assert.EqualValues(nodeInfo.name, node.GetName())
-		expectedID, err := ids.ShortFromPrefixedString(nodeInfo.ID, constants.NodeIDPrefix)
+		expectedID, err := ids.NodeIDFromString(nodeInfo.ID)
 		assert.NoError(err)
 		assert.EqualValues(expectedID, node.GetNodeID())
 	}
@@ -910,7 +909,7 @@ func emptyNetworkConfig() (network.Config, error) {
 			},
 		},
 		nil,
-		[]ids.ShortID{ids.GenerateTestShortID()},
+		[]ids.NodeID{ids.GenerateTestNodeID()},
 	)
 	if err != nil {
 		return network.Config{}, err
