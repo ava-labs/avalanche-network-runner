@@ -67,7 +67,7 @@ func (lc *localNetwork) installCustomVMs(
 	if err = lc.addSubnetValidators(ctx, baseWallet, validatorIDs); err != nil {
 		return err
 	}
-	if err = lc.createBlockchains(ctx, baseWallet, testKeyAddr); err != nil {
+	if err = createBlockchains(ctx, customVMNameToGenesis, customVMIDToInfo, baseWallet, testKeyAddr); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 			zap.String("node-name", nodeName),
 			zap.String("log-dir", nodeInfo.LogDir),
 		)
-		for _, vmInfo := range lc.customVMIDToInfo {
+		for _, vmInfo := range lc.customVMBlockchainIDToInfo {
 			p := filepath.Join(nodeInfo.LogDir, vmInfo.info.BlockchainId+".log")
 			zap.L().Info("checking log",
 				zap.String("vm-id", vmInfo.info.VmId),
@@ -135,8 +135,8 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for vmID, vmInfo := range lc.customVMIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
+		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID.String())
 		}
 	}
 
@@ -309,8 +309,11 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 ) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
-	whitelistedSubnetIDs := make([]string, 0, len(lc.customVMIDToInfo))
-	for _, vmInfo := range lc.customVMIDToInfo {
+	whitelistedSubnetIDs := make([]string, 0, len(customVMIDToInfo)+len(lc.customVMBlockchainIDToInfo))
+	for _, vmInfo := range lc.customVMBlockchainIDToInfo {
+		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
+	}
+	for _, vmInfo := range customVMIDToInfo {
 		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
 	}
 	sort.Strings(whitelistedSubnetIDs)
@@ -356,10 +359,15 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	return nil
 }
 
-func (lc *localNetwork) addSubnetValidators(ctx context.Context, baseWallet *refreshableWallet, validatorIDs []ids.NodeID) error {
+func (lc *localNetwork) addSubnetValidators(
+	ctx context.Context,
+	customVMIDToInfo map[ids.ID]vmInfo,
+	baseWallet *refreshableWallet,
+	validatorIDs []ids.NodeID,
+) error {
 	println()
 	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
-	for vmID, vmInfo := range lc.customVMIDToInfo {
+	for vmID, vmInfo := range customVMIDToInfo {
 		zap.L().Info("adding all nodes as subnet validator",
 			zap.String("vm-name", vmInfo.info.VmName),
 			zap.String("vm-id", vmID.String()),
@@ -398,12 +406,18 @@ func (lc *localNetwork) addSubnetValidators(ctx context.Context, baseWallet *ref
 	return nil
 }
 
-func (lc *localNetwork) createBlockchains(ctx context.Context, baseWallet *refreshableWallet, testKeyAddr ids.ShortID) error {
+func createBlockchains(
+	ctx context.Context,
+	customVMNameToGenesis map[string][]byte,
+	customVMIDToInfo map[ids.ID]vmInfo,
+	baseWallet *refreshableWallet,
+	testKeyAddr ids.ShortID,
+) error {
 	println()
 	color.Outf("{{green}}creating blockchain for each custom VM{{/}}\n")
-	for vmID, vmInfo := range lc.customVMIDToInfo {
+	for vmID, vmInfo := range customVMIDToInfo {
 		vmName := vmInfo.info.VmName
-		vmGenesisBytes := lc.customVMNameToGenesis[vmName]
+		vmGenesisBytes := customVMNameToGenesis[vmName]
 
 		zap.L().Info("creating blockchain tx",
 			zap.String("vm-name", vmName),
@@ -427,7 +441,7 @@ func (lc *localNetwork) createBlockchains(ctx context.Context, baseWallet *refre
 
 		vmInfo.info.BlockchainId = blockchainID.String()
 		vmInfo.blockchainID = blockchainID
-		lc.customVMIDToInfo[vmID] = vmInfo
+		customVMIDToInfo[vmID] = vmInfo
 
 		zap.L().Info("created a new blockchain",
 			zap.String("vm-name", vmName),
