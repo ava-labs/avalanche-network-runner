@@ -124,10 +124,10 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		localClusterReadyCh: make(chan struct{}),
 
-		customVMNameToGenesis: opts.customVMs,
-		customVMBlockchainIDToInfo:      make(map[ids.ID]vmInfo),
-		customVMsReadyCh:      make(chan struct{}),
-		customVMRestartMu:     opts.restartMu,
+		customVMNameToGenesis:      opts.customVMs,
+		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
+		customVMsReadyCh:           make(chan struct{}),
+		customVMRestartMu:          opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -281,7 +281,7 @@ func (lc *localNetwork) start(argCtx context.Context) {
 		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
-	if err := lc.installCustomVMs(ctx); err != nil {
+	if err := lc.installCustomVMs(ctx, lc.customVMNameToGenesis); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -316,7 +316,7 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyC
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.vmID.String(), nodeInfo.GetUri(), blockchainID)
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
 		}
 	}
 	close(loadSnapshotReadyCh)

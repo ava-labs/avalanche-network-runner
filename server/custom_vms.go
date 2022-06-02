@@ -30,8 +30,8 @@ import (
 // provisions local cluster and install custom VMs if applicable
 // assumes the local cluster is already set up and healthy
 func (lc *localNetwork) installCustomVMs(
-    ctx context.Context,
-    customVMNameToGenesis map[string][]byte,
+	ctx context.Context,
+	customVMNameToGenesis map[string][]byte,
 ) error {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
@@ -304,8 +304,8 @@ func createSubnets(
 
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
-    ctx context.Context,
-    customVMIDToInfo map[ids.ID]vmInfo,
+	ctx context.Context,
+	customVMIDToInfo map[ids.ID]vmInfo,
 ) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)

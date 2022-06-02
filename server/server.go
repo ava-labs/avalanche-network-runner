@@ -397,8 +397,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-				for vmID, vmInfo := range s.network.customVMIDToInfo {
-					s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
+				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
+					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
 				}
 				s.mu.Unlock()
 			}
@@ -959,8 +959,8 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
 			s.clusterInfo.CustomVmsHealthy = true
 			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-			for vmID, vmInfo := range s.network.customVMIDToInfo {
-				s.clusterInfo.CustomVms[vmID.String()] = vmInfo.info
+			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
+				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
 			}
 			s.mu.Unlock()
 		}
