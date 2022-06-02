@@ -29,7 +29,10 @@ import (
 
 // provisions local cluster and install custom VMs if applicable
 // assumes the local cluster is already set up and healthy
-func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
+func (lc *localNetwork) installCustomVMs(
+    ctx context.Context,
+    customVMNameToGenesis map[string][]byte,
+) error {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
@@ -44,10 +47,11 @@ func (lc *localNetwork) installCustomVMs(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = lc.createSubnets(ctx, baseWallet, testKeyAddr); err != nil {
+	customVMIDToInfo, err := createSubnets(ctx, customVMNameToGenesis, baseWallet, testKeyAddr)
+	if err != nil {
 		return err
 	}
-	if err = lc.restartNodesWithWhitelistedSubnets(ctx); err != nil {
+	if err = lc.restartNodesWithWhitelistedSubnets(ctx, customVMIDToInfo); err != nil {
 		return err
 	}
 
@@ -249,13 +253,19 @@ func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platfor
 	return validatorIDs, nil
 }
 
-func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshableWallet, testKeyAddr ids.ShortID) error {
+func createSubnets(
+	ctx context.Context,
+	customVMNameToGenesis map[string][]byte,
+	baseWallet *refreshableWallet,
+	testKeyAddr ids.ShortID,
+) (map[ids.ID]vmInfo, error) {
 	println()
 	color.Outf("{{green}}creating subnet for each custom VM{{/}}\n")
-	for vmName := range lc.customVMNameToGenesis {
+	customVMIDToInfo := make(map[ids.ID]vmInfo)
+	for vmName := range customVMNameToGenesis {
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		zap.L().Info("creating subnet tx",
 			zap.String("vm-name", vmName),
@@ -272,14 +282,14 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 		)
 		cancel()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		zap.L().Info("created subnet tx",
 			zap.String("vm-name", vmName),
 			zap.String("vm-id", vmID.String()),
 			zap.String("subnet-id", subnetID.String()),
 		)
-		lc.customVMIDToInfo[vmID] = vmInfo{
+		customVMIDToInfo[vmID] = vmInfo{
 			info: &rpcpb.CustomVmInfo{
 				VmName:       vmName,
 				VmId:         vmID.String(),
@@ -289,11 +299,14 @@ func (lc *localNetwork) createSubnets(ctx context.Context, baseWallet *refreshab
 			subnetID: subnetID,
 		}
 	}
-	return nil
+	return customVMIDToInfo, nil
 }
 
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
-func (lc *localNetwork) restartNodesWithWhitelistedSubnets(ctx context.Context) (err error) {
+func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
+    ctx context.Context,
+    customVMIDToInfo map[ids.ID]vmInfo,
+) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
 	whitelistedSubnetIDs := make([]string, 0, len(lc.customVMIDToInfo))

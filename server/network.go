@@ -62,8 +62,8 @@ type localNetwork struct {
 
 	// map from VM name to genesis bytes
 	customVMNameToGenesis map[string][]byte
-	// map from VM ID to VM info
-	customVMIDToInfo map[ids.ID]vmInfo
+	// map from blockchain ID to blockchain info
+	customVMBlockchainIDToInfo map[ids.ID]vmInfo
 
 	customVMsReadyCh          chan struct{} // closed when subnet installations are complete
 	customVMsReadyChCloseOnce sync.Once
@@ -125,7 +125,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		localClusterReadyCh: make(chan struct{}),
 
 		customVMNameToGenesis: opts.customVMs,
-		customVMIDToInfo:      make(map[ids.ID]vmInfo),
+		customVMBlockchainIDToInfo:      make(map[ids.ID]vmInfo),
 		customVMsReadyCh:      make(chan struct{}),
 		customVMRestartMu:     opts.restartMu,
 
@@ -315,8 +315,8 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyC
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for vmID, vmInfo := range lc.customVMIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
+		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.vmID.String(), nodeInfo.GetUri(), blockchainID)
 		}
 	}
 	close(loadSnapshotReadyCh)
@@ -333,7 +333,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
+			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
 				info: &rpcpb.CustomVmInfo{
 					VmName:       blockchain.Name,
 					VmId:         blockchain.VMID.String(),
