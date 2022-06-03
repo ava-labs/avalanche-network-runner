@@ -63,9 +63,7 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customVMBlockchainIDToInfo map[ids.ID]vmInfo
 
-	customVMsReadyCh          chan struct{} // closed when subnet installations are complete
-	customVMsReadyChCloseOnce sync.Once
-	customVMRestartMu         *sync.RWMutex
+	customVMRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -122,7 +120,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		localClusterReadyCh: make(chan struct{}),
 
 		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
-		customVMsReadyCh:           make(chan struct{}),
 		customVMRestartMu:          opts.restartMu,
 
 		stopCh:      make(chan struct{}),
@@ -252,6 +249,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 func (lc *localNetwork) start(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	defer func() {
 		close(lc.startDoneCh)
@@ -276,12 +274,13 @@ func (lc *localNetwork) start(
 		return
 	}
 
-	lc.deployBlockchains(ctx, chainSpecs)
+	lc.deployBlockchains(ctx, chainSpecs, deployBlockchainsReadyCh)
 }
 
 func (lc *localNetwork) deployBlockchains(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -306,6 +305,12 @@ func (lc *localNetwork) deployBlockchains(
 	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
 		lc.startErrCh <- err
 	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+	}
+
+	close(deployBlockchainsReadyCh)
 }
 
 func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {

@@ -354,7 +354,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	go s.network.start(ctx, chainSpecs)
+	deployBlockchainsReadyCh := make(chan struct{})
+	go s.network.start(ctx, chainSpecs, deployBlockchainsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -390,7 +391,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			case serr := <-s.network.startErrCh:
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-s.network.customVMsReadyCh:
+			case <-deployBlockchainsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
@@ -466,9 +467,12 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.clusterInfo.CustomVmsHealthy = false
+
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	go s.network.deployBlockchains(ctx, chainSpecs)
+	deployBlockchainsReadyCh := make(chan struct{})
+	go s.network.deployBlockchains(ctx, chainSpecs, deployBlockchainsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -486,7 +490,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 			case serr := <-s.network.startErrCh:
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-s.network.customVMsReadyCh:
+			case <-deployBlockchainsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
