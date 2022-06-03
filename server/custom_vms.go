@@ -53,25 +53,25 @@ func (lc *localNetwork) installCustomVMs(
 	if err != nil {
 		return nil, err
 	}
-	chainInfos, err := createSubnets(ctx, chainSpecs, baseWallet, testKeyAddr)
+	chainInfos, subnetCreated, err := createSubnets(ctx, chainSpecs, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
 	}
-	if err = lc.restartNodesWithWhitelistedSubnets(ctx, chainInfos); err != nil {
-		return nil, err
-	}
-
-	println()
-	color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
-	httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
-	baseWallet.refresh(httpRPCEp)
-	zap.L().Info("set up base wallet with pre-funded test key",
-		zap.String("http-rpc-endpoint", httpRPCEp),
-		zap.String("address", testKeyAddr.String()),
-	)
-
-	if err = addSubnetValidators(ctx, chainInfos, baseWallet, validatorIDs); err != nil {
-		return nil, err
+	if subnetCreated {
+		if err = lc.restartNodesWithWhitelistedSubnets(ctx, chainInfos); err != nil {
+			return nil, err
+		}
+		println()
+		color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
+		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
+		baseWallet.refresh(httpRPCEp)
+		zap.L().Info("set up base wallet with pre-funded test key",
+			zap.String("http-rpc-endpoint", httpRPCEp),
+			zap.String("address", testKeyAddr.String()),
+		)
+		if err = addSubnetValidators(ctx, chainSpecs, chainInfos, baseWallet, validatorIDs); err != nil {
+			return nil, err
+		}
 	}
 	chainInfos, err = createBlockchains(ctx, chainSpecs, chainInfos, baseWallet, testKeyAddr)
 	if err != nil {
@@ -266,19 +266,20 @@ func createSubnets(
 	chainSpecs []blockchainSpec,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
-) ([]vmInfo, error) {
+) ([]vmInfo, bool, error) {
 	println()
 	color.Outf("{{green}}creating subnet for each custom VM{{/}}\n")
 	chainInfos := make([]vmInfo, len(chainSpecs))
+	subnetCreated := false
 	for i, chainSpec := range chainSpecs {
 		vmID, err := utils.VMID(chainSpec.vmName)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if chainSpec.subnetId == nil {
 			subnetID, err := ids.FromString(*chainSpec.subnetId)
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			zap.L().Info("using subnet",
 				zap.String("vm-name", chainSpec.vmName),
@@ -310,7 +311,7 @@ func createSubnets(
 			)
 			cancel()
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			zap.L().Info("created subnet tx",
 				zap.String("vm-name", chainSpec.vmName),
@@ -326,9 +327,10 @@ func createSubnets(
 				},
 				subnetID: subnetID,
 			}
+			subnetCreated = true
 		}
 	}
-	return chainInfos, nil
+	return chainInfos, subnetCreated, nil
 }
 
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
@@ -338,12 +340,16 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 ) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
-	whitelistedSubnetIDs := make([]string, 0, len(chainInfos)+len(lc.customVMBlockchainIDToInfo))
+	whitelistedSubnetIDsMap := map[string]struct{}{}
 	for _, vmInfo := range lc.customVMBlockchainIDToInfo {
-		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
+		whitelistedSubnetIDsMap[vmInfo.subnetID.String()] = struct{}{}
 	}
 	for _, vmInfo := range chainInfos {
-		whitelistedSubnetIDs = append(whitelistedSubnetIDs, vmInfo.subnetID.String())
+		whitelistedSubnetIDsMap[vmInfo.subnetID.String()] = struct{}{}
+	}
+	whitelistedSubnetIDs := []string{}
+	for subnetID := range whitelistedSubnetIDsMap {
+		whitelistedSubnetIDs = append(whitelistedSubnetIDs, subnetID)
 	}
 	sort.Strings(whitelistedSubnetIDs)
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
@@ -394,13 +400,17 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 
 func addSubnetValidators(
 	ctx context.Context,
+	chainSpecs []blockchainSpec,
 	chainInfos []vmInfo,
 	baseWallet *refreshableWallet,
 	validatorIDs []ids.NodeID,
 ) error {
 	println()
 	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
-	for _, vmInfo := range chainInfos {
+	for i, vmInfo := range chainInfos {
+		if chainSpecs[i].subnetId != nil {
+			continue
+		}
 		zap.L().Info("adding all nodes as subnet validator",
 			zap.String("vm-name", vmInfo.info.VmName),
 			zap.String("vm-id", vmInfo.info.VmId),
