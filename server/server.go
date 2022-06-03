@@ -239,7 +239,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	customVMs := make(map[string][]byte)
+	chainSpecs := []blockchainSpec{}
 	if len(req.GetCustomVms()) > 0 {
 		if req.GetPluginDir() == "" {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
@@ -265,7 +265,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			if err != nil {
 				return nil, err
 			}
-			customVMs[vmName] = b
+			chainSpecs = append(chainSpecs, blockchainSpec{
+				vmName:  vmName,
+				genesis: b,
+			})
 		}
 	}
 	pluginDir := ""
@@ -351,7 +354,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	go s.network.start(ctx, customVMs)
+	go s.network.start(ctx, chainSpecs)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -423,7 +426,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 		return nil, err
 	}
 
-	customVMs := make(map[string][]byte)
+	chainSpecs := []blockchainSpec{}
 	if req.GetPluginDir() == "" {
 		if len(req.GetCustomVms()) > 0 {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
@@ -453,7 +456,10 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 			if err != nil {
 				return nil, err
 			}
-			customVMs[vmName] = b
+			chainSpecs = append(chainSpecs, blockchainSpec{
+				vmName:  vmName,
+				genesis: b,
+			})
 		}
 	}
 
@@ -462,7 +468,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	go s.network.deployBlockchains(ctx, customVMs)
+	go s.network.deployBlockchains(ctx, chainSpecs)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information

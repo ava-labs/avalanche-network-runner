@@ -251,7 +251,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 
 func (lc *localNetwork) start(
 	argCtx context.Context,
-	customVMNameToGenesis map[string][]byte, // map from VM name to genesis bytes
+	chainSpecs []blockchainSpec, // VM name + genesis bytes
 ) {
 	defer func() {
 		close(lc.startDoneCh)
@@ -276,12 +276,12 @@ func (lc *localNetwork) start(
 		return
 	}
 
-	lc.deployBlockchains(ctx, customVMNameToGenesis)
+	lc.deployBlockchains(ctx, chainSpecs)
 }
 
 func (lc *localNetwork) deployBlockchains(
 	argCtx context.Context,
-	customVMNameToGenesis map[string][]byte, // map from VM name to genesis bytes
+	chainSpecs []blockchainSpec, // VM name + genesis bytes
 ) {
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -294,15 +294,16 @@ func (lc *localNetwork) deployBlockchains(
 		return
 	}
 
-	if len(customVMNameToGenesis) == 0 {
+	if len(chainSpecs) == 0 {
 		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
-	if err := lc.installCustomVMs(ctx, customVMNameToGenesis); err != nil {
+	chainInfos, err := lc.installCustomVMs(ctx, chainSpecs)
+	if err != nil {
 		lc.startErrCh <- err
 		return
 	}
-	if err := lc.waitForCustomVMsReady(ctx); err != nil {
+	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
 		lc.startErrCh <- err
 	}
 }
