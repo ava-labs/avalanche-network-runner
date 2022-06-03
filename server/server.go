@@ -240,13 +240,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 	customVMs := make(map[string][]byte)
-	if req.GetPluginDir() == "" {
-		if len(req.GetCustomVms()) > 0 {
+	if len(req.GetCustomVms()) > 0 {
+		if req.GetPluginDir() == "" {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
-		}
-	} else {
-		if len(req.GetCustomVms()) == 0 {
-			return nil, ErrPluginDirNonEmptyButCustomVMsEmpty
 		}
 		zap.L().Info("non-empty plugin dir", zap.String("plugin-dir", req.GetPluginDir()))
 		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
