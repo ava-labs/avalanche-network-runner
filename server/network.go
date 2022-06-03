@@ -276,18 +276,37 @@ func (lc *localNetwork) start(
 		return
 	}
 
+	if err := lc.deployBlockchains(ctx, customVMNameToGenesis); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+}
+
+func (lc *localNetwork) deployBlockchains(
+	argCtx context.Context,
+	customVMNameToGenesis map[string][]byte, // map from VM name to genesis bytes
+) error {
+	// start triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		return err
+	}
+
 	if len(customVMNameToGenesis) == 0 {
 		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
-		return
+		return nil
 	}
 	if err := lc.installCustomVMs(ctx, customVMNameToGenesis); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 	if err := lc.waitForCustomVMsReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
+	return nil
 }
 
 func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
