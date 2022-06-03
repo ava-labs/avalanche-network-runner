@@ -233,16 +233,9 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if customVMNameToGenesisPath != "" {
-		customVMs := make(map[string]string)
-		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
-			return err
-		}
 		blockchainSpecs := []*rpcpb.BlockchainSpec{}
-		for vmName, genesis := range customVMs {
-			blockchainSpecs = append(blockchainSpecs, &rpcpb.BlockchainSpec{
-				VmName:  vmName,
-				Genesis: genesis,
-			})
+		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
+			return err
 		}
 		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
@@ -266,6 +259,7 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	color.Outf("{{green}}deploy-blockchains response:{{/}} %+v\n", info)
 	return nil
 }
+
 func newHealthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "health [options]",
