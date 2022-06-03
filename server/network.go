@@ -335,12 +335,6 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyC
 		lc.startErrCh <- err
 		return
 	}
-	for _, nodeName := range lc.nodeNames {
-		nodeInfo := lc.nodeInfos[nodeName]
-		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
-		}
-	}
 	close(loadSnapshotReadyCh)
 }
 
@@ -365,6 +359,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
 			}
+		}
+	}
+	for _, nodeName := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
+		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
 		}
 	}
 	return nil

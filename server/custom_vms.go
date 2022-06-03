@@ -142,12 +142,6 @@ func (lc *localNetwork) waitForCustomVMsReady(
 
 	println()
 	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
-	for _, nodeName := range lc.nodeNames {
-		nodeInfo := lc.nodeInfos[nodeName]
-		for _, vmInfo := range chainInfos {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), vmInfo.blockchainID.String())
-		}
-	}
 
 	println()
 	color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
