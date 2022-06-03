@@ -32,6 +32,7 @@ type Config struct {
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
+	DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.DeployBlockchainsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -129,6 +130,25 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, req)
+}
+
+func (c *client) DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.DeployBlockchainsResponse, error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	req := &rpcpb.DeployBlockchainsRequest{}
+	if ret.whitelistedSubnets != "" {
+		req.WhitelistedSubnets = &ret.whitelistedSubnets
+	}
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
+	}
+	if len(ret.customVMs) > 0 {
+		req.CustomVms = ret.customVMs
+	}
+
+	zap.L().Info("deploy blockchains")
+	return c.controlc.DeployBlockchains(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
