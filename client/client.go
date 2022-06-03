@@ -143,8 +143,8 @@ func (c *client) DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcp
 	if ret.pluginDir != "" {
 		req.PluginDir = &ret.pluginDir
 	}
-	if len(ret.customVMs) > 0 {
-		req.CustomVms = ret.customVMs
+	if len(ret.blockchainSpecs) > 0 {
+		req.BlockchainSpecs = ret.blockchainSpecs
 	}
 
 	zap.L().Info("deploy blockchains")
@@ -323,6 +323,7 @@ type Op struct {
 	pluginDir          string
 	customVMs          map[string]string
 	customNodeConfigs  map[string]string
+	blockchainSpecs    []*rpcpb.BlockchainSpec
 }
 
 type OpOption func(*Op)
@@ -330,6 +331,12 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
+	}
+}
+
+func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
+	return func(op *Op) {
+		op.blockchainSpecs = blockchainSpecs
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -236,7 +237,14 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
 			return err
 		}
-		opts = append(opts, client.WithCustomVMs(customVMs))
+		blockchainSpecs := []*rpcpb.BlockchainSpec{}
+		for vmName, genesis := range customVMs {
+			blockchainSpecs = append(blockchainSpecs, &rpcpb.BlockchainSpec{
+				VmName:  vmName,
+				Genesis: genesis,
+			})
+		}
+		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)

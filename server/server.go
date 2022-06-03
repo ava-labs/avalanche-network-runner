@@ -429,15 +429,17 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 
 	chainSpecs := []blockchainSpec{}
 	if req.GetPluginDir() == "" {
-		if len(req.GetCustomVms()) > 0 {
+		if len(req.GetBlockchainSpecs()) > 0 {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
 		}
 	} else {
-		if len(req.GetCustomVms()) == 0 {
+		if len(req.GetBlockchainSpecs()) == 0 {
 			return nil, ErrPluginDirNonEmptyButCustomVMsEmpty
 		}
 		zap.L().Info("non-empty plugin dir", zap.String("plugin-dir", req.GetPluginDir()))
-		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
+		for i := range req.GetBlockchainSpecs() {
+			vmName := req.GetBlockchainSpecs()[i].VmName
+			vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
@@ -478,7 +480,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if len(req.GetCustomVms()) == 0 {
+		if len(req.GetBlockchainSpecs()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
 		} else {
 			zap.L().Info("waiting for custom VMs readiness")
