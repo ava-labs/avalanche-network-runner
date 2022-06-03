@@ -60,8 +60,6 @@ type localNetwork struct {
 	localClusterReadyCh          chan struct{} // closed when local network is ready/healthy
 	localClusterReadyChCloseOnce sync.Once
 
-	// map from VM name to genesis bytes
-	customVMNameToGenesis map[string][]byte
 	// map from blockchain ID to blockchain info
 	customVMBlockchainIDToInfo map[ids.ID]vmInfo
 
@@ -92,7 +90,6 @@ type localNetworkOptions struct {
 	globalNodeConfig    string
 
 	pluginDir         string
-	customVMs         map[string][]byte
 	customNodeConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
@@ -124,7 +121,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		localClusterReadyCh: make(chan struct{}),
 
-		customVMNameToGenesis:      opts.customVMs,
 		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
 		customVMsReadyCh:           make(chan struct{}),
 		customVMRestartMu:          opts.restartMu,
@@ -253,7 +249,10 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	return string(finalJSON), nil
 }
 
-func (lc *localNetwork) start(argCtx context.Context) {
+func (lc *localNetwork) start(
+	argCtx context.Context,
+	customVMNameToGenesis map[string][]byte, // map from VM name to genesis bytes
+) {
 	defer func() {
 		close(lc.startDoneCh)
 	}()
@@ -277,11 +276,11 @@ func (lc *localNetwork) start(argCtx context.Context) {
 		return
 	}
 
-	if len(lc.customVMNameToGenesis) == 0 {
+	if len(customVMNameToGenesis) == 0 {
 		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
-	if err := lc.installCustomVMs(ctx, lc.customVMNameToGenesis); err != nil {
+	if err := lc.installCustomVMs(ctx, customVMNameToGenesis); err != nil {
 		lc.startErrCh <- err
 		return
 	}
