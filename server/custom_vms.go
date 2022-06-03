@@ -28,8 +28,9 @@ import (
 )
 
 type blockchainSpec struct {
-	vmName  string
-	genesis []byte
+	vmName   string
+	genesis  []byte
+	subnetId *string
 }
 
 // provisions local cluster and install custom VMs if applicable
@@ -274,36 +275,57 @@ func createSubnets(
 		if err != nil {
 			return nil, err
 		}
-		zap.L().Info("creating subnet tx",
-			zap.String("vm-name", chainSpec.vmName),
-			zap.String("vm-id", vmID.String()),
-		)
-		cctx, cancel := createDefaultCtx(ctx)
-		subnetID, err := baseWallet.P().IssueCreateSubnetTx(
-			&secp256k1fx.OutputOwners{
-				Threshold: 1,
-				Addrs:     []ids.ShortID{testKeyAddr},
-			},
-			common.WithContext(cctx),
-			defaultPoll,
-		)
-		cancel()
-		if err != nil {
-			return nil, err
-		}
-		zap.L().Info("created subnet tx",
-			zap.String("vm-name", chainSpec.vmName),
-			zap.String("vm-id", vmID.String()),
-			zap.String("subnet-id", subnetID.String()),
-		)
-		chainInfos[i] = vmInfo{
-			info: &rpcpb.CustomVmInfo{
-				VmName:       chainSpec.vmName,
-				VmId:         vmID.String(),
-				SubnetId:     subnetID.String(),
-				BlockchainId: "",
-			},
-			subnetID: subnetID,
+		if chainSpec.subnetId == nil {
+			subnetID, err := ids.FromString(*chainSpec.subnetId)
+			if err != nil {
+				return nil, err
+			}
+			zap.L().Info("using subnet",
+				zap.String("vm-name", chainSpec.vmName),
+				zap.String("vm-id", vmID.String()),
+				zap.String("subnet-id", subnetID.String()),
+			)
+			chainInfos[i] = vmInfo{
+				info: &rpcpb.CustomVmInfo{
+					VmName:       chainSpec.vmName,
+					VmId:         vmID.String(),
+					SubnetId:     subnetID.String(),
+					BlockchainId: "",
+				},
+				subnetID: subnetID,
+			}
+		} else {
+			zap.L().Info("creating subnet tx",
+				zap.String("vm-name", chainSpec.vmName),
+				zap.String("vm-id", vmID.String()),
+			)
+			cctx, cancel := createDefaultCtx(ctx)
+			subnetID, err := baseWallet.P().IssueCreateSubnetTx(
+				&secp256k1fx.OutputOwners{
+					Threshold: 1,
+					Addrs:     []ids.ShortID{testKeyAddr},
+				},
+				common.WithContext(cctx),
+				defaultPoll,
+			)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			zap.L().Info("created subnet tx",
+				zap.String("vm-name", chainSpec.vmName),
+				zap.String("vm-id", vmID.String()),
+				zap.String("subnet-id", subnetID.String()),
+			)
+			chainInfos[i] = vmInfo{
+				info: &rpcpb.CustomVmInfo{
+					VmName:       chainSpec.vmName,
+					VmId:         vmID.String(),
+					SubnetId:     subnetID.String(),
+					BlockchainId: "",
+				},
+				subnetID: subnetID,
+			}
 		}
 	}
 	return chainInfos, nil

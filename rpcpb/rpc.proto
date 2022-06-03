@@ -218,6 +218,7 @@ message StartResponse {
 message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
+  optional string subnet_id = 3;
 }
 
 message DeployBlockchainsRequest {

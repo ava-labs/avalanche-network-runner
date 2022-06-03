@@ -460,8 +460,9 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 				return nil, err
 			}
 			chainSpecs = append(chainSpecs, blockchainSpec{
-				vmName:  vmName,
-				genesis: b,
+				vmName:   vmName,
+				genesis:  b,
+				subnetId: req.GetBlockchainSpecs()[i].SubnetId,
 			})
 		}
 	}
