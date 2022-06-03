@@ -39,11 +39,11 @@ func (lc *localNetwork) installCustomVMs(
 	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
-	baseWallet, avaxAssetID, testKeyAddr, err := lc.setupWallet(ctx, httpRPCEp)
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp)
 	if err != nil {
 		return err
 	}
-	validatorIDs, err := lc.checkValidators(ctx, platformCli, baseWallet, testKeyAddr)
+	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (lc *localNetwork) installCustomVMs(
 		zap.String("address", testKeyAddr.String()),
 	)
 
-	if err = lc.addSubnetValidators(ctx, baseWallet, validatorIDs); err != nil {
+	if err = addSubnetValidators(ctx, customVMIDToInfo, baseWallet, validatorIDs); err != nil {
 		return err
 	}
 	if err = createBlockchains(ctx, customVMNameToGenesis, customVMIDToInfo, baseWallet, testKeyAddr); err != nil {
@@ -81,6 +81,10 @@ func (lc *localNetwork) installCustomVMs(
 		zap.String("address", testKeyAddr.String()),
 		zap.Uint64("balance", balances[avaxAssetID]),
 	)
+
+	for _, vmInfo := range customVMIDToInfo {
+		lc.customVMBlockchainIDToInfo[vmInfo.blockchainID] = vmInfo
+	}
 
 	return nil
 }
@@ -148,7 +152,7 @@ func (lc *localNetwork) waitForCustomVMsReady(ctx context.Context) error {
 	return nil
 }
 
-func (lc *localNetwork) setupWallet(ctx context.Context, httpRPCEp string) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
+func setupWallet(ctx context.Context, httpRPCEp string) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
 	// "local/default/genesis.json" pre-funds "ewoq" key
 	testKey := genesis.EWOQKey
 	testKeyAddr = testKey.PublicKey().Address()
@@ -185,7 +189,13 @@ func (lc *localNetwork) setupWallet(ctx context.Context, httpRPCEp string) (base
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
-func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platformvm.Client, baseWallet *refreshableWallet, testKeyAddr ids.ShortID) (validatorIDs []ids.NodeID, err error) {
+func checkValidators(
+	ctx context.Context,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+	platformCli platformvm.Client,
+	baseWallet *refreshableWallet,
+	testKeyAddr ids.ShortID,
+) (validatorIDs []ids.NodeID, err error) {
 	println()
 	color.Outf("{{green}}fetching all nodes from the existing cluster to make sure all nodes are validating the primary network/subnet{{/}}\n")
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
@@ -203,8 +213,8 @@ func (lc *localNetwork) checkValidators(ctx context.Context, platformCli platfor
 
 	println()
 	color.Outf("{{green}}adding all nodes as validator for the primary subnet{{/}}\n")
-	validatorIDs = make([]ids.NodeID, 0, len(lc.nodeInfos))
-	for nodeName, nodeInfo := range lc.nodeInfos {
+	validatorIDs = make([]ids.NodeID, 0, len(nodeInfos))
+	for nodeName, nodeInfo := range nodeInfos {
 		nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 		if err != nil {
 			return nil, err
@@ -359,7 +369,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	return nil
 }
 
-func (lc *localNetwork) addSubnetValidators(
+func addSubnetValidators(
 	ctx context.Context,
 	customVMIDToInfo map[ids.ID]vmInfo,
 	baseWallet *refreshableWallet,
