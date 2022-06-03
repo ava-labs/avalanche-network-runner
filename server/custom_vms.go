@@ -276,7 +276,7 @@ func createSubnets(
 		if err != nil {
 			return nil, false, err
 		}
-		if chainSpec.subnetId == nil {
+		if chainSpec.subnetId != nil {
 			subnetID, err := ids.FromString(*chainSpec.subnetId)
 			if err != nil {
 				return nil, false, err
