@@ -149,6 +149,10 @@ func (lc *localNetwork) waitForCustomVMsReady(
 		}
 	}
 
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		return err
+	}
+
 	lc.customVMsReadyChCloseOnce.Do(func() {
 		println()
 		color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")

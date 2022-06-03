@@ -306,10 +306,6 @@ func (lc *localNetwork) deployBlockchains(
 	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
 		lc.startErrCh <- err
 	}
-	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
-		return
-	}
 }
 
 func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
