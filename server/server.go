@@ -236,13 +236,13 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if *req.NumNodes < MinNodes {
 		return nil, ErrNotEnoughNodesForStart
 	}
+	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
+		return nil, err
+	}
 	customVMs := make(map[string][]byte)
 	if req.GetPluginDir() == "" {
 		if len(req.GetCustomVms()) > 0 {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
-		}
-		if err := utils.CheckExecPluginPaths(req.GetExecPath(), "", ""); err != nil {
-			return nil, err
 		}
 	} else {
 		if len(req.GetCustomVms()) == 0 {
@@ -259,8 +259,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				)
 				return nil, ErrInvalidVMName
 			}
-			if err := utils.CheckExecPluginPaths(
-				req.GetExecPath(),
+			if err := utils.CheckPluginPaths(
 				filepath.Join(req.GetPluginDir(), vmID.String()),
 				vmGenesisFilePath,
 			); err != nil {
@@ -405,6 +404,99 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}()
 
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
+func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockchainsRequest) (*rpcpb.DeployBlockchainsResponse, error) {
+	// if timeout is too small or not set, default to 5-min
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
+		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+	} else {
+		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
+	}
+
+	zap.L().Debug("DeployBlockchains")
+	if info := s.getClusterInfo(); info == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	zap.L().Info("waiting for local cluster readiness")
+	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+		return nil, err
+	}
+
+	customVMs := make(map[string][]byte)
+	if req.GetPluginDir() == "" {
+		if len(req.GetCustomVms()) > 0 {
+			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
+		}
+	} else {
+		if len(req.GetCustomVms()) == 0 {
+			return nil, ErrPluginDirNonEmptyButCustomVMsEmpty
+		}
+		zap.L().Info("non-empty plugin dir", zap.String("plugin-dir", req.GetPluginDir()))
+		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
+			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+			vmID, err := utils.VMID(vmName)
+			if err != nil {
+				zap.L().Warn("failed to convert VM name to VM ID",
+					zap.String("vm-name", vmName),
+					zap.Error(err),
+				)
+				return nil, ErrInvalidVMName
+			}
+			if err := utils.CheckPluginPaths(
+				filepath.Join(req.GetPluginDir(), vmID.String()),
+				vmGenesisFilePath,
+			); err != nil {
+				return nil, err
+			}
+			b, err := os.ReadFile(vmGenesisFilePath)
+			if err != nil {
+				return nil, err
+			}
+			customVMs[vmName] = b
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// start non-blocking to install custom VMs (if applicable)
+	// the user is expected to poll cluster status
+	go s.network.deployBlockchains(ctx, customVMs)
+
+	// update cluster info non-blocking
+	// the user is expected to poll this latest information
+	// to decide cluster/subnet readiness
+	go func() {
+		if len(req.GetCustomVms()) == 0 {
+			zap.L().Info("no custom VM installation request, skipping its readiness check")
+		} else {
+			zap.L().Info("waiting for custom VMs readiness")
+			select {
+			case <-s.closed:
+				return
+			case <-s.network.stopCh:
+				return
+			case serr := <-s.network.startErrCh:
+				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
+				panic(serr)
+			case <-s.network.customVMsReadyCh:
+				s.mu.Lock()
+				s.clusterInfo.CustomVmsHealthy = true
+				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
+				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
+					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
+				}
+				s.mu.Unlock()
+			}
+		}
+	}()
+
+	return &rpcpb.DeployBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
