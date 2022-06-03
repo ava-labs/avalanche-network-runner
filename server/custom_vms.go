@@ -344,24 +344,28 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	)
 	for _, nodeConfig := range lc.cfg.NodeConfigs {
 		nodeName := nodeConfig.Name
-
 		lc.customVMRestartMu.Lock()
-		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
+		zap.L().Info("removing the node", zap.String("node-name", nodeName))
 		if err := lc.nw.RemoveNode(nodeName); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
 		}
+		lc.customVMRestartMu.Unlock()
+	}
+	for _, nodeConfig := range lc.cfg.NodeConfigs {
+		nodeName := nodeConfig.Name
+		lc.customVMRestartMu.Lock()
+		zap.L().Info("adding back the node", zap.String("node-name", nodeName))
 		if _, err := lc.nw.AddNode(nodeConfig); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
 		}
-
-		zap.L().Info("waiting for local cluster readiness after restart", zap.String("node-name", nodeName))
-		if err := lc.waitForLocalClusterReady(ctx); err != nil {
-			lc.customVMRestartMu.Unlock()
-			return err
-		}
 		lc.customVMRestartMu.Unlock()
+	}
+	zap.L().Info("waiting for local cluster readiness after restart")
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.customVMRestartMu.Unlock()
+		return err
 	}
 	return nil
 }
@@ -465,4 +469,4 @@ func createBlockchains(
 	return updatedChainInfos, nil
 }
 
-var defaultPoll = common.WithPollFrequency(5 * time.Second)
+var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
