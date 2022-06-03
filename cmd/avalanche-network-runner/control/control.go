@@ -48,6 +48,7 @@ func NewCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		newStartCommand(),
+		newDeployBlockchainsCommand(),
 		newHealthCommand(),
 		newURIsCommand(),
 		newStatusCommand(),
@@ -120,6 +121,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
+	cmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"whitelisted subnets (comma-separated)",
+	)
 	return cmd
 }
 
@@ -184,6 +191,73 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func newDeployBlockchainsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "deploy-blockchains [options]",
+		Short: "Deploys blockchains.",
+		RunE:  deployBlockchainsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
+		&customVMNameToGenesisPath,
+		"custom-vms",
+		"",
+		"[optional] JSON string of map that maps from VM to its genesis file path",
+	)
+	cmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"whitelisted subnets (comma-separated)",
+	)
+	return cmd
+}
+
+func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	opts := []client.OpOption{
+		client.WithPluginDir(pluginDir),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+	}
+
+	if customVMNameToGenesisPath != "" {
+		customVMs := make(map[string]string)
+		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithCustomVMs(customVMs))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// don't call since "start" is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "DeployBlockchains" async ops
+	// when the deadline is reached
+	_ = cancel
+
+	info, err := cli.DeployBlockchains(
+		ctx,
+		opts...,
+	)
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}deploy-blockchains response:{{/}} %+v\n", info)
+	return nil
+}
 func newHealthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "health [options]",
