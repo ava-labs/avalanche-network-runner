@@ -50,12 +50,40 @@ func TestExtractNetworkID(t *testing.T) {
 	assert.EqualValues(t, netID, 1337)
 }
 
-func TestCheckExecPluginPaths(t *testing.T) {
+func TestCheckExecPath(t *testing.T) {
 	execF, err := os.CreateTemp(os.TempDir(), "test-check-exec")
 	assert.NoError(t, err)
 	execPath := execF.Name()
 	assert.NoError(t, execF.Close())
 
+	t.Cleanup(func() {
+		os.RemoveAll(execPath)
+	})
+
+	tt := []struct {
+		execPath    string
+		expectedErr error
+	}{
+		{
+			execPath:    execPath,
+			expectedErr: nil,
+		},
+		{
+			execPath:    "",
+			expectedErr: ErrInvalidExecPath,
+		},
+		{
+			execPath:    "invalid",
+			expectedErr: ErrNotExists,
+		},
+	}
+	for i, tv := range tt {
+		err := CheckExecPath(tv.execPath)
+		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
+	}
+}
+
+func TestCheckPluginPaths(t *testing.T) {
 	pluginF, err := os.CreateTemp(os.TempDir(), "test-check-exec-plugin")
 	assert.NoError(t, err)
 	pluginPath := pluginF.Name()
@@ -67,56 +95,33 @@ func TestCheckExecPluginPaths(t *testing.T) {
 	assert.NoError(t, genesisF.Close())
 
 	t.Cleanup(func() {
-		os.RemoveAll(execPath)
 		os.RemoveAll(pluginPath)
 		os.RemoveAll(genesisPath)
 	})
 
 	tt := []struct {
-		execPath    string
 		pluginPath  string
 		genesisPath string
 		expectedErr error
 	}{
 		{
-			execPath:    execPath,
-			pluginPath:  "",
-			genesisPath: "",
-			expectedErr: nil,
-		},
-		{
-			execPath:    execPath,
 			pluginPath:  pluginPath,
 			genesisPath: genesisPath,
 			expectedErr: nil,
 		},
 		{
-			execPath:    "",
-			pluginPath:  "",
-			genesisPath: "",
-			expectedErr: ErrInvalidExecPath,
-		},
-		{
-			execPath:    "invalid",
-			pluginPath:  "",
-			genesisPath: "",
-			expectedErr: ErrNotExists,
-		},
-		{
-			execPath:    execPath,
 			pluginPath:  "invalid",
 			genesisPath: "",
 			expectedErr: ErrNotExistsPlugin,
 		},
 		{
-			execPath:    execPath,
 			pluginPath:  pluginPath,
 			genesisPath: "invalid",
 			expectedErr: ErrNotExistsPluginGenesis,
 		},
 	}
 	for i, tv := range tt {
-		err := CheckExecPluginPaths(tv.execPath, tv.pluginPath, tv.genesisPath)
+		err := CheckPluginPaths(tv.pluginPath, tv.genesisPath)
 		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
 	}
 }
