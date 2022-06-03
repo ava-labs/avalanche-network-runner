@@ -484,7 +484,7 @@ func createBlockchains(
 		)
 		cancel()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failure creating blockchain: %w", err)
 		}
 
 		updatedChainInfos[i] = vmInfo
