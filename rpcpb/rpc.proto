@@ -355,6 +355,8 @@ message SaveSnapshotResponse {
 
 message LoadSnapshotRequest {
   string snapshot_name = 1;
+  optional string exec_path = 2;
+  optional string plugin_dir = 3;
 }
 
 message LoadSnapshotResponse {

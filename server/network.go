@@ -357,12 +357,32 @@ func (lc *localNetwork) deploySubnets(
 	close(deploySubnetsReadyCh)
 }
 
-func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
+func (lc *localNetwork) loadSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	execPath string,
+	pluginDir string,
+) error {
 	defer func() {
 		close(lc.startDoneCh)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	nw, err := local.NewNetworkFromSnapshot(lc.logger, snapshotName, lc.options.rootDataDir, lc.options.snapshotsDir)
+	buildDir := ""
+	if pluginDir != "" {
+		pluginDir := filepath.Clean(pluginDir)
+		if filepath.Base(pluginDir) != "plugins" {
+			return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+		}
+		buildDir = filepath.Dir(pluginDir)
+	}
+	nw, err := local.NewNetworkFromSnapshot(
+		lc.logger,
+		snapshotName,
+		lc.options.rootDataDir,
+		lc.options.snapshotsDir,
+		execPath,
+		buildDir,
+	)
 	if err != nil {
 		return err
 	}

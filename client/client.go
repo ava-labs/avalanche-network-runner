@@ -46,7 +46,7 @@ type Client interface {
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
 	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
-	LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error)
+	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
 	GetSnapshotNames(ctx context.Context) ([]string, error)
 }
@@ -299,9 +299,20 @@ func (c *client) SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.
 	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName})
 }
 
-func (c *client) LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error) {
+func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
 	zap.L().Info("load snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.LoadSnapshot(ctx, &rpcpb.LoadSnapshotRequest{SnapshotName: snapshotName})
+	ret := &Op{}
+	ret.applyOpts(opts)
+	req := rpcpb.LoadSnapshotRequest{
+		SnapshotName: snapshotName,
+	}
+	if ret.execPath != "" {
+		req.ExecPath = &ret.execPath
+	}
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
+	}
+	return c.controlc.LoadSnapshot(ctx, &req)
 }
 
 func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error) {

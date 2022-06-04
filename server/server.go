@@ -1098,7 +1098,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
+	if err := s.network.loadSnapshot(ctx, req.SnapshotName, req.GetExecPath(), req.GetPluginDir()); err != nil {
 		zap.L().Warn("snapshot load failed to complete", zap.Error(err))
 		s.network = nil
 		s.clusterInfo = nil
