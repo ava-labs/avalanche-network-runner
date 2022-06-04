@@ -316,6 +316,45 @@ func (lc *localNetwork) deployBlockchains(
 	close(deployBlockchainsReadyCh)
 }
 
+func (lc *localNetwork) deploySubnets(
+	argCtx context.Context,
+	numSubnets uint,
+	deploySubnetsReadyCh chan struct{}, // closed when subnet installations are complete
+) {
+	// start triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
+
+	if numSubnets == 0 {
+		color.Outf("{{orange}}{{bold}}no subnets specified...{{/}}\n")
+		return
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	_, err := lc.installSubnets(ctx, numSubnets)
+	if err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+	}
+
+	close(deploySubnetsReadyCh)
+}
+
 func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
 	defer func() {
 		close(lc.startDoneCh)
