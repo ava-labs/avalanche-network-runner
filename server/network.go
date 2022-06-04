@@ -352,6 +352,8 @@ func (lc *localNetwork) deploySubnets(
 		lc.startErrCh <- err
 	}
 
+	color.Outf("{{orange}}{{bold}}finish adding subnets{{/}}\n")
+
 	close(deploySubnetsReadyCh)
 }
 
