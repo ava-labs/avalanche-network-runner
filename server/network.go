@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
 )
@@ -369,7 +370,9 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	lc.subnets = []string{}
 	for _, subnet := range subnets {
-		lc.subnets = append(lc.subnets, subnet.ID.String())
+		if subnet.ID != constants.PlatformChainID {
+			lc.subnets = append(lc.subnets, subnet.ID.String())
+		}
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
