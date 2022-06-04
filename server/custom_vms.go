@@ -45,7 +45,30 @@ func (lc *localNetwork) installCustomVMs(
 	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
-	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp)
+	pChainCodec, err := createPChainCodec()
+	if err != nil {
+		return nil, err
+	}
+	pTXs := make(map[ids.ID]*platformvm.Tx)
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.subnetId != nil {
+			subnetID, err := ids.FromString(*chainSpec.subnetId)
+			if err != nil {
+				return nil, err
+			}
+			subnetTxBytes, err := platformCli.GetTx(ctx, subnetID)
+			if err != nil {
+				return nil, fmt.Errorf("tx not found for subnet %q: %w", subnetID.String(), err)
+			}
+			var subnetTx platformvm.Tx
+			if _, err := pChainCodec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
+				return nil, fmt.Errorf("couldn not unmarshall tx for subnet %q: %w", subnetID.String(), err)
+			}
+			pTXs[subnetID] = &subnetTx
+		}
+	}
+
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp, pTXs)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +173,11 @@ func (lc *localNetwork) waitForCustomVMsReady(
 	return nil
 }
 
-func setupWallet(ctx context.Context, httpRPCEp string) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
+func setupWallet(
+	ctx context.Context,
+	httpRPCEp string,
+	pTXs map[ids.ID]*platformvm.Tx,
+) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
 	// "local/default/genesis.json" pre-funds "ewoq" key
 	testKey := genesis.EWOQKey
 	testKeyAddr = testKey.PublicKey().Address()
@@ -158,7 +185,7 @@ func setupWallet(ctx context.Context, httpRPCEp string) (baseWallet *refreshable
 
 	println()
 	color.Outf("{{green}}setting up the base wallet with the seed test key{{/}}\n")
-	baseWallet, err = createRefreshableWallet(ctx, httpRPCEp, testKeychain)
+	baseWallet, err = createRefreshableWallet(ctx, httpRPCEp, testKeychain, pTXs)
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
