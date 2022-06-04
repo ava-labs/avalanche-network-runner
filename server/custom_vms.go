@@ -80,29 +80,11 @@ func (lc *localNetwork) installCustomVMs(
 			numSubnets++
 		}
 	}
-	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
+
+	// add subnets restarting network if necessary
+	subnetIDs, err := lc.addSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
-	}
-	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
-	if err != nil {
-		return nil, err
-	}
-	if numSubnets > 0 {
-		if err = lc.restartNodesWithWhitelistedSubnets(ctx, subnetIDs); err != nil {
-			return nil, err
-		}
-		println()
-		color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
-		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
-		baseWallet.refresh(httpRPCEp)
-		zap.L().Info("set up base wallet with pre-funded test key",
-			zap.String("http-rpc-endpoint", httpRPCEp),
-			zap.String("address", testKeyAddr.String()),
-		)
-		if err = addSubnetValidators(ctx, subnetIDs, baseWallet, validatorIDs); err != nil {
-			return nil, err
-		}
 	}
 
 	// fill nil subnets with created ones
@@ -154,6 +136,45 @@ func (lc *localNetwork) installCustomVMs(
 	)
 
 	return chainInfos, nil
+}
+
+func (lc *localNetwork) addSubnets(
+	ctx context.Context,
+	numSubnets uint,
+	baseWallet *refreshableWallet,
+	testKeyAddr ids.ShortID,
+) ([]ids.ID, error) {
+	println()
+	color.Outf("{{blue}}{{bold}}add subnets{{/}}\n")
+
+	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(httpRPCEp)
+
+	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
+	if err != nil {
+		return nil, err
+	}
+	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+	if err != nil {
+		return nil, err
+	}
+	if numSubnets > 0 {
+		if err = lc.restartNodesWithWhitelistedSubnets(ctx, subnetIDs); err != nil {
+			return nil, err
+		}
+		println()
+		color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
+		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
+		baseWallet.refresh(httpRPCEp)
+		zap.L().Info("set up base wallet with pre-funded test key",
+			zap.String("http-rpc-endpoint", httpRPCEp),
+			zap.String("address", testKeyAddr.String()),
+		)
+		if err = addSubnetValidators(ctx, subnetIDs, baseWallet, validatorIDs); err != nil {
+			return nil, err
+		}
+	}
+	return subnetIDs, nil
 }
 
 func (lc *localNetwork) waitForCustomVMsReady(
