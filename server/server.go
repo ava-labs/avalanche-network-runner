@@ -398,6 +398,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
 					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
 				}
+				s.clusterInfo.Subnets = s.network.subnets
 				s.mu.Unlock()
 			}
 		}
@@ -428,6 +429,11 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 	}
 
 	chainSpecs := []blockchainSpec{}
+	// TODO: fix plugin dir management:
+	// - cannot change plugin dir for nodes that wont be restarted
+	// - can change plugin dir when restating network
+	// - different nodes may have different plugin dirs
+	// - pluging dir shall contain vms for all blockchains
 	if req.GetPluginDir() == "" {
 		if len(req.GetBlockchainSpecs()) > 0 {
 			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
@@ -503,6 +509,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
 					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
 				}
+				s.clusterInfo.Subnets = s.network.subnets
 				s.mu.Unlock()
 			}
 		}
@@ -1065,6 +1072,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
 				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
 			}
+			s.clusterInfo.Subnets = s.network.subnets
 			s.mu.Unlock()
 		}
 	}()

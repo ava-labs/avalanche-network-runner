@@ -45,6 +45,7 @@ func (lc *localNetwork) installCustomVMs(
 	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
+	// wallet needs txs for all previously created subnets
 	pChainCodec, err := createPChainCodec()
 	if err != nil {
 		return nil, err
@@ -96,6 +97,7 @@ func (lc *localNetwork) installCustomVMs(
 			return nil, err
 		}
 	}
+
 	chainInfos, err = createBlockchains(ctx, chainSpecs, chainInfos, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err

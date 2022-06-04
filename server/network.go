@@ -71,6 +71,8 @@ type localNetwork struct {
 	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
 
 	stopOnce sync.Once
+
+	subnets []string
 }
 
 type vmInfo struct {
@@ -360,6 +362,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				blockchainID: blockchain.ID,
 			}
 		}
+	}
+	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+	if err != nil {
+		return err
+	}
+	lc.subnets = []string{}
+	for _, subnet := range subnets {
+		lc.subnets = append(lc.subnets, subnet.ID.String())
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]

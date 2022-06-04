@@ -149,6 +149,7 @@ message ClusterInfo {
   bool custom_vms_healthy = 7;
   // The map of custom VM IDs in "ids.ID" format to its VM information.
   map<string, CustomVmInfo> custom_vms = 8;
+  repeated string subnets          = 9;
 }
 
 message CustomVmInfo {
