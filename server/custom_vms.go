@@ -76,7 +76,7 @@ func (lc *localNetwork) installCustomVMs(
 	// get number of subnets to create
 	var numSubnets uint
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.subnetId != nil {
+		if chainSpec.subnetId == nil {
 			numSubnets++
 		}
 	}
