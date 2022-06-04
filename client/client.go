@@ -33,6 +33,7 @@ type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.DeployBlockchainsResponse, error)
+	AddSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.AddSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -149,6 +150,16 @@ func (c *client) DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcp
 
 	zap.L().Info("deploy blockchains")
 	return c.controlc.DeployBlockchains(ctx, req)
+}
+
+func (c *client) AddSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.AddSubnetsResponse, error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	req := &rpcpb.AddSubnetsRequest{NumSubnets: numSubnets}
+
+	zap.L().Info("add subnets")
+	return c.controlc.AddSubnets(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {

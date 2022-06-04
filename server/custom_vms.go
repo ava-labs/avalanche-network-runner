@@ -74,7 +74,7 @@ func (lc *localNetwork) installCustomVMs(
 		return nil, err
 	}
 	// get number of subnets to create
-	var numSubnets uint
+	var numSubnets uint32
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.subnetId == nil {
 			numSubnets++
@@ -140,7 +140,7 @@ func (lc *localNetwork) installCustomVMs(
 
 func (lc *localNetwork) installSubnets(
 	ctx context.Context,
-	numSubnets uint,
+	numSubnets uint32,
 ) ([]ids.ID, error) {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
@@ -175,7 +175,7 @@ func (lc *localNetwork) installSubnets(
 
 func (lc *localNetwork) addSubnets(
 	ctx context.Context,
-	numSubnets uint,
+	numSubnets uint32,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {
@@ -387,14 +387,14 @@ func checkValidators(
 
 func createSubnets(
 	ctx context.Context,
-	numSubnets uint,
+	numSubnets uint32,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {
 	println()
 	color.Outf("{{green}}creating %d subnets VM{{/}}\n", numSubnets)
 	subnetIDs := make([]ids.ID, numSubnets)
-	var i uint
+	var i uint32
 	for i = 0; i < numSubnets; i++ {
 		zap.L().Info("creating subnet tx")
 		cctx, cancel := createDefaultCtx(ctx)

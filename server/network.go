@@ -318,7 +318,7 @@ func (lc *localNetwork) deployBlockchains(
 
 func (lc *localNetwork) deploySubnets(
 	argCtx context.Context,
-	numSubnets uint,
+	numSubnets uint32,
 	deploySubnetsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// start triggers a series of different time consuming actions

@@ -547,7 +547,7 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
 	deploySubnetsReadyCh := make(chan struct{})
-	go s.network.deploySubnets(ctx, uint(req.GetNumSubnets()), deploySubnetsReadyCh)
+	go s.network.deploySubnets(ctx, req.GetNumSubnets(), deploySubnetsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information

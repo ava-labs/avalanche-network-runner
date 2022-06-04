@@ -50,6 +50,7 @@ func NewCommand() *cobra.Command {
 	cmd.AddCommand(
 		newStartCommand(),
 		newDeployBlockchainsCommand(),
+		newAddSubnetsCommand(),
 		newHealthCommand(),
 		newURIsCommand(),
 		newStatusCommand(),
@@ -77,6 +78,7 @@ var (
 	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
+	numSubnets                uint32
 )
 
 func newStartCommand() *cobra.Command {
@@ -257,6 +259,51 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	color.Outf("{{green}}deploy-blockchains response:{{/}} %+v\n", info)
+	return nil
+}
+
+func newAddSubnetsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-subnets [options]",
+		Short: "Add subnets.",
+		RunE:  addSubnetsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().Uint32Var(
+		&numSubnets,
+		"num-subnets",
+		0,
+		"[optional] number of subnets",
+	)
+	return cmd
+}
+func addSubnetsFunc(cmd *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	opts := []client.OpOption{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// don't call since "start" is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "DeployBlockchains" async ops
+	// when the deadline is reached
+	_ = cancel
+
+	info, err := cli.AddSubnets(
+		ctx,
+		numSubnets,
+		opts...,
+	)
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}add-subnets response:{{/}} %+v\n", info)
 	return nil
 }
 
