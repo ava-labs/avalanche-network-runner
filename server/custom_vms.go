@@ -73,16 +73,23 @@ func (lc *localNetwork) installCustomVMs(
 	if err != nil {
 		return nil, err
 	}
+	// get number of subnets to create
+	var numSubnets uint
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.subnetId != nil {
+			numSubnets++
+		}
+	}
 	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
 	}
-	chainInfos, subnetCreated, err := createSubnets(ctx, chainSpecs, baseWallet, testKeyAddr)
+	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
 	}
-	if subnetCreated {
-		if err = lc.restartNodesWithWhitelistedSubnets(ctx, chainInfos); err != nil {
+	if numSubnets > 0 {
+		if err = lc.restartNodesWithWhitelistedSubnets(ctx, subnetIDs); err != nil {
 			return nil, err
 		}
 		println()
@@ -93,14 +100,46 @@ func (lc *localNetwork) installCustomVMs(
 			zap.String("http-rpc-endpoint", httpRPCEp),
 			zap.String("address", testKeyAddr.String()),
 		)
-		if err = addSubnetValidators(ctx, chainSpecs, chainInfos, baseWallet, validatorIDs); err != nil {
+		if err = addSubnetValidators(ctx, subnetIDs, baseWallet, validatorIDs); err != nil {
 			return nil, err
 		}
 	}
 
-	chainInfos, err = createBlockchains(ctx, chainSpecs, chainInfos, baseWallet, testKeyAddr)
+	// fill nil subnets with created ones
+	j := 0
+	for i := range chainSpecs {
+		if chainSpecs[i].subnetId == nil {
+			subnetIDStr := subnetIDs[j].String()
+			chainSpecs[i].subnetId = &subnetIDStr
+			j++
+		}
+	}
+
+	blockchainIDs, err := createBlockchains(ctx, chainSpecs, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
+	}
+
+	chainInfos := make([]vmInfo, len(chainSpecs))
+	for i, chainSpec := range chainSpecs {
+		vmID, err := utils.VMID(chainSpec.vmName)
+		if err != nil {
+			return nil, err
+		}
+		subnetID, err := ids.FromString(*chainSpec.subnetId)
+		if err != nil {
+			return nil, err
+		}
+		chainInfos[i] = vmInfo{
+			info: &rpcpb.CustomVmInfo{
+				VmName:       chainSpec.vmName,
+				VmId:         vmID.String(),
+				SubnetId:     subnetID.String(),
+				BlockchainId: blockchainIDs[i].String(),
+			},
+			subnetID:     subnetID,
+			blockchainID: blockchainIDs[i],
+		}
 	}
 
 	println()
@@ -292,89 +331,48 @@ func checkValidators(
 
 func createSubnets(
 	ctx context.Context,
-	chainSpecs []blockchainSpec,
+	numSubnets uint,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
-) ([]vmInfo, bool, error) {
+) ([]ids.ID, error) {
 	println()
-	color.Outf("{{green}}creating subnet for each custom VM{{/}}\n")
-	chainInfos := make([]vmInfo, len(chainSpecs))
-	subnetCreated := false
-	for i, chainSpec := range chainSpecs {
-		vmID, err := utils.VMID(chainSpec.vmName)
+	color.Outf("{{green}}creating %d subnets VM{{/}}\n", numSubnets)
+	subnetIDs := make([]ids.ID, numSubnets)
+	var i uint
+	for i = 0; i < numSubnets; i++ {
+		zap.L().Info("creating subnet tx")
+		cctx, cancel := createDefaultCtx(ctx)
+		subnetID, err := baseWallet.P().IssueCreateSubnetTx(
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
+			},
+			common.WithContext(cctx),
+			defaultPoll,
+		)
+		cancel()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
-		if chainSpec.subnetId != nil {
-			subnetID, err := ids.FromString(*chainSpec.subnetId)
-			if err != nil {
-				return nil, false, err
-			}
-			zap.L().Info("using subnet",
-				zap.String("vm-name", chainSpec.vmName),
-				zap.String("vm-id", vmID.String()),
-				zap.String("subnet-id", subnetID.String()),
-			)
-			chainInfos[i] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       chainSpec.vmName,
-					VmId:         vmID.String(),
-					SubnetId:     subnetID.String(),
-					BlockchainId: "",
-				},
-				subnetID: subnetID,
-			}
-		} else {
-			zap.L().Info("creating subnet tx",
-				zap.String("vm-name", chainSpec.vmName),
-				zap.String("vm-id", vmID.String()),
-			)
-			cctx, cancel := createDefaultCtx(ctx)
-			subnetID, err := baseWallet.P().IssueCreateSubnetTx(
-				&secp256k1fx.OutputOwners{
-					Threshold: 1,
-					Addrs:     []ids.ShortID{testKeyAddr},
-				},
-				common.WithContext(cctx),
-				defaultPoll,
-			)
-			cancel()
-			if err != nil {
-				return nil, false, err
-			}
-			zap.L().Info("created subnet tx",
-				zap.String("vm-name", chainSpec.vmName),
-				zap.String("vm-id", vmID.String()),
-				zap.String("subnet-id", subnetID.String()),
-			)
-			chainInfos[i] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       chainSpec.vmName,
-					VmId:         vmID.String(),
-					SubnetId:     subnetID.String(),
-					BlockchainId: "",
-				},
-				subnetID: subnetID,
-			}
-			subnetCreated = true
-		}
+		zap.L().Info("created subnet tx", zap.String("subnet-id", subnetID.String()))
+		subnetIDs[i] = subnetID
 	}
-	return chainInfos, subnetCreated, nil
+	return subnetIDs, nil
 }
 
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	ctx context.Context,
-	chainInfos []vmInfo,
+	subnetIDs []ids.ID,
 ) (err error) {
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
 	whitelistedSubnetIDsMap := map[string]struct{}{}
-	for _, vmInfo := range lc.customVMBlockchainIDToInfo {
-		whitelistedSubnetIDsMap[vmInfo.subnetID.String()] = struct{}{}
+	for _, subnetStr := range lc.subnets {
+		whitelistedSubnetIDsMap[subnetStr] = struct{}{}
 	}
-	for _, vmInfo := range chainInfos {
-		whitelistedSubnetIDsMap[vmInfo.subnetID.String()] = struct{}{}
+	for _, subnetID := range subnetIDs {
+		whitelistedSubnetIDsMap[subnetID.String()] = struct{}{}
 	}
 	whitelistedSubnetIDs := []string{}
 	for subnetID := range whitelistedSubnetIDsMap {
@@ -429,21 +427,15 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 
 func addSubnetValidators(
 	ctx context.Context,
-	chainSpecs []blockchainSpec,
-	chainInfos []vmInfo,
+	subnetIDs []ids.ID,
 	baseWallet *refreshableWallet,
 	validatorIDs []ids.NodeID,
 ) error {
 	println()
 	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
-	for i, vmInfo := range chainInfos {
-		if chainSpecs[i].subnetId != nil {
-			continue
-		}
+	for _, subnetID := range subnetIDs {
 		zap.L().Info("adding all nodes as subnet validator",
-			zap.String("vm-name", vmInfo.info.VmName),
-			zap.String("vm-id", vmInfo.info.VmId),
-			zap.String("subnet-id", vmInfo.subnetID.String()),
+			zap.String("subnet-id", subnetID.String()),
 		)
 		for _, validatorID := range validatorIDs {
 			cctx, cancel := createDefaultCtx(ctx)
@@ -457,7 +449,7 @@ func addSubnetValidators(
 						End:   uint64(time.Now().Add(100 * time.Hour).Unix()),
 						Wght:  1000,
 					},
-					Subnet: vmInfo.subnetID,
+					Subnet: subnetID,
 				},
 				common.WithContext(cctx),
 				defaultPoll,
@@ -467,9 +459,7 @@ func addSubnetValidators(
 				return err
 			}
 			zap.L().Info("added the node as a subnet validator",
-				zap.String("vm-name", vmInfo.info.VmName),
-				zap.String("vm-id", vmInfo.info.VmId),
-				zap.String("subnet-id", vmInfo.subnetID.String()),
+				zap.String("subnet-id", subnetID.String()),
 				zap.String("node-id", validatorID.String()),
 				zap.String("tx-id", txID.String()),
 			)
@@ -481,29 +471,32 @@ func addSubnetValidators(
 func createBlockchains(
 	ctx context.Context,
 	chainSpecs []blockchainSpec,
-	chainInfos []vmInfo,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
-) ([]vmInfo, error) {
+) ([]ids.ID, error) {
 	println()
 	color.Outf("{{green}}creating blockchain for each custom VM{{/}}\n")
-	updatedChainInfos := make([]vmInfo, len(chainInfos))
-	for i, vmInfo := range chainInfos {
-		vmName := vmInfo.info.VmName
-		vmGenesisBytes := chainSpecs[i].genesis
+	blockchainIDs := make([]ids.ID, len(chainSpecs))
+	for i, chainSpec := range chainSpecs {
+		vmName := chainSpec.vmName
+		vmID, err := utils.VMID(vmName)
+		if err != nil {
+			return nil, err
+		}
+		vmGenesisBytes := chainSpec.genesis
 
 		zap.L().Info("creating blockchain tx",
 			zap.String("vm-name", vmName),
-			zap.String("vm-id", vmInfo.info.VmId),
+			zap.String("vm-id", vmID.String()),
 			zap.Int("genesis-bytes", len(vmGenesisBytes)),
 		)
 		cctx, cancel := createDefaultCtx(ctx)
-		vmID, err := ids.FromString(vmInfo.info.VmId)
+		subnetID, err := ids.FromString(*chainSpec.subnetId)
 		if err != nil {
 			return nil, err
 		}
 		blockchainID, err := baseWallet.P().IssueCreateChainTx(
-			vmInfo.subnetID,
+			subnetID,
 			vmGenesisBytes,
 			vmID,
 			nil,
@@ -516,18 +509,16 @@ func createBlockchains(
 			return nil, fmt.Errorf("failure creating blockchain: %w", err)
 		}
 
-		updatedChainInfos[i] = vmInfo
-		updatedChainInfos[i].info.BlockchainId = blockchainID.String()
-		updatedChainInfos[i].blockchainID = blockchainID
+		blockchainIDs[i] = blockchainID
 
 		zap.L().Info("created a new blockchain",
 			zap.String("vm-name", vmName),
-			zap.String("vm-id", vmInfo.info.VmId),
+			zap.String("vm-id", vmID.String()),
 			zap.String("blockchain-id", blockchainID.String()),
 		)
 	}
 
-	return updatedChainInfos, nil
+	return blockchainIDs, nil
 }
 
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
