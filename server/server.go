@@ -491,6 +491,9 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 			case <-s.network.stopCh:
 				return
 			case serr := <-s.network.startErrCh:
+				// TODO: decide what to do here, general failure on s.network.deployBlockchains()
+				// signal itself SIGINT? maybe try decide if operation was partial (undesired network, fail)
+				// or was not stated (preconditions check, continue)
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
 			case <-deployBlockchainsReadyCh:
