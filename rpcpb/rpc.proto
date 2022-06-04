@@ -36,6 +36,13 @@ service ControlService {
     };
   }
 
+  rpc AddSubnets(AddSubnetsRequest) returns (AddSubnetsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/addsubnets"
+      body: "*"
+    };
+  }
+
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       post: "/v1/control/health"
@@ -242,6 +249,14 @@ message DeployBlockchainsRequest {
 }
 
 message DeployBlockchainsResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message AddSubnetsRequest {
+  uint32 num_subnets = 1;
+}
+
+message AddSubnetsResponse {
   ClusterInfo cluster_info = 1;
 }
 

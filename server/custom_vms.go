@@ -138,6 +138,41 @@ func (lc *localNetwork) installCustomVMs(
 	return chainInfos, nil
 }
 
+func (lc *localNetwork) installSubnets(
+	ctx context.Context,
+	numSubnets uint,
+) ([]ids.ID, error) {
+	println()
+	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+
+	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
+
+	pTXs := make(map[ids.ID]*platformvm.Tx)
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp, pTXs)
+	if err != nil {
+		return nil, err
+	}
+
+	// add subnets restarting network if necessary
+	subnetIDs, err := lc.addSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	println()
+	color.Outf("{{green}}checking the remaining balance of the base wallet{{/}}\n")
+	balances, err := baseWallet.P().Builder().GetBalance()
+	if err != nil {
+		return nil, err
+	}
+	zap.L().Info("base wallet AVAX balance",
+		zap.String("address", testKeyAddr.String()),
+		zap.Uint64("balance", balances[avaxAssetID]),
+	)
+
+	return subnetIDs, nil
+}
+
 func (lc *localNetwork) addSubnets(
 	ctx context.Context,
 	numSubnets uint,
