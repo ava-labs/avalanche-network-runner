@@ -165,22 +165,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirEmptyButCustomVMsNotEmpty.Error()))
 		})
 
-		ginkgo.By("start request with missing custom VMs should fail", func() {
-			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
-			gomega.Ω(err).Should(gomega.BeNil())
-			filePath := f.Name()
-			gomega.Ω(f.Close()).Should(gomega.BeNil())
-
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
-			)
-			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirNonEmptyButCustomVMsEmpty.Error()))
-
-			os.RemoveAll(filePath)
-		})
-
 		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
 			vmID, err := utils.VMID("hello")
 			gomega.Ω(err).Should(gomega.BeNil())
