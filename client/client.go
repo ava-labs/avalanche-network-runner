@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
-	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"go.uber.org/zap"
@@ -72,7 +71,7 @@ func New(cfg Config) (Client, error) {
 	}
 	_ = zap.ReplaceGlobals(logger)
 
-	color.Outf("{{blue}}dialing endpoint %q{{/}}\n", cfg.Endpoint)
+	zap.L().Debug("dialing endpoint", zap.String("endpoint", cfg.Endpoint))
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
 	conn, err := grpc.DialContext(
 		ctx,
