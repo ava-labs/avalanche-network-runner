@@ -71,7 +71,8 @@ func New(cfg Config) (Client, error) {
 	}
 	_ = zap.ReplaceGlobals(logger)
 
-	zap.L().Debug("dialing endpoint", zap.String("endpoint", cfg.Endpoint))
+	zap.L().Debug("dialing server", zap.String("endpoint", cfg.Endpoint))
+
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
 	conn, err := grpc.DialContext(
 		ctx,
