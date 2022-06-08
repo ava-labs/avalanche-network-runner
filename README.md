@@ -217,6 +217,15 @@ curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_nam
 avalanche-network-runner control load-snapshot snapshotName
 ```
 
+A different avalanchego binary path o plugin dir can be specified when loading the snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5","execPath":"'${AVALANCHEGO_EXEC_PATH}'","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName --avalanchego-path ${AVALANCHEGO_EXEC_PATH} --plugin-dir ${AVALANCHEGO_PLUGIN_PATH}
+```
+
 To get the list of snapshots:
 
 ```bash
@@ -233,6 +242,33 @@ curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_n
 
 # or
 avalanche-network-runner control remove-snapshot snapshotName
+```
+
+To create N validated subnets (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/addsubnets -d '{"num_subnets":5}'
+
+# or
+avalanche-network-runner control add-subnets 5
+```
+
+To deploy a blockchain without a subnet id (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/deployblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
+
+# or
+avalanche-network-runner control deploy-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
+```
+
+To deploy a blockchain with a subnet id (does not require restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/deployblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
+
+# or
+avalanche-network-runner control deploy-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
 To remove (stop) a node:
