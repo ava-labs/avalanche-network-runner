@@ -764,6 +764,18 @@ func newLoadSnapshotCommand() *cobra.Command {
 		RunE:  loadSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
+	cmd.PersistentFlags().StringVar(
+		&avalancheGoBinPath,
+		"avalanchego-path",
+		"",
+		"avalanchego binary path",
+	)
+	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"plugin directory",
+	)
 	return cmd
 }
 
@@ -774,8 +786,13 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	opts := []client.OpOption{
+		client.WithExecPath(avalancheGoBinPath),
+		client.WithPluginDir(pluginDir),
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.LoadSnapshot(ctx, args[0])
+	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
 	cancel()
 	if err != nil {
 		return err
