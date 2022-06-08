@@ -354,8 +354,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
+	initialNetworkReadyCh := make(chan struct{})
 	deployBlockchainsReadyCh := make(chan struct{})
-	go s.network.start(ctx, chainSpecs, deployBlockchainsReadyCh)
+	go s.network.start(ctx, chainSpecs, initialNetworkReadyCh, deployBlockchainsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -371,7 +372,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		case serr := <-s.network.startErrCh:
 			zap.L().Warn("start failed to complete", zap.Error(serr))
 			panic(serr)
-		case <-s.network.localClusterReadyCh:
+		case <-initialNetworkReadyCh:
 			s.mu.Lock()
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -421,11 +422,6 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 	zap.L().Debug("DeployBlockchains")
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
-	}
-
-	zap.L().Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
-		return nil, err
 	}
 
 	chainSpecs := []blockchainSpec{}
@@ -529,7 +525,8 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
 
-	zap.L().Debug("DeploySubnets")
+	zap.L().Debug("AddSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
+
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -544,10 +541,10 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 
 	s.clusterInfo.CustomVmsHealthy = false
 
-	// start non-blocking to install custom VMs (if applicable)
+	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
-	deploySubnetsReadyCh := make(chan struct{})
-	go s.network.deploySubnets(ctx, req.GetNumSubnets(), deploySubnetsReadyCh)
+	addSubnetsReadyCh := make(chan struct{})
+	go s.network.addSubnets(ctx, req.GetNumSubnets(), addSubnetsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -568,7 +565,7 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 				// or was not stated (preconditions check, continue)
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-deploySubnetsReadyCh:
+			case <-addSubnetsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)

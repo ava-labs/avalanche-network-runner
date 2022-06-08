@@ -58,9 +58,6 @@ type localNetwork struct {
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
 
-	localClusterReadyCh          chan struct{} // closed when local network is ready/healthy
-	localClusterReadyChCloseOnce sync.Once
-
 	// map from blockchain ID to blockchain info
 	customVMBlockchainIDToInfo map[ids.ID]vmInfo
 
@@ -119,8 +116,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		options: opts,
 
 		attachedPeers: make(map[string]map[string]peer.Peer),
-
-		localClusterReadyCh: make(chan struct{}),
 
 		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
 		customVMRestartMu:          opts.restartMu,
@@ -252,6 +247,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 func (lc *localNetwork) start(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	initialNetworkReadyCh chan struct{}, // closed when initial network is healthy
 	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	defer func() {
@@ -276,6 +272,7 @@ func (lc *localNetwork) start(
 		lc.startErrCh <- err
 		return
 	}
+	close(initialNetworkReadyCh)
 
 	lc.deployBlockchains(ctx, chainSpecs, deployBlockchainsReadyCh)
 }
@@ -285,7 +282,7 @@ func (lc *localNetwork) deployBlockchains(
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
 	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
-	// start triggers a series of different time consuming actions
+	// deployBlockchains triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
 	// We may need to cancel the context, for example if the client hits Ctrl-C
 	var ctx context.Context
@@ -316,10 +313,10 @@ func (lc *localNetwork) deployBlockchains(
 	close(deployBlockchainsReadyCh)
 }
 
-func (lc *localNetwork) deploySubnets(
+func (lc *localNetwork) addSubnets(
 	argCtx context.Context,
 	numSubnets uint32,
-	deploySubnetsReadyCh chan struct{}, // closed when subnet installations are complete
+	addSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -337,7 +334,7 @@ func (lc *localNetwork) deploySubnets(
 		return
 	}
 
-	_, err := lc.installSubnets(ctx, numSubnets)
+	_, err := lc.setupWalletAndInstallSubnets(ctx, numSubnets)
 	if err != nil {
 		lc.startErrCh <- err
 		return
@@ -354,7 +351,7 @@ func (lc *localNetwork) deploySubnets(
 
 	color.Outf("{{orange}}{{bold}}finish adding subnets{{/}}\n")
 
-	close(deploySubnetsReadyCh)
+	close(addSubnetsReadyCh)
 }
 
 func (lc *localNetwork) loadSnapshot(
@@ -461,9 +458,6 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		nodeInfo := lc.nodeInfos[name]
 		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
 	}
-	lc.localClusterReadyChCloseOnce.Do(func() {
-		close(lc.localClusterReadyCh)
-	})
 	return nil
 }
 

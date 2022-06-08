@@ -81,8 +81,8 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
-	// add subnets restarting network if necessary
-	subnetIDs, err := lc.addSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+	// add subnets restarting network (if numSubnets > 0)
+	subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (lc *localNetwork) installCustomVMs(
 	return chainInfos, nil
 }
 
-func (lc *localNetwork) installSubnets(
+func (lc *localNetwork) setupWalletAndInstallSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 ) ([]ids.ID, error) {
@@ -154,7 +154,7 @@ func (lc *localNetwork) installSubnets(
 	}
 
 	// add subnets restarting network if necessary
-	subnetIDs, err := lc.addSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+	subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (lc *localNetwork) installSubnets(
 	return subnetIDs, nil
 }
 
-func (lc *localNetwork) addSubnets(
+func (lc *localNetwork) installSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 	baseWallet *refreshableWallet,
@@ -455,28 +455,24 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	)
 	for _, nodeConfig := range lc.cfg.NodeConfigs {
 		nodeName := nodeConfig.Name
+
 		lc.customVMRestartMu.Lock()
-		zap.L().Info("removing the node", zap.String("node-name", nodeName))
+		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
 		if err := lc.nw.RemoveNode(nodeName); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
 		}
-		lc.customVMRestartMu.Unlock()
-	}
-	for _, nodeConfig := range lc.cfg.NodeConfigs {
-		nodeName := nodeConfig.Name
-		lc.customVMRestartMu.Lock()
-		zap.L().Info("adding back the node", zap.String("node-name", nodeName))
 		if _, err := lc.nw.AddNode(nodeConfig); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
 		}
+
+		zap.L().Info("waiting for local cluster readiness after restart", zap.String("node-name", nodeName))
+		if err := lc.waitForLocalClusterReady(ctx); err != nil {
+			lc.customVMRestartMu.Unlock()
+			return err
+		}
 		lc.customVMRestartMu.Unlock()
-	}
-	zap.L().Info("waiting for local cluster readiness after restart")
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.customVMRestartMu.Unlock()
-		return err
 	}
 	return nil
 }
