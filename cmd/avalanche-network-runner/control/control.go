@@ -173,13 +173,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		opts = append(opts, client.WithCustomVMs(customVMs))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	// don't call since "start" is async
-	// and the top-level context here "ctx" is passed
-	// to all underlying function calls
-	// just set the timeout to halt "Start" async ops
-	// when the deadline is reached
-	_ = cancel
+	ctx := getAsyncContext()
 
 	info, err := cli.Start(
 		ctx,
@@ -233,13 +227,7 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	// don't call since "start" is async
-	// and the top-level context here "ctx" is passed
-	// to all underlying function calls
-	// just set the timeout to halt "DeployBlockchains" async ops
-	// when the deadline is reached
-	_ = cancel
+	ctx := getAsyncContext()
 
 	info, err := cli.CreateBlockchains(
 		ctx,
@@ -281,13 +269,7 @@ func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 
 	opts := []client.OpOption{}
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	// don't call since "start" is async
-	// and the top-level context here "ctx" is passed
-	// to all underlying function calls
-	// just set the timeout to halt "DeployBlockchains" async ops
-	// when the deadline is reached
-	_ = cancel
+	ctx := getAsyncContext()
 
 	info, err := cli.CreateSubnets(
 		ctx,
@@ -786,9 +768,10 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		client.WithPluginDir(pluginDir),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	ctx := getAsyncContext()
+
 	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
-	cancel()
+
 	if err != nil {
 		return err
 	}
@@ -858,4 +841,15 @@ func newClient() (client.Client, error) {
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
 	})
+}
+
+func getAsyncContext() context.Context {
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// don't call since function using it is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "Start" async ops
+	// when the deadline is reached
+	_ = cancel
+	return ctx
 }
