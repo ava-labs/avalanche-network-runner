@@ -202,23 +202,14 @@ func newCreateBlockchainsCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
-		&pluginDir,
-		"plugin-dir",
-		"",
-		"[optional] plugin directory",
-	)
-	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
 		"custom-vms",
 		"",
-		"[optional] JSON string of map that maps from VM to its genesis file path",
+		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
 	)
-	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
-		"",
-		"whitelisted subnets (comma-separated)",
-	)
+	if err := cmd.MarkFlagRequired("custom-vms"); err != nil {
+		panic(err)
+	}
 	return cmd
 }
 
@@ -273,10 +264,14 @@ func newCreateSubnetsCommand() *cobra.Command {
 		&numSubnets,
 		"num-subnets",
 		0,
-		"[optional] number of subnets",
+		"number of subnets",
 	)
+	if err := cmd.MarkFlagRequired("num-subnets"); err != nil {
+		panic(err)
+	}
 	return cmd
 }
+
 func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
