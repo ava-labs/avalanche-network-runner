@@ -31,7 +31,7 @@ type Config struct {
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
-	CreateBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.CreateBlockchainsResponse, error)
+	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -133,12 +133,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	return c.controlc.Start(ctx, req)
 }
 
-func (c *client) CreateBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.CreateBlockchainsResponse, error) {
-	ret := &Op{}
-	ret.applyOpts(opts)
-
+func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error) {
 	req := &rpcpb.CreateBlockchainsRequest{
-		BlockchainSpecs: ret.blockchainSpecs,
+		BlockchainSpecs: blockchainSpecs,
 	}
 
 	zap.L().Info("deploy blockchains")
@@ -338,7 +335,6 @@ type Op struct {
 	pluginDir          string
 	customVMs          map[string]string
 	customNodeConfigs  map[string]string
-	blockchainSpecs    []*rpcpb.BlockchainSpec
 }
 
 type OpOption func(*Op)
@@ -346,12 +342,6 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
-	}
-}
-
-func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
-	return func(op *Op) {
-		op.blockchainSpecs = blockchainSpecs
 	}
 }
 

@@ -215,11 +215,6 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{
-		client.WithPluginDir(pluginDir),
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-	}
-
 	if customVMNameToGenesisPath == "" {
 		return errors.New("empty custom-vms argument")
 	}
@@ -228,13 +223,12 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
 		return err
 	}
-	opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 
 	ctx := getAsyncContext()
 
 	info, err := cli.CreateBlockchains(
 		ctx,
-		opts...,
+		blockchainSpecs,
 	)
 	if err != nil {
 		return err
