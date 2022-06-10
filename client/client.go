@@ -138,7 +138,7 @@ func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb
 		BlockchainSpecs: blockchainSpecs,
 	}
 
-	zap.L().Info("deploy blockchains")
+	zap.L().Info("create blockchains")
 	return c.controlc.CreateBlockchains(ctx, req)
 }
 
@@ -148,7 +148,7 @@ func (c *client) CreateSubnets(ctx context.Context, numSubnets uint32, opts ...O
 
 	req := &rpcpb.CreateSubnetsRequest{NumSubnets: numSubnets}
 
-	zap.L().Info("add subnets")
+	zap.L().Info("create subnets")
 	return c.controlc.CreateSubnets(ctx, req)
 }
 

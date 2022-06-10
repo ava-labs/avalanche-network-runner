@@ -239,12 +239,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
+	pluginDir := ""
+	if req.GetPluginDir() != "" {
+		pluginDir = req.GetPluginDir()
+	}
+	//if pluginDir == "" {
+	//	pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
+	//}
 	chainSpecs := []blockchainSpec{}
 	if len(req.GetCustomVms()) > 0 {
-		if req.GetPluginDir() == "" {
-			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
-		}
-		zap.L().Info("non-empty plugin dir", zap.String("plugin-dir", req.GetPluginDir()))
+		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
 		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
@@ -256,7 +260,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				return nil, ErrInvalidVMName
 			}
 			if err := utils.CheckPluginPaths(
-				filepath.Join(req.GetPluginDir(), vmID.String()),
+				filepath.Join(pluginDir, vmID.String()),
 				vmGenesisFilePath,
 			); err != nil {
 				return nil, err
@@ -270,10 +274,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				genesis: b,
 			})
 		}
-	}
-	pluginDir := ""
-	if req.GetPluginDir() != "" {
-		pluginDir = req.GetPluginDir()
 	}
 
 	s.mu.Lock()
@@ -429,35 +429,48 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	chainSpecs := []blockchainSpec{}
+	for i := range req.GetBlockchainSpecs() {
+		vmName := req.GetBlockchainSpecs()[i].VmName
+		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
+		zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+		vmID, err := utils.VMID(vmName)
+		if err != nil {
+			zap.L().Warn("failed to convert VM name to VM ID",
+				zap.String("vm-name", vmName),
+				zap.Error(err),
+			)
+			return nil, ErrInvalidVMName
+		}
+		if err := utils.CheckPluginPaths(
+			filepath.Join(s.network.pluginDir, vmID.String()),
+			vmGenesisFilePath,
+		); err != nil {
+			return nil, err
+		}
+		b, err := os.ReadFile(vmGenesisFilePath)
+		if err != nil {
+			return nil, err
+		}
+		chainSpecs = append(chainSpecs, blockchainSpec{
+			vmName:   vmName,
+			genesis:  b,
+			subnetId: req.GetBlockchainSpecs()[i].SubnetId,
+		})
+	}
 
-    for i := range req.GetBlockchainSpecs() {
-        vmName := req.GetBlockchainSpecs()[i].VmName
-        vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-        zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
-        vmID, err := utils.VMID(vmName)
-        if err != nil {
-            zap.L().Warn("failed to convert VM name to VM ID",
-                zap.String("vm-name", vmName),
-                zap.Error(err),
-            )
-            return nil, ErrInvalidVMName
-        }
-        if err := utils.CheckPluginPaths(
-            filepath.Join(s.network.pluginDir, vmID.String()),
-            vmGenesisFilePath,
-        ); err != nil {
-            return nil, err
-        }
-        b, err := os.ReadFile(vmGenesisFilePath)
-        if err != nil {
-            return nil, err
-        }
-        chainSpecs = append(chainSpecs, blockchainSpec{
-            vmName:   vmName,
-            genesis:  b,
-            subnetId: req.GetBlockchainSpecs()[i].SubnetId,
-        })
-    }
+	// check that defined subnets exist
+	subnetsMap := map[string]struct{}{}
+	for _, subnet := range s.clusterInfo.Subnets {
+		subnetsMap[subnet] = struct{}{}
+	}
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.subnetId != nil {
+			_, ok := subnetsMap[*chainSpec.subnetId]
+			if !ok {
+				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.subnetId)
+			}
+		}
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

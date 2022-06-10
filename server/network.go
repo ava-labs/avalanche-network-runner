@@ -45,10 +45,10 @@ var ignoreFields = map[string]struct{}{
 type localNetwork struct {
 	logger logging.Logger
 
-	execPath string
-    pluginDir string
+	execPath  string
+	pluginDir string
 
-	cfg     network.Config
+	cfg network.Config
 
 	nw network.Network
 
@@ -504,12 +504,12 @@ func (lc *localNetwork) updateNodeInfo() error {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
 			}
 		}
-        if pluginDir == "" {
-            buildDir := filepath.Dir(node.GetBinaryPath())
-            if buildDir != "" {
-                pluginDir = filepath.Join(buildDir, "plugins")
-            }
-        }
+		if pluginDir == "" {
+			buildDir := filepath.Dir(node.GetBinaryPath())
+			if buildDir != "" {
+				pluginDir = filepath.Join(buildDir, "plugins")
+			}
+		}
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
 		if ok {
 			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
@@ -530,13 +530,13 @@ func (lc *localNetwork) updateNodeInfo() error {
 			WhitelistedSubnets: whitelistedSubnets,
 		}
 
-        // update default exec and pluginDir if empty (snapshots started without this params)
-        if lc.execPath == "" {
-            lc.execPath = node.GetBinaryPath()
-        }
-        if lc.pluginDir == "" {
-            lc.pluginDir = pluginDir
-        }
+		// update default exec and pluginDir if empty (snapshots started without this params)
+		if lc.execPath == "" {
+			lc.execPath = node.GetBinaryPath()
+		}
+		if lc.pluginDir == "" {
+			lc.pluginDir = pluginDir
+		}
 
 	}
 	return nil

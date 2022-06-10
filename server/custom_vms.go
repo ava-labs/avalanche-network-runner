@@ -46,10 +46,6 @@ func (lc *localNetwork) installCustomVMs(
 	platformCli := platformvm.NewClient(httpRPCEp)
 
 	// wallet needs txs for all previously created subnets
-	pChainCodec, err := createPChainCodec()
-	if err != nil {
-		return nil, err
-	}
 	pTXs := make(map[ids.ID]*platformvm.Tx)
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.subnetId != nil {
@@ -62,7 +58,7 @@ func (lc *localNetwork) installCustomVMs(
 				return nil, fmt.Errorf("tx not found for subnet %q: %w", subnetID.String(), err)
 			}
 			var subnetTx platformvm.Tx
-			if _, err := pChainCodec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
+			if _, err := platformvm.Codec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
 				return nil, fmt.Errorf("couldn not unmarshall tx for subnet %q: %w", subnetID.String(), err)
 			}
 			pTXs[subnetID] = &subnetTx
