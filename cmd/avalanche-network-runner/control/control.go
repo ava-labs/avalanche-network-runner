@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -219,13 +220,15 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 	}
 
-	if customVMNameToGenesisPath != "" {
-		blockchainSpecs := []*rpcpb.BlockchainSpec{}
-		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
-			return err
-		}
-		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
+	if customVMNameToGenesisPath == "" {
+		return errors.New("empty custom-vms argument")
 	}
+
+	blockchainSpecs := []*rpcpb.BlockchainSpec{}
+	if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
+		return err
+	}
+	opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 
 	ctx := getAsyncContext()
 
