@@ -48,6 +48,10 @@ func (lc *localNetwork) installCustomVMs(
 	// wallet needs txs for all previously created subnets
 	pTXs := make(map[ids.ID]*platformvm.Tx)
 	for _, chainSpec := range chainSpecs {
+		// if subnet id for the blockchain is specified, we need to add the subnet id
+		// tx info to the wallet so blockchain creation does not fail
+		// if subnet id is not specified, a new subnet will later be created by using the wallet,
+		// and the wallet will obtain the tx info at that moment
 		if chainSpec.subnetId != nil {
 			subnetID, err := ids.FromString(*chainSpec.subnetId)
 			if err != nil {
@@ -59,7 +63,7 @@ func (lc *localNetwork) installCustomVMs(
 			}
 			var subnetTx platformvm.Tx
 			if _, err := platformvm.Codec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
-				return nil, fmt.Errorf("couldn not unmarshall tx for subnet %q: %w", subnetID.String(), err)
+				return nil, fmt.Errorf("couldn not unmarshal tx for subnet %q: %w", subnetID.String(), err)
 			}
 			pTXs[subnetID] = &subnetTx
 		}
@@ -69,7 +73,10 @@ func (lc *localNetwork) installCustomVMs(
 	if err != nil {
 		return nil, err
 	}
+
 	// get number of subnets to create
+	// for the list of requested blockchains, we count those that have undefined subnet id
+	// that number of subnets will be created and later assigned to those blockchain requests
 	var numSubnets uint32
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.subnetId == nil {
@@ -77,19 +84,21 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
-	// add subnets restarting network (if numSubnets > 0)
-	subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
-	if err != nil {
-		return nil, err
-	}
+	if numSubnets > 0 {
+		// add missing subnets, restarting network and waiting for subnet validation to start
+		subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+		if err != nil {
+			return nil, err
+		}
 
-	// fill nil subnets with created ones
-	j := 0
-	for i := range chainSpecs {
-		if chainSpecs[i].subnetId == nil {
-			subnetIDStr := subnetIDs[j].String()
-			chainSpecs[i].subnetId = &subnetIDStr
-			j++
+		// assign created subnets to blockchain requests with undefined subnet id
+		j := 0
+		for i := range chainSpecs {
+			if chainSpecs[i].subnetId == nil {
+				subnetIDStr := subnetIDs[j].String()
+				chainSpecs[i].subnetId = &subnetIDStr
+				j++
+			}
 		}
 	}
 
