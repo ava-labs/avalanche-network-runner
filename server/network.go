@@ -161,15 +161,10 @@ func (lc *localNetwork) createConfig() error {
 		}
 
 		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir := ""
-		if lc.options.pluginDir != "" {
-			pluginDir := filepath.Clean(lc.options.pluginDir)
-			if filepath.Base(pluginDir) != "plugins" {
-				return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-			}
-			buildDir = filepath.Dir(pluginDir)
+		buildDir, err := getBuildDir(lc.options.execPath, lc.options.pluginDir)
+		if err != nil {
+			return err
 		}
-
 		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
@@ -215,6 +210,23 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 	}
 
 	return baseConfig, nil
+}
+
+// generates buildDir from pluginDir, and if not available, from execPath
+// returns error if pluginDir is non empty and invalid
+func getBuildDir(execPath string, pluginDir string) (string, error) {
+	buildDir := ""
+	if execPath != "" {
+		buildDir = filepath.Dir(execPath)
+	}
+	if pluginDir != "" {
+		pluginDir := filepath.Clean(pluginDir)
+		if filepath.Base(pluginDir) != "plugins" {
+			return "", fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+		}
+		buildDir = filepath.Dir(pluginDir)
+	}
+	return buildDir, nil
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
@@ -365,13 +377,9 @@ func (lc *localNetwork) loadSnapshot(
 		close(lc.startDoneCh)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	buildDir := ""
-	if pluginDir != "" {
-		pluginDir := filepath.Clean(pluginDir)
-		if filepath.Base(pluginDir) != "plugins" {
-			return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-		}
-		buildDir = filepath.Dir(pluginDir)
+	buildDir, err := getBuildDir(execPath, pluginDir)
+	if err != nil {
+		return err
 	}
 	nw, err := local.NewNetworkFromSnapshot(
 		lc.logger,

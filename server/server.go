@@ -740,7 +740,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var whitelistedSubnets, pluginDir string
+	var whitelistedSubnets string
 
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
@@ -765,7 +765,10 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	// use same configs from other nodes
 	whitelistedSubnets = s.network.options.whitelistedSubnets
-	pluginDir = s.network.options.pluginDir
+	buildDir, err := getBuildDir(execPath, s.network.options.pluginDir)
+	if err != nil {
+		return nil, err
+	}
 
 	rootDataDir := s.clusterInfo.RootDataDir
 
@@ -788,7 +791,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, fmt.Errorf("failed merging provided configs: %w", err)
 	}
-	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, pluginDir, whitelistedSubnets)
+	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, buildDir, whitelistedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
@@ -887,12 +890,16 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	var err error
+	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
+	if err != nil {
+		return nil, err
+	}
+
 	nodeConfig.ConfigFile, err = createConfigFileString(
 		defaultConfig,
 		nodeInfo.LogDir,
 		nodeInfo.DbDir,
-		nodeInfo.PluginDir,
+		buildDir,
 		nodeInfo.WhitelistedSubnets,
 	)
 	if err != nil {
@@ -1088,6 +1095,8 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
+		execPath:    req.GetExecPath(),
+		pluginDir:   req.GetPluginDir(),
 		rootDataDir: rootDataDir,
 
 		// to block racey restart
