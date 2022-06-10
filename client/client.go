@@ -137,15 +137,8 @@ func (c *client) CreateBlockchains(ctx context.Context, opts ...OpOption) (*rpcp
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	req := &rpcpb.CreateBlockchainsRequest{}
-	if ret.whitelistedSubnets != "" {
-		req.WhitelistedSubnets = &ret.whitelistedSubnets
-	}
-	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
-	}
-	if len(ret.blockchainSpecs) > 0 {
-		req.BlockchainSpecs = ret.blockchainSpecs
+	req := &rpcpb.CreateBlockchainsRequest{
+		BlockchainSpecs: ret.blockchainSpecs,
 	}
 
 	zap.L().Info("deploy blockchains")

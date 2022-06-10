@@ -429,49 +429,35 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	chainSpecs := []blockchainSpec{}
-	// TODO: fix plugin dir management:
-	// - cannot change plugin dir for nodes that wont be restarted
-	// - can change plugin dir when restating network
-	// - different nodes may have different plugin dirs
-	// - pluging dir shall contain vms for all blockchains
-	if req.GetPluginDir() == "" {
-		if len(req.GetBlockchainSpecs()) > 0 {
-			return nil, ErrPluginDirEmptyButCustomVMsNotEmpty
-		}
-	} else {
-		if len(req.GetBlockchainSpecs()) == 0 {
-			return nil, ErrPluginDirNonEmptyButCustomVMsEmpty
-		}
-		zap.L().Info("non-empty plugin dir", zap.String("plugin-dir", req.GetPluginDir()))
-		for i := range req.GetBlockchainSpecs() {
-			vmName := req.GetBlockchainSpecs()[i].VmName
-			vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
-			vmID, err := utils.VMID(vmName)
-			if err != nil {
-				zap.L().Warn("failed to convert VM name to VM ID",
-					zap.String("vm-name", vmName),
-					zap.Error(err),
-				)
-				return nil, ErrInvalidVMName
-			}
-			if err := utils.CheckPluginPaths(
-				filepath.Join(req.GetPluginDir(), vmID.String()),
-				vmGenesisFilePath,
-			); err != nil {
-				return nil, err
-			}
-			b, err := os.ReadFile(vmGenesisFilePath)
-			if err != nil {
-				return nil, err
-			}
-			chainSpecs = append(chainSpecs, blockchainSpec{
-				vmName:   vmName,
-				genesis:  b,
-				subnetId: req.GetBlockchainSpecs()[i].SubnetId,
-			})
-		}
-	}
+
+    for i := range req.GetBlockchainSpecs() {
+        vmName := req.GetBlockchainSpecs()[i].VmName
+        vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
+        zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+        vmID, err := utils.VMID(vmName)
+        if err != nil {
+            zap.L().Warn("failed to convert VM name to VM ID",
+                zap.String("vm-name", vmName),
+                zap.Error(err),
+            )
+            return nil, ErrInvalidVMName
+        }
+        if err := utils.CheckPluginPaths(
+            filepath.Join(s.network.pluginDir, vmID.String()),
+            vmGenesisFilePath,
+        ); err != nil {
+            return nil, err
+        }
+        b, err := os.ReadFile(vmGenesisFilePath)
+        if err != nil {
+            return nil, err
+        }
+        chainSpecs = append(chainSpecs, blockchainSpec{
+            vmName:   vmName,
+            genesis:  b,
+            subnetId: req.GetBlockchainSpecs()[i].SubnetId,
+        })
+    }
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -753,7 +739,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	execPath := req.StartRequest.ExecPath
 	if execPath == "" {
 		// ...or use the same binary as the rest of the network
-		execPath = s.network.binPath
+		execPath = s.network.execPath
 	}
 	_, err := os.Stat(execPath)
 	if err != nil {
@@ -765,7 +751,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	// use same configs from other nodes
 	whitelistedSubnets = s.network.options.whitelistedSubnets
-	buildDir, err := getBuildDir(execPath, s.network.options.pluginDir)
+	buildDir, err := getBuildDir(execPath, s.network.pluginDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1112,7 +1098,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.loadSnapshot(ctx, req.SnapshotName, req.GetExecPath(), req.GetPluginDir()); err != nil {
+	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
 		zap.L().Warn("snapshot load failed to complete", zap.Error(err))
 		s.network = nil
 		s.clusterInfo = nil

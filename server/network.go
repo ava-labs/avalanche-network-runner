@@ -45,7 +45,9 @@ var ignoreFields = map[string]struct{}{
 type localNetwork struct {
 	logger logging.Logger
 
-	binPath string
+	execPath string
+    pluginDir string
+
 	cfg     network.Config
 
 	nw network.Network
@@ -111,7 +113,9 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	return &localNetwork{
 		logger: logger,
 
-		binPath: opts.execPath,
+		execPath: opts.execPath,
+
+		pluginDir: opts.pluginDir,
 
 		options: opts,
 
@@ -161,7 +165,7 @@ func (lc *localNetwork) createConfig() error {
 		}
 
 		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir, err := getBuildDir(lc.options.execPath, lc.options.pluginDir)
+		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
 		if err != nil {
 			return err
 		}
@@ -370,14 +374,12 @@ func (lc *localNetwork) createSubnets(
 func (lc *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
-	execPath string,
-	pluginDir string,
 ) error {
 	defer func() {
 		close(lc.startDoneCh)
 	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	buildDir, err := getBuildDir(execPath, pluginDir)
+	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
 	if err != nil {
 		return err
 	}
@@ -386,7 +388,7 @@ func (lc *localNetwork) loadSnapshot(
 		snapshotName,
 		lc.options.rootDataDir,
 		lc.options.snapshotsDir,
-		execPath,
+		lc.execPath,
 		buildDir,
 	)
 	if err != nil {
@@ -502,6 +504,12 @@ func (lc *localNetwork) updateNodeInfo() error {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
 			}
 		}
+        if pluginDir == "" {
+            buildDir := filepath.Dir(node.GetBinaryPath())
+            if buildDir != "" {
+                pluginDir = filepath.Join(buildDir, "plugins")
+            }
+        }
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
 		if ok {
 			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
@@ -521,6 +529,15 @@ func (lc *localNetwork) updateNodeInfo() error {
 			PluginDir:          pluginDir,
 			WhitelistedSubnets: whitelistedSubnets,
 		}
+
+        // update default exec and pluginDir if empty (snapshots started without this params)
+        if lc.execPath == "" {
+            lc.execPath = node.GetBinaryPath()
+        }
+        if lc.pluginDir == "" {
+            lc.pluginDir = pluginDir
+        }
+
 	}
 	return nil
 }

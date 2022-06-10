@@ -230,22 +230,15 @@ message BlockchainSpec {
 }
 
 message CreateBlockchainsRequest {
-  optional string whitelisted_subnets = 1;
-
-  // Plugin directory to load all custom VM executables.
-  // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 2;
-
-  // The map of custom VM name to its genesis file path.
+  // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
   // e.g., subnet-cli create VMID subnetevm
   //
   // If this field is set to none (by default), the node/network-runner
-  // does not install the custom VM and does not create the subnet,
-  // even if the VM binary exists on the local plugins directory.
-  repeated BlockchainSpec blockchain_specs = 3;
+  // will return error
+  repeated BlockchainSpec blockchain_specs = 1;
 }
 
 message CreateBlockchainsResponse {
