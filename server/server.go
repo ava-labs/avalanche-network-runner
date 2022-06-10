@@ -424,6 +424,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, ErrNotBootstrapped
 	}
 
+	if len(req.GetBlockchainSpecs()) == 0 {
+		return nil, errors.New("no blockchain spec was provided")
+	}
+
 	chainSpecs := []blockchainSpec{}
 	// TODO: fix plugin dir management:
 	// - cannot change plugin dir for nodes that wont be restarted
@@ -529,6 +533,10 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
+	}
+
+	if req.GetNumSubnets() == 0 {
+		return nil, errors.New("number of subnets to create shall be greater than 0")
 	}
 
 	zap.L().Info("waiting for local cluster readiness")
