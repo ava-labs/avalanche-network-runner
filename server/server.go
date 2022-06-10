@@ -355,8 +355,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
 	initialNetworkReadyCh := make(chan struct{})
-	deployBlockchainsReadyCh := make(chan struct{})
-	go s.network.start(ctx, chainSpecs, initialNetworkReadyCh, deployBlockchainsReadyCh)
+	createBlockchainsReadyCh := make(chan struct{})
+	go s.network.start(ctx, chainSpecs, initialNetworkReadyCh, createBlockchainsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -392,7 +392,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			case serr := <-s.network.startErrCh:
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-deployBlockchainsReadyCh:
+			case <-createBlockchainsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
@@ -408,7 +408,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockchainsRequest) (*rpcpb.DeployBlockchainsResponse, error) {
+func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
 		var cancel context.CancelFunc
@@ -419,7 +419,7 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
 
-	zap.L().Debug("DeployBlockchains")
+	zap.L().Debug("CreateBlockchains")
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -476,8 +476,8 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	deployBlockchainsReadyCh := make(chan struct{})
-	go s.network.deployBlockchains(ctx, chainSpecs, deployBlockchainsReadyCh)
+	createBlockchainsReadyCh := make(chan struct{})
+	go s.network.createBlockchains(ctx, chainSpecs, createBlockchainsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -493,12 +493,12 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 			case <-s.network.stopCh:
 				return
 			case serr := <-s.network.startErrCh:
-				// TODO: decide what to do here, general failure on s.network.deployBlockchains()
+				// TODO: decide what to do here, general failure on s.network.createBlockchains()
 				// signal itself SIGINT? maybe try decide if operation was partial (undesired network, fail)
 				// or was not stated (preconditions check, continue)
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-deployBlockchainsReadyCh:
+			case <-createBlockchainsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
@@ -511,10 +511,10 @@ func (s *server) DeployBlockchains(ctx context.Context, req *rpcpb.DeployBlockch
 		}
 	}()
 
-	return &rpcpb.DeployBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
+	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (*rpcpb.AddSubnetsResponse, error) {
+func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
 		var cancel context.CancelFunc
@@ -525,7 +525,7 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
 
-	zap.L().Debug("AddSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
+	zap.L().Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
 
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
@@ -543,8 +543,8 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
-	addSubnetsReadyCh := make(chan struct{})
-	go s.network.addSubnets(ctx, req.GetNumSubnets(), addSubnetsReadyCh)
+	createSubnetsReadyCh := make(chan struct{})
+	go s.network.createSubnets(ctx, req.GetNumSubnets(), createSubnetsReadyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -560,12 +560,12 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 			case <-s.network.stopCh:
 				return
 			case serr := <-s.network.startErrCh:
-				// TODO: decide what to do here, general failure on s.network.deployBlockchains()
+				// TODO: decide what to do here, general failure on s.network.createSubnets()
 				// signal itself SIGINT? maybe try decide if operation was partial (undesired network, fail)
 				// or was not stated (preconditions check, continue)
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-addSubnetsReadyCh:
+			case <-createSubnetsReadyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
@@ -578,7 +578,7 @@ func (s *server) AddSubnets(ctx context.Context, req *rpcpb.AddSubnetsRequest) (
 		}
 	}()
 
-	return &rpcpb.AddSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
+	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
 }
 func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
 	zap.L().Debug("health")

@@ -248,7 +248,7 @@ func (lc *localNetwork) start(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
 	initialNetworkReadyCh chan struct{}, // closed when initial network is healthy
-	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
+	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	defer func() {
 		close(lc.startDoneCh)
@@ -274,15 +274,15 @@ func (lc *localNetwork) start(
 	}
 	close(initialNetworkReadyCh)
 
-	lc.deployBlockchains(ctx, chainSpecs, deployBlockchainsReadyCh)
+	lc.createBlockchains(ctx, chainSpecs, createBlockchainsReadyCh)
 }
 
-func (lc *localNetwork) deployBlockchains(
+func (lc *localNetwork) createBlockchains(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
-	deployBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
+	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
-	// deployBlockchains triggers a series of different time consuming actions
+	// createBlockchains triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
 	// We may need to cancel the context, for example if the client hits Ctrl-C
 	var ctx context.Context
@@ -310,13 +310,13 @@ func (lc *localNetwork) deployBlockchains(
 		lc.startErrCh <- err
 	}
 
-	close(deployBlockchainsReadyCh)
+	close(createBlockchainsReadyCh)
 }
 
-func (lc *localNetwork) addSubnets(
+func (lc *localNetwork) createSubnets(
 	argCtx context.Context,
 	numSubnets uint32,
-	addSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
+	createSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -351,7 +351,7 @@ func (lc *localNetwork) addSubnets(
 
 	color.Outf("{{orange}}{{bold}}finish adding subnets{{/}}\n")
 
-	close(addSubnetsReadyCh)
+	close(createSubnetsReadyCh)
 }
 
 func (lc *localNetwork) loadSnapshot(

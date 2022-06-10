@@ -31,8 +31,8 @@ type Config struct {
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
-	DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.DeployBlockchainsResponse, error)
-	AddSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.AddSubnetsResponse, error)
+	CreateBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.CreateBlockchainsResponse, error)
+	CreateSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -133,11 +133,11 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	return c.controlc.Start(ctx, req)
 }
 
-func (c *client) DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.DeployBlockchainsResponse, error) {
+func (c *client) CreateBlockchains(ctx context.Context, opts ...OpOption) (*rpcpb.CreateBlockchainsResponse, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	req := &rpcpb.DeployBlockchainsRequest{}
+	req := &rpcpb.CreateBlockchainsRequest{}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
@@ -149,17 +149,17 @@ func (c *client) DeployBlockchains(ctx context.Context, opts ...OpOption) (*rpcp
 	}
 
 	zap.L().Info("deploy blockchains")
-	return c.controlc.DeployBlockchains(ctx, req)
+	return c.controlc.CreateBlockchains(ctx, req)
 }
 
-func (c *client) AddSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.AddSubnetsResponse, error) {
+func (c *client) CreateSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	req := &rpcpb.AddSubnetsRequest{NumSubnets: numSubnets}
+	req := &rpcpb.CreateSubnetsRequest{NumSubnets: numSubnets}
 
 	zap.L().Info("add subnets")
-	return c.controlc.AddSubnets(ctx, req)
+	return c.controlc.CreateSubnets(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {

@@ -29,16 +29,16 @@ service ControlService {
     };
   }
 
-  rpc DeployBlockchains(DeployBlockchainsRequest) returns (DeployBlockchainsResponse) {
+  rpc CreateBlockchains(CreateBlockchainsRequest) returns (CreateBlockchainsResponse) {
     option (google.api.http) = {
-      post: "/v1/control/deployblockchains"
+      post: "/v1/control/createblockchains"
       body: "*"
     };
   }
 
-  rpc AddSubnets(AddSubnetsRequest) returns (AddSubnetsResponse) {
+  rpc CreateSubnets(CreateSubnetsRequest) returns (CreateSubnetsResponse) {
     option (google.api.http) = {
-      post: "/v1/control/addsubnets"
+      post: "/v1/control/createsubnets"
       body: "*"
     };
   }
@@ -229,7 +229,7 @@ message BlockchainSpec {
   optional string subnet_id = 3;
 }
 
-message DeployBlockchainsRequest {
+message CreateBlockchainsRequest {
   optional string whitelisted_subnets = 1;
 
   // Plugin directory to load all custom VM executables.
@@ -248,15 +248,15 @@ message DeployBlockchainsRequest {
   repeated BlockchainSpec blockchain_specs = 3;
 }
 
-message DeployBlockchainsResponse {
+message CreateBlockchainsResponse {
   ClusterInfo cluster_info = 1;
 }
 
-message AddSubnetsRequest {
+message CreateSubnetsRequest {
   uint32 num_subnets = 1;
 }
 
-message AddSubnetsResponse {
+message CreateSubnetsResponse {
   ClusterInfo cluster_info = 1;
 }
 

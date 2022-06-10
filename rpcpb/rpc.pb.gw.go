@@ -99,8 +99,8 @@ func local_request_ControlService_Start_0(ctx context.Context, marshaler runtime
 
 }
 
-func request_ControlService_DeployBlockchains_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DeployBlockchainsRequest
+func request_ControlService_CreateBlockchains_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq CreateBlockchainsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -111,13 +111,13 @@ func request_ControlService_DeployBlockchains_0(ctx context.Context, marshaler r
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.DeployBlockchains(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.CreateBlockchains(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_ControlService_DeployBlockchains_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DeployBlockchainsRequest
+func local_request_ControlService_CreateBlockchains_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq CreateBlockchainsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -128,13 +128,13 @@ func local_request_ControlService_DeployBlockchains_0(ctx context.Context, marsh
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.DeployBlockchains(ctx, &protoReq)
+	msg, err := server.CreateBlockchains(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_ControlService_AddSubnets_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq AddSubnetsRequest
+func request_ControlService_CreateSubnets_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq CreateSubnetsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -145,13 +145,13 @@ func request_ControlService_AddSubnets_0(ctx context.Context, marshaler runtime.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.AddSubnets(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.CreateSubnets(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_ControlService_AddSubnets_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq AddSubnetsRequest
+func local_request_ControlService_CreateSubnets_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq CreateSubnetsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -162,7 +162,7 @@ func local_request_ControlService_AddSubnets_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.AddSubnets(ctx, &protoReq)
+	msg, err := server.CreateSubnets(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -697,19 +697,19 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_DeployBlockchains_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_CreateBlockchains_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
-		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/DeployBlockchains", runtime.WithHTTPPathPattern("/v1/control/deployblockchains"))
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/CreateBlockchains", runtime.WithHTTPPathPattern("/v1/control/createblockchains"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_DeployBlockchains_0(ctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_CreateBlockchains_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -717,23 +717,23 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			return
 		}
 
-		forward_ControlService_DeployBlockchains_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_CreateBlockchains_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_AddSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_CreateSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
-		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/AddSubnets", runtime.WithHTTPPathPattern("/v1/control/addsubnets"))
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/CreateSubnets", runtime.WithHTTPPathPattern("/v1/control/createsubnets"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_AddSubnets_0(ctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_CreateSubnets_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -741,7 +741,7 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			return
 		}
 
-		forward_ControlService_AddSubnets_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_CreateSubnets_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1196,45 +1196,45 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_DeployBlockchains_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_CreateBlockchains_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
-		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/DeployBlockchains", runtime.WithHTTPPathPattern("/v1/control/deployblockchains"))
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/CreateBlockchains", runtime.WithHTTPPathPattern("/v1/control/createblockchains"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_DeployBlockchains_0(ctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_CreateBlockchains_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ControlService_DeployBlockchains_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_CreateBlockchains_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_AddSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_CreateSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
-		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/AddSubnets", runtime.WithHTTPPathPattern("/v1/control/addsubnets"))
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/CreateSubnets", runtime.WithHTTPPathPattern("/v1/control/createsubnets"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_AddSubnets_0(ctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_CreateSubnets_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ControlService_AddSubnets_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_CreateSubnets_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1538,9 +1538,9 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 var (
 	pattern_ControlService_Start_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "start"}, ""))
 
-	pattern_ControlService_DeployBlockchains_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "deployblockchains"}, ""))
+	pattern_ControlService_CreateBlockchains_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createblockchains"}, ""))
 
-	pattern_ControlService_AddSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "addsubnets"}, ""))
+	pattern_ControlService_CreateSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createsubnets"}, ""))
 
 	pattern_ControlService_Health_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "health"}, ""))
 
@@ -1574,9 +1574,9 @@ var (
 var (
 	forward_ControlService_Start_0 = runtime.ForwardResponseMessage
 
-	forward_ControlService_DeployBlockchains_0 = runtime.ForwardResponseMessage
+	forward_ControlService_CreateBlockchains_0 = runtime.ForwardResponseMessage
 
-	forward_ControlService_AddSubnets_0 = runtime.ForwardResponseMessage
+	forward_ControlService_CreateSubnets_0 = runtime.ForwardResponseMessage
 
 	forward_ControlService_Health_0 = runtime.ForwardResponseMessage
 

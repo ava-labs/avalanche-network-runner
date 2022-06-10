@@ -49,8 +49,8 @@ func NewCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		newStartCommand(),
-		newDeployBlockchainsCommand(),
-		newAddSubnetsCommand(),
+		newCreateBlockchainsCommand(),
+		newCreateSubnetsCommand(),
 		newHealthCommand(),
 		newURIsCommand(),
 		newStatusCommand(),
@@ -194,11 +194,11 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newDeployBlockchainsCommand() *cobra.Command {
+func newCreateBlockchainsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "deploy-blockchains [options]",
-		Short: "Deploys blockchains.",
-		RunE:  deployBlockchainsFunc,
+		Use:   "create-blockchains [options]",
+		Short: "Create blockchains.",
+		RunE:  createBlockchainsFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
@@ -222,7 +222,7 @@ func newDeployBlockchainsCommand() *cobra.Command {
 	return cmd
 }
 
-func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
+func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	// when the deadline is reached
 	_ = cancel
 
-	info, err := cli.DeployBlockchains(
+	info, err := cli.CreateBlockchains(
 		ctx,
 		opts...,
 	)
@@ -262,11 +262,11 @@ func deployBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newAddSubnetsCommand() *cobra.Command {
+func newCreateSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add-subnets [options]",
-		Short: "Add subnets.",
-		RunE:  addSubnetsFunc,
+		Use:   "create-subnets [options]",
+		Short: "Create subnets.",
+		RunE:  createSubnetsFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().Uint32Var(
@@ -277,7 +277,7 @@ func newAddSubnetsCommand() *cobra.Command {
 	)
 	return cmd
 }
-func addSubnetsFunc(cmd *cobra.Command, args []string) error {
+func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func addSubnetsFunc(cmd *cobra.Command, args []string) error {
 	// when the deadline is reached
 	_ = cancel
 
-	info, err := cli.AddSubnets(
+	info, err := cli.CreateSubnets(
 		ctx,
 		numSubnets,
 		opts...,
