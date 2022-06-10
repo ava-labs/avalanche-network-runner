@@ -207,7 +207,7 @@ func newCreateBlockchainsCommand() *cobra.Command {
 		"",
 		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
 	)
-	if err := cmd.MarkFlagRequired("custom-vms"); err != nil {
+	if err := cmd.MarkPersistentFlagRequired("custom-vms"); err != nil {
 		panic(err)
 	}
 	return cmd
@@ -266,7 +266,7 @@ func newCreateSubnetsCommand() *cobra.Command {
 		0,
 		"number of subnets",
 	)
-	if err := cmd.MarkFlagRequired("num-subnets"); err != nil {
+	if err := cmd.MarkPersistentFlagRequired("num-subnets"); err != nil {
 		panic(err)
 	}
 	return cmd
