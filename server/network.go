@@ -288,15 +288,16 @@ func (lc *localNetwork) createBlockchains(
 	var ctx context.Context
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
+	if len(chainSpecs) == 0 {
+		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		return
+	}
+
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
-	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
-		return
-	}
 	chainInfos, err := lc.installCustomVMs(ctx, chainSpecs)
 	if err != nil {
 		lc.startErrCh <- err
