@@ -203,7 +203,7 @@ func (lc *localNetwork) installSubnets(
 			return nil, err
 		}
 		println()
-		color.Outf("{{green}}refreshing the wallet with the new URIs after restarts{{/}}\n")
+		color.Outf("{{green}}reconnecting the wallet client after restart{{/}}\n")
 		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
 		baseWallet.refresh(httpRPCEp)
 		zap.L().Info("set up base wallet with pre-funded test key",
