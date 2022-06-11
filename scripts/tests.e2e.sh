@@ -58,7 +58,7 @@ then
     find /tmp/avalanchego-v${VERSION_1}
 fi
 
-if [ ! -f /tmp/avalanchego-v${VERSION_1}/avalanchego ]
+if [ ! -f /tmp/avalanchego-v${VERSION_2}/avalanchego ]
 then
     ############################
     # download avalanchego
@@ -106,9 +106,9 @@ echo "launch local test cluster in the background"
 server \
 --log-level debug \
 --port=":8080" \
---disable-nodes-output \
 --snapshots-dir=$snapshots_dir \
 --grpc-gateway-port=":8081" &
+#--disable-nodes-output \
 PID=${!}
 
 echo "running e2e tests"
