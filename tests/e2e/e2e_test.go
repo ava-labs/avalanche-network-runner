@@ -19,13 +19,13 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	//"github.com/ava-labs/avalanchego/api/admin"
-	//"github.com/ava-labs/avalanchego/ids"
-	//"github.com/ava-labs/avalanchego/message"
-	//"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	//"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestE2e(t *testing.T) {
