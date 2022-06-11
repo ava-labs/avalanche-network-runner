@@ -42,6 +42,8 @@ type Node interface {
 	GetLogsDir() string
 	// Return this node's config file contents
 	GetConfigFile() string
+	// Return this node's config
+	GetConfig() Config
 }
 
 // Config encapsulates an avalanchego configuration

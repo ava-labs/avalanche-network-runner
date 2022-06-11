@@ -443,25 +443,22 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	}
 	sort.Strings(whitelistedSubnetIDs)
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
-	for i := range lc.cfg.NodeConfigs {
-		nodeName := lc.cfg.NodeConfigs[i].Name
 
-		zap.L().Info("updating node config",
-			zap.String("node-name", nodeName),
-			zap.String("whitelisted-subnets", whitelistedSubnets),
-		)
-
-		// replace WhitelistedSubnetsKey flag
-		lc.cfg.NodeConfigs[i].ConfigFile, err = utils.SetJSONKey(lc.cfg.NodeConfigs[i].ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
-		if err != nil {
-			return err
-		}
-	}
 	zap.L().Info("restarting all nodes to whitelist subnet",
 		zap.Strings("whitelisted-subnets", whitelistedSubnetIDs),
 	)
-	for _, nodeConfig := range lc.cfg.NodeConfigs {
-		nodeName := nodeConfig.Name
+	for _, nodeName := range lc.nodeNames {
+		node, err := lc.nw.GetNode(nodeName)
+		if err != nil {
+			return err
+		}
+
+		// replace WhitelistedSubnetsKey flag
+		nodeConfig := node.GetConfig()
+		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
+		if err != nil {
+			return err
+		}
 
 		lc.customVMRestartMu.Lock()
 		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
@@ -469,6 +466,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 			lc.customVMRestartMu.Unlock()
 			return err
 		}
+
 		if _, err := lc.nw.AddNode(nodeConfig); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
