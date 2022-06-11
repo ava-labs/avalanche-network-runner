@@ -345,17 +345,21 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		snapshotsDir: s.cfg.SnapshotsDir,
 	})
 	if err != nil {
+		s.network = nil
+		s.clusterInfo = nil
 		return nil, err
 	}
-	if err := s.network.createConfig(); err != nil {
+
+	if err := s.network.start(); err != nil {
 		s.network = nil
+		s.clusterInfo = nil
 		return nil, err
 	}
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go s.network.start(ctx, chainSpecs, readyCh)
+	go s.network.startWait(ctx, chainSpecs, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information

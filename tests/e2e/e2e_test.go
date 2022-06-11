@@ -19,13 +19,13 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/api/admin"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	//"github.com/ava-labs/avalanchego/api/admin"
+	//"github.com/ava-labs/avalanchego/ids"
+	//"github.com/ava-labs/avalanchego/message"
+	//"github.com/ava-labs/avalanchego/utils/constants"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestE2e(t *testing.T) {
@@ -184,10 +184,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	})
 
 	ginkgo.It("can wait for health", func() {
-		// start is async, so wait some time for cluster health
-		// TODO: Don't sleep. Use polling or other mechanism. Apply to all Sleeps in the test.
-		time.Sleep(30 * time.Second)
-
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		_, err := cli.Health(ctx)
 		cancel()

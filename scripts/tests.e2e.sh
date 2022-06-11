@@ -106,7 +106,7 @@ echo "launch local test cluster in the background"
 server \
 --log-level debug \
 --port=":8080" \
-#--disable-nodes-output \
+--disable-nodes-output \
 --snapshots-dir=$snapshots_dir \
 --grpc-gateway-port=":8081" &
 PID=${!}

@@ -53,6 +53,7 @@ type localNetwork struct {
 	nw network.Network
 
 	nodeNames []string
+
 	nodeInfos map[string]*rpcpb.NodeInfo
 
 	options localNetworkOptions
@@ -260,7 +261,27 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	return string(finalJSON), nil
 }
 
-func (lc *localNetwork) start(
+func (lc *localNetwork) start() error {
+	if err := lc.createConfig(); err != nil {
+		return err
+	}
+
+	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
+	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
+	if err != nil {
+		return err
+	}
+	lc.nw = nw
+
+	// node info is already available
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (lc *localNetwork) startWait(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
 	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
@@ -272,20 +293,6 @@ func (lc *localNetwork) start(
 	// We may need to cancel the context, for example if the client hits Ctrl-C
 	var ctx context.Context
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
-
-	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
-	if err != nil {
-		lc.startErrCh <- err
-		return
-	}
-	lc.nw = nw
-
-	// node info is already available
-	if err := lc.updateNodeInfo(); err != nil {
-		lc.startErrCh <- err
-		return
-	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
@@ -471,10 +478,6 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
 
 	if err := lc.nw.Healthy(ctx); err != nil {
-		return err
-	}
-
-	if err := lc.updateNodeInfo(); err != nil {
 		return err
 	}
 
