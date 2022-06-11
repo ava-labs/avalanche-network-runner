@@ -267,6 +267,8 @@ func (lc *localNetwork) start(
 ) {
 	defer close(lc.startDoneCh)
 
+	lc.createConfig()
+
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
 	// We may need to cancel the context, for example if the client hits Ctrl-C

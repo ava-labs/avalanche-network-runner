@@ -154,10 +154,6 @@ func init() {
 		panic(err)
 	}
 	defaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
-	err = os.MkdirAll(defaultSnapshotsDir, os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
 }
 
 // NodeProcessCreator is an interface for new node process creation
@@ -252,6 +248,11 @@ func newNetwork(
 	}
 	if snapshotsDir == "" {
 		snapshotsDir = defaultSnapshotsDir
+	}
+	// create the snapshots dir if not present
+	err = os.MkdirAll(snapshotsDir, os.ModePerm)
+	if err != nil {
+		return nil, err
 	}
 	// Create the network
 	net := &localNetwork{
