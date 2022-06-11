@@ -354,9 +354,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 
 	// start non-blocking to install local cluster + custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	initialNetworkReadyCh := make(chan struct{})
-	createBlockchainsReadyCh := make(chan struct{})
-	go s.network.start(ctx, chainSpecs, initialNetworkReadyCh, createBlockchainsReadyCh)
+	readyCh := make(chan struct{})
+	go s.network.start(ctx, chainSpecs, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -372,7 +371,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		case serr := <-s.network.startErrCh:
 			zap.L().Warn("start failed to complete", zap.Error(serr))
 			panic(serr)
-		case <-initialNetworkReadyCh:
+		case <-readyCh:
 			s.mu.Lock()
 			s.clusterInfo.NodeNames = s.network.nodeNames
 			s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -392,7 +391,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			case serr := <-s.network.startErrCh:
 				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
 				panic(serr)
-			case <-createBlockchainsReadyCh:
+			case <-readyCh:
 				s.mu.Lock()
 				s.clusterInfo.CustomVmsHealthy = true
 				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)

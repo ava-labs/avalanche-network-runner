@@ -263,8 +263,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 func (lc *localNetwork) start(
 	argCtx context.Context,
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
-	initialNetworkReadyCh chan struct{}, // closed when initial network is healthy
-	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
+	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
 ) {
 	defer func() {
 		close(lc.startDoneCh)
@@ -294,9 +293,10 @@ func (lc *localNetwork) start(
 		lc.startErrCh <- err
 		return
 	}
-	close(initialNetworkReadyCh)
 
-	lc.createBlockchains(ctx, chainSpecs, createBlockchainsReadyCh)
+	readyCh <- struct{}{}
+
+	lc.createBlockchains(ctx, chainSpecs, readyCh)
 }
 
 func (lc *localNetwork) createBlockchains(
