@@ -27,6 +27,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
+
 type blockchainSpec struct {
 	vmName   string
 	genesis  []byte
@@ -577,5 +579,3 @@ func createBlockchains(
 
 	return blockchainIDs, nil
 }
-
-var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)

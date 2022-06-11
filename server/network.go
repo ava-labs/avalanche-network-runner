@@ -284,6 +284,12 @@ func (lc *localNetwork) start(
 	}
 	lc.nw = nw
 
+	// node info is already available
+	if err := lc.updateNodeInfo(); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
@@ -366,7 +372,7 @@ func (lc *localNetwork) createSubnets(
 		lc.startErrCh <- err
 	}
 
-	color.Outf("{{orange}}{{bold}}finish adding subnets{{/}}\n")
+	color.Outf("{{green}}{{bold}}finish adding subnets{{/}}\n")
 
 	close(createSubnetsReadyCh)
 }
@@ -375,14 +381,13 @@ func (lc *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
 ) error {
-	defer func() {
-		close(lc.startDoneCh)
-	}()
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
+
 	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
 	if err != nil {
 		return err
 	}
+
 	nw, err := local.NewNetworkFromSnapshot(
 		lc.logger,
 		snapshotName,
@@ -395,10 +400,19 @@ func (lc *localNetwork) loadSnapshot(
 		return err
 	}
 	lc.nw = nw
+
+	// node info is already available
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
+	defer func() {
+		close(lc.startDoneCh)
+	}()
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return

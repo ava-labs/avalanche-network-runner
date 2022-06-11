@@ -243,9 +243,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if req.GetPluginDir() != "" {
 		pluginDir = req.GetPluginDir()
 	}
-	//if pluginDir == "" {
-	//	pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
-	//}
+	if pluginDir == "" {
+		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
+	}
 	chainSpecs := []blockchainSpec{}
 	if len(req.GetCustomVms()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
