@@ -803,20 +803,11 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, ErrNodeNotFound
 	}
 
-	found, idx := false, 0
-	oldNodeConfig := node.Config{}
-	for i, cfg := range s.network.cfg.NodeConfigs {
-		if cfg.Name == req.Name {
-			oldNodeConfig = cfg
-			found = true
-			idx = i
-			break
-		}
-	}
-	if !found {
+	node, err := s.network.nw.GetNode(req.Name)
+	if err != nil {
 		return nil, ErrNodeNotFound
 	}
-	nodeConfig := oldNodeConfig
+	nodeConfig := node.GetConfig()
 
 	// use existing value if not specified
 	if req.GetExecPath() != "" {
@@ -872,7 +863,6 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	}
 
 	// update with the new config
-	s.network.cfg.NodeConfigs[idx] = nodeConfig
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
