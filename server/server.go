@@ -361,50 +361,45 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		zap.L().Info("waiting for local cluster readiness")
-		select {
-		case <-s.closed:
-			return
-		case <-s.network.stopCh:
-			// TODO: fix race from shutdown
-			return
-		case serr := <-s.network.startErrCh:
-			zap.L().Warn("start failed to complete", zap.Error(serr))
-			panic(serr)
-		case <-readyCh:
-			s.mu.Lock()
-			s.clusterInfo.NodeNames = s.network.nodeNames
-			s.clusterInfo.NodeInfos = s.network.nodeInfos
-			s.clusterInfo.Healthy = true
-			s.mu.Unlock()
-		}
-
+		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
 		if len(req.GetCustomVms()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
 		} else {
-			zap.L().Info("waiting for custom VMs readiness")
-			select {
-			case <-s.closed:
-				return
-			case <-s.network.stopCh:
-				return
-			case serr := <-s.network.startErrCh:
-				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
-				panic(serr)
-			case <-readyCh:
-				s.mu.Lock()
-				s.clusterInfo.CustomVmsHealthy = true
-				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
-				}
-				s.clusterInfo.Subnets = s.network.subnets
-				s.mu.Unlock()
-			}
+			s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
 		}
 	}()
 
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
+func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
+	zap.L().Info(waitMsg)
+	select {
+	case <-s.closed:
+		return
+	case <-s.network.stopCh:
+		return
+	case serr := <-s.network.startErrCh:
+		// TODO: decide what to do here, general failure cause network stop()?
+		// maybe try decide if operation was partial (undesired network, fail)
+		// or was not stated (preconditions check, continue)
+		zap.L().Warn("async call failed to complete", zap.String("op", waitMsg), zap.Error(serr))
+		panic(serr)
+	case <-readyCh:
+		s.mu.Lock()
+		s.clusterInfo.Healthy = true
+		s.clusterInfo.NodeNames = s.network.nodeNames
+		s.clusterInfo.NodeInfos = s.network.nodeInfos
+		if updateCustomVmsInfo {
+			s.clusterInfo.CustomVmsHealthy = true
+			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
+			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
+				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
+			}
+			s.clusterInfo.Subnets = s.network.subnets
+		}
+		s.mu.Unlock()
+	}
 }
 
 func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
@@ -478,39 +473,14 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
-	createBlockchainsReadyCh := make(chan struct{})
-	go s.network.createBlockchains(ctx, chainSpecs, createBlockchainsReadyCh)
+	readyCh := make(chan struct{})
+	go s.network.createBlockchains(ctx, chainSpecs, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if len(req.GetBlockchainSpecs()) == 0 {
-			zap.L().Info("no custom VM installation request, skipping its readiness check")
-		} else {
-			zap.L().Info("waiting for custom VMs readiness")
-			select {
-			case <-s.closed:
-				return
-			case <-s.network.stopCh:
-				return
-			case serr := <-s.network.startErrCh:
-				// TODO: decide what to do here, general failure on s.network.createBlockchains()
-				// signal itself SIGINT? maybe try decide if operation was partial (undesired network, fail)
-				// or was not stated (preconditions check, continue)
-				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
-				panic(serr)
-			case <-createBlockchainsReadyCh:
-				s.mu.Lock()
-				s.clusterInfo.CustomVmsHealthy = true
-				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
-				}
-				s.clusterInfo.Subnets = s.network.subnets
-				s.mu.Unlock()
-			}
-		}
+		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -549,43 +519,19 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
-	createSubnetsReadyCh := make(chan struct{})
-	go s.network.createSubnets(ctx, req.GetNumSubnets(), createSubnetsReadyCh)
+	readyCh := make(chan struct{})
+	go s.network.createSubnets(ctx, req.GetNumSubnets(), readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if req.GetNumSubnets() == 0 {
-			zap.L().Info("no custom VM installation request, skipping its readiness check")
-		} else {
-			zap.L().Info("waiting for custom VMs readiness")
-			select {
-			case <-s.closed:
-				return
-			case <-s.network.stopCh:
-				return
-			case serr := <-s.network.startErrCh:
-				// TODO: decide what to do here, general failure on s.network.createSubnets()
-				// signal itself SIGINT? maybe try decide if operation was partial (undesired network, fail)
-				// or was not stated (preconditions check, continue)
-				zap.L().Warn("start custom VMs failed to complete", zap.Error(serr))
-				panic(serr)
-			case <-createSubnetsReadyCh:
-				s.mu.Lock()
-				s.clusterInfo.CustomVmsHealthy = true
-				s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-				for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-					s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
-				}
-				s.clusterInfo.Subnets = s.network.subnets
-				s.mu.Unlock()
-			}
-		}
+		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
 }
+
 func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
 	zap.L().Debug("health")
 	if info := s.getClusterInfo(); info == nil {
@@ -1119,39 +1065,14 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	// start non-blocking wait to load snapshot results
 	// the user is expected to poll cluster status
-	loadSnapshotReadyCh := make(chan struct{})
-	go s.network.loadSnapshotWait(ctx, loadSnapshotReadyCh)
+	readyCh := make(chan struct{})
+	go s.network.loadSnapshotWait(ctx, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		zap.L().Info("waiting for local cluster readiness")
-		select {
-		case <-s.closed:
-			return
-		case <-s.network.stopCh:
-			return
-		case serr := <-s.network.startErrCh:
-			zap.L().Warn("snapshot load failed to complete", zap.Error(serr))
-			s.mu.Lock()
-			s.network = nil
-			s.clusterInfo = nil
-			s.mu.Unlock()
-			return
-		case <-loadSnapshotReadyCh:
-			s.mu.Lock()
-			s.clusterInfo.Healthy = true
-			s.clusterInfo.NodeNames = s.network.nodeNames
-			s.clusterInfo.NodeInfos = s.network.nodeInfos
-			s.clusterInfo.CustomVmsHealthy = true
-			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
-			}
-			s.clusterInfo.Subnets = s.network.subnets
-			s.mu.Unlock()
-		}
+		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, true)
 	}()
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.clusterInfo}, nil

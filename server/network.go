@@ -265,9 +265,7 @@ func (lc *localNetwork) start(
 	chainSpecs []blockchainSpec, // VM name + genesis bytes
 	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
 ) {
-	defer func() {
-		close(lc.startDoneCh)
-	}()
+	defer close(lc.startDoneCh)
 
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -325,12 +323,15 @@ func (lc *localNetwork) createBlockchains(
 		lc.startErrCh <- err
 		return
 	}
+
 	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
 		lc.startErrCh <- err
+		return
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
 		lc.startErrCh <- err
+		return
 	}
 
 	close(createBlockchainsReadyCh)
@@ -410,9 +411,7 @@ func (lc *localNetwork) loadSnapshot(
 }
 
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
-	defer func() {
-		close(lc.startDoneCh)
-	}()
+	defer close(lc.startDoneCh)
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
