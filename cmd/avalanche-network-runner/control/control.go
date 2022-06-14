@@ -251,9 +251,6 @@ func newCreateSubnetsCommand() *cobra.Command {
 		0,
 		"number of subnets",
 	)
-	if err := cmd.MarkPersistentFlagRequired("num-subnets"); err != nil {
-		panic(err)
-	}
 	return cmd
 }
 
