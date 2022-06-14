@@ -1034,7 +1034,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		rootDataDir = "/tmp"
 	}
 	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
-	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err

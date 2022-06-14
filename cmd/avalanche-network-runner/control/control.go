@@ -731,10 +731,10 @@ func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 func newLoadSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "load-snapshot snapshot-name",
+		Use:   "load-snapshot snapshot-name [root-data-dir]",
 		Short: "Requests server to load network snapshot.",
 		RunE:  loadSnapshotFunc,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 	}
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
@@ -761,12 +761,20 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
+		// client.WithRootDataDir(rootDataDir),
 	}
 
 	ctx := getAsyncContext()
 
 	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
 
+	// ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// rootDataDir := ""
+	// if len(args) > 1 {
+	// 	rootDataDir = args[2]
+	// }
+	// resp, err := cli.LoadSnapshot(ctx, args[0], rootDataDir)
+	// cancel()
 	if err != nil {
 		return err
 	}
