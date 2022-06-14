@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -90,6 +91,8 @@ const (
 	MinNodes            uint32 = 1
 	DefaultNodes        uint32 = 5
 	StopOnSignalTimeout        = 2 * time.Second
+
+	rootDataDirPrefix = "network-runner-root-data"
 )
 
 func New(cfg Config) (Server, error) {
@@ -294,11 +297,14 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		customNodeConfigs  = req.GetCustomNodeConfigs()
 		err                error
 	)
+
 	if len(rootDataDir) == 0 {
-		rootDataDir, err = os.MkdirTemp(os.TempDir(), "network-runner-root-data")
-		if err != nil {
-			return nil, err
-		}
+		rootDataDir = "/tmp"
+	}
+	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
+	if err != nil {
+		return nil, err
 	}
 
 	s.clusterInfo = &rpcpb.ClusterInfo{
@@ -1023,7 +1029,13 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		err error
 	)
 
-	rootDataDir, err := os.MkdirTemp(os.TempDir(), "network-runner-root-data")
+	rootDataDir := req.GetRootDataDir()
+	if len(rootDataDir) == 0 {
+		rootDataDir = "/tmp"
+	}
+	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err
 	}
