@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -358,7 +359,60 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("can use snapshots", func() {
+	ginkgo.It("subnet creation", func() {
+		ginkgo.By("can't ask to create 0 subnets", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx, 0)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("number of subnets to create shall be greater than 0"))
+		})
+		ginkgo.By("check subnets are 0", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(0))
+		})
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx, 1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for subnets creation to finish", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			var created bool
+			continueLoop := true
+			for continueLoop {
+				select {
+				case <-ctx.Done():
+					continueLoop = false
+				case <-time.After(5 * time.Second):
+					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					status, err := cli.Status(ctx)
+					cancel()
+					gomega.Ω(err).Should(gomega.BeNil())
+					created = status.ClusterInfo.CustomVmsHealthy
+					if created {
+						continueLoop = false
+					}
+				}
+			}
+			cancel()
+			gomega.Ω(created).Should(gomega.Equal(true))
+		})
+		ginkgo.By("check subnets are 1", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+		})
+	})
+
+	ginkgo.It("snapshots + blockchain creation", func() {
 		ginkgo.By("check there are no snapshots", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			snapshotNames, err := cli.GetSnapshotNames(ctx)

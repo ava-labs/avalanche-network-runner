@@ -473,6 +473,14 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// if there will be a restart, network will not be healthy
+	// until finishing
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.subnetId == nil {
+			s.clusterInfo.Healthy = false
+		}
+	}
+
 	s.clusterInfo.CustomVmsHealthy = false
 
 	// start non-blocking to install custom VMs (if applicable)
@@ -519,6 +527,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomVmsHealthy = false
 
 	// start non-blocking to add subnets
