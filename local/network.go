@@ -154,10 +154,6 @@ func init() {
 		panic(err)
 	}
 	defaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
-	err = os.MkdirAll(defaultSnapshotsDir, os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
 }
 
 // NodeProcessCreator is an interface for new node process creation
@@ -253,6 +249,11 @@ func newNetwork(
 	if snapshotsDir == "" {
 		snapshotsDir = defaultSnapshotsDir
 	}
+	// create the snapshots dir if not present
+	err = os.MkdirAll(snapshotsDir, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 	// Create the network
 	net := &localNetwork{
 		nextNodeSuffix:     1,
@@ -274,6 +275,8 @@ func NewNetworkFromSnapshot(
 	snapshotName string,
 	rootDir string,
 	snapshotsDir string,
+	binaryPath string,
+	buildDir string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -289,7 +292,7 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName)
+	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir)
 	return net, err
 }
 
@@ -758,7 +761,12 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 }
 
 // start network from snapshot
-func (ln *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
+func (ln *localNetwork) loadSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	binaryPath string,
+	buildDir string,
+) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
@@ -789,6 +797,18 @@ func (ln *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) e
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}
 		nodeConfig.Flags[config.DBPathKey] = targetDbDir
+	}
+	// replace binary path
+	if binaryPath != "" {
+		for i := range networkConfig.NodeConfigs {
+			networkConfig.NodeConfigs[i].BinaryPath = binaryPath
+		}
+	}
+	// replace build dir
+	if buildDir != "" {
+		for i := range networkConfig.NodeConfigs {
+			networkConfig.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
+		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
 }

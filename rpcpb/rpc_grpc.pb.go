@@ -109,6 +109,8 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ControlServiceClient interface {
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
+	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
+	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
@@ -136,6 +138,24 @@ func NewControlServiceClient(cc grpc.ClientConnInterface) ControlServiceClient {
 func (c *controlServiceClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error) {
 	out := new(StartResponse)
 	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Start", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error) {
+	out := new(CreateBlockchainsResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/CreateBlockchains", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error) {
+	out := new(CreateSubnetsResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/CreateSubnets", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -296,6 +316,8 @@ func (c *controlServiceClient) GetSnapshotNames(ctx context.Context, in *GetSnap
 // for forward compatibility
 type ControlServiceServer interface {
 	Start(context.Context, *StartRequest) (*StartResponse, error)
+	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
+	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
@@ -319,6 +341,12 @@ type UnimplementedControlServiceServer struct {
 
 func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (*StartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+}
+func (UnimplementedControlServiceServer) CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateBlockchains not implemented")
+}
+func (UnimplementedControlServiceServer) CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateSubnets not implemented")
 }
 func (UnimplementedControlServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
@@ -389,6 +417,42 @@ func _ControlService_Start_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).Start(ctx, req.(*StartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_CreateBlockchains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBlockchainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).CreateBlockchains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/CreateBlockchains",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).CreateBlockchains(ctx, req.(*CreateBlockchainsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_CreateSubnets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSubnetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).CreateSubnets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/CreateSubnets",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).CreateSubnets(ctx, req.(*CreateSubnetsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -658,6 +722,14 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Start",
 			Handler:    _ControlService_Start_Handler,
+		},
+		{
+			MethodName: "CreateBlockchains",
+			Handler:    _ControlService_CreateBlockchains_Handler,
+		},
+		{
+			MethodName: "CreateSubnets",
+			Handler:    _ControlService_CreateSubnets_Handler,
 		},
 		{
 			MethodName: "Health",

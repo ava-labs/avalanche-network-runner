@@ -31,6 +31,8 @@ type Config struct {
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
+	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
+	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -43,7 +45,7 @@ type Client interface {
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
 	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
-	LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error)
+	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
 	GetSnapshotNames(ctx context.Context) ([]string, error)
 }
@@ -129,6 +131,29 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 
 	zap.L().Info("start")
 	return c.controlc.Start(ctx, req)
+}
+
+func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error) {
+	req := &rpcpb.CreateBlockchainsRequest{
+		BlockchainSpecs: blockchainSpecs,
+	}
+
+	zap.L().Info("create blockchains")
+	return c.controlc.CreateBlockchains(ctx, req)
+}
+
+func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	req := &rpcpb.CreateSubnetsRequest{}
+
+	if ret.numSubnets != 0 {
+		req.NumSubnets = &ret.numSubnets
+	}
+
+	zap.L().Info("create subnets")
+	return c.controlc.CreateSubnets(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
@@ -268,9 +293,20 @@ func (c *client) SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.
 	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName})
 }
 
-func (c *client) LoadSnapshot(ctx context.Context, snapshotName string) (*rpcpb.LoadSnapshotResponse, error) {
+func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
 	zap.L().Info("load snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.LoadSnapshot(ctx, &rpcpb.LoadSnapshotRequest{SnapshotName: snapshotName})
+	ret := &Op{}
+	ret.applyOpts(opts)
+	req := rpcpb.LoadSnapshotRequest{
+		SnapshotName: snapshotName,
+	}
+	if ret.execPath != "" {
+		req.ExecPath = &ret.execPath
+	}
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
+	}
+	return c.controlc.LoadSnapshot(ctx, &req)
 }
 
 func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error) {
@@ -303,6 +339,7 @@ type Op struct {
 	pluginDir          string
 	customVMs          map[string]string
 	customNodeConfigs  map[string]string
+	numSubnets         uint32
 }
 
 type OpOption func(*Op)
@@ -360,6 +397,12 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customNodeConfigs = customNodeConfigs
+	}
+}
+
+func WithNumSubnets(numSubnets uint32) OpOption {
+	return func(op *Op) {
+		op.numSubnets = numSubnets
 	}
 }
 

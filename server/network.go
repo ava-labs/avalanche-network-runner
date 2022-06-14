@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
 )
@@ -44,12 +45,15 @@ var ignoreFields = map[string]struct{}{
 type localNetwork struct {
 	logger logging.Logger
 
-	binPath string
-	cfg     network.Config
+	execPath  string
+	pluginDir string
+
+	cfg network.Config
 
 	nw network.Network
 
 	nodeNames []string
+
 	nodeInfos map[string]*rpcpb.NodeInfo
 
 	options localNetworkOptions
@@ -57,17 +61,10 @@ type localNetwork struct {
 	// maps from node name to peer ID to peer object
 	attachedPeers map[string]map[string]peer.Peer
 
-	localClusterReadyCh          chan struct{} // closed when local network is ready/healthy
-	localClusterReadyChCloseOnce sync.Once
+	// map from blockchain ID to blockchain info
+	customVMBlockchainIDToInfo map[ids.ID]vmInfo
 
-	// map from VM name to genesis bytes
-	customVMNameToGenesis map[string][]byte
-	// map from VM ID to VM info
-	customVMIDToInfo map[ids.ID]vmInfo
-
-	customVMsReadyCh          chan struct{} // closed when subnet installations are complete
-	customVMsReadyChCloseOnce sync.Once
-	customVMRestartMu         *sync.RWMutex
+	customVMRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -75,6 +72,8 @@ type localNetwork struct {
 	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
 
 	stopOnce sync.Once
+
+	subnets []string
 }
 
 type vmInfo struct {
@@ -92,7 +91,6 @@ type localNetworkOptions struct {
 	globalNodeConfig    string
 
 	pluginDir         string
-	customVMs         map[string][]byte
 	customNodeConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
@@ -116,18 +114,16 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	return &localNetwork{
 		logger: logger,
 
-		binPath: opts.execPath,
+		execPath: opts.execPath,
+
+		pluginDir: opts.pluginDir,
 
 		options: opts,
 
 		attachedPeers: make(map[string]map[string]peer.Peer),
 
-		localClusterReadyCh: make(chan struct{}),
-
-		customVMNameToGenesis: opts.customVMs,
-		customVMIDToInfo:      make(map[ids.ID]vmInfo),
-		customVMsReadyCh:      make(chan struct{}),
-		customVMRestartMu:     opts.restartMu,
+		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
+		customVMRestartMu:          opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -170,15 +166,10 @@ func (lc *localNetwork) createConfig() error {
 		}
 
 		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir := ""
-		if lc.options.pluginDir != "" {
-			pluginDir := filepath.Clean(lc.options.pluginDir)
-			if filepath.Base(pluginDir) != "plugins" {
-				return fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-			}
-			buildDir = filepath.Dir(pluginDir)
+		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
+		if err != nil {
+			return err
 		}
-
 		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
@@ -226,6 +217,23 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 	return baseConfig, nil
 }
 
+// generates buildDir from pluginDir, and if not available, from execPath
+// returns error if pluginDir is non empty and invalid
+func getBuildDir(execPath string, pluginDir string) (string, error) {
+	buildDir := ""
+	if execPath != "" {
+		buildDir = filepath.Dir(execPath)
+	}
+	if pluginDir != "" {
+		pluginDir := filepath.Clean(pluginDir)
+		if filepath.Base(pluginDir) != "plugins" {
+			return "", fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
+		}
+		buildDir = filepath.Dir(pluginDir)
+	}
+	return buildDir, nil
+}
+
 // createConfigFileString finalizes the config setup and returns the node config JSON string
 func createConfigFileString(configFileMap map[string]interface{}, logDir string, dbDir string, buildDir string, whitelistedSubnets string) (string, error) {
 	// add (or overwrite, if given) the following entries
@@ -253,10 +261,32 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	return string(finalJSON), nil
 }
 
-func (lc *localNetwork) start(argCtx context.Context) {
-	defer func() {
-		close(lc.startDoneCh)
-	}()
+func (lc *localNetwork) start() error {
+	if err := lc.createConfig(); err != nil {
+		return err
+	}
+
+	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
+	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
+	if err != nil {
+		return err
+	}
+	lc.nw = nw
+
+	// node info is already available
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (lc *localNetwork) startWait(
+	argCtx context.Context,
+	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
+) {
+	defer close(lc.startDoneCh)
 
 	// start triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -264,47 +294,131 @@ func (lc *localNetwork) start(argCtx context.Context) {
 	var ctx context.Context
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
-	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
-	if err != nil {
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
 	}
-	lc.nw = nw
+
+	readyCh <- struct{}{}
+
+	lc.createBlockchains(ctx, chainSpecs, readyCh)
+}
+
+func (lc *localNetwork) createBlockchains(
+	argCtx context.Context,
+	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
+) {
+	// createBlockchains triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
+
+	if len(chainSpecs) == 0 {
+		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		return
+	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
-	if len(lc.customVMNameToGenesis) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
-		return
-	}
-	if err := lc.installCustomVMs(ctx); err != nil {
+	chainInfos, err := lc.installCustomVMs(ctx, chainSpecs)
+	if err != nil {
 		lc.startErrCh <- err
 		return
 	}
-	if err := lc.waitForCustomVMsReady(ctx); err != nil {
+
+	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
 		lc.startErrCh <- err
 		return
 	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	close(createBlockchainsReadyCh)
 }
 
-func (lc *localNetwork) loadSnapshot(ctx context.Context, snapshotName string) error {
-	defer func() {
-		close(lc.startDoneCh)
-	}()
+func (lc *localNetwork) createSubnets(
+	argCtx context.Context,
+	numSubnets uint32,
+	createSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
+) {
+	// start triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
+
+	if numSubnets == 0 {
+		color.Outf("{{orange}}{{bold}}no subnets specified...{{/}}\n")
+		return
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	_, err := lc.setupWalletAndInstallSubnets(ctx, numSubnets)
+	if err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+	}
+
+	color.Outf("{{green}}{{bold}}finish adding subnets{{/}}\n")
+
+	close(createSubnetsReadyCh)
+}
+
+func (lc *localNetwork) loadSnapshot(
+	ctx context.Context,
+	snapshotName string,
+) error {
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
-	nw, err := local.NewNetworkFromSnapshot(lc.logger, snapshotName, lc.options.rootDataDir, lc.options.snapshotsDir)
+
+	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
+	if err != nil {
+		return err
+	}
+
+	nw, err := local.NewNetworkFromSnapshot(
+		lc.logger,
+		snapshotName,
+		lc.options.rootDataDir,
+		lc.options.snapshotsDir,
+		lc.execPath,
+		buildDir,
+	)
 	if err != nil {
 		return err
 	}
 	lc.nw = nw
+
+	// node info is already available
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
+	defer close(lc.startDoneCh)
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
@@ -312,12 +426,6 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyC
 	if err := lc.updateSubnetInfo(ctx); err != nil {
 		lc.startErrCh <- err
 		return
-	}
-	for _, nodeName := range lc.nodeNames {
-		nodeInfo := lc.nodeInfos[nodeName]
-		for vmID, vmInfo := range lc.customVMIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmID, nodeInfo.GetUri(), vmInfo.blockchainID.String())
-		}
 	}
 	close(loadSnapshotReadyCh)
 }
@@ -333,7 +441,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMIDToInfo[blockchain.VMID] = vmInfo{
+			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
 				info: &rpcpb.CustomVmInfo{
 					VmName:       blockchain.Name,
 					VmId:         blockchain.VMID.String(),
@@ -343,6 +451,22 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
 			}
+		}
+	}
+	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+	if err != nil {
+		return err
+	}
+	lc.subnets = []string{}
+	for _, subnet := range subnets {
+		if subnet.ID != constants.PlatformChainID {
+			lc.subnets = append(lc.subnets, subnet.ID.String())
+		}
+	}
+	for _, nodeName := range lc.nodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
+		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
 		}
 	}
 	return nil
@@ -357,17 +481,10 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 		return err
 	}
 
-	if err := lc.updateNodeInfo(); err != nil {
-		return err
-	}
-
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
 		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
 	}
-	lc.localClusterReadyChCloseOnce.Do(func() {
-		close(lc.localClusterReadyCh)
-	})
 	return nil
 }
 
@@ -403,6 +520,12 @@ func (lc *localNetwork) updateNodeInfo() error {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
 			}
 		}
+		if pluginDir == "" {
+			buildDir := filepath.Dir(node.GetBinaryPath())
+			if buildDir != "" {
+				pluginDir = filepath.Join(buildDir, "plugins")
+			}
+		}
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
 		if ok {
 			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
@@ -422,6 +545,15 @@ func (lc *localNetwork) updateNodeInfo() error {
 			PluginDir:          pluginDir,
 			WhitelistedSubnets: whitelistedSubnets,
 		}
+
+		// update default exec and pluginDir if empty (snapshots started without this params)
+		if lc.execPath == "" {
+			lc.execPath = node.GetBinaryPath()
+		}
+		if lc.pluginDir == "" {
+			lc.pluginDir = pluginDir
+		}
+
 	}
 	return nil
 }

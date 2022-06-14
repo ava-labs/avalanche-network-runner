@@ -46,7 +46,7 @@ var (
 	ErrNotExistsPluginGenesis = errors.New("plugin genesis not exists")
 )
 
-func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath string) error {
+func CheckExecPath(exec string) error {
 	if exec == "" {
 		return ErrInvalidExecPath
 	}
@@ -57,14 +57,11 @@ func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath stri
 		}
 		return fmt.Errorf("failed to stat exec %q (%w)", exec, err)
 	}
+	return nil
+}
 
-	// no custom VM is specified
-	// no need to check further
-	// (subnet installation is optional)
-	if pluginExec == "" {
-		return nil
-	}
-
+func CheckPluginPaths(pluginExec string, pluginGenesisPath string) error {
+	var err error
 	if _, err = os.Stat(pluginExec); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return ErrNotExistsPlugin

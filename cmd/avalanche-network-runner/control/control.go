@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -48,6 +50,8 @@ func NewCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		newStartCommand(),
+		newCreateBlockchainsCommand(),
+		newCreateSubnetsCommand(),
 		newHealthCommand(),
 		newURIsCommand(),
 		newStatusCommand(),
@@ -75,6 +79,7 @@ var (
 	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
+	numSubnets                uint32
 )
 
 func newStartCommand() *cobra.Command {
@@ -120,6 +125,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
+	cmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"whitelisted subnets (comma-separated)",
+	)
 	return cmd
 }
 
@@ -163,13 +174,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		opts = append(opts, client.WithCustomVMs(customVMs))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	// don't call since "start" is async
-	// and the top-level context here "ctx" is passed
-	// to all underlying function calls
-	// just set the timeout to halt "Start" async ops
-	// when the deadline is reached
-	_ = cancel
+	ctx := getAsyncContext()
 
 	info, err := cli.Start(
 		ctx,
@@ -181,6 +186,96 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	color.Outf("{{green}}start response:{{/}} %+v\n", info)
+	return nil
+}
+
+func newCreateBlockchainsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-blockchains [options]",
+		Short: "Create blockchains.",
+		RunE:  createBlockchainsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().StringVar(
+		&customVMNameToGenesisPath,
+		"custom-vms",
+		"",
+		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
+	)
+	if err := cmd.MarkPersistentFlagRequired("custom-vms"); err != nil {
+		panic(err)
+	}
+	return cmd
+}
+
+func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	if customVMNameToGenesisPath == "" {
+		return errors.New("empty custom-vms argument")
+	}
+
+	blockchainSpecs := []*rpcpb.BlockchainSpec{}
+	if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.CreateBlockchains(
+		ctx,
+		blockchainSpecs,
+	)
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}deploy-blockchains response:{{/}} %+v\n", info)
+	return nil
+}
+
+func newCreateSubnetsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-subnets [options]",
+		Short: "Create subnets.",
+		RunE:  createSubnetsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	cmd.PersistentFlags().Uint32Var(
+		&numSubnets,
+		"num-subnets",
+		0,
+		"number of subnets",
+	)
+	return cmd
+}
+
+func createSubnetsFunc(cmd *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	opts := []client.OpOption{
+		client.WithNumSubnets(numSubnets),
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.CreateSubnets(
+		ctx,
+		opts...,
+	)
+	if err != nil {
+		return err
+	}
+
+	color.Outf("{{green}}add-subnets response:{{/}} %+v\n", info)
 	return nil
 }
 
@@ -641,6 +736,18 @@ func newLoadSnapshotCommand() *cobra.Command {
 		RunE:  loadSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
+	cmd.PersistentFlags().StringVar(
+		&avalancheGoBinPath,
+		"avalanchego-path",
+		"",
+		"avalanchego binary path",
+	)
+	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"plugin directory",
+	)
 	return cmd
 }
 
@@ -651,9 +758,15 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.LoadSnapshot(ctx, args[0])
-	cancel()
+	opts := []client.OpOption{
+		client.WithExecPath(avalancheGoBinPath),
+		client.WithPluginDir(pluginDir),
+	}
+
+	ctx := getAsyncContext()
+
+	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
+
 	if err != nil {
 		return err
 	}
@@ -723,4 +836,15 @@ func newClient() (client.Client, error) {
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
 	})
+}
+
+func getAsyncContext() context.Context {
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	// don't call since function using it is async
+	// and the top-level context here "ctx" is passed
+	// to all underlying function calls
+	// just set the timeout to halt "Start" async ops
+	// when the deadline is reached
+	_ = cancel
+	return ctx
 }

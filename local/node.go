@@ -241,3 +241,8 @@ func (node *localNode) GetLogsDir() string {
 func (node *localNode) GetConfigFile() string {
 	return node.config.ConfigFile
 }
+
+// See node.Node
+func (node *localNode) GetConfig() node.Config {
+	return node.config
+}
