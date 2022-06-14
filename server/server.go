@@ -515,8 +515,10 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 		return nil, ErrNotBootstrapped
 	}
 
-	if req.GetNumSubnets() == 0 {
-		return nil, errors.New("number of subnets to create shall be greater than 0")
+	// default behaviour without args is to create one subnet
+    numSubnets := req.GetNumSubnets()
+	if numSubnets == 0 {
+		numSubnets = 1
 	}
 
 	zap.L().Info("waiting for local cluster readiness")
@@ -533,7 +535,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go s.network.createSubnets(ctx, req.GetNumSubnets(), readyCh)
+	go s.network.createSubnets(ctx, numSubnets, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information

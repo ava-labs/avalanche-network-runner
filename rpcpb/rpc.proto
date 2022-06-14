@@ -246,7 +246,7 @@ message CreateBlockchainsResponse {
 }
 
 message CreateSubnetsRequest {
-  uint32 num_subnets = 1;
+  optional uint32 num_subnets = 1;
 }
 
 message CreateSubnetsResponse {

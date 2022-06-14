@@ -264,13 +264,14 @@ func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{}
+	opts := []client.OpOption{
+		client.WithNumSubnets(numSubnets),
+	}
 
 	ctx := getAsyncContext()
 
 	info, err := cli.CreateSubnets(
 		ctx,
-		numSubnets,
 		opts...,
 	)
 	if err != nil {

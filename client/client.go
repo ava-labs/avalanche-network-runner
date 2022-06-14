@@ -32,7 +32,7 @@ type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
-	CreateSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
+	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -142,11 +142,15 @@ func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb
 	return c.controlc.CreateBlockchains(ctx, req)
 }
 
-func (c *client) CreateSubnets(ctx context.Context, numSubnets uint32, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
+func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	req := &rpcpb.CreateSubnetsRequest{NumSubnets: numSubnets}
+	req := &rpcpb.CreateSubnetsRequest{}
+
+	if ret.numSubnets != 0 {
+		req.NumSubnets = &ret.numSubnets
+	}
 
 	zap.L().Info("create subnets")
 	return c.controlc.CreateSubnets(ctx, req)
@@ -335,6 +339,7 @@ type Op struct {
 	pluginDir          string
 	customVMs          map[string]string
 	customNodeConfigs  map[string]string
+	numSubnets         uint32
 }
 
 type OpOption func(*Op)
@@ -392,6 +397,12 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.customNodeConfigs = customNodeConfigs
+	}
+}
+
+func WithNumSubnets(numSubnets uint32) OpOption {
+	return func(op *Op) {
+		op.numSubnets = numSubnets
 	}
 }
 
