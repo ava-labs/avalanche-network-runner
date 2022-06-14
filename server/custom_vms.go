@@ -479,7 +479,9 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 		}
 		lc.customVMRestartMu.Unlock()
 	}
-	lc.updateNodeInfo()
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
 	return nil
 }
 
