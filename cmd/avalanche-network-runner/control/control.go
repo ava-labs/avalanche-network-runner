@@ -109,6 +109,12 @@ func newStartCommand() *cobra.Command {
 		"[optional] plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
+		&rootDataDir,
+		"root-data-dir",
+		"",
+		"[optional] root data directory to store logs and configurations",
+	)
+	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
 		"custom-vms",
 		"",
@@ -146,6 +152,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithRootDataDir(rootDataDir),
 	}
 
 	if globalNodeConfig != "" {
