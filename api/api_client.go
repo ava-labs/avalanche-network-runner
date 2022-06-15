@@ -53,8 +53,8 @@ func NewAPIClient(ipAddr string, port uint16) Client {
 		ipcs:         ipcs.NewClient(uri),
 		keystore:     keystore.NewClient(uri),
 		admin:        admin.NewClient(uri),
-		pindex:       indexer.NewClient(uri, "/ext/index/P/block"),
-		cindex:       indexer.NewClient(uri, "/ext/index/C/block"),
+		pindex:       indexer.NewClient(uri + "/ext/index/P/block"),
+		cindex:       indexer.NewClient(uri + "/ext/index/C/block"),
 	}
 }
 
