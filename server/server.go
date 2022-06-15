@@ -299,7 +299,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	)
 
 	if len(rootDataDir) == 0 {
-		rootDataDir = "/tmp"
+		rootDataDir = os.TempDir()
 	}
 	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
@@ -522,7 +522,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	}
 
 	// default behaviour without args is to create one subnet
-    numSubnets := req.GetNumSubnets()
+	numSubnets := req.GetNumSubnets()
 	if numSubnets == 0 {
 		numSubnets = 1
 	}
@@ -1031,7 +1031,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	rootDataDir := req.GetRootDataDir()
 	if len(rootDataDir) == 0 {
-		rootDataDir = "/tmp"
+		rootDataDir = os.TempDir()
 	}
 	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
