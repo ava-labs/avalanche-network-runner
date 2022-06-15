@@ -732,7 +732,7 @@ func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 func newLoadSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "load-snapshot snapshot-name [root-data-dir]",
+		Use:   "load-snapshot snapshot-name",
 		Short: "Requests server to load network snapshot.",
 		RunE:  loadSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
