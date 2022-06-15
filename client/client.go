@@ -306,6 +306,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	if ret.pluginDir != "" {
 		req.PluginDir = &ret.pluginDir
 	}
+	if ret.rootDataDir != "" {
+		req.RootDataDir = &ret.rootDataDir
+	}
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
 
