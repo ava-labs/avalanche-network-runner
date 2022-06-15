@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
@@ -85,4 +86,10 @@ func VMID(vmName string) (ids.ID, error) {
 	b := make([]byte, 32)
 	copy(b, []byte(vmName))
 	return ids.ToID(b)
+}
+
+func MkDirWithTimestamp(dirPrefix string) (string, error) {
+	currentTime := time.Now().Format(time.RFC3339)
+	dirName := dirPrefix + currentTime
+	return dirName, os.MkdirAll(dirName, os.ModePerm)
 }

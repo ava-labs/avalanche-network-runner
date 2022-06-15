@@ -79,6 +79,7 @@ var (
 	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
+	rootDataDir               string
 	numSubnets                uint32
 )
 
@@ -106,6 +107,12 @@ func newStartCommand() *cobra.Command {
 		"plugin-dir",
 		"",
 		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
+		&rootDataDir,
+		"root-data-dir",
+		"",
+		"[optional] root data directory to store logs and configurations",
 	)
 	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
@@ -145,6 +152,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithRootDataDir(rootDataDir),
 	}
 
 	if globalNodeConfig != "" {
@@ -748,6 +756,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"",
 		"plugin directory",
 	)
+	cmd.PersistentFlags().StringVar(
+		&rootDataDir,
+		"root-data-dir",
+		"",
+		"root data directory to store logs and configurations",
+	)
 	return cmd
 }
 
@@ -761,6 +775,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
+		client.WithRootDataDir(rootDataDir),
 	}
 
 	ctx := getAsyncContext()
