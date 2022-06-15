@@ -79,6 +79,7 @@ var (
 	addNodeConfig             string
 	customVMNameToGenesisPath string
 	customNodeConfigs         string
+	rootDataDir               string
 	numSubnets                uint32
 )
 
@@ -734,7 +735,7 @@ func newLoadSnapshotCommand() *cobra.Command {
 		Use:   "load-snapshot snapshot-name [root-data-dir]",
 		Short: "Requests server to load network snapshot.",
 		RunE:  loadSnapshotFunc,
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.ExactArgs(1),
 	}
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
@@ -747,6 +748,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"plugin-dir",
 		"",
 		"plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
+		&rootDataDir,
+		"root-data-dir",
+		"",
+		"root data directory to store logs and configurations",
 	)
 	return cmd
 }
@@ -761,20 +768,13 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
-		// client.WithRootDataDir(rootDataDir),
+		client.WithRootDataDir(rootDataDir),
 	}
 
 	ctx := getAsyncContext()
 
 	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
 
-	// ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	// rootDataDir := ""
-	// if len(args) > 1 {
-	// 	rootDataDir = args[2]
-	// }
-	// resp, err := cli.LoadSnapshot(ctx, args[0], rootDataDir)
-	// cancel()
 	if err != nil {
 		return err
 	}
