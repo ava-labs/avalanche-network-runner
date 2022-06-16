@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -231,6 +232,9 @@ func (node *localNode) GetBinaryPath() string {
 
 // See node.Node
 func (node *localNode) GetBuildDir() string {
+	if node.buildDir == "" {
+		return filepath.Dir(node.GetBinaryPath())
+	}
 	return node.buildDir
 }
 
