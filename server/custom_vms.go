@@ -110,7 +110,7 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
-	subnetIDs := make([]ids.ID, len(chainSpecs))
+	subnetIDs := []ids.ID{}
 	for _, chainSpec := range chainSpecs {
 		subnetID, err := ids.FromString(*chainSpec.subnetId)
 		if err != nil {
@@ -518,16 +518,16 @@ func addSubnetValidators(
 		if err != nil {
 			return err
 		}
-		curValidators := make(map[ids.NodeID]struct{})
+		subnetValidators := make(map[ids.NodeID]struct{})
 		for _, v := range vs {
-			curValidators[v.NodeID] = struct{}{}
+			subnetValidators[v.NodeID] = struct{}{}
 		}
 		for nodeName, nodeInfo := range nodeInfos {
 			nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 			if err != nil {
 				return err
 			}
-			_, isValidator := curValidators[nodeID]
+			_, isValidator := subnetValidators[nodeID]
 			if !isValidator {
 				cctx, cancel := createDefaultCtx(ctx)
 				txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
