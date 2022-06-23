@@ -27,6 +27,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const validationDuration = 375 * 24 * time.Hour
+
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 
 type blockchainSpec struct {
@@ -192,8 +194,7 @@ func (lc *localNetwork) installSubnets(
 	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(httpRPCEp)
 
-	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
-	if err != nil {
+	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
@@ -212,7 +213,8 @@ func (lc *localNetwork) installSubnets(
 			zap.String("http-rpc-endpoint", httpRPCEp),
 			zap.String("address", testKeyAddr.String()),
 		)
-		if err = addSubnetValidators(ctx, subnetIDs, baseWallet, validatorIDs); err != nil {
+		platformCli := platformvm.NewClient(httpRPCEp)
+		if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
 			return nil, err
 		}
 	}
@@ -318,57 +320,41 @@ func setupWallet(
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
-func checkValidators(
+func addPrimaryValidators(
 	ctx context.Context,
 	nodeInfos map[string]*rpcpb.NodeInfo,
 	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
-) (validatorIDs []ids.NodeID, err error) {
-	println()
-	color.Outf("{{green}}fetching all nodes from the existing cluster to make sure all nodes are validating the primary network/subnet{{/}}\n")
+) error {
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
 	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	curValidators := make(map[ids.NodeID]struct{})
 	for _, v := range vs {
 		curValidators[v.NodeID] = struct{}{}
-		zap.L().Info("current validator", zap.String("node-id", v.NodeID.String()))
 	}
-
-	println()
-	color.Outf("{{green}}adding all nodes as validator for the primary subnet{{/}}\n")
-	validatorIDs = make([]ids.NodeID, 0, len(nodeInfos))
 	for nodeName, nodeInfo := range nodeInfos {
 		nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		validatorIDs = append(validatorIDs, nodeID)
 
 		_, isValidator := curValidators[nodeID]
 		if isValidator {
-			zap.L().Info("the node is already validating the primary subnet; skipping",
-				zap.String("node-name", nodeName),
-				zap.String("node-id", nodeInfo.Id),
-			)
 			continue
 		}
 
-		zap.L().Info("adding a node as a validator to the primary subnet",
-			zap.String("node-name", nodeName),
-			zap.String("node-id", nodeID.String()),
-		)
 		cctx, cancel = createDefaultCtx(ctx)
 		txID, err := baseWallet.P().IssueAddValidatorTx(
 			&validator.Validator{
 				NodeID: nodeID,
 				Start:  uint64(time.Now().Add(10 * time.Second).Unix()),
-				End:    uint64(time.Now().Add(300 * time.Hour).Unix()),
+				End:    uint64(time.Now().Add(validationDuration).Unix()),
 				Wght:   1 * units.Avax,
 			},
 			&secp256k1fx.OutputOwners{
@@ -381,7 +367,7 @@ func checkValidators(
 		)
 		cancel()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		zap.L().Info("added the node as primary subnet validator",
 			zap.String("node-name", nodeName),
@@ -389,7 +375,7 @@ func checkValidators(
 			zap.String("tx-id", txID.String()),
 		)
 	}
-	return validatorIDs, nil
+	return nil
 }
 
 func createSubnets(
@@ -487,42 +473,55 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 
 func addSubnetValidators(
 	ctx context.Context,
-	subnetIDs []ids.ID,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
-	validatorIDs []ids.NodeID,
+	subnetIDs []ids.ID,
 ) error {
-	println()
-	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
 	for _, subnetID := range subnetIDs {
-		zap.L().Info("adding all nodes as subnet validator",
-			zap.String("subnet-id", subnetID.String()),
-		)
-		for _, validatorID := range validatorIDs {
-			cctx, cancel := createDefaultCtx(ctx)
-			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
-				&validator.SubnetValidator{
-					Validator: validator.Validator{
-						NodeID: validatorID,
-
-						// reasonable delay in most/slow test environments
-						Start: uint64(time.Now().Add(time.Minute).Unix()),
-						End:   uint64(time.Now().Add(100 * time.Hour).Unix()),
-						Wght:  1000,
-					},
-					Subnet: subnetID,
-				},
-				common.WithContext(cctx),
-				defaultPoll,
-			)
-			cancel()
+		cctx, cancel := createDefaultCtx(ctx)
+		vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		curValidators := make(map[ids.NodeID]struct{})
+		for _, v := range vs {
+			curValidators[v.NodeID] = struct{}{}
+		}
+		for nodeName, nodeInfo := range nodeInfos {
+			nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 			if err != nil {
 				return err
 			}
-			zap.L().Info("added the node as a subnet validator",
-				zap.String("subnet-id", subnetID.String()),
-				zap.String("node-id", validatorID.String()),
-				zap.String("tx-id", txID.String()),
-			)
+			_, isValidator := curValidators[nodeID]
+			if !isValidator {
+				cctx, cancel := createDefaultCtx(ctx)
+				txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
+					&validator.SubnetValidator{
+						Validator: validator.Validator{
+							NodeID: nodeID,
+							// reasonable delay in most/slow test environments
+							Start: uint64(time.Now().Add(time.Minute).Unix()),
+							End:   uint64(time.Now().Add(validationDuration).Unix()),
+							Wght:  1000,
+						},
+						Subnet: subnetID,
+					},
+					common.WithContext(cctx),
+					defaultPoll,
+				)
+				cancel()
+				if err != nil {
+					return err
+				}
+				zap.L().Info("added the node as a subnet validator",
+					zap.String("subnet-id", subnetID.String()),
+					zap.String("node-name", nodeName),
+					zap.String("node-id", nodeID.String()),
+					zap.String("tx-id", txID.String()),
+				)
+			}
 		}
 	}
 	return nil
