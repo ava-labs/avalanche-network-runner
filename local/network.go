@@ -122,7 +122,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+    var genesisMap map[string]interface{}
+    if err = json.Unmarshal(genesis, &genesisMap); err != nil {
+		panic(err)
+    }
+    fmt.Println(genesisMap)
+    fmt.Println(genesisMap["startTime"].(float64))
+    fmt.Println(genesisMap["allocations"].([]interface{})[0].(map[string]interface{})["unlockSchedule"].([]interface{})[0].(map[string]interface{})["locktime"].(float64))
+    os.Exit(1)
+
 	defaultNetworkConfig.Genesis = string(genesis)
+
+    // update genesis so as to start validating in the present
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
 		configFile, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
