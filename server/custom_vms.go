@@ -27,7 +27,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const validationDuration = 375 * 24 * time.Hour
+const validationDuration = 365 * 24 * time.Hour
 
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 
@@ -327,6 +327,8 @@ func addPrimaryValidators(
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) error {
+	fmt.Println()
+	color.Outf("{{green}}adding the nodes as primary network validators{{/}}\n")
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
 	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
@@ -478,9 +480,21 @@ func addSubnetValidators(
 	baseWallet *refreshableWallet,
 	subnetIDs []ids.ID,
 ) error {
+	fmt.Println()
+	color.Outf("{{green}}adding the nodes as subnet validators{{/}}\n")
 	for _, subnetID := range subnetIDs {
 		cctx, cancel := createDefaultCtx(ctx)
-		vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
+		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		primaryValidatorsEndtime := make(map[ids.NodeID]time.Time)
+		for _, v := range vs {
+			primaryValidatorsEndtime[v.NodeID] = time.Unix(int64(v.EndTime), 0)
+		}
+		cctx, cancel = createDefaultCtx(ctx)
+		vs, err = platformCli.GetCurrentValidators(cctx, subnetID, nil)
 		cancel()
 		if err != nil {
 			return err
@@ -502,8 +516,8 @@ func addSubnetValidators(
 						Validator: validator.Validator{
 							NodeID: nodeID,
 							// reasonable delay in most/slow test environments
-							Start: uint64(time.Now().Add(time.Minute).Unix()),
-							End:   uint64(time.Now().Add(validationDuration).Unix()),
+							Start: uint64(time.Now().Add(20 * time.Second).Unix()),
+							End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
 							Wght:  1000,
 						},
 						Subnet: subnetID,
