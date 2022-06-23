@@ -355,7 +355,7 @@ func addPrimaryValidators(
 		txID, err := baseWallet.P().IssueAddValidatorTx(
 			&validator.Validator{
 				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(10 * time.Second).Unix()),
+				Start:  uint64(time.Now().Add(20 * time.Second).Unix()),
 				End:    uint64(time.Now().Add(validationDuration).Unix()),
 				Wght:   1 * units.Avax,
 			},
