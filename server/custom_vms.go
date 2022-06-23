@@ -88,9 +88,13 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
+	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
+		return nil, err
+	}
+
 	if numSubnets > 0 {
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+		addedSubnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -99,11 +103,25 @@ func (lc *localNetwork) installCustomVMs(
 		j := 0
 		for i := range chainSpecs {
 			if chainSpecs[i].subnetId == nil {
-				subnetIDStr := subnetIDs[j].String()
+				subnetIDStr := addedSubnetIDs[j].String()
 				chainSpecs[i].subnetId = &subnetIDStr
 				j++
 			}
 		}
+	}
+
+	subnetIDs := make([]ids.ID, len(chainSpecs))
+	for _, chainSpec := range chainSpecs {
+		subnetID, err := ids.FromString(*chainSpec.subnetId)
+		if err != nil {
+			return nil, err
+		}
+		subnetIDs = append(subnetIDs, subnetID)
+	}
+	httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli = platformvm.NewClient(httpRPCEp)
+	if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+		return nil, err
 	}
 
 	blockchainIDs, err := createBlockchains(ctx, chainSpecs, baseWallet, testKeyAddr)
@@ -155,6 +173,7 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
 	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(httpRPCEp)
 
 	pTXs := make(map[ids.ID]*platformvm.Tx)
 	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp, pTXs)
@@ -162,9 +181,19 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
+	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
+		return nil, err
+	}
+
 	// add subnets restarting network if necessary
 	subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
+		return nil, err
+	}
+
+	httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli = platformvm.NewClient(httpRPCEp)
+	if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
 		return nil, err
 	}
 
@@ -191,12 +220,6 @@ func (lc *localNetwork) installSubnets(
 	println()
 	color.Outf("{{blue}}{{bold}}add subnets{{/}}\n")
 
-	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
-	platformCli := platformvm.NewClient(httpRPCEp)
-
-	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
-		return nil, err
-	}
 	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
@@ -207,16 +230,12 @@ func (lc *localNetwork) installSubnets(
 		}
 		println()
 		color.Outf("{{green}}reconnecting the wallet client after restart{{/}}\n")
-		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
+		httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
 		baseWallet.refresh(httpRPCEp)
 		zap.L().Info("set up base wallet with pre-funded test key",
 			zap.String("http-rpc-endpoint", httpRPCEp),
 			zap.String("address", testKeyAddr.String()),
 		)
-		platformCli := platformvm.NewClient(httpRPCEp)
-		if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
-			return nil, err
-		}
 	}
 	return subnetIDs, nil
 }
