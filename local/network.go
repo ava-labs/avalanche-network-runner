@@ -162,8 +162,6 @@ func init() {
 
 	defaultNetworkConfig.Genesis = string(updatedGenesis)
 
-	// update genesis so as to start validating in the present
-
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
 		configFile, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
 		if err != nil {
