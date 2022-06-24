@@ -27,7 +27,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const validationDuration = 365 * 24 * time.Hour
+const (
+	validationDuration     = 365 * 24 * time.Hour
+	subnetValidatorsWeight = 1000
+)
 
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 
@@ -555,7 +558,7 @@ func addSubnetValidators(
 							// reasonable delay in most/slow test environments
 							Start: uint64(time.Now().Add(20 * time.Second).Unix()),
 							End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
-							Wght:  1000,
+							Wght:  subnetValidatorsWeight,
 						},
 						Subnet: subnetID,
 					},
