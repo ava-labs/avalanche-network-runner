@@ -251,6 +251,20 @@ func (lc *localNetwork) waitForCustomVMsReady(
 		return err
 	}
 
+	subnetIDs := []ids.ID{}
+	for _, chainInfo := range chainInfos {
+		subnetID, err := ids.FromString(chainInfo.info.SubnetId)
+		if err != nil {
+			return err
+		}
+		subnetIDs = append(subnetIDs, subnetID)
+	}
+	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(httpRPCEp)
+	if err := waitSubnetValidators(ctx, lc.nodeInfos, platformCli, subnetIDs, lc.stopCh); err != nil {
+		return err
+	}
+
 	for nodeName, nodeInfo := range lc.nodeInfos {
 		zap.L().Info("inspecting node log directory for custom VM logs",
 			zap.String("node-name", nodeName),
@@ -283,7 +297,7 @@ func (lc *localNetwork) waitForCustomVMsReady(
 					return errAborted
 				case <-ctx.Done():
 					return ctx.Err()
-				case <-time.After(10 * time.Second):
+				case <-time.After(1 * time.Second):
 				}
 			}
 		}
@@ -555,6 +569,53 @@ func addSubnetValidators(
 					zap.String("tx-id", txID.String()),
 				)
 			}
+		}
+	}
+	return nil
+}
+
+func waitSubnetValidators(
+	ctx context.Context,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+	platformCli platformvm.Client,
+	subnetIDs []ids.ID,
+	stopCh chan struct{},
+) error {
+	fmt.Println()
+	color.Outf("{{green}}waiting for the nodes to become subnet validators{{/}}\n")
+	for {
+		notReady := false
+		for _, subnetID := range subnetIDs {
+			cctx, cancel := createDefaultCtx(ctx)
+			vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
+			cancel()
+			if err != nil {
+				return err
+			}
+			subnetValidators := make(map[ids.NodeID]struct{})
+			for _, v := range vs {
+				subnetValidators[v.NodeID] = struct{}{}
+			}
+			for _, nodeInfo := range nodeInfos {
+				nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
+				if err != nil {
+					return err
+				}
+				_, isValidator := subnetValidators[nodeID]
+				if !isValidator {
+					notReady = true
+				}
+			}
+		}
+		if !notReady {
+			return nil
+		}
+		select {
+		case <-stopCh:
+			return errAborted
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(1 * time.Second):
 		}
 	}
 	return nil
