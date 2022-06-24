@@ -622,7 +622,6 @@ func waitSubnetValidators(
 		case <-time.After(1 * time.Second):
 		}
 	}
-	return nil
 }
 
 func createBlockchains(
