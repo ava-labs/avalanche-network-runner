@@ -197,6 +197,10 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
+	if err = waitSubnetValidators(ctx, lc.nodeInfos, platformCli, subnetIDs, lc.stopCh); err != nil {
+		return nil, err
+	}
+
 	println()
 	color.Outf("{{green}}checking the remaining balance of the base wallet{{/}}\n")
 	balances, err := baseWallet.P().Builder().GetBalance()
