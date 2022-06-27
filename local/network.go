@@ -58,8 +58,7 @@ var (
 		config.BootstrapIPsKey: {},
 		config.BootstrapIDsKey: {},
 	}
-	chainConfigSubDir  = "chainConfigs"
-	cChainConfigSubDir = filepath.Join(chainConfigSubDir, "C")
+	chainConfigSubDir = "chainConfigs"
 
 	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
 )
@@ -144,7 +143,9 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].CChainConfigFile = string(cChainConfig)
+		defaultNetworkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{
+			"C": string(cChainConfig),
+		}
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -1126,19 +1127,22 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			contents:  []byte(nodeConfig.ConfigFile),
 		})
 	}
-	if len(nodeConfig.CChainConfigFile) != 0 {
-		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, chainConfigSubDir),
-			path:      filepath.Join(nodeRootDir, cChainConfigSubDir, configFileName),
-			pathKey:   config.ChainConfigDirKey,
-			contents:  []byte(nodeConfig.CChainConfigFile),
-		})
-	}
 	flags := []string{}
 	for _, f := range files {
 		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.flagValue))
 		if err := createFileAndWrite(f.path, f.contents); err != nil {
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
+		}
+	}
+	if nodeConfig.ChainConfigFiles != nil {
+		// only one flag and multiple files
+		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
+			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
+			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
+			}
 		}
 	}
 	return flags, nil

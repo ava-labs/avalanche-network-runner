@@ -163,7 +163,7 @@ func newLocalTestOneNodeCreator(assert *assert.Assertions, networkConfig network
 func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	lt.assert.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
-	lt.assert.EqualValues(expectedConfig.CChainConfigFile, config.CChainConfigFile)
+	lt.assert.EqualValues(expectedConfig.ChainConfigFiles, config.ChainConfigFiles)
 	lt.assert.EqualValues(expectedConfig.ConfigFile, config.ConfigFile)
 	lt.assert.EqualValues(expectedConfig.BinaryPath, config.BinaryPath)
 	lt.assert.EqualValues(expectedConfig.IsBeacon, config.IsBeacon)
@@ -1118,7 +1118,9 @@ func TestWriteFiles(t *testing.T) {
 	stakingCert := "stakingCert"
 	genesis := []byte("genesis")
 	configFile := "config file"
-	cChainConfigFile := "c-chain config file"
+	chainConfigFiles := map[string]string{
+		"C": "c-chain config file",
+	}
 	tmpDir, err := os.MkdirTemp("", "avalanche-network-runner-tests-*")
 	if err != nil {
 		t.Fatal(err)
@@ -1182,7 +1184,7 @@ func TestWriteFiles(t *testing.T) {
 				StakingKey:       stakingKey,
 				StakingCert:      stakingCert,
 				ConfigFile:       configFile,
-				CChainConfigFile: cChainConfigFile,
+				ChainConfigFiles: chainConfigFiles,
 			},
 			expectedFlags: []string{
 				stakingKeyFlag,
@@ -1220,10 +1222,10 @@ func TestWriteFiles(t *testing.T) {
 				assert.NoError(err)
 				assert.Equal([]byte(configFile), gotConfigFile)
 			}
-			if len(tt.nodeConfig.CChainConfigFile) > 0 {
+			if tt.nodeConfig.ChainConfigFiles != nil {
 				gotCChainConfigFile, err := os.ReadFile(cChainConfigPath)
 				assert.NoError(err)
-				assert.Equal([]byte(cChainConfigFile), gotCChainConfigFile)
+				assert.Equal([]byte(chainConfigFiles["C"]), gotCChainConfigFile)
 			}
 		})
 	}
