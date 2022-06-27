@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -43,7 +44,7 @@ const (
 	healthCheckFreq       = 3 * time.Second
 	DefaultNumNodes       = 5
 	snapshotPrefix        = "anr-snapshot-"
-	rootDirPrefix         = "avalanche-network-runner-"
+	rootDirPrefix         = "network-runner-root-data"
 	defaultDbSubdir       = "db"
 	defaultLogsSubdir     = "logs"
 )
@@ -241,7 +242,8 @@ func newNetwork(
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
-		rootDir, err = os.MkdirTemp("", fmt.Sprintf("%s-*", rootDirPrefix))
+		rootDir = path.Join(os.TempDir(), rootDirPrefix)
+		rootDir, err = utils.MkDirWithTimestamp(rootDir)
 		if err != nil {
 			return nil, err
 		}
