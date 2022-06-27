@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -242,7 +241,7 @@ func newNetwork(
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
-		rootDir = path.Join(os.TempDir(), rootDirPrefix)
+		rootDir = filepath.Join(os.TempDir(), rootDirPrefix)
 		rootDir, err = utils.MkDirWithTimestamp(rootDir)
 		if err != nil {
 			return nil, err

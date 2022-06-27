@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -301,7 +300,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if len(rootDataDir) == 0 {
 		rootDataDir = os.TempDir()
 	}
-	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir = filepath.Join(rootDataDir, rootDataDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err
@@ -1033,7 +1032,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	if len(rootDataDir) == 0 {
 		rootDataDir = os.TempDir()
 	}
-	rootDataDir = path.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir = filepath.Join(rootDataDir, rootDataDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err
