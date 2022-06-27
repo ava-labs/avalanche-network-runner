@@ -40,6 +40,8 @@ type Node interface {
 	GetDbDir() string
 	// Return this node's logs dir
 	GetLogsDir() string
+	// Return this node's build dir
+	GetBuildDir() string
 	// Return this node's config file contents
 	GetConfigFile() string
 	// Return this node's config

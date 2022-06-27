@@ -443,7 +443,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	flags, apiPort, p2pPort, dbDir, logsDir, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
+	nodeData, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -455,13 +455,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.flags...)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create new node process: %s", err)
 	}
-	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, flags)
+	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
 	if err := nodeProcess.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, flags, err)
+		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, nodeData.flags, err)
 	}
 
 	// Create a wrapper for this node so we can reference it later
@@ -469,14 +469,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		name:        nodeConfig.Name,
 		nodeID:      nodeID,
 		networkID:   ln.networkID,
-		client:      ln.newAPIClientF("localhost", apiPort),
+		client:      ln.newAPIClientF("localhost", nodeData.apiPort),
 		process:     nodeProcess,
-		apiPort:     apiPort,
-		p2pPort:     p2pPort,
+		apiPort:     nodeData.apiPort,
+		p2pPort:     nodeData.p2pPort,
 		getConnFunc: defaultGetConnFunc,
-		dbDir:       dbDir,
-		logsDir:     logsDir,
+		dbDir:       nodeData.dbDir,
+		logsDir:     nodeData.logsDir,
 		config:      nodeConfig,
+		buildDir:    nodeData.buildDir,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -485,7 +486,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.IsBeacon {
 		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
 			IP:   net.IPv6loopback,
-			Port: p2pPort,
+			Port: nodeData.p2pPort,
 		}))
 	}
 	return node, err
@@ -990,6 +991,15 @@ func getPort(
 	return port, nil
 }
 
+type buildFlagsReturn struct {
+	flags    []string
+	apiPort  uint16
+	p2pPort  uint16
+	dbDir    string
+	logsDir  string
+	buildDir string
+}
+
 // buildFlags returns the:
 // 1) Flags
 // 2) API port
@@ -1001,34 +1011,40 @@ func (ln *localNetwork) buildFlags(
 	configFile map[string]interface{},
 	nodeDir string,
 	nodeConfig *node.Config,
-) ([]string, uint16, uint16, string, string, error) {
+) (buildFlagsReturn, error) {
 	// Add flags in [ln.Flags] to [nodeConfig.Flags]
 	// Assumes [nodeConfig.Flags] is non-nil
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
+	// buildDir from all configs for node
+	buildDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.BuildDirKey, "")
+	if err != nil {
+		return buildFlagsReturn{}, err
+	}
+
 	// Tell the node to put the database in [nodeDir] unless given in config file
 	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDbSubdir))
 	if err != nil {
-		return nil, 0, 0, "", "", err
+		return buildFlagsReturn{}, err
 	}
 
 	// Tell the node to put the log directory in [nodeDir/logs] unless given in config file
 	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, defaultLogsSubdir))
 	if err != nil {
-		return nil, 0, 0, "", "", err
+		return buildFlagsReturn{}, err
 	}
 
 	// Use random free API port unless given in config file
 	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
 	if err != nil {
-		return nil, 0, 0, "", "", err
+		return buildFlagsReturn{}, err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
 	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
 	if err != nil {
-		return nil, 0, 0, "", "", err
+		return buildFlagsReturn{}, err
 	}
 
 	// Flags for AvalancheGo
@@ -1045,7 +1061,7 @@ func (ln *localNetwork) buildFlags(
 	// and get flag that point the node to those files
 	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
 	if err != nil {
-		return nil, 0, 0, "", "", err
+		return buildFlagsReturn{}, err
 	}
 	flags = append(flags, fileFlags...)
 
@@ -1062,7 +1078,14 @@ func (ln *localNetwork) buildFlags(
 		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
 		nodeConfig.Name, nodeDir, logsDir, dbDir, p2pPort, apiPort,
 	)
-	return flags, apiPort, p2pPort, dbDir, logsDir, nil
+	return buildFlagsReturn{
+		flags:    flags,
+		apiPort:  apiPort,
+		p2pPort:  p2pPort,
+		dbDir:    dbDir,
+		logsDir:  logsDir,
+		buildDir: buildDir,
+	}, nil
 }
 
 // writeFiles writes the files a node needs on startup.
