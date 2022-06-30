@@ -608,8 +608,7 @@ func waitSubnetValidators(
 				if err != nil {
 					return err
 				}
-				_, isValidator := subnetValidators[nodeID]
-				if !isValidator {
+				if _, isValidator := subnetValidators[nodeID]; !isValidator {
 					notReady = true
 				}
 			}
