@@ -545,16 +545,16 @@ func addSubnetValidators(
 		if err != nil {
 			return err
 		}
-		subnetValidators := make(map[ids.NodeID]struct{})
+		subnetValidators := ids.NodeIDSet{}
 		for _, v := range vs {
-			subnetValidators[v.NodeID] = struct{}{}
+			subnetValidators.Add(v.NodeID)
 		}
 		for nodeName, nodeInfo := range nodeInfos {
 			nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 			if err != nil {
 				return err
 			}
-			_, isValidator := subnetValidators[nodeID]
+			isValidator := subnetValidators.Contains(nodeID)
 			if !isValidator {
 				cctx, cancel := createDefaultCtx(ctx)
 				txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
@@ -604,16 +604,16 @@ func waitSubnetValidators(
 			if err != nil {
 				return err
 			}
-			subnetValidators := make(map[ids.NodeID]struct{})
+			subnetValidators := ids.NodeIDSet{}
 			for _, v := range vs {
-				subnetValidators[v.NodeID] = struct{}{}
+				subnetValidators.Add(v.NodeID)
 			}
 			for _, nodeInfo := range nodeInfos {
 				nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 				if err != nil {
 					return err
 				}
-				if _, isValidator := subnetValidators[nodeID]; !isValidator {
+				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
 					notReady = true
 				}
 			}
