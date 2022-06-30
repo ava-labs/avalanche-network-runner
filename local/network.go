@@ -149,8 +149,7 @@ func init() {
 			if !ok {
 				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
 			}
-			_, ok = sched["locktime"]
-			if ok {
+			if _, ok := sched["locktime"]; ok {
 				sched["locktime"] = float64(lockTime)
 			}
 		}
