@@ -27,6 +27,19 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// offset of validation start from current time
+	validationStartOffset = 20 * time.Second
+	// duration for primary network validators
+	validationDuration = 365 * 24 * time.Hour
+	// weight assigned to subnet validators
+	subnetValidatorsWeight = 1000
+	// check period for blockchain logs while waiting for custom VMs to be ready
+	blockchainLogPullFrequency = time.Second
+	// check period while waiting for all validators to be ready
+	waitForValidatorsPullFrequency = time.Second
+)
+
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 
 type blockchainSpec struct {
@@ -44,8 +57,8 @@ func (lc *localNetwork) installCustomVMs(
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
-	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
-	platformCli := platformvm.NewClient(httpRPCEp)
+	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(clientURI)
 
 	// wallet needs txs for all previously created subnets
 	pTXs := make(map[ids.ID]*platformvm.Tx)
@@ -71,7 +84,7 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
-	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp, pTXs)
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +99,13 @@ func (lc *localNetwork) installCustomVMs(
 		}
 	}
 
+	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
+		return nil, err
+	}
+
 	if numSubnets > 0 {
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
+		addedSubnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -97,11 +114,25 @@ func (lc *localNetwork) installCustomVMs(
 		j := 0
 		for i := range chainSpecs {
 			if chainSpecs[i].subnetId == nil {
-				subnetIDStr := subnetIDs[j].String()
+				subnetIDStr := addedSubnetIDs[j].String()
 				chainSpecs[i].subnetId = &subnetIDStr
 				j++
 			}
 		}
+	}
+
+	subnetIDs := []ids.ID{}
+	for _, chainSpec := range chainSpecs {
+		subnetID, err := ids.FromString(*chainSpec.subnetId)
+		if err != nil {
+			return nil, err
+		}
+		subnetIDs = append(subnetIDs, subnetID)
+	}
+	clientURI = lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli = platformvm.NewClient(clientURI)
+	if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+		return nil, err
 	}
 
 	blockchainIDs, err := createBlockchains(ctx, chainSpecs, baseWallet, testKeyAddr)
@@ -152,17 +183,32 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
-	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
+	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(clientURI)
 
 	pTXs := make(map[ids.ID]*platformvm.Tx)
-	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, httpRPCEp, pTXs)
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := addPrimaryValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 
 	// add subnets restarting network if necessary
 	subnetIDs, err := lc.installSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
+		return nil, err
+	}
+
+	clientURI = lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli = platformvm.NewClient(clientURI)
+	if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+		return nil, err
+	}
+
+	if err = waitSubnetValidators(ctx, lc.nodeInfos, platformCli, subnetIDs, lc.stopCh); err != nil {
 		return nil, err
 	}
 
@@ -189,13 +235,6 @@ func (lc *localNetwork) installSubnets(
 	println()
 	color.Outf("{{blue}}{{bold}}add subnets{{/}}\n")
 
-	httpRPCEp := lc.nodeInfos[lc.nodeNames[0]].Uri
-	platformCli := platformvm.NewClient(httpRPCEp)
-
-	validatorIDs, err := checkValidators(ctx, lc.nodeInfos, platformCli, baseWallet, testKeyAddr)
-	if err != nil {
-		return nil, err
-	}
 	subnetIDs, err := createSubnets(ctx, numSubnets, baseWallet, testKeyAddr)
 	if err != nil {
 		return nil, err
@@ -206,15 +245,12 @@ func (lc *localNetwork) installSubnets(
 		}
 		println()
 		color.Outf("{{green}}reconnecting the wallet client after restart{{/}}\n")
-		httpRPCEp = lc.nodeInfos[lc.nodeNames[0]].Uri
-		baseWallet.refresh(httpRPCEp)
+		clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
+		baseWallet.refresh(clientURI)
 		zap.L().Info("set up base wallet with pre-funded test key",
-			zap.String("http-rpc-endpoint", httpRPCEp),
+			zap.String("http-rpc-endpoint", clientURI),
 			zap.String("address", testKeyAddr.String()),
 		)
-		if err = addSubnetValidators(ctx, subnetIDs, baseWallet, validatorIDs); err != nil {
-			return nil, err
-		}
 	}
 	return subnetIDs, nil
 }
@@ -227,6 +263,20 @@ func (lc *localNetwork) waitForCustomVMsReady(
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
 
 	if err := lc.nw.Healthy(ctx); err != nil {
+		return err
+	}
+
+	subnetIDs := []ids.ID{}
+	for _, chainInfo := range chainInfos {
+		subnetID, err := ids.FromString(chainInfo.info.SubnetId)
+		if err != nil {
+			return err
+		}
+		subnetIDs = append(subnetIDs, subnetID)
+	}
+	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
+	platformCli := platformvm.NewClient(clientURI)
+	if err := waitSubnetValidators(ctx, lc.nodeInfos, platformCli, subnetIDs, lc.stopCh); err != nil {
 		return err
 	}
 
@@ -262,7 +312,7 @@ func (lc *localNetwork) waitForCustomVMsReady(
 					return errAborted
 				case <-ctx.Done():
 					return ctx.Err()
-				case <-time.After(10 * time.Second):
+				case <-time.After(blockchainLogPullFrequency):
 				}
 			}
 		}
@@ -279,7 +329,7 @@ func (lc *localNetwork) waitForCustomVMsReady(
 
 func setupWallet(
 	ctx context.Context,
-	httpRPCEp string,
+	clientURI string,
 	pTXs map[ids.ID]*platformvm.Tx,
 ) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
 	// "local/default/genesis.json" pre-funds "ewoq" key
@@ -289,12 +339,12 @@ func setupWallet(
 
 	println()
 	color.Outf("{{green}}setting up the base wallet with the seed test key{{/}}\n")
-	baseWallet, err = createRefreshableWallet(ctx, httpRPCEp, testKeychain, pTXs)
+	baseWallet, err = createRefreshableWallet(ctx, clientURI, testKeychain, pTXs)
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
 	zap.L().Info("set up base wallet with pre-funded test key",
-		zap.String("http-rpc-endpoint", httpRPCEp),
+		zap.String("http-rpc-endpoint", clientURI),
 		zap.String("address", testKeyAddr.String()),
 	)
 
@@ -310,7 +360,7 @@ func setupWallet(
 		return nil, ids.Empty, ids.ShortEmpty, fmt.Errorf("not enough AVAX balance %v in the address %q", bal, testKeyAddr)
 	}
 	zap.L().Info("fetched base wallet AVAX balance",
-		zap.String("http-rpc-endpoint", httpRPCEp),
+		zap.String("http-rpc-endpoint", clientURI),
 		zap.String("address", testKeyAddr.String()),
 		zap.Uint64("balance", bal),
 	)
@@ -318,57 +368,45 @@ func setupWallet(
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
-func checkValidators(
+// add the nodes in [nodeInfos] as validators of the primary network, in case they are not
+// the validation starts as soon as possible and its duration is as long as possible, that is,
+// it is set to max accepted duration by avalanchego
+func addPrimaryValidators(
 	ctx context.Context,
 	nodeInfos map[string]*rpcpb.NodeInfo,
 	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
-) (validatorIDs []ids.NodeID, err error) {
-	println()
-	color.Outf("{{green}}fetching all nodes from the existing cluster to make sure all nodes are validating the primary network/subnet{{/}}\n")
+) error {
+	color.Outf("{{green}}adding the nodes as primary network validators{{/}}\n")
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
 	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	curValidators := make(map[ids.NodeID]struct{})
 	for _, v := range vs {
 		curValidators[v.NodeID] = struct{}{}
-		zap.L().Info("current validator", zap.String("node-id", v.NodeID.String()))
 	}
-
-	println()
-	color.Outf("{{green}}adding all nodes as validator for the primary subnet{{/}}\n")
-	validatorIDs = make([]ids.NodeID, 0, len(nodeInfos))
 	for nodeName, nodeInfo := range nodeInfos {
 		nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		validatorIDs = append(validatorIDs, nodeID)
 
 		_, isValidator := curValidators[nodeID]
 		if isValidator {
-			zap.L().Info("the node is already validating the primary subnet; skipping",
-				zap.String("node-name", nodeName),
-				zap.String("node-id", nodeInfo.Id),
-			)
 			continue
 		}
 
-		zap.L().Info("adding a node as a validator to the primary subnet",
-			zap.String("node-name", nodeName),
-			zap.String("node-id", nodeID.String()),
-		)
 		cctx, cancel = createDefaultCtx(ctx)
 		txID, err := baseWallet.P().IssueAddValidatorTx(
 			&validator.Validator{
 				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(10 * time.Second).Unix()),
-				End:    uint64(time.Now().Add(300 * time.Hour).Unix()),
+				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
+				End:    uint64(time.Now().Add(validationDuration).Unix()),
 				Wght:   1 * units.Avax,
 			},
 			&secp256k1fx.OutputOwners{
@@ -381,7 +419,7 @@ func checkValidators(
 		)
 		cancel()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		zap.L().Info("added the node as primary subnet validator",
 			zap.String("node-name", nodeName),
@@ -389,7 +427,7 @@ func checkValidators(
 			zap.String("tx-id", txID.String()),
 		)
 	}
-	return validatorIDs, nil
+	return nil
 }
 
 func createSubnets(
@@ -485,29 +523,56 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	return nil
 }
 
+// add the nodes in [nodeInfos] as validators of the given subnets, in case they are not
+// the validation starts as soon as possible and its duration is as long as possible, that is,
+// it ends at the time the primary network validation ends for the node
 func addSubnetValidators(
 	ctx context.Context,
-	subnetIDs []ids.ID,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
-	validatorIDs []ids.NodeID,
+	subnetIDs []ids.ID,
 ) error {
-	println()
-	color.Outf("{{green}}adding all nodes as subnet validator for each subnet{{/}}\n")
+	color.Outf("{{green}}adding the nodes as subnet validators{{/}}\n")
 	for _, subnetID := range subnetIDs {
-		zap.L().Info("adding all nodes as subnet validator",
-			zap.String("subnet-id", subnetID.String()),
-		)
-		for _, validatorID := range validatorIDs {
+		cctx, cancel := createDefaultCtx(ctx)
+		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		primaryValidatorsEndtime := make(map[ids.NodeID]time.Time)
+		for _, v := range vs {
+			primaryValidatorsEndtime[v.NodeID] = time.Unix(int64(v.EndTime), 0)
+		}
+		cctx, cancel = createDefaultCtx(ctx)
+		vs, err = platformCli.GetCurrentValidators(cctx, subnetID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		subnetValidators := ids.NodeIDSet{}
+		for _, v := range vs {
+			subnetValidators.Add(v.NodeID)
+		}
+		for nodeName, nodeInfo := range nodeInfos {
+			nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
+			if err != nil {
+				return err
+			}
+			isValidator := subnetValidators.Contains(nodeID)
+			if isValidator {
+				continue
+			}
 			cctx, cancel := createDefaultCtx(ctx)
 			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
 				&validator.SubnetValidator{
 					Validator: validator.Validator{
-						NodeID: validatorID,
-
+						NodeID: nodeID,
 						// reasonable delay in most/slow test environments
-						Start: uint64(time.Now().Add(time.Minute).Unix()),
-						End:   uint64(time.Now().Add(100 * time.Hour).Unix()),
-						Wght:  1000,
+						Start: uint64(time.Now().Add(validationStartOffset).Unix()),
+						End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
+						Wght:  subnetValidatorsWeight,
 					},
 					Subnet: subnetID,
 				},
@@ -520,12 +585,58 @@ func addSubnetValidators(
 			}
 			zap.L().Info("added the node as a subnet validator",
 				zap.String("subnet-id", subnetID.String()),
-				zap.String("node-id", validatorID.String()),
+				zap.String("node-name", nodeName),
+				zap.String("node-id", nodeID.String()),
 				zap.String("tx-id", txID.String()),
 			)
 		}
 	}
 	return nil
+}
+
+// waits until all nodes in [nodeInfos] start validating the given [subnetIDs]
+func waitSubnetValidators(
+	ctx context.Context,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+	platformCli platformvm.Client,
+	subnetIDs []ids.ID,
+	stopCh chan struct{},
+) error {
+	color.Outf("{{green}}waiting for the nodes to become subnet validators{{/}}\n")
+	for {
+		ready := true
+		for _, subnetID := range subnetIDs {
+			cctx, cancel := createDefaultCtx(ctx)
+			vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
+			cancel()
+			if err != nil {
+				return err
+			}
+			subnetValidators := ids.NodeIDSet{}
+			for _, v := range vs {
+				subnetValidators.Add(v.NodeID)
+			}
+			for _, nodeInfo := range nodeInfos {
+				nodeID, err := ids.NodeIDFromString(nodeInfo.Id)
+				if err != nil {
+					return err
+				}
+				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
+					ready = false
+				}
+			}
+		}
+		if ready {
+			return nil
+		}
+		select {
+		case <-stopCh:
+			return errAborted
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(waitForValidatorsPullFrequency):
+		}
+	}
 }
 
 func createBlockchains(

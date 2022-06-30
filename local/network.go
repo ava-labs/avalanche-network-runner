@@ -46,6 +46,8 @@ const (
 	rootDirPrefix         = "network-runner-root-data"
 	defaultDbSubdir       = "db"
 	defaultLogsSubdir     = "logs"
+	// difference between unlock schedule locktime and startime in original genesis
+	genesisLocktimeStartimeDelta = 2836800
 )
 
 // interface compliance
@@ -121,7 +123,44 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	defaultNetworkConfig.Genesis = string(genesis)
+
+	// update genesis validation start time
+	var genesisMap map[string]interface{}
+	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
+		panic(err)
+	}
+	startTime := time.Now().Unix()
+	lockTime := startTime + genesisLocktimeStartimeDelta
+	genesisMap["startTime"] = float64(startTime)
+	allocations, ok := genesisMap["allocations"].([]interface{})
+	if !ok {
+		panic(errors.New("could not get allocations in genesis"))
+	}
+	for _, allocIntf := range allocations {
+		alloc, ok := allocIntf.(map[string]interface{})
+		if !ok {
+			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
+		}
+		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
+		if !ok {
+			panic(errors.New("could not get unlockSchedule in allocation"))
+		}
+		for _, schedIntf := range unlockSchedule {
+			sched, ok := schedIntf.(map[string]interface{})
+			if !ok {
+				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
+			}
+			if _, ok := sched["locktime"]; ok {
+				sched["locktime"] = float64(lockTime)
+			}
+		}
+	}
+	updatedGenesis, err := json.Marshal(genesisMap)
+	if err != nil {
+		panic(err)
+	}
+
+	defaultNetworkConfig.Genesis = string(updatedGenesis)
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
 		configFile, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
