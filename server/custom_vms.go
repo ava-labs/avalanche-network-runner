@@ -30,6 +30,8 @@ import (
 const (
 	validationDuration     = 365 * 24 * time.Hour
 	subnetValidatorsWeight = 1000
+	// check period for blockchain logs while waiting for custom VMs to be ready
+	blockchainLogPullFrequency = time.Second
 )
 
 var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
@@ -304,7 +306,7 @@ func (lc *localNetwork) waitForCustomVMsReady(
 					return errAborted
 				case <-ctx.Done():
 					return ctx.Err()
-				case <-time.After(1 * time.Second):
+				case <-time.After(blockchainLogPullFrequency):
 				}
 			}
 		}
@@ -367,7 +369,6 @@ func addPrimaryValidators(
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) error {
-	fmt.Println()
 	color.Outf("{{green}}adding the nodes as primary network validators{{/}}\n")
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
@@ -520,7 +521,6 @@ func addSubnetValidators(
 	baseWallet *refreshableWallet,
 	subnetIDs []ids.ID,
 ) error {
-	fmt.Println()
 	color.Outf("{{green}}adding the nodes as subnet validators{{/}}\n")
 	for _, subnetID := range subnetIDs {
 		cctx, cancel := createDefaultCtx(ctx)
@@ -588,7 +588,6 @@ func waitSubnetValidators(
 	subnetIDs []ids.ID,
 	stopCh chan struct{},
 ) error {
-	fmt.Println()
 	color.Outf("{{green}}waiting for the nodes to become subnet validators{{/}}\n")
 	for {
 		notReady := false
