@@ -555,38 +555,40 @@ func addSubnetValidators(
 				return err
 			}
 			isValidator := subnetValidators.Contains(nodeID)
-			if !isValidator {
-				cctx, cancel := createDefaultCtx(ctx)
-				txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
-					&validator.SubnetValidator{
-						Validator: validator.Validator{
-							NodeID: nodeID,
-							// reasonable delay in most/slow test environments
-							Start: uint64(time.Now().Add(20 * time.Second).Unix()),
-							End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
-							Wght:  subnetValidatorsWeight,
-						},
-						Subnet: subnetID,
-					},
-					common.WithContext(cctx),
-					defaultPoll,
-				)
-				cancel()
-				if err != nil {
-					return err
-				}
-				zap.L().Info("added the node as a subnet validator",
-					zap.String("subnet-id", subnetID.String()),
-					zap.String("node-name", nodeName),
-					zap.String("node-id", nodeID.String()),
-					zap.String("tx-id", txID.String()),
-				)
+			if isValidator {
+				continue
 			}
+			cctx, cancel := createDefaultCtx(ctx)
+			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
+				&validator.SubnetValidator{
+					Validator: validator.Validator{
+						NodeID: nodeID,
+						// reasonable delay in most/slow test environments
+						Start: uint64(time.Now().Add(20 * time.Second).Unix()),
+						End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
+						Wght:  subnetValidatorsWeight,
+					},
+					Subnet: subnetID,
+				},
+				common.WithContext(cctx),
+				defaultPoll,
+			)
+			cancel()
+			if err != nil {
+				return err
+			}
+			zap.L().Info("added the node as a subnet validator",
+				zap.String("subnet-id", subnetID.String()),
+				zap.String("node-name", nodeName),
+				zap.String("node-id", nodeID.String()),
+				zap.String("tx-id", txID.String()),
+			)
 		}
 	}
 	return nil
 }
 
+// waits until all nodes in [nodeInfos] start validating the given [subnetIDs]
 func waitSubnetValidators(
 	ctx context.Context,
 	nodeInfos map[string]*rpcpb.NodeInfo,
@@ -596,7 +598,7 @@ func waitSubnetValidators(
 ) error {
 	color.Outf("{{green}}waiting for the nodes to become subnet validators{{/}}\n")
 	for {
-		notReady := false
+		ready := true
 		for _, subnetID := range subnetIDs {
 			cctx, cancel := createDefaultCtx(ctx)
 			vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
@@ -614,11 +616,11 @@ func waitSubnetValidators(
 					return err
 				}
 				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
-					notReady = true
+					ready = false
 				}
 			}
 		}
-		if !notReady {
+		if ready {
 			return nil
 		}
 		select {
