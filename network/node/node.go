@@ -40,6 +40,8 @@ type Node interface {
 	GetDbDir() string
 	// Return this node's logs dir
 	GetLogsDir() string
+	// Return this node's build dir
+	GetBuildDir() string
 	// Return this node's config file contents
 	GetConfigFile() string
 	// Return this node's config
@@ -62,7 +64,7 @@ type Config struct {
 	// May be nil.
 	ConfigFile string `json:"configFile"`
 	// May be nil.
-	CChainConfigFile string `json:"cChainConfigFile"`
+	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
 	// Flags can hold additional flags for the node.
 	// It can be empty.
 	// The precedence of flags handling is:

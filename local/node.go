@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -92,6 +93,8 @@ type localNode struct {
 	dbDir string
 	// The logs dir of the node
 	logsDir string
+	// The build dir of the node
+	buildDir string
 	// The node config
 	config node.Config
 }
@@ -225,6 +228,14 @@ func (node *localNode) GetAPIPort() uint16 {
 // See node.Node
 func (node *localNode) GetBinaryPath() string {
 	return node.config.BinaryPath
+}
+
+// See node.Node
+func (node *localNode) GetBuildDir() string {
+	if node.buildDir == "" {
+		return filepath.Dir(node.GetBinaryPath())
+	}
+	return node.buildDir
 }
 
 // See node.Node

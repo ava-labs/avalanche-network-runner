@@ -12,7 +12,10 @@ import (
 	"github.com/ava-labs/avalanchego/staking"
 )
 
-const genesisNetworkIDKey = "networkID"
+const (
+	genesisNetworkIDKey = "networkID"
+	dirTimestampFormat  = "20060102_150405"
+)
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
@@ -89,7 +92,7 @@ func VMID(vmName string) (ids.ID, error) {
 }
 
 func MkDirWithTimestamp(dirPrefix string) (string, error) {
-	currentTime := time.Now().Format(time.RFC3339)
-	dirName := dirPrefix + currentTime
+	currentTime := time.Now().Format(dirTimestampFormat)
+	dirName := dirPrefix + "_" + currentTime
 	return dirName, os.MkdirAll(dirName, os.ModePerm)
 }

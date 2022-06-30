@@ -509,29 +509,16 @@ func (lc *localNetwork) updateNodeInfo() error {
 		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
 			return err
 		}
-		buildDirIntf, ok := configFileMap[config.BuildDirKey]
-		if ok {
-			buildDir, ok := buildDirIntf.(string)
-			if ok {
-				if buildDir != "" {
-					pluginDir = filepath.Join(buildDir, "plugins")
-				}
-			} else {
-				return fmt.Errorf("unexpected type for %q expected string got %T", config.BuildDirKey, buildDirIntf)
-			}
-		}
-		if pluginDir == "" {
-			buildDir := filepath.Dir(node.GetBinaryPath())
-			if buildDir != "" {
-				pluginDir = filepath.Join(buildDir, "plugins")
-			}
-		}
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
 		if ok {
 			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
 			if !ok {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
 			}
+		}
+		buildDir := node.GetBuildDir()
+		if buildDir != "" {
+			pluginDir = filepath.Join(buildDir, "plugins")
 		}
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
