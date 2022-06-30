@@ -46,6 +46,8 @@ const (
 	rootDirPrefix         = "avalanche-network-runner-"
 	defaultDbSubdir       = "db"
 	defaultLogsSubdir     = "logs"
+	// difference between unlock schedule locktime and startime in original genesis
+	genesisLocktimeStartimeDelta = 2836800
 )
 
 // interface compliance
@@ -129,7 +131,7 @@ func init() {
 		panic(err)
 	}
 	startTime := time.Now().Unix()
-	lockTime := startTime + 2836800
+	lockTime := startTime + genesisLocktimeStartimeDelta
 	genesisMap["startTime"] = float64(startTime)
 	allocations, ok := genesisMap["allocations"].([]interface{})
 	if !ok {
