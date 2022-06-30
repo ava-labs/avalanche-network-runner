@@ -362,6 +362,9 @@ func setupWallet(
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
+// add the nodes in [nodeInfos] as validators of the primary network, in case they are not
+// the validation starts as soon as possible and its duration is as long as possible, that is,
+// it is set to max accepted duration by avalanchego
 func addPrimaryValidators(
 	ctx context.Context,
 	nodeInfos map[string]*rpcpb.NodeInfo,
@@ -514,6 +517,9 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 	return nil
 }
 
+// add the nodes in [nodeInfos] as validators of the given subnets, in case they are not
+// the validation starts as soon as possible and its duration is as long as possible, that is,
+// it ends at the time the primary network validation ends for the node
 func addSubnetValidators(
 	ctx context.Context,
 	nodeInfos map[string]*rpcpb.NodeInfo,
