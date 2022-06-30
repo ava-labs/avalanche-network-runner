@@ -28,6 +28,8 @@ import (
 )
 
 const (
+	// offset of validation start from current time
+	validationStartOffset = 20 * time.Second
 	// duration for primary network validators
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
@@ -403,7 +405,7 @@ func addPrimaryValidators(
 		txID, err := baseWallet.P().IssueAddValidatorTx(
 			&validator.Validator{
 				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(20 * time.Second).Unix()),
+				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 				End:    uint64(time.Now().Add(validationDuration).Unix()),
 				Wght:   1 * units.Avax,
 			},
@@ -568,7 +570,7 @@ func addSubnetValidators(
 					Validator: validator.Validator{
 						NodeID: nodeID,
 						// reasonable delay in most/slow test environments
-						Start: uint64(time.Now().Add(20 * time.Second).Unix()),
+						Start: uint64(time.Now().Add(validationStartOffset).Unix()),
 						End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
 						Wght:  subnetValidatorsWeight,
 					},
