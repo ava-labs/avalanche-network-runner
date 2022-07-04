@@ -81,6 +81,7 @@ var (
 	customNodeConfigs         string
 	rootDataDir               string
 	numSubnets                uint32
+	chainConfigs              string
 )
 
 func newStartCommand() *cobra.Command {
@@ -138,6 +139,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"whitelisted subnets (comma-separated)",
 	)
+	cmd.PersistentFlags().StringVar(
+		&chainConfigs,
+		"chain-configs",
+		"",
+		"[optional] JSON string of map that maps from chain id to its config file contents",
+	)
 	return cmd
 }
 
@@ -180,6 +187,14 @@ func startFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithCustomVMs(customVMs))
+	}
+
+	if chainConfigs != "" {
+		chainConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(chainConfigs), &chainConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
 	}
 
 	ctx := getAsyncContext()
@@ -486,6 +501,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"node config as string",
 	)
+	cmd.PersistentFlags().StringVar(
+		&chainConfigs,
+		"chain-configs",
+		"",
+		"[optional] JSON string of map that maps from chain id to its config file contents",
+	)
 	return cmd
 }
 
@@ -515,6 +536,14 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithCustomVMs(customVMs))
+	}
+
+	if chainConfigs != "" {
+		chainConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(chainConfigs), &chainConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
