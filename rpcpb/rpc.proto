@@ -359,6 +359,7 @@ message LoadSnapshotRequest {
   optional string exec_path = 2;
   optional string plugin_dir = 3;
   optional string root_data_dir = 4;
+  map<string, string> chain_configs = 5;
 }
 
 message LoadSnapshotResponse {

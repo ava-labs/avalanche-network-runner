@@ -301,6 +301,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	ret.applyOpts(opts)
 	req := rpcpb.LoadSnapshotRequest{
 		SnapshotName: snapshotName,
+		ChainConfigs: ret.chainConfigs,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath

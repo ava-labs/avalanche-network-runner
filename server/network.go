@@ -413,6 +413,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.snapshotsDir,
 		lc.execPath,
 		buildDir,
+		lc.options.chainConfigs,
 	)
 	if err != nil {
 		return err

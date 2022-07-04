@@ -791,6 +791,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"",
 		"root data directory to store logs and configurations",
 	)
+	cmd.PersistentFlags().StringVar(
+		&chainConfigs,
+		"chain-configs",
+		"",
+		"[optional] JSON string of map that maps from chain id to its config file contents",
+	)
 	return cmd
 }
 
@@ -805,6 +811,14 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
+	}
+
+	if chainConfigs != "" {
+		chainConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(chainConfigs), &chainConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
 	}
 
 	ctx := getAsyncContext()
