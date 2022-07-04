@@ -475,22 +475,10 @@ func newAddNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
-		"",
-		"whitelisted subnets (comma-separated)",
-	)
-	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
 		"custom-vms",
 		"",
 		"[optional] JSON string of map that maps from VM to its genesis file path",
-	)
-	cmd.PersistentFlags().StringVar(
-		&pluginDir,
-		"plugin-dir",
-		"",
-		"[optional] plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
 		&addNodeConfig,
@@ -508,9 +496,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-	}
+	opts := []client.OpOption{}
 
 	if addNodeConfig != "" {
 		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", addNodeConfig)
