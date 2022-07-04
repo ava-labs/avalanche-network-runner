@@ -16,16 +16,15 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
 
-func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.ShortID, net.Conn, error) {
+func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert)
 	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
 	// this will block until the ssh handshake is done
@@ -66,7 +65,7 @@ func verifyProtocol(
 	// send the peer our version and peerlist
 
 	// create the version message
-	myIP := avago_utils.IPDesc{
+	myIP := ips.IPPort{
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
@@ -96,7 +95,7 @@ func verifyProtocol(
 	}
 
 	// create the PeerList message
-	plMsg, err := mc.PeerList([]utils.IPCertDesc{}, true)
+	plMsg, err := mc.PeerList([]ips.ClaimedIPPort{}, true)
 	if err != nil {
 		errCh <- err
 		return
@@ -186,7 +185,7 @@ func TestAttachPeer(t *testing.T) {
 	}()
 
 	node := localNode{
-		nodeID:    ids.GenerateTestShortID(),
+		nodeID:    ids.GenerateTestNodeID(),
 		networkID: constants.MainnetID,
 		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
 			return peerConn, nil
@@ -237,7 +236,7 @@ func TestAttachPeer(t *testing.T) {
 	msg, err := mc.Chits(chainID, requestID, containerIDs)
 	assert.NoError(err)
 	// send chits to [node]
-	ok := p.Send(msg)
+	ok := p.Send(context.Background(), msg)
 	assert.True(ok)
 	// wait until the go routines are done
 	// also ensures that [assert] calls will be reflected in test results if failed

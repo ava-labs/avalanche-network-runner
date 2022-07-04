@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +19,8 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+
+	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -42,6 +43,18 @@ var (
 	gRPCGatewayEp string
 	execPath1     string
 	execPath2     string
+
+	newNodeName       = "test-add-node"
+	customNodeConfigs = map[string]string{
+		"node1": `{"api-admin-enabled":true}`,
+		"node2": `{"api-admin-enabled":true}`,
+		"node3": `{"api-admin-enabled":true}`,
+		"node4": `{"api-admin-enabled":false}`,
+		"node5": `{"api-admin-enabled":false}`,
+		"node6": `{"api-admin-enabled":false}`,
+		"node7": `{"api-admin-enabled":false}`,
+	}
+	numNodes = uint32(5)
 )
 
 func init() {
@@ -101,7 +114,7 @@ var _ = ginkgo.AfterSuite(func() {
 	gomega.Ω(err).Should(gomega.BeNil())
 })
 
-var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
+var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	ginkgo.It("can start", func() {
 		ginkgo.By("start request with invalid exec path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -144,36 +157,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 			os.RemoveAll(filePath)
 		})
 
-		ginkgo.By("start request with missing plugin dir should fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.Start(ctx, execPath1,
-				client.WithCustomVMs(map[string]string{"test": "{0}"}),
-			)
-			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirEmptyButCustomVMsNotEmpty.Error()))
-		})
-
-		ginkgo.By("start request with missing custom VMs should fail", func() {
-			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
-			gomega.Ω(err).Should(gomega.BeNil())
-			filePath := f.Name()
-			gomega.Ω(f.Close()).Should(gomega.BeNil())
-
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
-			)
-			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrPluginDirNonEmptyButCustomVMsEmpty.Error()))
-
-			os.RemoveAll(filePath)
-		})
-
 		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
 			vmID, err := utils.VMID("hello")
 			gomega.Ω(err).Should(gomega.BeNil())
 			filePath := filepath.Join(os.TempDir(), vmID.String())
-			gomega.Ω(ioutil.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
+			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
@@ -197,9 +185,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 	})
 
 	ginkgo.It("can wait for health", func() {
-		// start is async, so wait some time for cluster health
-		time.Sleep(2 * time.Minute)
-
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		_, err := cli.Health(ctx)
 		cancel()
@@ -291,6 +276,276 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(sresp.Sent).Should(gomega.BeTrue())
+		})
+	})
+
+	time.Sleep(10 * time.Second)
+	ginkgo.It("can add a node", func() {
+		ginkgo.By("calling AddNode", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+
+		ginkgo.By("calling AddNode with existing node name, should fail", func() {
+			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("repeated node name"))
+			gomega.Ω(resp).Should(gomega.BeNil())
+			color.Outf("{{green}}add-node failed as expected")
+		})
+	})
+
+	ginkgo.It("can start with custom config", func() {
+		ginkgo.By("stopping network first", func() {
+			color.Outf("{{red}}shutting down cluster{{/}}\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Stop(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+
+			color.Outf("{{red}}shutting down client{{/}}\n")
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("calling start API with custom config", func() {
+			color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			opts := []client.OpOption{
+				client.WithNumNodes(numNodes),
+				client.WithCustomNodeConfigs(customNodeConfigs),
+			}
+			resp, err := cli.Start(ctx, execPath1, opts...)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+		ginkgo.By("can wait for health", func() {
+			// start is async, so wait some time for cluster health
+			time.Sleep(30 * time.Second)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("overrides num-nodes", func() {
+			color.Outf("{{green}}checking that given num-nodes %d have been overriden by custom configs with %d:\n", numNodes, len(customNodeConfigs))
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			uris, err := cli.URIs(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(uris).Should(gomega.HaveLen(len(customNodeConfigs)))
+			color.Outf("{{green}}expected number of nodes up:{{/}} %q\n", len(customNodeConfigs))
+
+			color.Outf("{{green}}checking correct admin APIs are enabled resp. disabled")
+			// we have 7 nodes, 3 have the admin API enabled, the other 4 disabled
+			// therefore we expect exactly 4 calls to fail and exactly 3 to succeed.
+			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+			errCnt := 0
+			for i := 0; i < len(uris); i++ {
+				cli := admin.NewClient(uris[i])
+				_, err := cli.LockProfile(ctx)
+				if err != nil {
+					errCnt++
+				}
+			}
+			cancel()
+			gomega.Ω(errCnt).Should(gomega.Equal(4))
+		})
+	})
+
+	ginkgo.It("start with default network, for subsecuent steps", func() {
+		ginkgo.By("stopping network first", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Stop(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("starting", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.Start(ctx, execPath1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for health", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+	})
+
+	ginkgo.It("subnet creation", func() {
+		ginkgo.By("check subnets are 0", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(0))
+		})
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for network to be healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			var created bool
+			continueLoop := true
+			for continueLoop {
+				select {
+				case <-ctx.Done():
+					continueLoop = false
+				case <-time.After(5 * time.Second):
+					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					status, err := cli.Status(ctx)
+					cancel()
+					gomega.Ω(err).Should(gomega.BeNil())
+					created = status.ClusterInfo.CustomVmsHealthy
+					if created {
+						continueLoop = false
+					}
+				}
+			}
+			cancel()
+			gomega.Ω(created).Should(gomega.Equal(true))
+		})
+		ginkgo.By("check subnets are 1", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+		})
+	})
+
+	ginkgo.It("snapshots + blockchain creation", func() {
+		var originalUris []string
+		var originalSubnets []string
+		ginkgo.By("get original URIs", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			var err error
+			originalUris, err = cli.URIs(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(originalUris)).Should(gomega.Equal(5))
+		})
+		ginkgo.By("get original subnets", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+			originalSubnets = status.ClusterInfo.Subnets
+		})
+		ginkgo.By("check there are no snapshots", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(snapshotNames).Should(gomega.Equal([]string(nil)))
+		})
+		ginkgo.By("can save snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.SaveSnapshot(ctx, "pepe")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait fail for stopped network", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("not bootstrapped"))
+		})
+		ginkgo.By("load fail for unknown snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.LoadSnapshot(ctx, "papa")
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot \"papa\" does not exists"))
+		})
+		ginkgo.By("can load snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.LoadSnapshot(ctx, "pepe")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for network to be healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			var created bool
+			continueLoop := true
+			for continueLoop {
+				select {
+				case <-ctx.Done():
+					continueLoop = false
+				case <-time.After(5 * time.Second):
+					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					status, err := cli.Status(ctx)
+					cancel()
+					gomega.Ω(err).Should(gomega.BeNil())
+					created = status.ClusterInfo.CustomVmsHealthy
+					if created {
+						continueLoop = false
+					}
+				}
+			}
+			cancel()
+			gomega.Ω(created).Should(gomega.Equal(true))
+		})
+		ginkgo.By("check URIs", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			var err error
+			uris, err := cli.URIs(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(uris).Should(gomega.Equal(originalUris))
+		})
+		ginkgo.By("check subnets", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(status.ClusterInfo.Subnets).Should(gomega.Equal(originalSubnets))
+		})
+		ginkgo.By("save fail for already saved snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.SaveSnapshot(ctx, "pepe")
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot \"pepe\" already exists"))
+		})
+		ginkgo.By("check there is a snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(snapshotNames).Should(gomega.Equal([]string{"pepe"}))
+		})
+		ginkgo.By("can remove snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.RemoveSnapshot(ctx, "pepe")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("check there are no snapshots", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(snapshotNames).Should(gomega.Equal([]string(nil)))
+		})
+		ginkgo.By("remove fail for unknown snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.RemoveSnapshot(ctx, "pepe")
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot \"pepe\" does not exists"))
 		})
 	})
 })

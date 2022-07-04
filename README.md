@@ -81,6 +81,8 @@ avalanche-network-runner server \
 --log-level debug \
 --port=":8080" \
 --grpc-gateway-port=":8081"
+
+# set "--disable-grpc-gateway" to disable gRPC gateway
 ```
 
 Note that the above command will run until you stop it with `CTRL + C`. You should run further commands in a separate terminal.
@@ -109,8 +111,49 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALA
 avalanche-network-runner control start \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
+--number-of-nodes=5 \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
+
+Additional optional parameters which can be passed to the start command:
+
+```bash
+  --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
+	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+	--global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+	--custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
+```
+
+`--plugin-dir` and `--custom-vms` are parameters relevant to subnet operation.
+See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
+
+The network-runner supports avalanchego node configuration at different levels.
+1. If neither `--global-node-config` nor `--custom-node-configs` is supplied, all nodes get a standard set of config options. Currently this set contains:
+    ```json
+        {
+        "network-peer-list-gossip-frequency":"250ms",
+        "network-max-reconnect-delay":"1s",
+        "public-ip":"127.0.0.1",
+        "health-check-frequency":"2s",
+        "api-admin-enabled":true,
+        "api-ipcs-enabled":true,
+        "index-enabled":true
+        }
+    ```
+2. `--global-node-config` is a JSON string representing a *single* avalanchego config, which will be applied to **all nodes**. This makes it easy to define common properties to all nodes. Whatever is set here will be *combined* with the standard set above.
+3. `--custom-node-configs` is a map of JSON strings representing the *complete* network with individual configs. This allows to configure each node independently. If set, `--number-of-nodes` will be **ignored** to avoid conflicts.
+4. The configs can be combined and will be merged, i.e. one could set global `--global-node-config` entries applied to each node, and also set `--custom-node-configs` for additional entries.
+5. Common `--custom-node-configs` entries override `--global-node-config` entries which override the standard set.
+6. The following entries will be **ignored in all cases** because the network-runner needs to set them internally to function properly:
+    ```
+      --log-dir
+      --db-dir
+      --http-port
+      --staking-port
+      --public-ip
+    ```
+
+**NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101` 
 
 To wait for all the nodes in the cluster to become healthy:
 
@@ -156,6 +199,79 @@ stream-status \
 --endpoint="0.0.0.0:8080"
 ```
 
+To save the network to a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control save-snapshot snapshotName
+```
+
+To load a network from a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName
+```
+
+An avalanchego binary path and/or plugin dir can be specified when loading the snapshot. This is
+optional. If not specified, will use the paths saved with the snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5","execPath":"'${AVALANCHEGO_EXEC_PATH}'","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName --avalanchego-path ${AVALANCHEGO_EXEC_PATH} --plugin-dir ${AVALANCHEGO_PLUGIN_PATH}
+```
+
+To get the list of snapshots:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/getsnapshotnames
+
+# or
+avalanche-network-runner control get-snapshot-names
+```
+
+To remove a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control remove-snapshot snapshotName
+```
+
+To create N validated subnets (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"num_subnets":5}'
+
+# or
+avalanche-network-runner control create-subnets 5
+```
+
+To create a blockchain without a subnet id (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
+```
+
+To create a blockchain with a subnet id (does not require restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
+```
+
 To remove (stop) a node:
 
 ```bash
@@ -187,6 +303,46 @@ avalanche-network-runner control restart-node \
 --node-name node1 \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
+
+To add a node (in this case, a new node named `node99`):
+
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+# Note that you can add the new node with a different binary by providing
+# a different execPath
+curl -X POST -k http://localhost:8081/v1/control/addnode -d '{"name":"node99","execPath":"'${AVALANCHEGO_EXEC_PATH}'","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control add-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node99 \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+```
+
+You can also provide additional flags that specify the node's config, and what custom VMs it supports:
+
+```
+	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+```
+
+`--node-config` allows to specify specific avalanchego config parameters to the new node.
+See [here](https://docs.avax.network/build/references/avalanchego-config-flags) for the reference of supported flags.
+
+**Note**: The following parameters will be *ignored* if set in `--node-config`, because the network runner needs to set its own in order to function properly:
+`--log-dir`
+`--db-dir`
+
+`--custom-vms` allows to configure custom VMs supported by this node.
+See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
+
+**Note**: The following subnet parameters will be set from the global network configuration to this node:
+`--whitelisted-subnets`
+`--plugin-dir`
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
 (See [here](https://github.com/ava-labs/avalanchego/blob/master/network/peer/test_peer.go) for more information.)
@@ -443,32 +599,39 @@ A node config is defined by this struct:
 
 ```go
 type Config struct {
-  // Configuration specific to a particular implementation of a node.
-  ImplSpecificConfig interface{}
   // A node's name must be unique from all other nodes
   // in a network. If Name is the empty string, a
   // unique name is assigned on node creation.
-  Name string
+  Name string `json:"name"`
   // True if other nodes should use this node
   // as a bootstrap beacon.
-  IsBeacon bool
-  // Must not be nil
-  StakingKey []byte
-  // Must not be nil
-  StakingCert []byte
+  IsBeacon bool `json:"isBeacon"`
+  // Must not be nil.
+  StakingKey string `json:"stakingKey"`
+  // Must not be nil.
+  StakingCert string `json:"stakingCert"`
   // May be nil.
-  ConfigFile []byte
+  ConfigFile string `json:"configFile"`
   // May be nil.
-  CChainConfigFile []byte
+  ChainConfigFiles map[string]string `json:"chainConfigFiles"`
+  // Flags can hold additional flags for the node.
+  // It can be empty.
+  // The precedence of flags handling is:
+  // 1. Flags defined in node.Config (this struct) override
+  // 2. Flags defined in network.Config override
+  // 3. Flags defined in the json config file
+  Flags map[string]interface{} `json:"flags"`
+  // What type of node this is
+  BinaryPath string `json:"binaryPath"`
+  // If non-nil, direct this node's Stdout to os.Stdout
+  RedirectStdout bool `json:"redirectStdout"`
+  // If non-nil, direct this node's Stderr to os.Stderr
+  RedirectStderr bool `json:"redirectStderr"`
 }
 ```
 
 As you can see, some fields of the config must be set, while others will be auto-generated if not provided.
 Bootstrap IPs/ IDs will be overwritten even if provided.
-
-A node's configuration may include fields that are specific to the type of network runner being used (see `ImplSpecificConfig` in the struct above.)
-For example, a node running in a Kubernetes cluster has a config field that specifies the Docker image that the node runs,
-whereas a node running locally has a config field that specifies the path of the binary that the node runs.
 
 ## Genesis Generation
 
@@ -494,25 +657,28 @@ Later on the genesis contents can be used in network creation.
 
 ## Network Creation
 
-Each network runner implementation (local/Kubernetes) has a function `NewNetwork` that returns a new network,
-parameterized on `network.Config`:
+Th function `NewNetwork` returns a new network, parameterized on `network.Config`:
 
 ```go
 type Config struct {
-  // Configuration specific to a particular implementation of a network.
-  ImplSpecificConfig interface{}
-  // Must not be nil
-  Genesis []byte
+  // Must not be empty
+  Genesis string `json:"genesis"`
   // May have length 0
   // (i.e. network may have no nodes on creation.)
-  NodeConfigs []node.Config
-  // Log level for the whole network
-  LogLevel string
-  // Name for the network
-  Name string
-  // How many nodes in the network.
-  // TODO move to k8s package?
-  NodeCount int
+  NodeConfigs []node.Config `json:"nodeConfigs"`
+  // Flags that will be passed to each node in this network.
+  // It can be empty.
+  // Config flags may also be passed in a node's config struct
+  // or config file.
+  // The precedence of flags handling is, from highest to lowest:
+  // 1. Flags defined in a node's node.Config
+  // 2. Flags defined in a network's network.Config
+  // 3. Flags defined in a node's config file
+  // For example, if a network.Config has flag W set to X,
+  // and a node within that network has flag W set to Y,
+  // and the node's config file has flag W set to Z,
+  // then the node will be started with flag W set to Y.
+  Flags map[string]interface{} `json:"flags"`
 }
 ```
 
@@ -520,7 +686,7 @@ The function that returns a new network may have additional configuration fields
 
 ## Default Network Creation
 
-The local network runner implementation includes a helper function `NewDefaultNetwork`, which returns a network using a pre-defined configuration.
+The helper function `NewDefaultNetwork` returns a network using a pre-defined configuration.
 This allows users to create a new network without needing to define any configurations.
 
 ```go
@@ -551,6 +717,24 @@ func NewDefaultNetwork(
 
 The associated pre-defined configuration is also available to users by calling `NewDefaultConfig` function.
 
+## Network Snapshots
+
+A given network state, including the node ports and the full blockchain state, can be saved to a named snapshot. 
+The network can then be restarted from such a snapshot any time later.
+
+```
+// Save network snapshot
+// Network is stopped in order to do a safe persistence
+// Returns the full local path to the snapshot dir
+SaveSnapshot(context.Context, string) (string, error)
+// Remove network snapshot
+RemoveSnapshot(string) error
+// Get names of all available snapshots
+GetSnapshotNames() ([]string, error)
+```
+
+To create a new network from a snapshot, the function `NewNetworkFromSnapshot` is provided.
+
 ## Network Interaction
 
 The network runner allows users to interact with an AvalancheGo network using the `network.Network` interface:
@@ -558,46 +742,71 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-  // Returns a chan that is closed when
-  // all the nodes in the network are healthy.
-  // If an error is sent on this channel, at least 1
-  // node didn't become healthy before the timeout.
-  // If an error isn't sent on the channel before it
-  // closes, all the nodes are healthy.
-  // A stopped network is considered unhealthy.
-  // Timeout is given by the context parameter.
-  // [ctx] must eventually be cancelled -- if it isn't, a goroutine is leaked.
-  Healthy(context.Context) chan error
-  // Stop all the nodes.
-  // Returns ErrStopped if Stop() was previously called.
-  Stop(context.Context) error
-  // Start a new node with the given config.
-  // Returns ErrStopped if Stop() was previously called.
-  AddNode(node.Config) (node.Node, error)
-  // Stop the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  RemoveNode(name string) error
-  // Return the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNode(name string) (node.Node, error)
-  // Returns the names of all nodes in this network.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNodeNames() ([]string, error)
-  // TODO add methods
+	// Returns nil if all the nodes in the network are healthy.
+	// A stopped network is considered unhealthy.
+	// Timeout is given by the context parameter.
+	Healthy(context.Context) error
+	// Stop all the nodes.
+	// Returns ErrStopped if Stop() was previously called.
+	Stop(context.Context) error
+	// Start a new node with the given config.
+	// Returns ErrStopped if Stop() was previously called.
+	AddNode(node.Config) (node.Node, error)
+	// Stop the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	RemoveNode(name string) error
+	// Return the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNode(name string) (node.Node, error)
+	// Return all the nodes in this network.
+	// Node name --> Node.
+	// Returns ErrStopped if Stop() was previously called.
+	GetAllNodes() (map[string]node.Node, error)
+	// Returns the names of all nodes in this network.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNodeNames() ([]string, error)
+	// Save network snapshot
+	// Network is stopped in order to do a safe preservation
+    // Returns the full local path to the snapshot dir
+	SaveSnapshot(context.Context, string) (string, error)
+	// Remove network snapshot
+	RemoveSnapshot(string) error
+	// Get name of available snapshots
+	GetSnapshotNames() ([]string, error)
 }
 ```
 
 and allows users to interact with a node using the `node.Node` interface:
 
 ```go
-// An AvalancheGo node
+// Node represents an AvalancheGo node
 type Node interface {
-    // Return this node's name, which is unique
-    // across all the nodes in its network.
-    GetName() string
-    // Return this node's Avalanche node ID.
-    GetNodeID() ids.ShortID
-    // Return a client that can be used to make API calls.
-    GetAPIClient() api.Client
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
+	// Return this node's Avalanche node ID.
+	GetNodeID() ids.ShortID
+	// Return a client that can be used to make API calls.
+	GetAPIClient() api.Client
+	// Return this node's IP (e.g. 127.0.0.1).
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTTP API port.
+	GetAPIPort() uint16
+	// Starts a new test peer, connects it to the given node, and returns the peer.
+	// [handler] defines how the test peer handles messages it receives.
+	// The test peer can be used to send messages to the node it's attached to.
+	// It's left to the caller to maintain a reference to the returned peer.
+	// The caller should call StartClose() on the peer when they're done with it.
+	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
+	// Return this node's avalanchego binary path
+	GetBinaryPath() string
+	// Return this node's db dir
+	GetDbDir() string
+	// Return this node's logs dir
+	GetLogsDir() string
+	// Return this node's config file contents
+	GetConfigFile() string
 }
 ```

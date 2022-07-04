@@ -12,7 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
 )
 
@@ -35,40 +35,6 @@ type AddrAndBalance struct {
 	Balance uint64
 }
 
-// Backend is the type of network runner to use
-type Backend byte
-
-const (
-	// Local network runner
-	Local Backend = iota + 1
-	// Kubernetes network runner
-	Kubernetes
-)
-
-func (b Backend) MarshalJSON() ([]byte, error) {
-	switch b {
-	case Local:
-		return []byte("\"local\""), nil
-	case Kubernetes:
-		return []byte("\"k8s\""), nil
-	default:
-		return nil, fmt.Errorf("got unexpected backend %v", b)
-	}
-}
-
-func (b *Backend) UnmarshalJSON(bytes []byte) error {
-	switch string(bytes) {
-	case "\"local\"":
-		*b = Local
-		return nil
-	case "\"k8s\"":
-		*b = Kubernetes
-		return nil
-	default:
-		return fmt.Errorf("got unexpected backend %s", string(bytes))
-	}
-}
-
 // Config that defines a network when it is created.
 type Config struct {
 	// Must not be empty
@@ -76,12 +42,6 @@ type Config struct {
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config `json:"nodeConfigs"`
-	// Log level for the whole network
-	LogLevel string `json:"logLevel"`
-	// Name for the network
-	Name string `json:"name"`
-	// Backend specifies the backend for the network
-	Backend Backend `json:"backend"`
 	// Flags that will be passed to each node in this network.
 	// It can be empty.
 	// Config flags may also be passed in a node's config struct
@@ -138,7 +98,7 @@ func NewAvalancheGoGenesis(
 	networkID uint32,
 	xChainBalances []AddrAndBalance,
 	cChainBalances []AddrAndBalance,
-	genesisVdrs []ids.ShortID,
+	genesisVdrs []ids.NodeID,
 ) ([]byte, error) {
 	switch networkID {
 	case constants.TestnetID, constants.MainnetID, constants.LocalID:
@@ -152,7 +112,11 @@ func NewAvalancheGoGenesis(
 	}
 
 	// Address that controls stake doesn't matter -- generate it randomly
-	genesisVdrStakeAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
+	genesisVdrStakeAddr, _ := address.Format(
+		"X",
+		constants.GetHRP(networkID),
+		ids.GenerateTestShortID().Bytes(),
+	)
 	config := genesis.UnparsedConfig{
 		NetworkID: networkID,
 		Allocations: []genesis.UnparsedAllocation{
@@ -175,7 +139,7 @@ func NewAvalancheGoGenesis(
 	}
 
 	for _, xChainBal := range xChainBalances {
-		xChainAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), xChainBal.Addr[:])
+		xChainAddr, _ := address.Format("X", constants.GetHRP(networkID), xChainBal.Addr[:])
 		config.Allocations = append(
 			config.Allocations,
 			genesis.UnparsedAllocation{
@@ -212,12 +176,12 @@ func NewAvalancheGoGenesis(
 
 	// Set initial validators.
 	// Give staking rewards to random address.
-	rewardAddr, _ := formatting.FormatAddress("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
+	rewardAddr, _ := address.Format("X", constants.GetHRP(networkID), ids.GenerateTestShortID().Bytes())
 	for _, genesisVdr := range genesisVdrs {
 		config.InitialStakers = append(
 			config.InitialStakers,
 			genesis.UnparsedStaker{
-				NodeID:        genesisVdr.PrefixedString(constants.NodeIDPrefix),
+				NodeID:        genesisVdr,
 				RewardAddress: rewardAddr,
 				DelegationFee: 10_000,
 			},

@@ -17,7 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 )
 
-const defaultTimeout = 30 * time.Second
+const defaultTimeout = time.Minute
 
 func createDefaultCtx(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
@@ -44,7 +44,12 @@ type refreshableWallet struct {
 // Creates a new wallet to work around the case where the new wallet object
 // is not able to find previous transactions in the cache.
 // TODO: support tx backfilling in upstream wallet SDK.
-func createRefreshableWallet(ctx context.Context, httpRPCEp string, kc *secp256k1fx.Keychain) (*refreshableWallet, error) {
+func createRefreshableWallet(
+	ctx context.Context,
+	httpRPCEp string,
+	kc *secp256k1fx.Keychain,
+	pTXs map[ids.ID]*platformvm.Tx,
+) (*refreshableWallet, error) {
 	cctx, cancel := createDefaultCtx(ctx)
 	pCTX, xCTX, utxos, err := primary.FetchState(cctx, httpRPCEp, kc.Addrs)
 	cancel()
@@ -53,7 +58,6 @@ func createRefreshableWallet(ctx context.Context, httpRPCEp string, kc *secp256k
 	}
 
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
-	pTXs := make(map[ids.ID]*platformvm.Tx)
 	pBackend := p.NewBackend(pCTX, pUTXOs, pTXs)
 	pBuilder := p.NewBuilder(kc.Addrs, pBackend)
 	pSigner := p.NewSigner(kc, pBackend)

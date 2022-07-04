@@ -4,12 +4,13 @@
 package utils
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestUpdateJSONKey(t *testing.T) {
+func TestSetJSONKey(t *testing.T) {
 	b := `{
 		"network-peer-list-gossip-frequency":"250ms",
 		"network-max-reconnect-delay":"1s",
@@ -22,10 +23,22 @@ func TestUpdateJSONKey(t *testing.T) {
 		"log-level":"INFO",
 		"log-dir":"INFO",
 		"db-dir":"INFO",
-		"plugin-dir":"INFO",
-		"whitelisted-subnets":"a,b,c"
+		"whitelisted-subnets":"a,b,c",
+		"plugin-dir":"INFO"
 	}`
-	s, err := UpdateJSONKey(b, "whitelisted-subnets", "d,e,f")
+	s, err := SetJSONKey(b, "whitelisted-subnets", "d,e,f")
 	assert.NoError(t, err)
 	assert.Contains(t, s, `"whitelisted-subnets":"d,e,f"`)
+	// now check it's actual correct JSON
+	var m map[string]interface{}
+	err = json.Unmarshal([]byte(s), &m)
+	assert.NoError(t, err)
+	// check if one-liner also works
+	bb := `{"api-admin-enabled":true,"api-ipcs-enabled":true,"db-dir":"/tmp/network-runner-root-data3856302950/node5/db-dir","health-check-frequency":"2s","index-enabled":true,"log-dir":"/tmp/network-runner-root-data3856302950/node5/log","log-display-level":"INFO","log-level":"INFO","network-max-reconnect-delay":"1s","network-peer-list-gossip-frequency":"250ms","plugin-dir":"/home/fabio/go/src/github.com/ava-labs/avalanchego/build/plugins","public-ip":"127.0.0.1","whitelisted-subnets":""}`
+	ss, err := SetJSONKey(bb, "whitelisted-subnets", "d,e,f")
+	assert.NoError(t, err)
+	assert.Contains(t, s, `"whitelisted-subnets":"d,e,f"`)
+	// also check here it's correct JSON
+	err = json.Unmarshal([]byte(ss), &m)
+	assert.NoError(t, err)
 }
