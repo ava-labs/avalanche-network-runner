@@ -855,8 +855,11 @@ func (ln *localNetwork) loadSnapshot(
 		}
 	}
 	// add chain configs
-	for k, v := range chainConfigs {
-		for i := range networkConfig.NodeConfigs {
+	for i := range networkConfig.NodeConfigs {
+		if networkConfig.NodeConfigs[i].ChainConfigFiles == nil {
+			networkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{}
+		}
+		for k, v := range chainConfigs {
 			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 	}

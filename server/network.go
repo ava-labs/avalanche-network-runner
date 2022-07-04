@@ -163,9 +163,6 @@ func (lc *localNetwork) createConfig() error {
 		lc.nodeNames = append(lc.nodeNames, nodeName)
 		cfg.NodeConfigs[i].Name = nodeName
 
-		if cfg.NodeConfigs[i].ChainConfigFiles == nil {
-			cfg.NodeConfigs[i].ChainConfigFiles = map[string]string{}
-		}
 		for k, v := range lc.options.chainConfigs {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
