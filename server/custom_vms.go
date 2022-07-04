@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
@@ -132,6 +133,10 @@ func (lc *localNetwork) installCustomVMs(
 	clientURI = lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli = platformvm.NewClient(clientURI)
 	if err = addSubnetValidators(ctx, lc.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+		return nil, err
+	}
+
+	if err := reloadVMPlugins(ctx, lc.nodeInfos); err != nil {
 		return nil, err
 	}
 
@@ -637,6 +642,28 @@ func waitSubnetValidators(
 		case <-time.After(waitForValidatorsPullFrequency):
 		}
 	}
+}
+
+// reload VM plugins on all nodes
+func reloadVMPlugins(
+	ctx context.Context,
+	nodeInfos map[string]*rpcpb.NodeInfo,
+) error {
+	color.Outf("{{green}}reloading plugin binaries{{/}}\n")
+	for _, nodeInfo := range nodeInfos {
+		uri := nodeInfo.Uri
+		adminCli := admin.NewClient(uri)
+		cctx, cancel := createDefaultCtx(ctx)
+		_, failedVMs, err := adminCli.LoadVMs(cctx)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if len(failedVMs) > 0 {
+			return fmt.Errorf("%d VMs failed to load: %v\n", len(failedVMs), failedVMs)
+		}
+	}
+	return nil
 }
 
 func createBlockchains(
