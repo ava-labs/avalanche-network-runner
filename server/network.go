@@ -166,10 +166,8 @@ func (lc *localNetwork) createConfig() error {
 		if cfg.NodeConfigs[i].ChainConfigFiles == nil {
 			cfg.NodeConfigs[i].ChainConfigFiles = map[string]string{}
 		}
-		if lc.options.chainConfigs != nil {
-			for k, v := range lc.options.chainConfigs {
-				cfg.NodeConfigs[i].ChainConfigFiles[k] = v
-			}
+		for k, v := range lc.options.chainConfigs {
+			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 
 		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
