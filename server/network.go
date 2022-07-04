@@ -75,6 +75,8 @@ type localNetwork struct {
 
 	subnets []string
 
+	// default chain configs to be used when adding new nodes to the network
+	// includes the ones received in options, plus default config or snapshot
 	chainConfigs map[string]string
 }
 
@@ -94,7 +96,9 @@ type localNetworkOptions struct {
 
 	pluginDir         string
 	customNodeConfigs map[string]string
-	chainConfigs      map[string]string
+
+	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
+	chainConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
