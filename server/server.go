@@ -341,7 +341,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		pluginDir:           pluginDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
-		chainConfigs:       req.ChainConfigs,
+		chainConfigs:        req.ChainConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -766,13 +766,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
 	nodeConfig := node.Config{
-		Name:           req.Name,
-		ConfigFile:     configFile,
-		StakingKey:     string(stakingKey),
-		StakingCert:    string(stakingCert),
-		BinaryPath:     execPath,
-		RedirectStdout: s.cfg.RedirectNodesOutput,
-		RedirectStderr: s.cfg.RedirectNodesOutput,
+		Name:             req.Name,
+		ConfigFile:       configFile,
+		StakingKey:       string(stakingKey),
+		StakingCert:      string(stakingCert),
+		BinaryPath:       execPath,
+		RedirectStdout:   s.cfg.RedirectNodesOutput,
+		RedirectStderr:   s.cfg.RedirectNodesOutput,
 		ChainConfigFiles: req.StartRequest.ChainConfigs,
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)

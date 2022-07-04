@@ -345,7 +345,7 @@ type Op struct {
 	customVMs          map[string]string
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
-	chainConfigs map[string]string
+	chainConfigs       map[string]string
 }
 
 type OpOption func(*Op)
@@ -403,6 +403,8 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 func WithChainConfigs(chainConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.chainConfigs = chainConfigs
+	}
+}
 
 // Map from node name to its custom node config
 func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {

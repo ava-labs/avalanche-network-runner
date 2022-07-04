@@ -92,7 +92,7 @@ type localNetworkOptions struct {
 
 	pluginDir         string
 	customNodeConfigs map[string]string
-	chainConfigs map[string]string
+	chainConfigs      map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
@@ -160,7 +160,7 @@ func (lc *localNetwork) createConfig() error {
 
 		lc.nodeNames = append(lc.nodeNames, nodeName)
 		cfg.NodeConfigs[i].Name = nodeName
-        cfg.NodeConfigs[i].ChainConfigFiles = opts.chainConfigs
+		cfg.NodeConfigs[i].ChainConfigFiles = lc.options.chainConfigs
 
 		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
 		if err != nil {

@@ -475,10 +475,22 @@ func newAddNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"whitelisted subnets (comma-separated)",
+	)
+	cmd.PersistentFlags().StringVar(
 		&customVMNameToGenesisPath,
 		"custom-vms",
 		"",
 		"[optional] JSON string of map that maps from VM to its genesis file path",
+	)
+	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"[optional] plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
 		&addNodeConfig,
@@ -496,7 +508,9 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{}
+	opts := []client.OpOption{
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+	}
 
 	if addNodeConfig != "" {
 		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", addNodeConfig)
@@ -524,72 +538,6 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		avalancheGoBinPath,
 		opts...,
 	)
-	cancel()
-	if err != nil {
-		return err
-	}
-
-	color.Outf("{{green}}add node response:{{/}} %+v\n", info)
-	return nil
-}
-
-func newAddNodeCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add-node [options]",
-		Short: "Add a new node to the network",
-		RunE:  addNodeFunc,
-	}
-	cmd.PersistentFlags().StringVar(
-		&nodeName,
-		"node-name",
-		"",
-		"node name to add",
-	)
-	cmd.PersistentFlags().StringVar(
-		&avalancheGoBinPath,
-		"avalanchego-path",
-		"",
-		"avalanchego binary path",
-	)
-	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
-		"whitelisted-subnets",
-		"",
-		"whitelisted subnets (comma-separated)",
-	)
-	cmd.PersistentFlags().StringVar(
-		&logLevel,
-		"log-level",
-		"",
-		"log level",
-	)
-	cmd.PersistentFlags().StringVar(
-		&pluginDir,
-		"plugin-dir",
-		"",
-		"[optional] plugin directory",
-	)
-	return cmd
-}
-
-func addNodeFunc(cmd *cobra.Command, args []string) error {
-	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
-		Endpoint:    endpoint,
-		DialTimeout: dialTimeout,
-	})
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	info, err := cli.AddNode(
-		ctx,
-		nodeName,
-		avalancheGoBinPath,
-		client.WithWhitelistedSubnets(whitelistedSubnets),
-		client.WithLogLevel(logLevel))
 	cancel()
 	if err != nil {
 		return err
