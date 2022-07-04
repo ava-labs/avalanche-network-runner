@@ -74,6 +74,8 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
+
+	chainConfigs map[string]string
 }
 
 type vmInfo struct {
@@ -549,6 +551,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 		}
 		if lc.pluginDir == "" {
 			lc.pluginDir = pluginDir
+		}
+		// update default chain configs if empty
+		if lc.chainConfigs == nil {
+			lc.chainConfigs = node.GetConfig().ChainConfigFiles
 		}
 
 	}

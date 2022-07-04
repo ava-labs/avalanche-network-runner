@@ -312,7 +312,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 
-	zap.L().Info("starting local network",
+	zap.L().Info("starting",
 		zap.String("execPath", execPath),
 		zap.Uint32("numNodes", numNodes),
 		zap.String("whitelistedSubnets", whitelistedSubnets),
@@ -766,14 +766,20 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
 	nodeConfig := node.Config{
-		Name:             req.Name,
-		ConfigFile:       configFile,
-		StakingKey:       string(stakingKey),
-		StakingCert:      string(stakingCert),
-		BinaryPath:       execPath,
-		RedirectStdout:   s.cfg.RedirectNodesOutput,
-		RedirectStderr:   s.cfg.RedirectNodesOutput,
-		ChainConfigFiles: req.StartRequest.ChainConfigs,
+		Name:           req.Name,
+		ConfigFile:     configFile,
+		StakingKey:     string(stakingKey),
+		StakingCert:    string(stakingCert),
+		BinaryPath:     execPath,
+		RedirectStdout: s.cfg.RedirectNodesOutput,
+		RedirectStderr: s.cfg.RedirectNodesOutput,
+	}
+	nodeConfig.ChainConfigFiles = map[string]string{}
+	for k, v := range s.network.chainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
+	}
+	for k, v := range req.StartRequest.ChainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
