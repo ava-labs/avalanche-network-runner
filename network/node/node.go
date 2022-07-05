@@ -20,14 +20,14 @@ type Node interface {
 	// across all the nodes in its network.
 	GetName() string
 	// Return this node's Avalanche node ID.
-	GetNodeID() ids.ShortID
+	GetNodeID() ids.NodeID
 	// Return a client that can be used to make API calls.
 	GetAPIClient() api.Client
 	// Return this node's IP (e.g. 127.0.0.1).
 	GetURL() string
 	// Return this node's P2P (staking) port.
 	GetP2PPort() uint16
-	// Return this node's HTP API port.
+	// Return this node's HTTP API port.
 	GetAPIPort() uint16
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.
@@ -37,6 +37,18 @@ type Node interface {
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
 	// Return the state of the node process
 	Status() status.Status
+	// Return this node's avalanchego binary path
+	GetBinaryPath() string
+	// Return this node's db dir
+	GetDbDir() string
+	// Return this node's logs dir
+	GetLogsDir() string
+	// Return this node's build dir
+	GetBuildDir() string
+	// Return this node's config file contents
+	GetConfigFile() string
+	// Return this node's config
+	GetConfig() Config
 }
 
 // Config encapsulates an avalanchego configuration
@@ -55,7 +67,7 @@ type Config struct {
 	// May be nil.
 	ConfigFile string `json:"configFile"`
 	// May be nil.
-	CChainConfigFile string `json:"cChainConfigFile"`
+	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
 	// Flags can hold additional flags for the node.
 	// It can be empty.
 	// The precedence of flags handling is:

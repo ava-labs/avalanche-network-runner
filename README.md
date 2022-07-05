@@ -199,6 +199,79 @@ stream-status \
 --endpoint="0.0.0.0:8080"
 ```
 
+To save the network to a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control save-snapshot snapshotName
+```
+
+To load a network from a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName
+```
+
+An avalanchego binary path and/or plugin dir can be specified when loading the snapshot. This is
+optional. If not specified, will use the paths saved with the snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5","execPath":"'${AVALANCHEGO_EXEC_PATH}'","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'"}'
+
+# or
+avalanche-network-runner control load-snapshot snapshotName --avalanchego-path ${AVALANCHEGO_EXEC_PATH} --plugin-dir ${AVALANCHEGO_PLUGIN_PATH}
+```
+
+To get the list of snapshots:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/getsnapshotnames
+
+# or
+avalanche-network-runner control get-snapshot-names
+```
+
+To remove a snapshot:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_name":"node5"}'
+
+# or
+avalanche-network-runner control remove-snapshot snapshotName
+```
+
+To create N validated subnets (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"num_subnets":5}'
+
+# or
+avalanche-network-runner control create-subnets 5
+```
+
+To create a blockchain without a subnet id (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
+```
+
+To create a blockchain with a subnet id (does not require restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
+```
+
 To remove (stop) a node:
 
 ```bash
@@ -540,7 +613,7 @@ type Config struct {
   // May be nil.
   ConfigFile string `json:"configFile"`
   // May be nil.
-  CChainConfigFile string `json:"cChainConfigFile"`
+  ChainConfigFiles map[string]string `json:"chainConfigFiles"`
   // Flags can hold additional flags for the node.
   // It can be empty.
   // The precedence of flags handling is:
@@ -593,10 +666,6 @@ type Config struct {
   // May have length 0
   // (i.e. network may have no nodes on creation.)
   NodeConfigs []node.Config `json:"nodeConfigs"`
-  // Log level for the whole network
-  LogLevel string `json:"logLevel"`
-  // Name for the network
-  Name string `json:"name"`
   // Flags that will be passed to each node in this network.
   // It can be empty.
   // Config flags may also be passed in a node's config struct
@@ -648,6 +717,24 @@ func NewDefaultNetwork(
 
 The associated pre-defined configuration is also available to users by calling `NewDefaultConfig` function.
 
+## Network Snapshots
+
+A given network state, including the node ports and the full blockchain state, can be saved to a named snapshot. 
+The network can then be restarted from such a snapshot any time later.
+
+```
+// Save network snapshot
+// Network is stopped in order to do a safe persistence
+// Returns the full local path to the snapshot dir
+SaveSnapshot(context.Context, string) (string, error)
+// Remove network snapshot
+RemoveSnapshot(string) error
+// Get names of all available snapshots
+GetSnapshotNames() ([]string, error)
+```
+
+To create a new network from a snapshot, the function `NewNetworkFromSnapshot` is provided.
+
 ## Network Interaction
 
 The network runner allows users to interact with an AvalancheGo network using the `network.Network` interface:
@@ -655,40 +742,71 @@ The network runner allows users to interact with an AvalancheGo network using th
 ```go
 // Network is an abstraction of an Avalanche network
 type Network interface {
-  // Returns nil if all the nodes in the network are healthy.
-  // A stopped network is considered unhealthy.
-  // Timeout is given by the context parameter.
-  Healthy(context.Context) error
-  // Stop all the nodes.
-  // Returns ErrStopped if Stop() was previously called.
-  Stop(context.Context) error
-  // Start a new node with the given config.
-  // Returns ErrStopped if Stop() was previously called.
-  AddNode(node.Config) (node.Node, error)
-  // Stop the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  RemoveNode(name string) error
-  // Return the node with this name.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNode(name string) (node.Node, error)
-  // Returns the names of all nodes in this network.
-  // Returns ErrStopped if Stop() was previously called.
-  GetNodeNames() ([]string, error)
-  // TODO add methods
+	// Returns nil if all the nodes in the network are healthy.
+	// A stopped network is considered unhealthy.
+	// Timeout is given by the context parameter.
+	Healthy(context.Context) error
+	// Stop all the nodes.
+	// Returns ErrStopped if Stop() was previously called.
+	Stop(context.Context) error
+	// Start a new node with the given config.
+	// Returns ErrStopped if Stop() was previously called.
+	AddNode(node.Config) (node.Node, error)
+	// Stop the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	RemoveNode(name string) error
+	// Return the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNode(name string) (node.Node, error)
+	// Return all the nodes in this network.
+	// Node name --> Node.
+	// Returns ErrStopped if Stop() was previously called.
+	GetAllNodes() (map[string]node.Node, error)
+	// Returns the names of all nodes in this network.
+	// Returns ErrStopped if Stop() was previously called.
+	GetNodeNames() ([]string, error)
+	// Save network snapshot
+	// Network is stopped in order to do a safe preservation
+    // Returns the full local path to the snapshot dir
+	SaveSnapshot(context.Context, string) (string, error)
+	// Remove network snapshot
+	RemoveSnapshot(string) error
+	// Get name of available snapshots
+	GetSnapshotNames() ([]string, error)
 }
 ```
 
 and allows users to interact with a node using the `node.Node` interface:
 
 ```go
-// An AvalancheGo node
+// Node represents an AvalancheGo node
 type Node interface {
-    // Return this node's name, which is unique
-    // across all the nodes in its network.
-    GetName() string
-    // Return this node's Avalanche node ID.
-    GetNodeID() ids.ShortID
-    // Return a client that can be used to make API calls.
-    GetAPIClient() api.Client
+	// Return this node's name, which is unique
+	// across all the nodes in its network.
+	GetName() string
+	// Return this node's Avalanche node ID.
+	GetNodeID() ids.ShortID
+	// Return a client that can be used to make API calls.
+	GetAPIClient() api.Client
+	// Return this node's IP (e.g. 127.0.0.1).
+	GetURL() string
+	// Return this node's P2P (staking) port.
+	GetP2PPort() uint16
+	// Return this node's HTTP API port.
+	GetAPIPort() uint16
+	// Starts a new test peer, connects it to the given node, and returns the peer.
+	// [handler] defines how the test peer handles messages it receives.
+	// The test peer can be used to send messages to the node it's attached to.
+	// It's left to the caller to maintain a reference to the returned peer.
+	// The caller should call StartClose() on the peer when they're done with it.
+	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
+	// Return this node's avalanchego binary path
+	GetBinaryPath() string
+	// Return this node's db dir
+	GetDbDir() string
+	// Return this node's logs dir
+	GetLogsDir() string
+	// Return this node's config file contents
+	GetConfigFile() string
 }
 ```

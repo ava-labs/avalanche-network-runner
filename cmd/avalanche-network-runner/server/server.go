@@ -28,6 +28,7 @@ var (
 	gwDisabled         bool
 	dialTimeout        time.Duration
 	disableNodesOutput bool
+	snapshotsDir       string
 )
 
 func NewCommand() *cobra.Command {
@@ -44,6 +45,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&gwDisabled, "disable-grpc-gateway", false, "true to disable grpc-gateway server (overrides --grpc-gateway-port)")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 	cmd.PersistentFlags().BoolVar(&disableNodesOutput, "disable-nodes-output", false, "true to disable nodes stdout/stderr")
+	cmd.PersistentFlags().StringVar(&snapshotsDir, "snapshots-dir", "", "directory for snapshots")
 
 	return cmd
 }
@@ -63,6 +65,7 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		GwDisabled:          gwDisabled,
 		DialTimeout:         dialTimeout,
 		RedirectNodesOutput: !disableNodesOutput,
+		SnapshotsDir:        snapshotsDir,
 	})
 	if err != nil {
 		return err
@@ -83,7 +86,7 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		// wait for server stop
 		waitForServerStop := <-errc
 		zap.L().Warn("closed server", zap.Error(waitForServerStop))
-    case serverClosed := <-errc:
+	case serverClosed := <-errc:
 		// server already stopped here
 		_ = rootCancel
 		zap.L().Warn("server closed", zap.Error(serverClosed))

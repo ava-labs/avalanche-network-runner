@@ -54,7 +54,10 @@ func shutdownOnSignal(
 // The network runs until the user provides a SIGINT or SIGTERM.
 func main() {
 	// Create the logger
-	logFactory := logging.NewFactory(logging.DefaultConfig)
+	logFactory := logging.NewFactory(logging.Config{
+		DisplayLevel: logging.Info,
+		LogLevel:     logging.Debug,
+	})
 	log, err := logFactory.Make("main")
 	if err != nil {
 		fmt.Println(err)
@@ -104,17 +107,17 @@ func run(log logging.Logger, binaryPath string) error {
 	log.Info("current network's nodes: %s", nodeNames)
 
 	// Get one node
-	node0, err := nw.GetNode(nodeNames[0])
+	node1, err := nw.GetNode(nodeNames[0])
 	if err != nil {
 		return err
 	}
 
 	// Get its node ID through its API and print it
-	node0ID, err := node0.GetAPIClient().InfoAPI().GetNodeID(context.Background())
+	node1ID, err := node1.GetAPIClient().InfoAPI().GetNodeID(context.Background())
 	if err != nil {
 		return err
 	}
-	log.Info("one node's ID is: %s", node0ID)
+	log.Info("one node's ID is: %s", node1ID)
 
 	// Add a new node with generated cert/key/nodeid
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()

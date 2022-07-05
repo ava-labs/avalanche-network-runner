@@ -6,20 +6,23 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 )
 
-const genesisNetworkIDKey = "networkID"
+const (
+	genesisNetworkIDKey = "networkID"
+	dirTimestampFormat  = "20060102_150405"
+)
 
-func ToNodeID(stakingKey, stakingCert []byte) (ids.ShortID, error) {
+func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
-		return ids.ShortID{}, err
+		return ids.EmptyNodeID, err
 	}
-	nodeID := peer.CertToID(cert.Leaf)
+	nodeID := ids.NodeIDFromCert(cert.Leaf)
 	return nodeID, nil
 }
 
@@ -47,7 +50,7 @@ var (
 	ErrNotExistsPluginGenesis = errors.New("plugin genesis not exists")
 )
 
-func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath string) error {
+func CheckExecPath(exec string) error {
 	if exec == "" {
 		return ErrInvalidExecPath
 	}
@@ -58,14 +61,11 @@ func CheckExecPluginPaths(exec string, pluginExec string, pluginGenesisPath stri
 		}
 		return fmt.Errorf("failed to stat exec %q (%w)", exec, err)
 	}
+	return nil
+}
 
-	// no custom VM is specified
-	// no need to check further
-	// (subnet installation is optional)
-	if pluginExec == "" {
-		return nil
-	}
-
+func CheckPluginPaths(pluginExec string, pluginGenesisPath string) error {
+	var err error
 	if _, err = os.Stat(pluginExec); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return ErrNotExistsPlugin
@@ -89,4 +89,10 @@ func VMID(vmName string) (ids.ID, error) {
 	b := make([]byte, 32)
 	copy(b, []byte(vmName))
 	return ids.ToID(b)
+}
+
+func MkDirWithTimestamp(dirPrefix string) (string, error) {
+	currentTime := time.Now().Format(dirTimestampFormat)
+	dirName := dirPrefix + "_" + currentTime
+	return dirName, os.MkdirAll(dirName, os.ModePerm)
 }

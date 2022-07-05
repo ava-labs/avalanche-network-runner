@@ -5,6 +5,9 @@ import (
 	"crypto"
 	"fmt"
 	"net"
+	"os/exec"
+	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -15,11 +18,14 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/network/throttling"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/networking/tracker"
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
-	avago_utils "github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/math/meter"
+	"github.com/ava-labs/avalanchego/utils/resource"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -31,13 +37,18 @@ var (
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 
+const (
+	peerMsgQueueBufferSize      = 1024
+	peerResourceTrackerDuration = 10 * time.Second
+)
+
 // Gives access to basic node info, and to most avalanchego apis
 type localNode struct {
 	// Must be unique across all nodes in this network.
 	name string
 	// [nodeID] is this node's Avalannche Node ID.
 	// Set in network.AddNode
-	nodeID ids.ShortID
+	nodeID ids.NodeID
 	// The ID of the network this node exists in
 	networkID uint32
 	// Allows user to make API calls to this node.
@@ -50,6 +61,14 @@ type localNode struct {
 	p2pPort uint16
 	// Returns a connection to this node
 	getConnFunc getConnFunc
+	// The db dir of the node
+	dbDir string
+	// The logs dir of the node
+	logsDir string
+	// The build dir of the node
+	buildDir string
+	// The node config
+	config node.Config
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -87,16 +106,24 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	ip := avago_utils.IPDesc{
+	ip := ips.IPPort{
 		IP:   net.IPv6zero,
 		Port: 0,
 	}
+	resourceTracker, err := tracker.NewResourceTracker(
+		prometheus.NewRegistry(),
+		resource.NoUsage,
+		meter.ContinuousFactory{},
+		peerResourceTrackerDuration,
+	)
+	if err != nil {
+		return nil, err
+	}
 	config := &peer.Config{
-		Metrics:              metrics,
-		MessageCreator:       mc,
-		Log:                  logging.NoLog{},
-		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
-		OutboundMsgThrottler: throttling.NewNoOutboundThrottler(),
+		Metrics:             metrics,
+		MessageCreator:      mc,
+		Log:                 logging.NoLog{},
+		InboundMsgThrottler: throttling.NewNoInboundThrottler(),
 		Network: peer.NewTestNetwork(
 			mc,
 			node.networkID,
@@ -108,13 +135,14 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		),
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		VersionParser:        version.NewDefaultApplicationParser(),
+		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
+		ResourceTracker:      resourceTracker,
 	}
 	_, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
@@ -125,7 +153,12 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		peer.CertToID(tlsCert.Leaf),
+		ids.NodeIDFromCert(tlsCert.Leaf),
+		peer.NewBlockingMessageQueue(
+			config.Metrics,
+			logging.NoLog{},
+			peerMsgQueueBufferSize,
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -140,7 +173,7 @@ func (node *localNode) GetName() string {
 }
 
 // See node.Node
-func (node *localNode) GetNodeID() ids.ShortID {
+func (node *localNode) GetNodeID() ids.NodeID {
 	return node.nodeID
 }
 
@@ -166,4 +199,37 @@ func (node *localNode) GetAPIPort() uint16 {
 
 func (node *localNode) Status() status.Status {
 	return node.process.Status()
+}
+
+// See node.Node
+func (node *localNode) GetBinaryPath() string {
+	return node.config.BinaryPath
+}
+
+// See node.Node
+func (node *localNode) GetBuildDir() string {
+	if node.buildDir == "" {
+		return filepath.Dir(node.GetBinaryPath())
+	}
+	return node.buildDir
+}
+
+// See node.Node
+func (node *localNode) GetDbDir() string {
+	return node.dbDir
+}
+
+// See node.Node
+func (node *localNode) GetLogsDir() string {
+	return node.logsDir
+}
+
+// See node.Node
+func (node *localNode) GetConfigFile() string {
+	return node.config.ConfigFile
+}
+
+// See node.Node
+func (node *localNode) GetConfig() node.Config {
+	return node.config
 }

@@ -29,6 +29,20 @@ service ControlService {
     };
   }
 
+  rpc CreateBlockchains(CreateBlockchainsRequest) returns (CreateBlockchainsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/createblockchains"
+      body: "*"
+    };
+  }
+
+  rpc CreateSubnets(CreateSubnetsRequest) returns (CreateSubnetsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/createsubnets"
+      body: "*"
+    };
+  }
+
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       post: "/v1/control/health"
@@ -98,6 +112,34 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc SaveSnapshot(SaveSnapshotRequest) returns (SaveSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/savesnapshot"
+      body: "*"
+    };
+  }
+
+  rpc LoadSnapshot(LoadSnapshotRequest) returns (LoadSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/loadsnapshot"
+      body: "*"
+    };
+  }
+
+  rpc RemoveSnapshot(RemoveSnapshotRequest) returns (RemoveSnapshotResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/removesnapshot"
+      body: "*"
+    };
+  }
+
+  rpc GetSnapshotNames(GetSnapshotNamesRequest) returns (GetSnapshotNamesResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/getsnapshotnames"
+      body: "*"
+    };
+  }
 }
 
 message ClusterInfo {
@@ -114,6 +156,7 @@ message ClusterInfo {
   bool custom_vms_healthy = 7;
   // The map of custom VM IDs in "ids.ID" format to its VM information.
   map<string, CustomVmInfo> custom_vms = 8;
+  repeated string subnets          = 9;
 }
 
 message CustomVmInfo {
@@ -177,6 +220,36 @@ message StartRequest {
 }
 
 message StartResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message BlockchainSpec {
+  string vm_name = 1;
+  string genesis = 2;
+  optional string subnet_id = 3;
+}
+
+message CreateBlockchainsRequest {
+  // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
+  //
+  // The matching file with the name in "ids.ID" format must exist.
+  // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
+  // e.g., subnet-cli create VMID subnetevm
+  //
+  // If this field is set to none (by default), the node/network-runner
+  // will return error
+  repeated BlockchainSpec blockchain_specs = 1;
+}
+
+message CreateBlockchainsResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message CreateSubnetsRequest {
+  optional uint32 num_subnets = 1;
+}
+
+message CreateSubnetsResponse {
   ClusterInfo cluster_info = 1;
 }
 
@@ -263,4 +336,37 @@ message SendOutboundMessageRequest {
 
 message SendOutboundMessageResponse {
   bool sent = 1;
+}
+
+message SaveSnapshotRequest {
+  string snapshot_name = 1;
+}
+
+message SaveSnapshotResponse {
+  string snapshot_path = 1;
+}
+
+message LoadSnapshotRequest {
+  string snapshot_name = 1;
+  optional string exec_path = 2;
+  optional string plugin_dir = 3;
+  optional string root_data_dir = 4;
+}
+
+message LoadSnapshotResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message RemoveSnapshotRequest {
+  string snapshot_name = 1;
+}
+
+message RemoveSnapshotResponse {
+}
+
+message GetSnapshotNamesRequest {
+}
+
+message GetSnapshotNamesResponse {
+  repeated string snapshot_names = 1;
 }
