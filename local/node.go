@@ -5,9 +5,7 @@ import (
 	"crypto"
 	"fmt"
 	"net"
-	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"

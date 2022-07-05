@@ -35,11 +35,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	healthCheckFreq    = 10 * time.Second
-	healthCheckTimeout = time.Minute
-)
-
 type Config struct {
 	Port   string
 	GwPort string
@@ -417,11 +412,11 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 
 func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -509,11 +504,11 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 
 func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -1013,11 +1008,11 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 
 func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
