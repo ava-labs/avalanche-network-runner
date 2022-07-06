@@ -777,6 +777,10 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, err
 	}
+	if err := s.network.updateNodeInfo(); err != nil {
+		return nil, err
+	}
+
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
