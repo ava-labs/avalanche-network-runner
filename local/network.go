@@ -318,6 +318,7 @@ func NewNetworkFromSnapshot(
 	snapshotsDir string,
 	binaryPath string,
 	buildDir string,
+	chainConfigs map[string]string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -333,7 +334,7 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir)
+	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs)
 	return net, err
 }
 
@@ -808,6 +809,7 @@ func (ln *localNetwork) loadSnapshot(
 	snapshotName string,
 	binaryPath string,
 	buildDir string,
+	chainConfigs map[string]string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -850,6 +852,15 @@ func (ln *localNetwork) loadSnapshot(
 	if buildDir != "" {
 		for i := range networkConfig.NodeConfigs {
 			networkConfig.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
+		}
+	}
+	// add chain configs
+	for i := range networkConfig.NodeConfigs {
+		if networkConfig.NodeConfigs[i].ChainConfigFiles == nil {
+			networkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{}
+		}
+		for k, v := range chainConfigs {
+			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
