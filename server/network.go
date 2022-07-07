@@ -74,6 +74,10 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
+
+	// default chain configs to be used when adding new nodes to the network
+	// includes the ones received in options, plus default config or snapshot
+	chainConfigs map[string]string
 }
 
 type vmInfo struct {
@@ -92,6 +96,9 @@ type localNetworkOptions struct {
 
 	pluginDir         string
 	customNodeConfigs map[string]string
+
+	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
+	chainConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
@@ -159,6 +166,10 @@ func (lc *localNetwork) createConfig() error {
 
 		lc.nodeNames = append(lc.nodeNames, nodeName)
 		cfg.NodeConfigs[i].Name = nodeName
+
+		for k, v := range lc.options.chainConfigs {
+			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
+		}
 
 		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
 		if err != nil {
@@ -403,6 +414,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.snapshotsDir,
 		lc.execPath,
 		buildDir,
+		lc.options.chainConfigs,
 	)
 	if err != nil {
 		return err
@@ -539,6 +551,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 		}
 		if lc.pluginDir == "" {
 			lc.pluginDir = pluginDir
+		}
+		// update default chain configs if empty
+		if lc.chainConfigs == nil {
+			lc.chainConfigs = node.GetConfig().ChainConfigFiles
 		}
 
 	}

@@ -216,7 +216,15 @@ message StartRequest {
   // does not install the custom VM and does not create the subnet,
   // even if the VM binary exists on the local plugins directory.
   map<string, string> custom_vms = 7;
+
   map<string, string> custom_node_configs = 8;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/config.json" with
+  // the contents provided here.
+  // Currently only supports C chain, pending generalizing logic
+  // in avalanche-network-runner.
+  map<string, string> chain_configs = 9;
 }
 
 message StartResponse {
@@ -351,6 +359,7 @@ message LoadSnapshotRequest {
   optional string exec_path = 2;
   optional string plugin_dir = 3;
   optional string root_data_dir = 4;
+  map<string, string> chain_configs = 5;
 }
 
 message LoadSnapshotResponse {

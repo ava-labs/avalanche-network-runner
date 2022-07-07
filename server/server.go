@@ -318,6 +318,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
+		zap.Any("chainConfigs", req.ChainConfigs),
 		zap.String("defaultNodeConfig", globalNodeConfig),
 	)
 
@@ -339,6 +340,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		pluginDir:           pluginDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
+		chainConfigs:        req.ChainConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -763,7 +765,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
-
 	nodeConfig := node.Config{
 		Name:           req.Name,
 		ConfigFile:     configFile,
@@ -772,6 +773,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		BinaryPath:     execPath,
 		RedirectStdout: s.cfg.RedirectNodesOutput,
 		RedirectStderr: s.cfg.RedirectNodesOutput,
+	}
+	nodeConfig.ChainConfigFiles = map[string]string{}
+	for k, v := range s.network.chainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
+	}
+	for k, v := range req.StartRequest.ChainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -1056,9 +1064,10 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:    req.GetExecPath(),
-		pluginDir:   req.GetPluginDir(),
-		rootDataDir: rootDataDir,
+		execPath:     req.GetExecPath(),
+		pluginDir:    req.GetPluginDir(),
+		rootDataDir:  rootDataDir,
+		chainConfigs: req.ChainConfigs,
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
