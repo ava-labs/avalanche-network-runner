@@ -15,7 +15,7 @@ import (
 
 var _ NodeProcess = (*nodeProcess)(nil)
 
-const firstStatusCallWait = time.Second
+const firstStatusCallWait = 1500*time.Millisecond
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
