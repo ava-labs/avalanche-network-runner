@@ -136,14 +136,15 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 
 func (p *nodeProcess) Status() status.Status {
 	p.lock.RLock()
+	defer p.lock.RUnlock()
+
 	if p.firstStatusCall {
 		p.lock.RUnlock()
 		time.Sleep(firstStatusCallWait)
+		p.lock.RLock()
+		p.firstStatusCall = false
 	}
 
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	p.firstStatusCall = false
 	return p.state
 }
 
