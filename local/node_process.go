@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -14,8 +13,6 @@ import (
 )
 
 var _ NodeProcess = (*nodeProcess)(nil)
-
-const firstStatusCallWait = 1500*time.Millisecond
 
 // NodeProcess as an interface so we can mock running
 // AvalancheGo binaries in tests
@@ -39,8 +36,6 @@ type nodeProcess struct {
 	state status.Status
 	// Closed when the process exits.
 	closedOnStop chan struct{}
-	// on first status call, wait some time to give time to the process to fail on common startup errors
-	firstStatusCall bool
 }
 
 func newNodeProcess(name string, log logging.Logger, cmd *exec.Cmd) (*nodeProcess, error) {
@@ -49,7 +44,6 @@ func newNodeProcess(name string, log logging.Logger, cmd *exec.Cmd) (*nodeProces
 		log:             log,
 		cmd:             cmd,
 		closedOnStop:    make(chan struct{}),
-		firstStatusCall: true,
 	}
 	return np, np.start()
 }
@@ -137,13 +131,6 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 func (p *nodeProcess) Status() status.Status {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
-
-	if p.firstStatusCall {
-		p.lock.RUnlock()
-		time.Sleep(firstStatusCallWait)
-		p.lock.RLock()
-		p.firstStatusCall = false
-	}
 
 	return p.state
 }
