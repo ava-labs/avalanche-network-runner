@@ -82,14 +82,13 @@ var (
 	ErrNotBootstrapped                    = errors.New("not bootstrapped")
 	ErrNodeNotFound                       = errors.New("node not found")
 	ErrPeerNotFound                       = errors.New("peer not found")
-	ErrUnexpectedType                     = errors.New("unexpected type")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
 )
 
 const (
 	MinNodes            uint32 = 1
 	DefaultNodes        uint32 = 5
-	StopOnSignalTimeout        = 2 * time.Second
+	stopOnSignalTimeout        = 2 * time.Second
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
@@ -201,7 +200,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	}
 
 	if s.network != nil {
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), StopOnSignalTimeout)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopOnSignalTimeout)
 		defer stopCtxCancel()
 		s.network.stop(stopCtx)
 		zap.L().Warn("network stopped")
@@ -218,15 +217,15 @@ func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingR
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
 }
 
-const DefaultStartTimeout = 5 * time.Minute
+const defaultStartTimeout = 5 * time.Minute
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -415,11 +414,11 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 
 func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -507,11 +506,11 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 
 func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}
@@ -570,6 +569,7 @@ func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.H
 
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
 
 	return &rpcpb.HealthResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -802,7 +802,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, ErrNodeNotFound
 	}
 
-	if err := s.network.nw.RemoveNode(req.Name); err != nil {
+	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 
@@ -811,6 +811,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, err
 	}
 
+	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
@@ -875,7 +876,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
-	if err := s.network.nw.RemoveNode(req.Name); err != nil {
+	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 
@@ -893,6 +894,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	// update with the new config
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -1014,11 +1016,11 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 
 func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
 	// if timeout is too small or not set, default to 5-min
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < DefaultStartTimeout {
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), DefaultStartTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		zap.L().Info("received start request with default timeout", zap.String("timeout", DefaultStartTimeout.String()))
+		zap.L().Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
 		zap.L().Info("received start request with existing timeout", zap.String("deadline", deadline.String()))
 	}

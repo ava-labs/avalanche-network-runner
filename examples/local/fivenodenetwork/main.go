@@ -33,7 +33,7 @@ func shutdownOnSignal(
 	sig := <-signalChan
 	log.Info("got OS signal %s", sig)
 	if err := n.Stop(context.Background()); err != nil {
-		log.Debug("error while stopping network: %s", err)
+		log.Info("error stopping network: %s", err)
 	}
 	signal.Reset()
 	close(signalChan)
@@ -73,7 +73,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Debug("error stopping network: %w", err)
+			log.Info("error stopping network: %s", err)
 		}
 	}()
 

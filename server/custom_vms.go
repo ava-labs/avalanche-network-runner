@@ -505,7 +505,7 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 
 		lc.customVMRestartMu.Lock()
 		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
-		if err := lc.nw.RemoveNode(nodeName); err != nil {
+		if err := lc.nw.RemoveNode(ctx, nodeName); err != nil {
 			lc.customVMRestartMu.Unlock()
 			return err
 		}

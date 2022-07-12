@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/staking"
@@ -198,10 +199,11 @@ func init() {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
+	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
 }
 
 type nodeProcessCreator struct {
+	log logging.Logger
 	// If this node's stdout or stderr are redirected, [colorPicker] determines
 	// the color of logs printed to stdout and/or stderr
 	colorPicker utils.ColorPicker
@@ -216,7 +218,7 @@ type nodeProcessCreator struct {
 // NewNodeProcess creates a new process of the passed binary
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(config.BinaryPath, args...)
 	// assign a new color to this process (might not be used if the config isn't set for it)
@@ -238,7 +240,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
 	}
-	return &nodeProcessImpl{cmd: cmd}, nil
+	return newNodeProcess(config.Name, npc.log, cmd)
 }
 
 // NewNetwork returns a new network that uses the given log.
@@ -257,6 +259,7 @@ func NewNetwork(
 		api.NewAPIClient,
 		&nodeProcessCreator{
 			colorPicker: utils.NewColorPicker(),
+			log:         log,
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
@@ -497,14 +500,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, ln.log, nodeData.flags...)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create new node process: %s", err)
+		return nil, fmt.Errorf(
+			"couldn't create new node process with binary %q and flags %v: %w",
+			nodeConfig.BinaryPath, nodeData.flags, err,
+		)
 	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
-	if err := nodeProcess.Start(); err != nil {
-		return nil, fmt.Errorf("could not execute cmd \"%s %s\": %w", nodeConfig.BinaryPath, nodeData.flags, err)
-	}
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
@@ -563,18 +566,24 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 	errGr, ctx := errgroup.WithContext(ctx)
 	for _, node := range ln.nodes {
 		node := node
+		nodeName := node.GetName()
 		errGr.Go(func() error {
 			// Every [healthCheckFreq], query node for health status.
 			// Do this until ctx timeout or network closed.
 			for {
+				if node.Status() != status.Running {
+					// If we had stopped this node ourselves, it wouldn't be in [ln.nodes].
+					// Since it is, it means the node stopped unexpectedly.
+					return fmt.Errorf("node %q stopped unexpectedly", nodeName)
+				}
 				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
-					ln.log.Debug("node %q became healthy", node.name)
+					ln.log.Debug("node %q became healthy", nodeName)
 					return nil
 				}
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", node.GetName())
+					return fmt.Errorf("node %q failed to become healthy within timeout, or network stopped", nodeName)
 				case <-time.After(healthCheckFreq):
 				}
 			}
@@ -651,40 +660,31 @@ func (ln *localNetwork) Stop(ctx context.Context) error {
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, stopTimeout)
-	defer cancel()
 	errs := wrappers.Errs{}
 	for nodeName := range ln.nodes {
-		select {
-		case <-ctx.Done():
-			// In practice we'll probably never time out here,
-			// and the caller probably won't cancel a call
-			// to stop(), but we include this to respect the
-			// network.Network interface.
-			return ctx.Err()
-		default:
-		}
-		if err := ln.removeNode(nodeName); err != nil {
+		stopCtx, stopCtxCancel := context.WithTimeout(ctx, stopTimeout)
+		if err := ln.removeNode(stopCtx, nodeName); err != nil {
 			ln.log.Error("error stopping node %q: %s", nodeName, err)
 			errs.Add(err)
 		}
+		stopCtxCancel()
 	}
 	ln.log.Info("done stopping network")
 	return errs.Err
 }
 
 // Sends a SIGTERM to the given node and removes it from this network.
-func (ln *localNetwork) RemoveNode(nodeName string) error {
+func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
-	return ln.removeNode(nodeName)
+	return ln.removeNode(ctx, nodeName)
 }
 
 // Assumes [ln.lock] is held.
-func (ln *localNetwork) removeNode(nodeName string) error {
+func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	ln.log.Debug("removing node %q", nodeName)
 	node, ok := ln.nodes[nodeName]
 	if !ok {
@@ -698,11 +698,8 @@ func (ln *localNetwork) removeNode(nodeName string) error {
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
-	if err := node.process.Stop(); err != nil {
-		return fmt.Errorf("error sending SIGTERM to node %s: %w", nodeName, err)
-	}
-	if err := node.process.Wait(); err != nil {
-		return fmt.Errorf("node %q stopped with error: %w", nodeName, err)
+	if exitCode := node.process.Stop(ctx); exitCode != 0 {
+		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
 	return nil
 }

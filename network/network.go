@@ -24,7 +24,7 @@ type Network interface {
 	AddNode(node.Config) (node.Node, error)
 	// Stop the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
-	RemoveNode(name string) error
+	RemoveNode(ctx context.Context, name string) error
 	// Return the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNode(name string) (node.Node, error)

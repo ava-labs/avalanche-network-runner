@@ -5,13 +5,12 @@ import (
 	"crypto"
 	"fmt"
 	"net"
-	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
@@ -29,46 +28,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// interface compliance
 var (
-	_ node.Node   = (*localNode)(nil)
-	_ NodeProcess = (*nodeProcessImpl)(nil)
 	_ getConnFunc = defaultGetConnFunc
+	_ node.Node   = (*localNode)(nil)
 )
 
 type getConnFunc func(context.Context, node.Node) (net.Conn, error)
-
-// NodeProcess as an interface so we can mock running
-// AvalancheGo binaries in tests
-type NodeProcess interface {
-	// Start this process
-	Start() error
-	// Send a SIGTERM to this process
-	Stop() error
-	// Returns when the process finishes exiting
-	Wait() error
-}
 
 const (
 	peerMsgQueueBufferSize      = 1024
 	peerResourceTrackerDuration = 10 * time.Second
 )
-
-type nodeProcessImpl struct {
-	cmd *exec.Cmd
-}
-
-func (p *nodeProcessImpl) Start() error {
-	return p.cmd.Start()
-}
-
-func (p *nodeProcessImpl) Wait() error {
-	return p.cmd.Wait()
-}
-
-func (p *nodeProcessImpl) Stop() error {
-	return p.cmd.Process.Signal(syscall.SIGTERM)
-}
 
 // Gives access to basic node info, and to most avalanchego apis
 type localNode struct {
@@ -223,6 +193,10 @@ func (node *localNode) GetP2PPort() uint16 {
 // See node.Node
 func (node *localNode) GetAPIPort() uint16 {
 	return node.apiPort
+}
+
+func (node *localNode) Status() status.Status {
+	return node.process.Status()
 }
 
 // See node.Node

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
+	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
@@ -34,6 +35,8 @@ type Node interface {
 	// It's left to the caller to maintain a reference to the returned peer.
 	// The caller should call StartClose() on the peer when they're done with it.
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
+	// Return the state of the node process
+	Status() status.Status
 	// Return this node's avalanchego binary path
 	GetBinaryPath() string
 	// Return this node's db dir

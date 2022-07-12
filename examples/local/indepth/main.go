@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	healthyTimeout = 2 * time.Minute
+	healthyTimeout    = 2 * time.Minute
+	removeNodeTimeout = 10 * time.Second
 )
 
 var goPath = os.ExpandEnv("$GOPATH")
@@ -35,7 +36,7 @@ func shutdownOnSignal(
 	sig := <-signalChan
 	log.Info("got OS signal %s", sig)
 	if err := n.Stop(context.Background()); err != nil {
-		log.Debug("error while stopping network: %s", err)
+		log.Info("error stopping network: %s", err)
 	}
 	signal.Reset()
 	close(signalChan)
@@ -77,7 +78,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Debug("error stopping network: %w", err)
+			log.Info("error stopping network: %s", err)
 		}
 	}()
 
@@ -96,7 +97,6 @@ func run(log logging.Logger, binaryPath string) error {
 	log.Info("waiting for all nodes to report healthy...")
 	if err := nw.Healthy(ctx); err != nil {
 		return err
-
 	}
 
 	// Print the node names
@@ -143,7 +143,9 @@ func run(log logging.Logger, binaryPath string) error {
 	// Remove one node
 	nodeToRemove := nodeNames[3]
 	log.Info("removing node %q", nodeToRemove)
-	if err := nw.RemoveNode(nodeToRemove); err != nil {
+	removeNodeCtx, removeNodeCtxCancel := context.WithTimeout(context.Background(), removeNodeTimeout)
+	defer removeNodeCtxCancel()
+	if err := nw.RemoveNode(removeNodeCtx, nodeToRemove); err != nil {
 		return err
 	}
 
