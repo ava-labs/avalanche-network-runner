@@ -523,6 +523,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		logsDir:     nodeData.logsDir,
 		config:      nodeConfig,
 		buildDir:    nodeData.buildDir,
+		httpHost:    nodeData.httpHost,
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -1047,6 +1048,7 @@ type buildFlagsReturn struct {
 	dbDir    string
 	logsDir  string
 	buildDir string
+	httpHost string
 }
 
 // buildFlags returns the:
@@ -1064,6 +1066,12 @@ func (ln *localNetwork) buildFlags(
 	// Add flags in [ln.Flags] to [nodeConfig.Flags]
 	// Assumes [nodeConfig.Flags] is non-nil
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
+
+	// httpHost from all configs for node
+	httpHost, err := getConfigEntry(nodeConfig.Flags, configFile, config.HTTPHostKey, "")
+	if err != nil {
+		return buildFlagsReturn{}, err
+	}
 
 	// buildDir from all configs for node
 	buildDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.BuildDirKey, "")
@@ -1134,6 +1142,7 @@ func (ln *localNetwork) buildFlags(
 		dbDir:    dbDir,
 		logsDir:  logsDir,
 		buildDir: buildDir,
+		httpHost: httpHost,
 	}, nil
 }
 
