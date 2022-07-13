@@ -22,6 +22,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/platformvm/validator"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
@@ -62,7 +63,7 @@ func (lc *localNetwork) installCustomVMs(
 	platformCli := platformvm.NewClient(clientURI)
 
 	// wallet needs txs for all previously created subnets
-	pTXs := make(map[ids.ID]*platformvm.Tx)
+	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, chainSpec := range chainSpecs {
 		// if subnet id for the blockchain is specified, we need to add the subnet id
 		// tx info to the wallet so blockchain creation does not fail
@@ -77,7 +78,7 @@ func (lc *localNetwork) installCustomVMs(
 			if err != nil {
 				return nil, fmt.Errorf("tx not found for subnet %q: %w", subnetID.String(), err)
 			}
-			var subnetTx platformvm.Tx
+			var subnetTx txs.Tx
 			if _, err := platformvm.Codec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
 				return nil, fmt.Errorf("couldn not unmarshal tx for subnet %q: %w", subnetID.String(), err)
 			}
@@ -169,7 +170,7 @@ func (lc *localNetwork) installCustomVMs(
 
 	println()
 	color.Outf("{{green}}checking the remaining balance of the base wallet{{/}}\n")
-	balances, err := baseWallet.P().Builder().GetBalance()
+	balances, err := baseWallet.Wallet.P().Builder().GetBalance()
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(clientURI)
 
-	pTXs := make(map[ids.ID]*platformvm.Tx)
+	pTXs := make(map[ids.ID]*txs.Tx)
 	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs)
 	if err != nil {
 		return nil, err
@@ -219,7 +220,7 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 
 	println()
 	color.Outf("{{green}}checking the remaining balance of the base wallet{{/}}\n")
-	balances, err := baseWallet.P().Builder().GetBalance()
+	balances, err := baseWallet.Wallet.P().Builder().GetBalance()
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +336,7 @@ func (lc *localNetwork) waitForCustomVMsReady(
 func setupWallet(
 	ctx context.Context,
 	clientURI string,
-	pTXs map[ids.ID]*platformvm.Tx,
+	pTXs map[ids.ID]*txs.Tx,
 ) (baseWallet *refreshableWallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
 	// "local/default/genesis.json" pre-funds "ewoq" key
 	testKey := genesis.EWOQKey
@@ -355,8 +356,8 @@ func setupWallet(
 
 	println()
 	color.Outf("{{green}}check if the seed test key has enough balance to create validators and subnets{{/}}\n")
-	avaxAssetID = baseWallet.P().AVAXAssetID()
-	balances, err := baseWallet.P().Builder().GetBalance()
+	avaxAssetID = baseWallet.Wallet.P().AVAXAssetID()
+	balances, err := baseWallet.Wallet.P().Builder().GetBalance()
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
@@ -407,7 +408,7 @@ func addPrimaryValidators(
 		}
 
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := baseWallet.P().IssueAddValidatorTx(
+		txID, err := baseWallet.Wallet.P().IssueAddValidatorTx(
 			&validator.Validator{
 				NodeID: nodeID,
 				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
@@ -448,7 +449,7 @@ func createSubnets(
 	for i = 0; i < numSubnets; i++ {
 		zap.L().Info("creating subnet tx")
 		cctx, cancel := createDefaultCtx(ctx)
-		subnetID, err := baseWallet.P().IssueCreateSubnetTx(
+		subnetID, err := baseWallet.Wallet.P().IssueCreateSubnetTx(
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
 				Addrs:     []ids.ShortID{testKeyAddr},
@@ -570,7 +571,7 @@ func addSubnetValidators(
 				continue
 			}
 			cctx, cancel := createDefaultCtx(ctx)
-			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
+			txID, err := baseWallet.Wallet.P().IssueAddSubnetValidatorTx(
 				&validator.SubnetValidator{
 					Validator: validator.Validator{
 						NodeID: nodeID,
@@ -693,7 +694,7 @@ func createBlockchains(
 		if err != nil {
 			return nil, err
 		}
-		blockchainID, err := baseWallet.P().IssueCreateChainTx(
+		blockchainID, err := baseWallet.Wallet.P().IssueCreateChainTx(
 			subnetID,
 			vmGenesisBytes,
 			vmID,

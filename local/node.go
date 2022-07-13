@@ -133,7 +133,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		),
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            ids.Set{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
