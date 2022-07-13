@@ -67,6 +67,8 @@ type localNode struct {
 	buildDir string
 	// The node config
 	config node.Config
+	// The node httpHost
+	httpHost string
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -181,6 +183,9 @@ func (node *localNode) GetAPIClient() api.Client {
 
 // See node.Node
 func (node *localNode) GetURL() string {
+	if node.httpHost == "0.0.0.0" || node.httpHost == "." {
+		return "0.0.0.0"
+	}
 	return "127.0.0.1"
 }
 
