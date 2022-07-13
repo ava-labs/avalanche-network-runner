@@ -349,7 +349,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			errCnt := 0
 			for i := 0; i < len(uris); i++ {
 				cli := admin.NewClient(uris[i])
-				_, err := cli.LockProfile(ctx)
+				err := cli.LockProfile(ctx)
 				if err != nil {
 					errCnt++
 				}
