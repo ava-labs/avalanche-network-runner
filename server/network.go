@@ -407,6 +407,13 @@ func (lc *localNetwork) loadSnapshot(
 		return err
 	}
 
+	var globalNodeConfig map[string]interface{}
+	if lc.options.globalNodeConfig != "" {
+		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalNodeConfig); err != nil {
+			return err
+		}
+	}
+
 	nw, err := local.NewNetworkFromSnapshot(
 		lc.logger,
 		snapshotName,
@@ -415,6 +422,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.execPath,
 		buildDir,
 		lc.options.chainConfigs,
+		globalNodeConfig,
 	)
 	if err != nil {
 		return err

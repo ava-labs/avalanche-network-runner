@@ -360,6 +360,7 @@ message LoadSnapshotRequest {
   optional string plugin_dir = 3;
   optional string root_data_dir = 4;
   map<string, string> chain_configs = 5;
+  optional string global_node_config  = 6;
 }
 
 message LoadSnapshotResponse {
