@@ -832,6 +832,12 @@ func (ln *localNetwork) loadSnapshot(
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
 	}
+	// add flags
+	for i := range networkConfig.NodeConfigs {
+		for k, v := range flags {
+			networkConfig.NodeConfigs[i].Flags[k] = v
+		}
+	}
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
 		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
@@ -860,12 +866,6 @@ func (ln *localNetwork) loadSnapshot(
 		}
 		for k, v := range chainConfigs {
 			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
-		}
-	}
-	// add flags
-	for i := range networkConfig.NodeConfigs {
-		for k, v := range flags {
-			networkConfig.NodeConfigs[i].Flags[k] = v
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
