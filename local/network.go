@@ -322,6 +322,7 @@ func NewNetworkFromSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	flags map[string]interface{},
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -337,7 +338,7 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs)
+	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, flags)
 	return net, err
 }
 
@@ -808,6 +809,7 @@ func (ln *localNetwork) loadSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	flags map[string]interface{},
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -830,6 +832,12 @@ func (ln *localNetwork) loadSnapshot(
 	err = json.Unmarshal(networkConfigJSON, &networkConfig)
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
+	}
+	// add flags
+	for i := range networkConfig.NodeConfigs {
+		for k, v := range flags {
+			networkConfig.NodeConfigs[i].Flags[k] = v
+		}
 	}
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {

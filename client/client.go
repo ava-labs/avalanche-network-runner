@@ -312,6 +312,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
 	}
+	if ret.globalNodeConfig != "" {
+		req.GlobalNodeConfig = &ret.globalNodeConfig
+	}
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
 

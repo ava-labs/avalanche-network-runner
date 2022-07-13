@@ -797,6 +797,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map that maps from chain id to its config file contents",
 	)
+	cmd.PersistentFlags().StringVar(
+		&globalNodeConfig,
+		"global-node-config",
+		"",
+		"[optional] global node config as JSON string, applied to all nodes",
+	)
 	return cmd
 }
 
@@ -819,6 +825,17 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
+	}
+
+	if globalNodeConfig != "" {
+		color.Outf("{{yellow}} global node config provided, will be applied to all nodes{{/}} %+v\n", globalNodeConfig)
+
+		// validate it's valid JSON
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
+			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+		}
+		opts = append(opts, client.WithGlobalNodeConfig(globalNodeConfig))
 	}
 
 	ctx := getAsyncContext()
