@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/chain/p"
 	"github.com/ava-labs/avalanchego/wallet/chain/x"
@@ -48,7 +49,7 @@ func createRefreshableWallet(
 	ctx context.Context,
 	httpRPCEp string,
 	kc *secp256k1fx.Keychain,
-	pTXs map[ids.ID]*platformvm.Tx,
+	pTXs map[ids.ID]*txs.Tx,
 ) (*refreshableWallet, error) {
 	cctx, cancel := createDefaultCtx(ctx)
 	pCTX, xCTX, utxos, err := primary.FetchState(cctx, httpRPCEp, kc.Addrs)

@@ -40,10 +40,10 @@ type nodeProcess struct {
 
 func newNodeProcess(name string, log logging.Logger, cmd *exec.Cmd) (*nodeProcess, error) {
 	np := &nodeProcess{
-		name:            name,
-		log:             log,
-		cmd:             cmd,
-		closedOnStop:    make(chan struct{}),
+		name:         name,
+		log:          log,
+		cmd:          cmd,
+		closedOnStop: make(chan struct{}),
 	}
 	return np, np.start()
 }
