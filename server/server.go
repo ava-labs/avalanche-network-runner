@@ -1064,10 +1064,11 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:     req.GetExecPath(),
-		pluginDir:    req.GetPluginDir(),
-		rootDataDir:  rootDataDir,
-		chainConfigs: req.ChainConfigs,
+		execPath:         req.GetExecPath(),
+		pluginDir:        req.GetPluginDir(),
+		rootDataDir:      rootDataDir,
+		chainConfigs:     req.ChainConfigs,
+		globalNodeConfig: req.GetGlobalNodeConfig(),
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
