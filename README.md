@@ -124,6 +124,18 @@ Additional optional parameters which can be passed to the start command:
 	--custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
 ```
 
+For example, to set `avalanchego --http-host` flag for all nodes:
+
+```bash
+# to expose local RPC server to all traffic
+# (e.g., run network runner within cloud instance)
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","globalNodeConfig":"{\"http-host\":\"0.0.0.0\"}",...}'
+
+# or
+avalanche-network-runner control start \
+--global-node-config '{"http-host":"0.0.0.0"}'
+```
+
 `--plugin-dir` and `--custom-vms` are parameters relevant to subnet operation.
 See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
 
