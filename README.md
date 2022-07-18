@@ -14,13 +14,51 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-### Download
+### Install using go tool
+
+This is the preferred way to install. Requires go lang to be installed on the system.
+
+```sh
+go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner@latest
+```
+
+After that, `avalanche-network-runner` binary should be present under `$HOME/go/bin/` directory.
+Consider adding this directory to the `PATH` environment variable.
+
+If a particular version is required, change the release at the end of the command, eg:
+
+```sh
+go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner@v1.1.3
+```
+
+### Install by release download
+
+Does not requires go lang to be installed on the system.
+
+Download the desired distribution from https://github.com/ava-labs/avalanche-network-runner/releases
+
+Uncompress and locate where is convenient.  Consider adding the target bin directory to the `PATH` environment variable.
+
+### Install from source code and execute tests
+
+#### Download
 
 ```sh
 git clone https://github.com/ava-labs/avalanche-network-runner.git
 ```
 
-### Run Unit Tests
+### Install
+
+From inside the cloned directory:
+
+```sh
+go install ./cmd/avalanche-network-runner
+```
+
+After that, `avalanche-network-runner` binary should be present under `$HOME/go/bin/` directory.
+Consider adding this directory to the `PATH` environment variable.
+
+#### Run Unit Tests
 
 Inside the directory cloned above:
 
@@ -28,7 +66,7 @@ Inside the directory cloned above:
 go test ./...
 ```
 
-### Run E2E tests
+#### Run E2E tests
 
 The E2E test checks `avalanche-network-runner` RPC communication and control. It starts a network against a fresh RPC
 server and executes a set of query and control operations on it.
@@ -46,7 +84,7 @@ different versions as arguments. For Example:
 ./scripts/tests.e2e.sh 1.7.9 1.7.10
 ```
 
-#### `RUN_E2E` environment variable
+##### `RUN_E2E` environment variable
 
 To specify that the E2E test should be run with `go test`, set environment variable `RUN_E2E` to any non-empty value. 
 
@@ -65,14 +103,6 @@ This creates an RPC server that you can send requests to in order to start a net
 **Why gRPC gateway?** [gRPC gateway](https://grpc-ecosystem.github.io/grpc-gateway/) exposes gRPC API via HTTP, without us writing any code. Which can be useful if a test controller writer does not want to deal with gRPC.
 
 ## `network-runner` RPC server: examples
-
-Download from https://github.com/ava-labs/avalanche-network-runner/releases:
-
-```bash
-# or install
-cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
-go install -v ./cmd/avalanche-network-runner
-```
 
 To start the server:
 
@@ -402,14 +432,6 @@ avalanche-network-runner control stop \
 
 ## `network-runner` RPC server: `subnet-evm` example
 
-Download from https://github.com/ava-labs/avalanche-network-runner/releases:
-
-```bash
-# or install
-cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
-go install -v ./cmd/avalanche-network-runner
-```
-
 To start the server:
 
 ```bash
@@ -523,14 +545,6 @@ curl -X POST -k http://localhost:8081/v1/control/status -d ''
 ```
 
 ## `network-runner` RPC server: `blobvm` example
-
-Download from https://github.com/ava-labs/avalanche-network-runner/releases:
-
-```bash
-# or install
-cd ${HOME}/go/src/github.com/ava-labs/avalanche-network-runner
-go install -v ./cmd/avalanche-network-runner
-```
 
 To start the server:
 
@@ -778,7 +792,7 @@ type Network interface {
 	GetNodeNames() ([]string, error)
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
-    // Returns the full local path to the snapshot dir
+	// Returns the full local path to the snapshot dir
 	SaveSnapshot(context.Context, string) (string, error)
 	// Remove network snapshot
 	RemoveSnapshot(string) error
