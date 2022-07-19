@@ -16,13 +16,13 @@ This tool may be especially useful for development and testing.
 
 ### Install using go tool
 
-This is the preferred way to install. Requires go lang to be installed on the system.
+This is the preferred way to install. Requires golang to be installed on the system (https://go.dev/doc/install).
 
 ```sh
 go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner@latest
 ```
 
-After that, `avalanche-network-runner` binary should be present under `$HOME/go/bin/` directory.
+After that, the `avalanche-network-runner` binary should be present under the `$HOME/go/bin/` directory.
 Consider adding this directory to the `PATH` environment variable.
 
 If a particular version is required, change the release at the end of the command, eg:
@@ -33,7 +33,7 @@ go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-ru
 
 ### Install by release download
 
-Does not requires go lang to be installed on the system.
+Does not requires golang to be installed on the system.
 
 Download the desired distribution from https://github.com/ava-labs/avalanche-network-runner/releases
 
