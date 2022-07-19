@@ -88,7 +88,7 @@ fi
 
 ############################
 echo "building runner"
-go build -v -o /tmp/network.runner ./cmd/avalanche-network-runner
+./scripts/build.sh
 
 echo "building e2e.test"
 # to install the ginkgo binary (required for test build and run)
@@ -102,7 +102,7 @@ rm -rf $snapshots_dir
 killall network.runner || echo
 
 echo "launch local test cluster in the background"
-/tmp/network.runner \
+bin/avalanche-network-runner \
 server \
 --log-level debug \
 --port=":8080" \

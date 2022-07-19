@@ -11,29 +11,53 @@ Nonetheless, this README should provide valuable information about using this to
 This is a tool to run and interact with a local Avalanche network.
 This tool may be especially useful for development and testing.
 
-
 ## Installation
+
+### Using install script
+
+This is the preferred way. Does not require golang to be installed on the system.
+
+To download a binary for the latest release, run:
+
+```
+curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
+```
+
+The binary will be installed inside the `./bin` directory (relative to where the install command was run).
+
+_Downloading binaries from the Github UI will cause permission errors on Mac._
+
+To add the binary to your path, run
+
+```
+cd bin
+export PATH=$PWD:$PATH
+```
+
+To add it to your path permanently, add an export command to your shell initialization script (ex: .bashrc).
+
+#### Installing in Custom Location
+
+To download the binary into a specific directory, run:
+
+```
+curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s -- -b <relative directory>
+```
 
 ### Install using go tool
 
-This is the preferred way to install. Requires golang to be installed on the system (https://go.dev/doc/install).
+Requires golang to be installed on the system (https://go.dev/doc/install).
 
 ```sh
-go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner@latest
+go install github.com/ava-labs/avalanche-network-runner@latest
 ```
 
 After that, the `avalanche-network-runner` binary should be present under the `$HOME/go/bin/` directory.
 Consider adding this directory to the `PATH` environment variable.
 
-If a particular version is required, change the release at the end of the command, eg:
-
-```sh
-go install github.com/ava-labs/avalanche-network-runner/cmd/avalanche-network-runner@v1.1.3
-```
-
 ### Install by release download
 
-Does not requires golang to be installed on the system.
+Does not require golang to be installed on the system.
 
 Download the desired distribution from https://github.com/ava-labs/avalanche-network-runner/releases
 
@@ -47,7 +71,7 @@ Uncompress and locate where is convenient.  Consider adding the target bin direc
 git clone https://github.com/ava-labs/avalanche-network-runner.git
 ```
 
-### Install
+#### Install
 
 From inside the cloned directory:
 
@@ -86,9 +110,9 @@ different versions as arguments. For Example:
 
 ##### `RUN_E2E` environment variable
 
-To specify that the E2E test should be run with `go test`, set environment variable `RUN_E2E` to any non-empty value. 
+To specify that the E2E test should be run with `go test`, set environment variable `RUN_E2E` to any non-empty value.
 
-This environment variable is correctly set when executing `./scripts/tests.e2e.sh`, but the user should consider 
+This environment variable is correctly set when executing `./scripts/tests.e2e.sh`, but the user should consider
 setting it if trying to execute E2E tests without using that script.
 
 ## Using `avalanche-network-runner`
@@ -195,7 +219,7 @@ The network-runner supports avalanchego node configuration at different levels.
       --public-ip
     ```
 
-**NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101` 
+**NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101`
 
 To wait for all the nodes in the cluster to become healthy:
 
@@ -744,7 +768,7 @@ The associated pre-defined configuration is also available to users by calling `
 
 ## Network Snapshots
 
-A given network state, including the node ports and the full blockchain state, can be saved to a named snapshot. 
+A given network state, including the node ports and the full blockchain state, can be saved to a named snapshot.
 The network can then be restarted from such a snapshot any time later.
 
 ```
