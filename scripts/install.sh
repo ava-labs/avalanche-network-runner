@@ -15,7 +15,7 @@ usage() {
 $this: download go binaries for $PREFIX
 
 Usage: $this [-b] bindir [-d] [tag]
-  -b sets bindir or installation directory, Defaults to $DEFAULT_INSTALL
+  -b sets bindir or installation directory, defaults to $DEFAULT_INSTALL
   -d turns on debug logging
    [tag] is a tag from
    https://github.com/$PREFIX/releases
