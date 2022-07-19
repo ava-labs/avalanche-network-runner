@@ -44,7 +44,7 @@ To download the binary into a specific directory, run:
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s -- -b <relative directory>
 ```
 
-### Install using go tool
+### Install using golang
 
 Requires golang to be installed on the system (https://go.dev/doc/install).
 
