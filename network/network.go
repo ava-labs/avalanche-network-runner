@@ -7,8 +7,10 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
-var ErrUndefined = errors.New("undefined network")
-var ErrStopped = errors.New("network stopped")
+var (
+	ErrUndefined = errors.New("undefined network")
+	ErrStopped   = errors.New("network stopped")
+)
 
 // Network is an abstraction of an Avalanche network
 type Network interface {

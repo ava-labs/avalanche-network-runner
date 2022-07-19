@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -512,19 +513,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:        nodeConfig.Name,
-		nodeID:      nodeID,
-		networkID:   ln.networkID,
-		client:      ln.newAPIClientF("localhost", nodeData.apiPort),
-		process:     nodeProcess,
-		apiPort:     nodeData.apiPort,
-		p2pPort:     nodeData.p2pPort,
-		getConnFunc: defaultGetConnFunc,
-		dbDir:       nodeData.dbDir,
-		logsDir:     nodeData.logsDir,
-		config:      nodeConfig,
-		buildDir:    nodeData.buildDir,
-		httpHost:    nodeData.httpHost,
+		name:          nodeConfig.Name,
+		nodeID:        nodeID,
+		networkID:     ln.networkID,
+		client:        ln.newAPIClientF("localhost", nodeData.apiPort),
+		process:       nodeProcess,
+		apiPort:       nodeData.apiPort,
+		p2pPort:       nodeData.p2pPort,
+		getConnFunc:   defaultGetConnFunc,
+		dbDir:         nodeData.dbDir,
+		logsDir:       nodeData.logsDir,
+		config:        nodeConfig,
+		buildDir:      nodeData.buildDir,
+		httpHost:      nodeData.httpHost,
+		attachedPeers: map[string]peer.Peer{},
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
