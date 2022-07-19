@@ -76,7 +76,7 @@ git clone https://github.com/ava-labs/avalanche-network-runner.git
 From inside the cloned directory:
 
 ```sh
-go install ./cmd/avalanche-network-runner
+go install
 ```
 
 After that, `avalanche-network-runner` binary should be present under `$HOME/go/bin/` directory.
