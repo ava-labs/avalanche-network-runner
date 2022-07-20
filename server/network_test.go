@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,8 +19,7 @@ func TestEvalConfig(t *testing.T) {
 
 	var defaultConfig, globalConfig map[string]interface{}
 
-	err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig)
-	assert.NoError(err)
+	defaultConfig = local.DefaultFlags
 
 	config, err := mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
@@ -31,8 +31,7 @@ func TestEvalConfig(t *testing.T) {
 	assert.NoError(err)
 
 	var test1Map map[string]interface{}
-	err = json.Unmarshal([]byte(defaultNodeConfig), &test1Map)
-	assert.NoError(err)
+	test1Map = local.DefaultFlags
 	// ...all default config entries should still be there...
 	for k, v := range test1Map {
 		assert.Equal(controlMap[k], v)

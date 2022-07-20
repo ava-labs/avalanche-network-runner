@@ -24,18 +24,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	defaultNodeConfig = `{
-		"network-peer-list-gossip-frequency":"250ms",
-		"network-max-reconnect-delay":"1s",
-		"public-ip":"127.0.0.1",
-		"health-check-frequency":"2s",
-		"api-admin-enabled":true,
-		"api-ipcs-enabled":true,
-		"index-enabled":true
-  }`
-)
-
 var ignoreFields = map[string]struct{}{
 	"public-ip":    {},
 	"http-port":    {},
@@ -147,10 +135,7 @@ func (lc *localNetwork) createConfig() error {
 		return err
 	}
 
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return err
-	}
+	var globalConfig map[string]interface{}
 
 	if lc.options.globalNodeConfig != "" {
 		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalConfig); err != nil {
@@ -171,7 +156,7 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 
-		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
+		mergedConfig, err := mergeNodeConfig(local.DefaultFlags, globalConfig, lc.options.customNodeConfigs[nodeName])
 		if err != nil {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}

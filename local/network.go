@@ -95,6 +95,8 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// directory where networks can be persistently saved
 	snapshotsDir string
+
+	defaultNodeConfig *node.Config
 }
 
 var (
@@ -118,6 +120,7 @@ func init() {
 
 	defaultNetworkConfig = network.Config{
 		NodeConfigs: make([]node.Config, DefaultNumNodes),
+		Flags:       DefaultFlags,
 	}
 
 	genesis, err := fs.ReadFile(configsDir, "genesis.json")
@@ -426,6 +429,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
 
+	// TODO put defaults?
 	ln.flags = networkConfig.Flags
 
 	// Sort node configs so beacons start first
@@ -441,7 +445,23 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
-	for _, nodeConfig := range nodeConfigs {
+	for i, nodeConfig := range nodeConfigs {
+		// init the default config if they haven't been initialized yet
+		// this should therefore be running for the first node only
+		if i == 0 {
+			if ln.defaultNodeConfig == nil {
+				ln.defaultNodeConfig = &node.Config{
+					Flags:            DefaultFlags,
+					ChainConfigFiles: map[string]string{},
+				}
+				ln.defaultNodeConfig.Flags[config.WhitelistedSubnetsKey] = nodeConfig.Flags[config.WhitelistedSubnetsKey]
+
+				for k, v := range nodeConfig.ChainConfigFiles {
+					ln.defaultNodeConfig.ChainConfigFiles[k] = v
+				}
+			}
+		}
+
 		if _, err := ln.addNode(nodeConfig); err != nil {
 			if err := ln.stop(ctx); err != nil {
 				// Clean up nodes already created
@@ -463,6 +483,12 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, network.ErrStopped
 	}
 
+	// set defaults only if this is not the first node
+	if ln.defaultNodeConfig != nil {
+		nodeConfig.Flags = ln.defaultNodeConfig.Flags
+		nodeConfig.ChainConfigFiles = ln.defaultNodeConfig.ChainConfigFiles
+	}
+
 	return ln.addNode(nodeConfig)
 }
 
@@ -470,6 +496,17 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.Flags == nil {
 		nodeConfig.Flags = make(map[string]interface{})
+	}
+
+	// it shouldn't happen that just one is empty, most probably both,
+	// but in any case if just one is empty it's unusable so we just assign a new one.
+	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
+		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+		}
+		nodeConfig.StakingCert = string(stakingCert)
+		nodeConfig.StakingKey = string(stakingKey)
 	}
 
 	if err := ln.setNodeName(&nodeConfig); err != nil {
@@ -828,7 +865,10 @@ func (ln *localNetwork) loadSnapshot(
 	if err != nil {
 		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
 	}
-	networkConfig := network.Config{}
+	// set default flags for all nodes
+	networkConfig := network.Config{
+		Flags: DefaultFlags,
+	}
 	err = json.Unmarshal(networkConfigJSON, &networkConfig)
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)

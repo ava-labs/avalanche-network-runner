@@ -20,13 +20,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/staking"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -319,7 +320,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("rootDataDir", rootDataDir),
 		zap.String("pluginDir", pluginDir),
 		zap.Any("chainConfigs", req.ChainConfigs),
-		zap.String("defaultNodeConfig", globalNodeConfig),
+		zap.String("globalNodeConfig", globalNodeConfig),
 	)
 
 	if s.network != nil {
@@ -706,8 +707,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var whitelistedSubnets string
-
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("node with name %s already exists", req.Name)
 	}
@@ -729,55 +728,29 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
 	}
 
-	// use same configs from other nodes
-	whitelistedSubnets = s.network.options.whitelistedSubnets
+	// as execPath can be provided by this function, we might need a new `build-dir`
 	buildDir, err := getBuildDir(execPath, s.network.pluginDir)
 	if err != nil {
 		return nil, err
 	}
 
-	rootDataDir := s.clusterInfo.RootDataDir
-
-	logDir := filepath.Join(rootDataDir, req.Name, "log")
-	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
-
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
+	var globalConfig map[string]interface{}
 	if req.StartRequest.GetGlobalNodeConfig() != "" {
 		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
 			return nil, err
 		}
 	}
 
-	var mergedConfig map[string]interface{}
-	// we only need to merge from the default node config here, as we are only adding one node
-	mergedConfig, err = mergeNodeConfig(defaultConfig, globalConfig, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed merging provided configs: %w", err)
-	}
-	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, buildDir, whitelistedSubnets)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
-	}
-	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
-	}
+	globalConfig[config.BuildDirKey] = buildDir
+
 	nodeConfig := node.Config{
 		Name:           req.Name,
-		ConfigFile:     configFile,
-		StakingKey:     string(stakingKey),
-		StakingCert:    string(stakingCert),
+		Flags:          globalConfig,
 		BinaryPath:     execPath,
 		RedirectStdout: s.cfg.RedirectNodesOutput,
 		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
 	nodeConfig.ChainConfigFiles = map[string]string{}
-	for k, v := range s.network.chainConfigs {
-		nodeConfig.ChainConfigFiles[k] = v
-	}
 	for k, v := range req.StartRequest.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
@@ -849,10 +822,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
 
-	var defaultConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
+	defaultConfig := local.DefaultFlags
 
 	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
 	if err != nil {
