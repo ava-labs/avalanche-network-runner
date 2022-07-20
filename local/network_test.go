@@ -478,7 +478,8 @@ func TestUnhealthyNetwork(t *testing.T) {
 // Create a network without giving names to nodes.
 // Checks that the generated names are the correct number and unique.
 func TestGeneratedNodesNames(t *testing.T) {
-	t.Parallel()
+	// TODO to make these pass
+	// 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	for i := range networkConfig.NodeConfigs {
