@@ -1,7 +1,7 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package server
+package local
 
 import (
 	"context"
@@ -50,12 +50,19 @@ type blockchainSpec struct {
 	subnetId *string
 }
 
+type blockchainInfo struct {
+    vmName string
+    vmID ids.ID
+    subnetID ids.ID
+    blockchainID ids.ID
+}
+
 // provisions local cluster and install custom VMs if applicable
 // assumes the local cluster is already set up and healthy
 func (lc *localNetwork) installCustomVMs(
 	ctx context.Context,
 	chainSpecs []blockchainSpec,
-) ([]vmInfo, error) {
+) ([]blockchainInfo, error) {
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
@@ -146,7 +153,7 @@ func (lc *localNetwork) installCustomVMs(
 		return nil, err
 	}
 
-	chainInfos := make([]vmInfo, len(chainSpecs))
+	chainInfos := make([]blockchainInfo, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmID, err := utils.VMID(chainSpec.vmName)
 		if err != nil {
@@ -156,13 +163,9 @@ func (lc *localNetwork) installCustomVMs(
 		if err != nil {
 			return nil, err
 		}
-		chainInfos[i] = vmInfo{
-			info: &rpcpb.CustomVmInfo{
-				VmName:       chainSpec.vmName,
-				VmId:         vmID.String(),
-				SubnetId:     subnetID.String(),
-				BlockchainId: blockchainIDs[i].String(),
-			},
+		chainInfos[i] = blockchainInfo{
+            vmName:       chainSpec.vmName,
+            vmID:         vmID,
 			subnetID:     subnetID,
 			blockchainID: blockchainIDs[i],
 		}
@@ -263,7 +266,7 @@ func (lc *localNetwork) installSubnets(
 
 func (lc *localNetwork) waitForCustomVMsReady(
 	ctx context.Context,
-	chainInfos []vmInfo,
+	chainInfos []blockchainInfo,
 ) error {
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
