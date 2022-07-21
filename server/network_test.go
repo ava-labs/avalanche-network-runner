@@ -19,7 +19,7 @@ func TestEvalConfig(t *testing.T) {
 
 	var defaultConfig, globalConfig map[string]interface{}
 
-	defaultConfig = local.DefaultFlags
+	defaultConfig = local.GetDefaultFlags()
 
 	config, err := mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
@@ -31,7 +31,7 @@ func TestEvalConfig(t *testing.T) {
 	assert.NoError(err)
 
 	var test1Map map[string]interface{}
-	test1Map = local.DefaultFlags
+	test1Map = local.GetDefaultFlags()
 	// ...all default config entries should still be there...
 	for k, v := range test1Map {
 		assert.Equal(controlMap[k], v)

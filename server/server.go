@@ -739,6 +739,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
 			return nil, err
 		}
+	} else {
+		globalConfig = map[string]interface{}{}
 	}
 
 	globalConfig[config.BuildDirKey] = buildDir
@@ -822,7 +824,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
 
-	defaultConfig := local.DefaultFlags
+	defaultConfig := local.GetDefaultFlags()
 
 	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
 	if err != nil {

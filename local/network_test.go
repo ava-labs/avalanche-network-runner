@@ -161,7 +161,7 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, log loggin
 	lt.assert.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
 	// TODO without this the test FAILS, is this the correct way to fix it?
-	expectedConfig.Flags = DefaultFlags
+	expectedConfig.Flags = GetDefaultFlags()
 	lt.assert.EqualValues(expectedConfig.ChainConfigFiles, config.ChainConfigFiles)
 	lt.assert.EqualValues(expectedConfig.ConfigFile, config.ConfigFile)
 	lt.assert.EqualValues(expectedConfig.BinaryPath, config.BinaryPath)
@@ -478,8 +478,6 @@ func TestUnhealthyNetwork(t *testing.T) {
 // Create a network without giving names to nodes.
 // Checks that the generated names are the correct number and unique.
 func TestGeneratedNodesNames(t *testing.T) {
-	// TODO to make these pass
-	// 	t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	for i := range networkConfig.NodeConfigs {
@@ -681,8 +679,6 @@ func TestStoppedNetwork(t *testing.T) {
 }
 
 func TestGetAllNodes(t *testing.T) {
-	// TODO: with this enabled we get "FATAL: concurrent map writes"
-	// t.Parallel()
 	assert := assert.New(t)
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "")
@@ -719,15 +715,20 @@ func TestFlags(t *testing.T) {
 			"common-config-flag":     "this should be added",
 		}
 	}
+	expectedFlags := map[string]interface{}{
+		"test-network-config-flag": "something",
+		"common-config-flag":       "this should be added",
+		"test-node-config-flag":    "node",
+		"test2-node-config-flag":   "config",
+	}
+
+	for k, v := range GetDefaultFlags() {
+		expectedFlags[k] = v
+	}
 	nw, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, one flag should have been overridden by the node configs
-		expectedFlags: map[string]interface{}{
-			"test-network-config-flag": "something",
-			"common-config-flag":       "this should be added",
-			"test-node-config-flag":    "node",
-			"test2-node-config-flag":   "config",
-		},
-		assert: assert,
+		expectedFlags: expectedFlags,
+		assert:        assert,
 	},
 		"",
 		"",
@@ -750,6 +751,9 @@ func TestFlags(t *testing.T) {
 	for i := range networkConfig.NodeConfigs {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = flags
+	}
+	for k, v := range GetDefaultFlags() {
+		flags[k] = v
 	}
 	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only node configs should exist
@@ -776,6 +780,9 @@ func TestFlags(t *testing.T) {
 	for i := range networkConfig.NodeConfigs {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = nil
+	}
+	for k, v := range GetDefaultFlags() {
+		flags[k] = v
 	}
 	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only flags from the network config should exist

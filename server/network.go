@@ -156,7 +156,7 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 
-		mergedConfig, err := mergeNodeConfig(local.DefaultFlags, globalConfig, lc.options.customNodeConfigs[nodeName])
+		mergedConfig, err := mergeNodeConfig(local.GetDefaultFlags(), globalConfig, lc.options.customNodeConfigs[nodeName])
 		if err != nil {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}

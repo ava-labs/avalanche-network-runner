@@ -20,7 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 
-	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -46,13 +46,13 @@ var (
 
 	newNodeName       = "test-add-node"
 	customNodeConfigs = map[string]string{
-		"node1": `{"api-admin-enabled":true}`,
-		"node2": `{"api-admin-enabled":true}`,
-		"node3": `{"api-admin-enabled":true}`,
-		"node4": `{"api-admin-enabled":false}`,
-		"node5": `{"api-admin-enabled":false}`,
-		"node6": `{"api-admin-enabled":false}`,
-		"node7": `{"api-admin-enabled":false}`,
+		"node1": `{"api-info-enabled":true}`,
+		"node2": `{"api-info-enabled":true}`,
+		"node3": `{"api-info-enabled":true}`,
+		"node4": `{"api-info-enabled":false}`,
+		"node5": `{"api-info-enabled":false}`,
+		"node6": `{"api-info-enabled":false}`,
+		"node7": `{"api-info-enabled":false}`,
 	}
 	numNodes = uint32(5)
 )
@@ -343,13 +343,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			color.Outf("{{green}}expected number of nodes up:{{/}} %q\n", len(customNodeConfigs))
 
 			color.Outf("{{green}}checking correct admin APIs are enabled resp. disabled")
-			// we have 7 nodes, 3 have the admin API enabled, the other 4 disabled
+			// we have 7 nodes, 3 have the info API enabled, the other 4 disabled
 			// therefore we expect exactly 4 calls to fail and exactly 3 to succeed.
 			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 			errCnt := 0
 			for i := 0; i < len(uris); i++ {
-				cli := admin.NewClient(uris[i])
-				err := cli.LockProfile(ctx)
+				cli := info.NewClient(uris[i])
+				_, err := cli.GetNodeID(ctx)
 				if err != nil {
 					errCnt++
 				}
