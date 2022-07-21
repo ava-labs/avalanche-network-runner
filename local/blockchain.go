@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
-	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/config"
@@ -125,7 +124,7 @@ func (ln *localNetwork) installCustomVMs(
 		}
 	}
 
-	if err := addPrimaryValidators(ctx, ln.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -160,11 +159,11 @@ func (ln *localNetwork) installCustomVMs(
 		return nil, err
 	}
 	platformCli = platformvm.NewClient(clientURI)
-	if err = addSubnetValidators(ctx, ln.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
 		return nil, err
 	}
 
-	if err := reloadVMPlugins(ctx, ln.nodeInfos); err != nil {
+	if err := ln.reloadVMPlugins(ctx); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +226,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	if err := addPrimaryValidators(ctx, ln.nodeInfos, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -242,11 +241,11 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 	platformCli = platformvm.NewClient(clientURI)
-	if err = addSubnetValidators(ctx, ln.nodeInfos, platformCli, baseWallet, subnetIDs); err != nil {
+	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
 		return nil, err
 	}
 
-	if err = waitSubnetValidators(ctx, ln.nodeInfos, platformCli, subnetIDs, ln.stopCh); err != nil {
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, ln.stopCh); err != nil {
 		return nil, err
 	}
 
@@ -309,38 +308,34 @@ func (ln *localNetwork) waitForCustomVMsReady(
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
 
-	if err := ln.nw.Healthy(ctx); err != nil {
+	if err := ln.Healthy(ctx); err != nil {
 		return err
 	}
 
 	subnetIDs := []ids.ID{}
 	for _, chainInfo := range chainInfos {
-		subnetID, err := ids.FromString(chainInfo.info.SubnetId)
-		if err != nil {
-			return err
-		}
-		subnetIDs = append(subnetIDs, subnetID)
+		subnetIDs = append(subnetIDs, chainInfo.subnetID)
 	}
 	clientURI, err := ln.getClientURI()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	if err := waitSubnetValidators(ctx, ln.nodeInfos, platformCli, subnetIDs, ln.stopCh); err != nil {
+	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs, ln.stopCh); err != nil {
 		return err
 	}
 
-	for nodeName, nodeInfo := range ln.nodeInfos {
+	for nodeName, node := range ln.nodes {
 		zap.L().Info("inspecting node log directory for custom VM logs",
 			zap.String("node-name", nodeName),
-			zap.String("log-dir", nodeInfo.LogDir),
+			zap.String("log-dir", node.GetLogsDir()),
 		)
-		for _, vmInfo := range chainInfos {
-			p := filepath.Join(nodeInfo.LogDir, vmInfo.info.BlockchainId+".log")
+		for _, chainInfo := range chainInfos {
+			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
 			zap.L().Info("checking log",
-				zap.String("vm-id", vmInfo.info.VmId),
-				zap.String("subnet-id", vmInfo.info.SubnetId),
-				zap.String("blockchain-id", vmInfo.info.BlockchainId),
+				zap.String("vm-id", chainInfo.vmID.String()),
+				zap.String("subnet-id", chainInfo.subnetID.String()),
+				zap.String("blockchain-id", chainInfo.blockchainID.String()),
 				zap.String("log-path", p),
 			)
 			for {
@@ -351,9 +346,9 @@ func (ln *localNetwork) waitForCustomVMsReady(
 				}
 
 				zap.L().Info("log not found yet, retrying...",
-					zap.String("vm-id", vmInfo.info.VmId),
-					zap.String("subnet-id", vmInfo.info.SubnetId),
-					zap.String("blockchain-id", vmInfo.info.BlockchainId),
+					zap.String("vm-id", chainInfo.vmID.String()),
+					zap.String("subnet-id", chainInfo.subnetID.String()),
+					zap.String("blockchain-id", chainInfo.blockchainID.String()),
 					zap.String("log-path", p),
 					zap.Error(err),
 				)
@@ -404,12 +399,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	zap.L().Info("restarting all nodes to whitelist subnet",
 		zap.Strings("whitelisted-subnets", whitelistedSubnetIDs),
 	)
-	for _, nodeName := range ln.nodeNames {
-		node, err := ln.nw.GetNode(nodeName)
-		if err != nil {
-			return err
-		}
-
+	for nodeName, node := range ln.nodes {
 		// replace WhitelistedSubnetsKey flag
 		nodeConfig := node.GetConfig()
 		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
@@ -486,9 +476,8 @@ func setupWallet(
 // add the nodes in [nodeInfos] as validators of the primary network, in case they are not
 // the validation starts as soon as possible and its duration is as long as possible, that is,
 // it is set to max accepted duration by avalanchego
-func addPrimaryValidators(
+func (ln *localNetwork) addPrimaryValidators(
 	ctx context.Context,
-	nodeInfos map[string]*rpcpb.NodeInfo,
 	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
@@ -579,9 +568,8 @@ func createSubnets(
 // add the nodes in [nodeInfos] as validators of the given subnets, in case they are not
 // the validation starts as soon as possible and its duration is as long as possible, that is,
 // it ends at the time the primary network validation ends for the node
-func addSubnetValidators(
+func (ln *localNetwork) addSubnetValidators(
 	ctx context.Context,
-	nodeInfos map[string]*rpcpb.NodeInfo,
 	platformCli platformvm.Client,
 	baseWallet *refreshableWallet,
 	subnetIDs []ids.ID,
@@ -648,9 +636,8 @@ func addSubnetValidators(
 }
 
 // waits until all nodes in [nodeInfos] start validating the given [subnetIDs]
-func waitSubnetValidators(
+func (ln *localNetwork) waitSubnetValidators(
 	ctx context.Context,
-	nodeInfos map[string]*rpcpb.NodeInfo,
 	platformCli platformvm.Client,
 	subnetIDs []ids.ID,
 	stopCh chan struct{},
@@ -693,9 +680,8 @@ func waitSubnetValidators(
 }
 
 // reload VM plugins on all nodes
-func reloadVMPlugins(
+func (ln *localNetwork) reloadVMPlugins(
 	ctx context.Context,
-	nodeInfos map[string]*rpcpb.NodeInfo,
 ) error {
 	color.Outf("{{green}}reloading plugin binaries{{/}}\n")
 	for _, nodeInfo := range nodeInfos {
