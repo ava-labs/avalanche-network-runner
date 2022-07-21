@@ -70,6 +70,8 @@ func (ln *localNetwork) CreateBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 	chainInfos, err := ln.installCustomVMs(ctx, chainSpecs)
 	if err != nil {
 		return err
@@ -85,6 +87,8 @@ func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 ) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
 	if _, err := ln.setupWalletAndInstallSubnets(ctx, numSubnets); err != nil {
 		return err
 	}
@@ -97,9 +101,6 @@ func (ln *localNetwork) installCustomVMs(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
@@ -232,9 +233,6 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 ) ([]ids.ID, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
 	println()
 	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
 
@@ -293,9 +291,6 @@ func (ln *localNetwork) installSubnets(
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
 	println()
 	color.Outf("{{blue}}{{bold}}add subnets{{/}}\n")
 
@@ -326,9 +321,6 @@ func (ln *localNetwork) waitForCustomVMsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 ) error {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
 
@@ -420,9 +412,6 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	ctx context.Context,
 	subnetIDs []ids.ID,
 ) (err error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
 	println()
 	color.Outf("{{green}}restarting each node with %s{{/}}\n", config.WhitelistedSubnetsKey)
 	whitelistedSubnetIDsMap := map[string]struct{}{}
