@@ -340,6 +340,16 @@ func (lc *localNetwork) createBlockchains(
 		return
 	}
 
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
 	if err := lc.updateSubnetInfo(ctx); err != nil {
 		lc.startErrCh <- err
 		return
@@ -375,6 +385,11 @@ func (lc *localNetwork) createSubnets(
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
