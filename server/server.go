@@ -827,67 +827,27 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	nodeInfo, ok := s.network.nodeInfos[req.Name]
-	if !ok {
-		return nil, ErrNodeNotFound
-	}
-
-	node, err := s.network.nw.GetNode(req.Name)
-	if err != nil {
-		return nil, ErrNodeNotFound
-	}
-	nodeConfig := node.GetConfig()
-
-	// use existing value if not specified
-	if req.GetExecPath() != "" {
-		nodeInfo.ExecPath = req.GetExecPath()
-	}
-	if req.GetWhitelistedSubnets() != "" {
-		nodeInfo.WhitelistedSubnets = req.GetWhitelistedSubnets()
-	}
+	dbDir := ""
 	if req.GetRootDataDir() != "" {
-		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
+		dbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
 
-	var defaultConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
-
-	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeConfig.ConfigFile, err = createConfigFileString(
-		defaultConfig,
-		nodeInfo.LogDir,
-		nodeInfo.DbDir,
-		buildDir,
-		nodeInfo.WhitelistedSubnets,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
-	}
-
-	nodeConfig.BinaryPath = nodeInfo.ExecPath
-	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
-	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
-
-	// now remove the node before restart
-	zap.L().Info("removing the node")
-	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
-		return nil, err
-	}
-
-	// now adding the new node
-	zap.L().Info("adding the node")
-	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
+	if err := s.network.nw.RestartNode(
+		ctx,
+		req.Name,
+		req.GetExecPath(),
+		req.GetWhitelistedSubnets(),
+		dbDir,
+	); err != nil {
 		return nil, err
 	}
 
 	zap.L().Info("waiting for local cluster readiness")
 	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 

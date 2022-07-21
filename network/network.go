@@ -43,4 +43,7 @@ type Network interface {
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
+	// Restart a given node using the same config, optionally changing binary path,
+	// whitelisted subnets, db dir
+	RestartNode(context.Context, string, string, string, string) error
 }
