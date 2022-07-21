@@ -725,19 +725,17 @@ func (ln *localNetwork) RestartNode(
 
 	nodeConfig := node.GetConfig()
 
-	buildDir := node.GetBuildDir()
 	if binaryPath != "" {
 		nodeConfig.BinaryPath = binaryPath
-		buildDir = filepath.Dir(binaryPath)
+		nodeConfig.Flags[config.BuildDirKey] = filepath.Dir(binaryPath)
 	}
-	nodeConfig.Flags[config.BuildDirKey] = buildDir
 
 	if whitelistedSubnets != "" {
 		nodeConfig.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
 	}
 
 	if dbDir != "" {
-		nodeConfig.Flags[config.DbDirKey] = dbDir
+		nodeConfig.Flags[config.DBPathKey] = dbDir
 	}
 
 	if err := ln.removeNode(ctx, nodeName); err != nil {
