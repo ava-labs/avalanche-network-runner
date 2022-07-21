@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/admin"
@@ -47,12 +48,6 @@ var (
 	defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 )
 
-type BlockchainSpec struct {
-	VmName   string
-	Genesis  []byte
-	SubnetId *string
-}
-
 type blockchainInfo struct {
 	vmName       string
 	vmID         ids.ID
@@ -71,11 +66,36 @@ func (ln *localNetwork) getClientURI() (string, error) {
 	return clientURI, nil
 }
 
+func (ln *localNetwork) CreateBlockchains(
+	ctx context.Context,
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+) error {
+	chainInfos, err := ln.installCustomVMs(ctx, chainSpecs)
+	if err != nil {
+		return err
+	}
+
+	if err := ln.waitForCustomVMsReady(ctx, chainInfos); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ln *localNetwork) CreateSubnets(
+	ctx context.Context,
+	numSubnets uint32,
+) error {
+	if _, err := ln.setupWalletAndInstallSubnets(ctx, numSubnets); err != nil {
+		return err
+	}
+	return nil
+}
+
 // provisions local cluster and install custom VMs if applicable
 // assumes the local cluster is already set up and healthy
 func (ln *localNetwork) installCustomVMs(
 	ctx context.Context,
-	chainSpecs []BlockchainSpec,
+	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -711,7 +731,7 @@ func (ln *localNetwork) reloadVMPlugins(
 
 func createBlockchains(
 	ctx context.Context,
-	chainSpecs []BlockchainSpec,
+	chainSpecs []network.BlockchainSpec,
 	baseWallet *refreshableWallet,
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {

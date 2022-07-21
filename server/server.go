@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/local"
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -248,7 +248,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if pluginDir == "" {
 		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	}
-	chainSpecs := []local.BlockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetCustomVms()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
 		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
@@ -271,7 +271,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			if err != nil {
 				return nil, err
 			}
-			chainSpecs = append(chainSpecs, local.BlockchainSpec{
+			chainSpecs = append(chainSpecs, network.BlockchainSpec{
 				VmName:  vmName,
 				Genesis: b,
 			})
@@ -433,7 +433,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, errors.New("no blockchain spec was provided")
 	}
 
-	chainSpecs := []local.BlockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
@@ -456,7 +456,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		if err != nil {
 			return nil, err
 		}
-		chainSpecs = append(chainSpecs, local.BlockchainSpec{
+		chainSpecs = append(chainSpecs, network.BlockchainSpec{
 			VmName:   vmName,
 			Genesis:  b,
 			SubnetId: req.GetBlockchainSpecs()[i].SubnetId,
