@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/admin"
@@ -55,13 +56,19 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
+// get an arbitrary node in the network
+func (ln *localNetwork) getSomeNode() node.Node {
+	var node node.Node
+	for _, n := range ln.nodes {
+		node = n
+		break
+	}
+	return node
+}
+
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) {
-	nodeNames, err := ln.GetNodeNames()
-	if err != nil {
-		return "", err
-	}
-	node := ln.nodes[nodeNames[0]]
+	node := ln.getSomeNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	return clientURI, nil
 }
@@ -234,7 +241,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	numSubnets uint32,
 ) ([]ids.ID, error) {
 	println()
-	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+	color.Outf("{{blue}}{{bold}}create subnets{{/}}\n")
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
@@ -390,11 +397,7 @@ func (ln *localNetwork) waitForCustomVMsReady(
 
 func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error) {
 	nonPlatformSubnets := []ids.ID{}
-	nodeNames, err := ln.GetNodeNames()
-	if err != nil {
-		return nil, err
-	}
-	node := ln.nodes[nodeNames[0]]
+	node := ln.getSomeNode()
 	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -453,7 +456,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 		}
 
 		zap.L().Info("waiting for local cluster readiness after restart", zap.String("node-name", nodeName))
-		if err := ln.Healthy(ctx); err != nil {
+		if err := ln.healthy(ctx); err != nil {
 			return err
 		}
 	}
