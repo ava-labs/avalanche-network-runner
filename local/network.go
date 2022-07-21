@@ -706,6 +706,79 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
+// Restart [nodeName] using the same config
+func (ln *localNetwork) RestartNode(ctx context.Context, nodeName string) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	node, ok := ln.nodes[nodeName]
+    if !ok {
+		return fmt.Errorf("node %q not found", nodeName)
+    }
+
+	nodeConfig := node.GetConfig()
+
+	// use existing value if not specified
+	if req.GetExecPath() != "" {
+		nodeInfo.ExecPath = req.GetExecPath()
+	}
+	if req.GetWhitelistedSubnets() != "" {
+		nodeInfo.WhitelistedSubnets = req.GetWhitelistedSubnets()
+	}
+	if req.GetRootDataDir() != "" {
+		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
+	}
+
+	var defaultConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+		return nil, err
+	}
+
+	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeConfig.ConfigFile, err = createConfigFileString(
+		defaultConfig,
+		nodeInfo.LogDir,
+		nodeInfo.DbDir,
+		buildDir,
+		nodeInfo.WhitelistedSubnets,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	}
+
+	nodeConfig.BinaryPath = nodeInfo.ExecPath
+	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
+	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
+
+	// now remove the node before restart
+	zap.L().Info("removing the node")
+	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
+		return nil, err
+	}
+
+	// now adding the new node
+	zap.L().Info("adding the node")
+	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
+		return nil, err
+	}
+
+	zap.L().Info("waiting for local cluster readiness")
+	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+		return nil, err
+	}
+
+	// update with the new config
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
+
+	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
