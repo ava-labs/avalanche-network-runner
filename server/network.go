@@ -154,6 +154,10 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 
+		if cfg.NodeConfigs[i].Flags == nil {
+			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
+		}
+
 		// set flags applied to the specific node
 		var customNodeConfig map[string]interface{}
 		if lc.options.customNodeConfigs[nodeName] != "" {
