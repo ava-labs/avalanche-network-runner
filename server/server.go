@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -824,22 +823,18 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
 	}
 
-	defaultConfig := local.GetDefaultFlags()
-
 	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeConfig.ConfigFile, err = createConfigFileString(
-		defaultConfig,
-		nodeInfo.LogDir,
-		nodeInfo.DbDir,
-		buildDir,
-		nodeInfo.WhitelistedSubnets,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
+	nodeConfig.Flags[config.LogsDirKey] = nodeInfo.LogDir
+	nodeConfig.Flags[config.DBPathKey] = nodeInfo.DbDir
+	if buildDir != "" {
+		nodeConfig.Flags[config.BuildDirKey] = buildDir
+	}
+	if nodeInfo.WhitelistedSubnets != "" {
+		nodeConfig.Flags[config.WhitelistedSubnetsKey] = nodeInfo.WhitelistedSubnets
 	}
 
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
