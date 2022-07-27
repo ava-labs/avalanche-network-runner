@@ -119,7 +119,7 @@ func newStartCommand() *cobra.Command {
 		&blockchainSpecsStr,
 		"blockchain-specs",
 		"",
-		"[optional] JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
+		"[optional] JSON string of list of [(VM name, its genesis file path)]",
 	)
 	cmd.PersistentFlags().StringVar(
 		&globalNodeConfig,
