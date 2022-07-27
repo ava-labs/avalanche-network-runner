@@ -545,7 +545,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.RemoveSnapshot(ctx, "pepe")
 			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot \"pepe\" does not exists"))
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot not found"))
 		})
 	})
 })
