@@ -83,6 +83,7 @@ var (
 	ErrNodeNotFound                       = errors.New("node not found")
 	ErrPeerNotFound                       = errors.New("peer not found")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
+	ErrNoBlockchainSpec                   = errors.New("no blockchain spec was provided")
 )
 
 const (
@@ -92,6 +93,11 @@ const (
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
+
+func IsServerError(err error, serverError error) bool {
+	status := status.Convert(err)
+	return status.Code() == codes.Unknown && status.Message() == serverError.Error()
+}
 
 func New(cfg Config) (Server, error) {
 	if cfg.Port == "" || cfg.GwPort == "" {
@@ -429,7 +435,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	if len(req.GetBlockchainSpecs()) == 0 {
-		return nil, errors.New("no blockchain spec was provided")
+		return nil, ErrNoBlockchainSpec
 	}
 
 	chainSpecs := []blockchainSpec{}
