@@ -711,12 +711,9 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("repeated node name %q", req.Name)
 	}
-	// fix if not given
-	if req.StartRequest == nil {
-		req.StartRequest = &rpcpb.StartRequest{}
-	}
+
 	// user can override bin path for this node...
-	execPath := req.StartRequest.ExecPath
+	execPath := req.ExecPath
 	if execPath == "" {
 		// ...or use the same binary as the rest of the network
 		execPath = s.network.execPath
@@ -745,8 +742,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
 		return nil, err
 	}
-	if req.StartRequest.GetGlobalNodeConfig() != "" {
-		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
+	if req.GetNodeConfig() != "" {
+		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &globalConfig); err != nil {
 			return nil, err
 		}
 	}
@@ -778,7 +775,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	for k, v := range s.network.chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
-	for k, v := range req.StartRequest.ChainConfigs {
+	for k, v := range req.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)

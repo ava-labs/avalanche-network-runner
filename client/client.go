@@ -233,19 +233,12 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret.applyOpts(opts)
 
 	req := &rpcpb.AddNodeRequest{
-		Name:         name,
-		StartRequest: &rpcpb.StartRequest{},
-	}
-	if ret.whitelistedSubnets != "" {
-		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
+		Name: name,
 	}
 	if ret.execPath != "" {
-		req.StartRequest.ExecPath = ret.execPath
+		req.ExecPath = ret.execPath
 	}
-	if ret.pluginDir != "" {
-		req.StartRequest.PluginDir = &ret.pluginDir
-	}
-	req.StartRequest.ChainConfigs = ret.chainConfigs
+	req.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
 	return c.controlc.AddNode(ctx, req)

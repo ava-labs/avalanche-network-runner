@@ -312,8 +312,10 @@ message RemoveNodeResponse {
 }
 
 message AddNodeRequest {
-  string name = 1;
-  StartRequest start_request = 2;
+  string name                       = 1;
+  string exec_path                  = 2;
+  optional string node_config       = 3;
+  map<string, string> chain_configs = 4;
 }
 
 message AddNodeResponse {
