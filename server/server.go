@@ -709,7 +709,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	var whitelistedSubnets string
 
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
-		return nil, fmt.Errorf("node with name %s already exists", req.Name)
+		return nil, fmt.Errorf("repeated node name %q", req.Name)
 	}
 	// fix if not given
 	if req.StartRequest == nil {
@@ -783,6 +783,9 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
