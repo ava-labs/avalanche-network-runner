@@ -248,9 +248,11 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	}
 	chainSpecs := []blockchainSpec{}
-	if len(req.GetCustomVms()) > 0 {
+	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
-		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
+		for i := range req.GetBlockchainSpecs() {
+			vmName := req.GetBlockchainSpecs()[i].VmName
+			vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
@@ -271,8 +273,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 				return nil, err
 			}
 			chainSpecs = append(chainSpecs, blockchainSpec{
-				vmName:  vmName,
-				genesis: b,
+				vmName:   vmName,
+				genesis:  b,
+				subnetId: req.GetBlockchainSpecs()[i].SubnetId,
 			})
 		}
 	}
@@ -372,7 +375,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// to decide cluster/subnet readiness
 	go func() {
 		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
-		if len(req.GetCustomVms()) == 0 {
+		if len(req.GetBlockchainSpecs()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
 		} else {
 			s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)

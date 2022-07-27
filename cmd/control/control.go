@@ -72,16 +72,16 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath        string
-	numNodes                  uint32
-	pluginDir                 string
-	globalNodeConfig          string
-	addNodeConfig             string
-	customVMNameToGenesisPath string
-	customNodeConfigs         string
-	rootDataDir               string
-	numSubnets                uint32
-	chainConfigs              string
+	avalancheGoBinPath string
+	numNodes           uint32
+	pluginDir          string
+	globalNodeConfig   string
+	addNodeConfig      string
+	blockchainSpecsStr string
+	customNodeConfigs  string
+	rootDataDir        string
+	numSubnets         uint32
+	chainConfigs       string
 )
 
 func newStartCommand() *cobra.Command {
@@ -116,10 +116,10 @@ func newStartCommand() *cobra.Command {
 		"[optional] root data directory to store logs and configurations",
 	)
 	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
+		&blockchainSpecsStr,
+		"blockchain-specs",
 		"",
-		"[optional] JSON string of map that maps from VM to its genesis file path",
+		"[optional] JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
 	)
 	cmd.PersistentFlags().StringVar(
 		&globalNodeConfig,
@@ -181,12 +181,12 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		opts = append(opts, client.WithCustomNodeConfigs(nodeConfigs))
 	}
 
-	if customVMNameToGenesisPath != "" {
-		customVMs := make(map[string]string)
-		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
+	if blockchainSpecsStr != "" {
+		blockchainSpecs := []*rpcpb.BlockchainSpec{}
+		if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 			return err
 		}
-		opts = append(opts, client.WithCustomVMs(customVMs))
+		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
 
 	if chainConfigs != "" {
@@ -220,8 +220,8 @@ func newCreateBlockchainsCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
+		&blockchainSpecsStr,
+		"blockchain-specs",
 		"",
 		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
 	)
@@ -238,12 +238,12 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	if customVMNameToGenesisPath == "" {
+	if blockchainSpecsStr == "" {
 		return errors.New("empty custom-vms argument")
 	}
 
 	blockchainSpecs := []*rpcpb.BlockchainSpec{}
-	if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
+	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 		return err
 	}
 
@@ -490,12 +490,6 @@ func newAddNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
-		"",
-		"[optional] JSON string of map that maps from VM to its genesis file path",
-	)
-	cmd.PersistentFlags().StringVar(
 		&addNodeConfig,
 		"node-config",
 		"",
@@ -527,15 +521,6 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
 		opts = append(opts, client.WithGlobalNodeConfig(addNodeConfig))
-	}
-
-	if customVMNameToGenesisPath != "" {
-		customVMs := make(map[string]string)
-		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
-		if err != nil {
-			return err
-		}
-		opts = append(opts, client.WithCustomVMs(customVMs))
 	}
 
 	if chainConfigs != "" {

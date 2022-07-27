@@ -120,8 +120,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.pluginDir != "" {
 		req.PluginDir = &ret.pluginDir
 	}
-	if len(ret.customVMs) > 0 {
-		req.CustomVms = ret.customVMs
+	if len(ret.blockchainSpecs) > 0 {
+		req.BlockchainSpecs = ret.blockchainSpecs
 	}
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
@@ -339,7 +339,7 @@ type Op struct {
 	globalNodeConfig   string
 	rootDataDir        string
 	pluginDir          string
-	customVMs          map[string]string
+	blockchainSpecs    []*rpcpb.BlockchainSpec
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
 	chainConfigs       map[string]string
@@ -389,10 +389,10 @@ func WithPluginDir(pluginDir string) OpOption {
 	}
 }
 
-// Map from VM name to its genesis path.
-func WithCustomVMs(customVMs map[string]string) OpOption {
+// Slice of VM name, genesis path, (optional) subnet ID.
+func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
 	return func(op *Op) {
-		op.customVMs = customVMs
+		op.blockchainSpecs = blockchainSpecs
 	}
 }
 
