@@ -225,7 +225,7 @@ func newCreateBlockchainsCommand() *cobra.Command {
 		"",
 		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
 	)
-	if err := cmd.MarkPersistentFlagRequired("custom-vms"); err != nil {
+	if err := cmd.MarkPersistentFlagRequired("blockchain-specs"); err != nil {
 		panic(err)
 	}
 	return cmd
@@ -239,7 +239,7 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	if blockchainSpecsStr == "" {
-		return errors.New("empty custom-vms argument")
+		return errors.New("empty blockchain-specs argument")
 	}
 
 	blockchainSpecs := []*rpcpb.BlockchainSpec{}
