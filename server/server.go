@@ -254,7 +254,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			if req.GetBlockchainSpecs()[i].SubnetId != nil {
 				return nil, errors.New("blockchain subnet id must be nil if starting a new empty network")
 			}
-			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+			zap.L().Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
 				zap.L().Warn("failed to convert VM name to VM ID",
@@ -365,7 +365,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
-	// start non-blocking to install local cluster + custom VMs (if applicable)
+	// start non-blocking to install local cluster + custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
 	go s.network.startWait(ctx, chainSpecs, readyCh)
@@ -376,9 +376,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	go func() {
 		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
 		if len(req.GetBlockchainSpecs()) == 0 {
-			zap.L().Info("no custom VM installation request, skipping its readiness check")
+			zap.L().Info("no custom chain installation request, skipping its readiness check")
 		} else {
-			s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+			s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 		}
 	}()
 

@@ -100,7 +100,7 @@ type localNetworkOptions struct {
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
 
-	// to block racey restart while installing custom VMs
+	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
@@ -259,7 +259,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	if buildDir != "" {
 		configFileMap[config.BuildDirKey] = buildDir
 	}
-	// need to whitelist subnet ID to create custom VM chain
+	// need to whitelist subnet ID to create custom chain
 	// ref. vms/platformvm/createChain
 	if whitelistedSubnets != "" {
 		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
@@ -327,7 +327,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
 
