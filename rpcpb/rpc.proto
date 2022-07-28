@@ -181,7 +181,7 @@ message NodeInfo {
   string id                   = 4;
   string log_dir              = 5;
   string db_dir               = 6;
-  string plugin_dir           = 7;
+  string build_dir            = 7;
   string whitelisted_subnets  = 8;
   bytes config                = 9;
 }
@@ -202,9 +202,9 @@ message StartRequest {
   // Used for both database and log files.
   optional string root_data_dir = 5;
 
-  // Plugin directory to load all custom VM executables.
-  // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 6;
+  // Build directory that contains the subdir 'plugins' from which to load all custom VM executables.
+  // If not specified, will be derived from the exec_path (its basedir)
+  optional string build_dir = 6;
 
   // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
   //
@@ -359,7 +359,7 @@ message SaveSnapshotResponse {
 message LoadSnapshotRequest {
   string snapshot_name = 1;
   optional string exec_path = 2;
-  optional string plugin_dir = 3;
+  optional string build_dir = 3;
   optional string root_data_dir = 4;
   map<string, string> chain_configs = 5;
   optional string global_node_config  = 6;
