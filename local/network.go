@@ -867,10 +867,7 @@ func (ln *localNetwork) loadSnapshot(
 	if err != nil {
 		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
 	}
-	// set default flags for all nodes
-	networkConfig := network.Config{
-		Flags: GetDefaultFlags(),
-	}
+	networkConfig := network.Config{}
 	err = json.Unmarshal(networkConfigJSON, &networkConfig)
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
