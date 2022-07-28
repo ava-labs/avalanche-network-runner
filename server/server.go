@@ -72,17 +72,15 @@ type server struct {
 }
 
 var (
-	ErrInvalidVMName                      = errors.New("invalid VM name")
-	ErrInvalidPort                        = errors.New("invalid port")
-	ErrClosed                             = errors.New("server closed")
-	ErrPluginDirEmptyButCustomVMsNotEmpty = errors.New("empty plugin-dir but non-empty custom VMs")
-	ErrPluginDirNonEmptyButCustomVMsEmpty = errors.New("non-empty plugin-dir but empty custom VM")
-	ErrNotEnoughNodesForStart             = errors.New("not enough nodes specified for start")
-	ErrAlreadyBootstrapped                = errors.New("already bootstrapped")
-	ErrNotBootstrapped                    = errors.New("not bootstrapped")
-	ErrNodeNotFound                       = errors.New("node not found")
-	ErrPeerNotFound                       = errors.New("peer not found")
-	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
+	ErrInvalidVMName          = errors.New("invalid VM name")
+	ErrInvalidPort            = errors.New("invalid port")
+	ErrClosed                 = errors.New("server closed")
+	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
+	ErrAlreadyBootstrapped    = errors.New("already bootstrapped")
+	ErrNotBootstrapped        = errors.New("not bootstrapped")
+	ErrNodeNotFound           = errors.New("node not found")
+	ErrPeerNotFound           = errors.New("peer not found")
+	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
 )
 
 const (
@@ -441,7 +439,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-		zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+		zap.L().Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
 			zap.L().Warn("failed to convert VM name to VM ID",
@@ -494,7 +492,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 
 	s.clusterInfo.CustomChainsHealthy = false
 
-	// start non-blocking to install custom VMs (if applicable)
+	// start non-blocking to install custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
 	go s.network.createBlockchains(ctx, chainSpecs, readyCh)
@@ -503,7 +501,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -552,7 +550,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
