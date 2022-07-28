@@ -422,7 +422,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 					status, err := cli.Status(ctx)
 					cancel()
 					gomega.Ω(err).Should(gomega.BeNil())
-					created = status.ClusterInfo.CustomVmsHealthy
+					created = status.ClusterInfo.CustomChainsHealthy
 					if created {
 						continueLoop = false
 					}
@@ -505,7 +505,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 					status, err := cli.Status(ctx)
 					cancel()
 					gomega.Ω(err).Should(gomega.BeNil())
-					created = status.ClusterInfo.CustomVmsHealthy
+					created = status.ClusterInfo.CustomChainsHealthy
 					if created {
 						continueLoop = false
 					}
