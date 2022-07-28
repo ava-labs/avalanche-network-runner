@@ -146,8 +146,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("start request with invalid custom VM name format should fail", func() {
-            pluginsPath := filepath.Join(os.TempDir(), "plugins")
-            err := os.MkdirAll(pluginsPath, fs.ModePerm)
+			pluginsPath := filepath.Join(os.TempDir(), "plugins")
+			err := os.MkdirAll(pluginsPath, fs.ModePerm)
 			gomega.Ω(err).Should(gomega.BeNil())
 			f, err := os.CreateTemp(pluginsPath, strings.Repeat("a", 33))
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -172,8 +172,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
 			vmID, err := utils.VMID("hello")
 			gomega.Ω(err).Should(gomega.BeNil())
-            pluginsPath := filepath.Join(os.TempDir(), "plugins")
-            err = os.MkdirAll(pluginsPath, fs.ModePerm)
+			pluginsPath := filepath.Join(os.TempDir(), "plugins")
+			err = os.MkdirAll(pluginsPath, fs.ModePerm)
 			gomega.Ω(err).Should(gomega.BeNil())
 			filePath := filepath.Join(pluginsPath, vmID.String())
 			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
