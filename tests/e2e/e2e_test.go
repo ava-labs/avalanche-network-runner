@@ -134,7 +134,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Start(ctx, execPath1,
-				client.WithPluginDir(os.TempDir()),
+				client.WithBuildDir(os.TempDir()),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: "invalid",
@@ -153,7 +153,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithBuildDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: filepath.Base(filePath),
@@ -174,7 +174,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithBuildDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "hello",
