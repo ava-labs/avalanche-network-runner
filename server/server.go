@@ -406,10 +406,10 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		s.clusterInfo.NodeNames = s.network.nodeNames
 		s.clusterInfo.NodeInfos = s.network.nodeInfos
 		if updateCustomVmsInfo {
-			s.clusterInfo.CustomVmsHealthy = true
-			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
+			s.clusterInfo.CustomChainsHealthy = true
+			s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
+			for chainID, chainInfo := range s.network.customChainIDToInfo {
+				s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 			}
 			s.clusterInfo.Subnets = s.network.subnets
 		}
@@ -492,7 +492,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		}
 	}
 
-	s.clusterInfo.CustomVmsHealthy = false
+	s.clusterInfo.CustomChainsHealthy = false
 
 	// start non-blocking to install custom VMs (if applicable)
 	// the user is expected to poll cluster status
@@ -541,7 +541,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	defer s.mu.Unlock()
 
 	s.clusterInfo.Healthy = false
-	s.clusterInfo.CustomVmsHealthy = false
+	s.clusterInfo.CustomChainsHealthy = false
 
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status

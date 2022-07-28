@@ -36,7 +36,7 @@ const (
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
 	subnetValidatorsWeight = 1000
-	// check period for blockchain logs while waiting for custom VMs to be ready
+	// check period for blockchain logs while waiting for custom chains to be ready
 	blockchainLogPullFrequency = time.Second
 	// check period while waiting for all validators to be ready
 	waitForValidatorsPullFrequency = time.Second
@@ -50,14 +50,14 @@ type blockchainSpec struct {
 	subnetId *string
 }
 
-// provisions local cluster and install custom VMs if applicable
+// provisions local cluster and install custom chains if applicable
 // assumes the local cluster is already set up and healthy
-func (lc *localNetwork) installCustomVMs(
+func (lc *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []blockchainSpec,
-) ([]vmInfo, error) {
+) ([]chainInfo, error) {
 	println()
-	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+	color.Outf("{{blue}}{{bold}}create and install custom chains{{/}}\n")
 
 	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(clientURI)
@@ -146,7 +146,7 @@ func (lc *localNetwork) installCustomVMs(
 		return nil, err
 	}
 
-	chainInfos := make([]vmInfo, len(chainSpecs))
+	chainInfos := make([]chainInfo, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmID, err := utils.VMID(chainSpec.vmName)
 		if err != nil {
@@ -156,12 +156,14 @@ func (lc *localNetwork) installCustomVMs(
 		if err != nil {
 			return nil, err
 		}
-		chainInfos[i] = vmInfo{
-			info: &rpcpb.CustomVmInfo{
-				VmName:       chainSpec.vmName,
-				VmId:         vmID.String(),
-				SubnetId:     subnetID.String(),
-				BlockchainId: blockchainIDs[i].String(),
+		chainInfos[i] = chainInfo{
+			info: &rpcpb.CustomChainInfo{
+				// we keep a record of VM name in blockchain name field,
+				// as there is no way to recover VM name from VM ID
+				ChainName: chainSpec.vmName,
+				VmId:      vmID.String(),
+				SubnetId:  subnetID.String(),
+				ChainId:   blockchainIDs[i].String(),
 			},
 			subnetID:     subnetID,
 			blockchainID: blockchainIDs[i],
@@ -187,7 +189,7 @@ func (lc *localNetwork) setupWalletAndInstallSubnets(
 	numSubnets uint32,
 ) ([]ids.ID, error) {
 	println()
-	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+	color.Outf("{{blue}}{{bold}}create and install custom chains{{/}}\n")
 
 	clientURI := lc.nodeInfos[lc.nodeNames[0]].Uri
 	platformCli := platformvm.NewClient(clientURI)
@@ -261,12 +263,12 @@ func (lc *localNetwork) installSubnets(
 	return subnetIDs, nil
 }
 
-func (lc *localNetwork) waitForCustomVMsReady(
+func (lc *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
-	chainInfos []vmInfo,
+	chainInfos []chainInfo,
 ) error {
 	println()
-	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
+	color.Outf("{{blue}}{{bold}}waiting for custom chains to report healthy...{{/}}\n")
 
 	if err := lc.nw.Healthy(ctx); err != nil {
 		return err
@@ -287,16 +289,16 @@ func (lc *localNetwork) waitForCustomVMsReady(
 	}
 
 	for nodeName, nodeInfo := range lc.nodeInfos {
-		zap.L().Info("inspecting node log directory for custom VM logs",
+		zap.L().Info("inspecting node log directory for custom chain logs",
 			zap.String("node-name", nodeName),
 			zap.String("log-dir", nodeInfo.LogDir),
 		)
-		for _, vmInfo := range chainInfos {
-			p := filepath.Join(nodeInfo.LogDir, vmInfo.info.BlockchainId+".log")
+		for _, chainInfo := range chainInfos {
+			p := filepath.Join(nodeInfo.LogDir, chainInfo.info.ChainId+".log")
 			zap.L().Info("checking log",
-				zap.String("vm-id", vmInfo.info.VmId),
-				zap.String("subnet-id", vmInfo.info.SubnetId),
-				zap.String("blockchain-id", vmInfo.info.BlockchainId),
+				zap.String("vm-id", chainInfo.info.VmId),
+				zap.String("subnet-id", chainInfo.info.SubnetId),
+				zap.String("blockchain-id", chainInfo.info.ChainId),
 				zap.String("log-path", p),
 			)
 			for {
@@ -307,9 +309,9 @@ func (lc *localNetwork) waitForCustomVMsReady(
 				}
 
 				zap.L().Info("log not found yet, retrying...",
-					zap.String("vm-id", vmInfo.info.VmId),
-					zap.String("subnet-id", vmInfo.info.SubnetId),
-					zap.String("blockchain-id", vmInfo.info.BlockchainId),
+					zap.String("vm-id", chainInfo.info.VmId),
+					zap.String("subnet-id", chainInfo.info.SubnetId),
+					zap.String("blockchain-id", chainInfo.info.ChainId),
 					zap.String("log-path", p),
 					zap.Error(err),
 				)
@@ -325,10 +327,10 @@ func (lc *localNetwork) waitForCustomVMsReady(
 	}
 
 	println()
-	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
+	color.Outf("{{green}}{{bold}}all custom chains are running!!!{{/}}\n")
 
 	println()
-	color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
+	color.Outf("{{green}}{{bold}}all custom chains are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
 
 	return nil
 }
@@ -504,24 +506,24 @@ func (lc *localNetwork) restartNodesWithWhitelistedSubnets(
 			return err
 		}
 
-		lc.customVMRestartMu.Lock()
+		lc.customChainRestartMu.Lock()
 		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
 		if err := lc.nw.RemoveNode(ctx, nodeName); err != nil {
-			lc.customVMRestartMu.Unlock()
+			lc.customChainRestartMu.Unlock()
 			return err
 		}
 
 		if _, err := lc.nw.AddNode(nodeConfig); err != nil {
-			lc.customVMRestartMu.Unlock()
+			lc.customChainRestartMu.Unlock()
 			return err
 		}
 
 		zap.L().Info("waiting for local cluster readiness after restart", zap.String("node-name", nodeName))
 		if err := lc.waitForLocalClusterReady(ctx); err != nil {
-			lc.customVMRestartMu.Unlock()
+			lc.customChainRestartMu.Unlock()
 			return err
 		}
-		lc.customVMRestartMu.Unlock()
+		lc.customChainRestartMu.Unlock()
 	}
 	if err := lc.updateNodeInfo(); err != nil {
 		return err
@@ -674,7 +676,7 @@ func createBlockchains(
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {
 	println()
-	color.Outf("{{green}}creating blockchain for each custom VM{{/}}\n")
+	color.Outf("{{green}}creating each custom chain{{/}}\n")
 	blockchainIDs := make([]ids.ID, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.vmName
