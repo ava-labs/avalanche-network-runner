@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 
@@ -134,7 +135,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Start(ctx, execPath1,
 				client.WithPluginDir(os.TempDir()),
-				client.WithCustomVMs(map[string]string{"invalid": "{0}"}),
+				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
+					{
+						VmName: "invalid",
+					},
+				}),
 			)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExistsPlugin.Error()))
@@ -149,7 +154,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
 				client.WithPluginDir(filepath.Dir(filePath)),
-				client.WithCustomVMs(map[string]string{filepath.Base(filePath): "{0}"}),
+				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
+					{
+						VmName: filepath.Base(filePath),
+					},
+				}),
 			)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrInvalidVMName.Error()))
@@ -166,7 +175,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
 				client.WithPluginDir(filepath.Dir(filePath)),
-				client.WithCustomVMs(map[string]string{"hello": "invalid"}),
+				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
+					{
+						VmName:  "hello",
+						Genesis: "invalid",
+					},
+				}),
 			)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExistsPluginGenesis.Error()))
