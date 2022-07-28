@@ -160,7 +160,7 @@ func (lc *localNetwork) createConfig() error {
 
 		// set flags applied to the specific node
 		var customNodeConfig map[string]interface{}
-		if lc.options.customNodeConfigs[nodeName] != "" {
+		if lc.options.customNodeConfigs != nil && lc.options.customNodeConfigs[nodeName] != "" {
 			if err := json.Unmarshal([]byte(lc.options.customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
 				return err
 			}
