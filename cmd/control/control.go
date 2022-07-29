@@ -508,6 +508,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map that maps from chain id to its config file contents",
 	)
+	cmd.PersistentFlags().StringVar(
+		&upgradeConfigs,
+		"upgrade-configs",
+		"",
+		"[optional] JSON string of map that maps from chain id to its upgrade file contents",
+	)
 	return cmd
 }
 

@@ -314,7 +314,7 @@ func newNetwork(
 	return net, nil
 }
 
-// NewNetwork returns a new network from the given snapshot
+// NewNetworkFromSnapshot returns a new network from the given snapshot
 func NewNetworkFromSnapshot(
 	log logging.Logger,
 	snapshotName string,
