@@ -781,6 +781,9 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	for k, v := range req.StartRequest.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
+	for k, v := range req.StartRequest.UpgradeConfigs {
+		nodeConfig.UpgradeConfigFiles[k] = v
+	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
 		return nil, err
@@ -822,7 +825,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
-	zap.L().Debug("received remove node request", zap.String("name", req.Name))
+	zap.L().Debug("received restart node request", zap.String("name", req.Name))
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}

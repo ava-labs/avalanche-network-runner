@@ -184,6 +184,7 @@ message NodeInfo {
   string plugin_dir           = 7;
   string whitelisted_subnets  = 8;
   bytes config                = 9;
+  bytes upgrade_config        = 10;
 }
 
 message AttachedPeerInfo {
@@ -222,9 +223,12 @@ message StartRequest {
   // Map of chain name to config file contents.
   // If specified, will create a file "chainname/config.json" with
   // the contents provided here.
-  // Currently only supports C chain, pending generalizing logic
-  // in avalanche-network-runner.
   map<string, string> chain_configs = 9;
+
+  // Map of chain name to upgrade file contents.
+  // If specified, will create a file "chainname/upgrade.json" with
+  // the contents provided here.
+  map<string, string> upgrade_configs = 10;
 }
 
 message StartResponse {
@@ -297,6 +301,20 @@ message RestartNodeRequest {
 
   // Used for both database and log files.
   optional string root_data_dir = 4;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/config.json" with
+  // the contents provided here.
+  // Currently only supports C chain, pending generalizing logic
+  // in avalanche-network-runner.
+  map<string, string> chain_configs = 5;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/upgrade.json" with
+  // the contents provided here.
+  // Currently only supports C chain, pending generalizing logic
+  // in avalanche-network-runner.
+  map<string, string> upgrade_configs = 6;
 }
 
 message RestartNodeResponse {

@@ -68,6 +68,8 @@ type Config struct {
 	ConfigFile string `json:"configFile"`
 	// May be nil.
 	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
+	// May be nil.
+	UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
 	// Flags can hold additional flags for the node.
 	// It can be empty.
 	// The precedence of flags handling is:
