@@ -877,6 +877,10 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
 
+	// keep the same api & staking ports across the restart
+	nodeConfig.ApiPort = node.GetAPIPort()
+	nodeConfig.StakingPort = node.GetP2PPort()
+
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
 	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
 	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
