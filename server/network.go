@@ -470,6 +470,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 		var whitelistedSubnets string
 		var configFileMap map[string]interface{}
 		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
+			fmt.Printf("UNMARSHAL ERROR %s\n", string(configFile))
 			return err
 		}
 		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
