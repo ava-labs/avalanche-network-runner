@@ -879,6 +879,12 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
 	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
 	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
+	for k, v := range req.ChainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
+	}
+	for k, v := range req.UpgradeConfigs {
+		nodeConfig.UpgradeConfigFiles[k] = v
+	}
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
