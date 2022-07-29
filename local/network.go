@@ -187,6 +187,7 @@ func init() {
 		defaultNetworkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{
 			"C": string(cChainConfig),
 		}
+		defaultNetworkConfig.NodeConfigs[i].UpgradeConfigFiles = map[string]string{}
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -1207,10 +1208,15 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}
 	}
-	if nodeConfig.ChainConfigFiles != nil {
-		// only one flag and multiple files
-		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+
+	chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+	if nodeConfig.ChainConfigFiles != nil || nodeConfig.UpgradeConfigFiles != nil {
+		// only specify this flag once
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+	}
+
+	// add the config files for all specified chains
+	if nodeConfig.ChainConfigFiles != nil {
 		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
 			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
 			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
@@ -1218,11 +1224,9 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			}
 		}
 	}
+
+	// add the upgrade files for all specified chains
 	if nodeConfig.UpgradeConfigFiles != nil {
-		// only one flag and multiple files
-		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-		// TODO: only need to specify this flag once
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
 		for chainAlias, upgradeChainFile := range nodeConfig.UpgradeConfigFiles {
 			upgradeConfigPath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
 			if err := createFileAndWrite(upgradeConfigPath, []byte(upgradeChainFile)); err != nil {
@@ -1230,5 +1234,6 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			}
 		}
 	}
+
 	return flags, nil
 }

@@ -775,6 +775,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
 	nodeConfig.ChainConfigFiles = map[string]string{}
+	nodeConfig.UpgradeConfigFiles = map[string]string{}
 	for k, v := range s.network.chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}

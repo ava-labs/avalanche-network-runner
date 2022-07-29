@@ -642,7 +642,7 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 		if err := json.Unmarshal([]byte(upgradeConfigs), &upgradeConfigsMap); err != nil {
 			return err
 		}
-		opts = append(opts, client.WithChainConfigs(upgradeConfigsMap))
+		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
