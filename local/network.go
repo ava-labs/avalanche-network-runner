@@ -593,7 +593,10 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 func (ln *localNetwork) Healthy(ctx context.Context) error {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
+	return ln.healthy(ctx)
+}
 
+func (ln *localNetwork) healthy(ctx context.Context) error {
 	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
 
 	// Return unhealthy if the network is stopped
