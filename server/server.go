@@ -761,6 +761,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		fmt.Printf("ADDNODE ERR %#v %s\n", nodeConfig, err)
 		return nil, err
 	}
+	fmt.Println("ADDNODE CALL END")
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }

@@ -7,6 +7,7 @@ package e2e_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -285,6 +286,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			color.Outf("{{green}}calling 'add-node' with the valid binary path:{{/}} %q\n", execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			fmt.Println(resp)
+			fmt.Println(err)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
