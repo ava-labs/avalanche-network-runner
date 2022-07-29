@@ -1316,14 +1316,10 @@ type RestartNodeRequest struct {
 	// Map of chain name to config file contents.
 	// If specified, will create a file "chainname/config.json" with
 	// the contents provided here.
-	// Currently only supports C chain, pending generalizing logic
-	// in avalanche-network-runner.
 	ChainConfigs map[string]string `protobuf:"bytes,5,rep,name=chain_configs,json=chainConfigs,proto3" json:"chain_configs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Map of chain name to config file contents.
 	// If specified, will create a file "chainname/upgrade.json" with
 	// the contents provided here.
-	// Currently only supports C chain, pending generalizing logic
-	// in avalanche-network-runner.
 	UpgradeConfigs map[string]string `protobuf:"bytes,6,rep,name=upgrade_configs,json=upgradeConfigs,proto3" json:"upgrade_configs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 

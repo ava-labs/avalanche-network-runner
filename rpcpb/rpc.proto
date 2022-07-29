@@ -305,15 +305,11 @@ message RestartNodeRequest {
   // Map of chain name to config file contents.
   // If specified, will create a file "chainname/config.json" with
   // the contents provided here.
-  // Currently only supports C chain, pending generalizing logic
-  // in avalanche-network-runner.
   map<string, string> chain_configs = 5;
 
   // Map of chain name to config file contents.
   // If specified, will create a file "chainname/upgrade.json" with
   // the contents provided here.
-  // Currently only supports C chain, pending generalizing logic
-  // in avalanche-network-runner.
   map<string, string> upgrade_configs = 6;
 }
 
