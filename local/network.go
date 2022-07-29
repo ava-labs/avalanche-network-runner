@@ -528,16 +528,22 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
+	fmt.Println("HERE_0")
+
 	nodeData, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("HERE_1")
 
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get node ID: %w", err)
 	}
+
+	fmt.Println("HERE_2")
 
 	// Start the AvalancheGo node and pass it the flags defined above
 	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, ln.log, nodeData.flags...)
@@ -548,6 +554,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		)
 	}
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
+
+	fmt.Println("HERE_3")
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
@@ -566,6 +574,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		httpHost:    nodeData.httpHost,
 	}
 	ln.nodes[node.name] = node
+	fmt.Println("HERE_4")
 	// If this node is a beacon, add its IP/ID to the beacon lists.
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
@@ -575,6 +584,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: nodeData.p2pPort,
 		}))
 	}
+	fmt.Println("HERE_5")
+	fmt.Println(err)
 	return node, err
 }
 
