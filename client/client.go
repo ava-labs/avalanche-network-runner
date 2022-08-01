@@ -248,7 +248,8 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	req.StartRequest.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
-	return c.controlc.AddNode(ctx, req)
+	r, err := c.controlc.AddNode(ctx, req)
+	return r, err
 }
 
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {
