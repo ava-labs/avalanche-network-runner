@@ -12,6 +12,12 @@ var (
 	ErrStopped   = errors.New("network stopped")
 )
 
+type BlockchainSpec struct {
+	VmName   string
+	Genesis  []byte
+	SubnetId *string
+}
+
 // Network is an abstraction of an Avalanche network
 type Network interface {
 	// Returns nil if all the nodes in the network are healthy.
@@ -45,4 +51,8 @@ type Network interface {
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
+	// Create the specified blockchains
+	CreateBlockchains(context.Context, []BlockchainSpec) error
+	// Create the given numbers of subnets
+	CreateSubnets(context.Context, uint32) error
 }
