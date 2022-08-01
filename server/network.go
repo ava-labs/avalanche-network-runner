@@ -465,20 +465,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		configFile := []byte(node.GetConfigFile())
 		var pluginDir string
-		var whitelistedSubnets string
-		var configFileMap map[string]interface{}
-		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
-			fmt.Printf("UNMARSHAL ERROR %s\n", string(configFile))
+		whitelistedSubnets, err := node.GetFlag(config.WhitelistedSubnetsKey)
+		if err != nil {
 			return err
-		}
-		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
-		if ok {
-			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
-			if !ok {
-				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
-			}
 		}
 		buildDir := node.GetBuildDir()
 		if buildDir != "" {

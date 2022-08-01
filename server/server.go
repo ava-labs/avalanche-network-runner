@@ -737,7 +737,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	var globalConfig map[string]interface{}
 	if req.StartRequest.GetGlobalNodeConfig() != "" {
 		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
-			fmt.Printf("GLOBALNODECONFIG ERR %s %s\n", req.StartRequest.GetGlobalNodeConfig(), err)
 			return nil, err
 		}
 	} else {
@@ -759,14 +758,11 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
-		fmt.Printf("ADDNODE ERR %#v %s\n", nodeConfig, err)
 		return nil, err
 	}
 	if err := s.network.updateNodeInfo(); err != nil {
-		fmt.Println("UPDATENODEINFO FAIL")
 		return nil, err
 	}
-	fmt.Println("ADDNODE CALL END")
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }

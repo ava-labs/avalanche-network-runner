@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-    "fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
@@ -249,10 +248,8 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	req.StartRequest.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
-    r, err := c.controlc.AddNode(ctx, req)
-    fmt.Println(r)
-    fmt.Println(err)
-    return r, err
+	r, err := c.controlc.AddNode(ctx, req)
+	return r, err
 }
 
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {

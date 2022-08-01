@@ -49,6 +49,8 @@ type Node interface {
 	GetConfigFile() string
 	// Return this node's config
 	GetConfig() Config
+	// Return this node's flag value
+	GetFlag(string) (string, error)
 }
 
 // Config encapsulates an avalanchego configuration
