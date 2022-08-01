@@ -80,7 +80,6 @@ var (
 	ErrNotEnoughNodesForStart             = errors.New("not enough nodes specified for start")
 	ErrAlreadyBootstrapped                = errors.New("already bootstrapped")
 	ErrNotBootstrapped                    = errors.New("not bootstrapped")
-	ErrNodeNotFound                       = errors.New("node not found")
 	ErrPeerNotFound                       = errors.New("peer not found")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
 )
@@ -802,7 +801,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	defer s.mu.Unlock()
 
 	if _, ok := s.network.nodeInfos[req.Name]; !ok {
-		return nil, ErrNodeNotFound
+		return nil, network.ErrNodeNotFound
 	}
 
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
@@ -832,12 +831,12 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	nodeInfo, ok := s.network.nodeInfos[req.Name]
 	if !ok {
-		return nil, ErrNodeNotFound
+		return nil, network.ErrNodeNotFound
 	}
 
 	node, err := s.network.nw.GetNode(req.Name)
 	if err != nil {
-		return nil, ErrNodeNotFound
+		return nil, err
 	}
 	nodeConfig := node.GetConfig()
 
@@ -990,7 +989,7 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 
 	node, err := s.network.nw.GetNode(req.NodeName)
 	if err != nil {
-		return nil, ErrNodeNotFound
+		return nil, err
 	}
 
 	sent, err := node.SendOutboundMessage(ctx, req.PeerId, req.Bytes, req.Op)

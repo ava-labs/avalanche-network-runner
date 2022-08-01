@@ -611,7 +611,7 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 
 	node, ok := ln.nodes[nodeName]
 	if !ok {
-		return nil, fmt.Errorf("node %q not found in network", nodeName)
+		return nil, network.ErrNodeNotFound
 	}
 	return node, nil
 }

@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrUndefined = errors.New("undefined network")
-	ErrStopped   = errors.New("network stopped")
+	ErrUndefined    = errors.New("undefined network")
+	ErrStopped      = errors.New("network stopped")
+	ErrNodeNotFound = errors.New("node not found in network")
 )
 
 type BlockchainSpec struct {
