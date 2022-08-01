@@ -246,6 +246,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 		req.StartRequest.PluginDir = &ret.pluginDir
 	}
 	req.StartRequest.ChainConfigs = ret.chainConfigs
+	req.StartRequest.UpgradeConfigs = ret.upgradeConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
 	return c.controlc.AddNode(ctx, req)
@@ -270,6 +271,8 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
 	}
+	req.ChainConfigs = ret.chainConfigs
+	req.UpgradeConfigs = ret.upgradeConfigs
 
 	zap.L().Info("restart node", zap.String("name", name))
 	return c.controlc.RestartNode(ctx, req)
@@ -350,6 +353,7 @@ type Op struct {
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
 	chainConfigs       map[string]string
+	upgradeConfigs     map[string]string
 }
 
 type OpOption func(*Op)
@@ -407,6 +411,13 @@ func WithCustomVMs(customVMs map[string]string) OpOption {
 func WithChainConfigs(chainConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.chainConfigs = chainConfigs
+	}
+}
+
+// Map from chain name to its upgrade json contents.
+func WithUpgradeConfigs(upgradeConfigs map[string]string) OpOption {
+	return func(op *Op) {
+		op.upgradeConfigs = upgradeConfigs
 	}
 }
 

@@ -77,6 +77,10 @@ type localNetwork struct {
 	// default chain configs to be used when adding new nodes to the network
 	// includes the ones received in options, plus default config or snapshot
 	chainConfigs map[string]string
+
+	// default upgrade configs to be used when adding new nodes to the network
+	// includes the ones received in options, plus default config or snapshot
+	upgradeConfigs map[string]string
 }
 
 type vmInfo struct {
@@ -98,6 +102,8 @@ type localNetworkOptions struct {
 
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
+	// upgrade configs to be added to the network, besides the ones in default config, or saved snapshot
+	upgradeConfigs map[string]string
 
 	// to block racey restart while installing custom VMs
 	restartMu *sync.RWMutex
@@ -169,6 +175,9 @@ func (lc *localNetwork) createConfig() error {
 		for k, v := range lc.options.chainConfigs {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
+		for k, v := range lc.options.upgradeConfigs {
+			cfg.NodeConfigs[i].UpgradeConfigFiles[k] = v
+		}
 
 		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
 		if err != nil {
@@ -184,7 +193,6 @@ func (lc *localNetwork) createConfig() error {
 		if err != nil {
 			return err
 		}
-
 		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
@@ -429,6 +437,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.execPath,
 		buildDir,
 		lc.options.chainConfigs,
+		lc.options.upgradeConfigs,
 		globalNodeConfig,
 	)
 	if err != nil {
@@ -568,6 +577,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 		// update default chain configs if empty
 		if lc.chainConfigs == nil {
 			lc.chainConfigs = node.GetConfig().ChainConfigFiles
+		}
+		// update default upgrade configs if empty
+		if lc.upgradeConfigs == nil {
+			lc.upgradeConfigs = node.GetConfig().UpgradeConfigFiles
 		}
 
 	}

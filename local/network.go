@@ -37,6 +37,7 @@ import (
 const (
 	defaultNodeNamePrefix = "node"
 	configFileName        = "config.json"
+	upgradeConfigFileName = "upgrade.json"
 	stakingKeyFileName    = "staking.key"
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
@@ -186,6 +187,7 @@ func init() {
 		defaultNetworkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{
 			"C": string(cChainConfig),
 		}
+		defaultNetworkConfig.NodeConfigs[i].UpgradeConfigFiles = map[string]string{}
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -313,7 +315,7 @@ func newNetwork(
 	return net, nil
 }
 
-// NewNetwork returns a new network from the given snapshot
+// NewNetworkFromSnapshot returns a new network from the given snapshot
 func NewNetworkFromSnapshot(
 	log logging.Logger,
 	snapshotName string,
@@ -322,6 +324,7 @@ func NewNetworkFromSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
 	flags map[string]interface{},
 ) (network.Network, error) {
 	net, err := newNetwork(
@@ -338,7 +341,7 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, flags)
+	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, upgradeConfigs, flags)
 	return net, err
 }
 
@@ -812,6 +815,7 @@ func (ln *localNetwork) loadSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
 	flags map[string]interface{},
 ) error {
 	ln.lock.Lock()
@@ -868,8 +872,14 @@ func (ln *localNetwork) loadSnapshot(
 		if networkConfig.NodeConfigs[i].ChainConfigFiles == nil {
 			networkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{}
 		}
+		if networkConfig.NodeConfigs[i].UpgradeConfigFiles == nil {
+			networkConfig.NodeConfigs[i].UpgradeConfigFiles = map[string]string{}
+		}
 		for k, v := range chainConfigs {
 			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
+		}
+		for k, v := range upgradeConfigs {
+			networkConfig.NodeConfigs[i].UpgradeConfigFiles[k] = v
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
@@ -1102,17 +1112,23 @@ func (ln *localNetwork) buildFlags(
 		return buildFlagsReturn{}, err
 	}
 
-	// Use random free API port unless given in config file
-	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
-	if err != nil {
-		return buildFlagsReturn{}, err
+	// Prefer API port and P2P (staking) port from nodeConfig
+	apiPort, p2pPort := nodeConfig.ApiPort, nodeConfig.StakingPort
+
+	if apiPort == 0 {
+		// Use random free API port unless given in config file
+		apiPort, err = getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
+		if err != nil {
+			return buildFlagsReturn{}, err
+		}
 	}
 
-	// Use a random free P2P (staking) port unless given in config file
-	// Use random free API port unless given in config file
-	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
-	if err != nil {
-		return buildFlagsReturn{}, err
+	if p2pPort == 0 {
+		// Use a random free P2P (staking) port unless given in config file
+		p2pPort, err = getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
+		if err != nil {
+			return buildFlagsReturn{}, err
+		}
 	}
 
 	// Flags for AvalancheGo
@@ -1201,10 +1217,15 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}
 	}
-	if nodeConfig.ChainConfigFiles != nil {
-		// only one flag and multiple files
-		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+
+	chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+	if nodeConfig.ChainConfigFiles != nil || nodeConfig.UpgradeConfigFiles != nil {
+		// only specify this flag once
 		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+	}
+
+	// add the config files for all specified chains
+	if nodeConfig.ChainConfigFiles != nil {
 		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
 			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
 			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
@@ -1212,5 +1233,16 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			}
 		}
 	}
+
+	// add the upgrade files for all specified chains
+	if nodeConfig.UpgradeConfigFiles != nil {
+		for chainAlias, upgradeChainFile := range nodeConfig.UpgradeConfigFiles {
+			upgradeConfigPath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
+			if err := createFileAndWrite(upgradeConfigPath, []byte(upgradeChainFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", upgradeConfigPath, err)
+			}
+		}
+	}
+
 	return flags, nil
 }

@@ -776,11 +776,15 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
 	nodeConfig.ChainConfigFiles = map[string]string{}
+	nodeConfig.UpgradeConfigFiles = map[string]string{}
 	for k, v := range s.network.chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
 	for k, v := range req.StartRequest.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
+	}
+	for k, v := range req.StartRequest.UpgradeConfigs {
+		nodeConfig.UpgradeConfigFiles[k] = v
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)
 	if err != nil {
@@ -823,7 +827,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
-	zap.L().Debug("received remove node request", zap.String("name", req.Name))
+	zap.L().Debug("received restart node request", zap.String("name", req.Name))
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -874,9 +878,19 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
 	}
 
+	// keep the same api & staking ports across the restart
+	nodeConfig.ApiPort = node.GetAPIPort()
+	nodeConfig.StakingPort = node.GetP2PPort()
+
 	nodeConfig.BinaryPath = nodeInfo.ExecPath
 	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
 	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
+	for k, v := range req.ChainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
+	}
+	for k, v := range req.UpgradeConfigs {
+		nodeConfig.UpgradeConfigFiles[k] = v
+	}
 
 	// now remove the node before restart
 	zap.L().Info("removing the node")
