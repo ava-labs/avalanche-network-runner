@@ -65,6 +65,8 @@ var (
 	chainConfigSubDir = "chainConfigs"
 
 	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
+
+	ErrSnapshotNotFound = errors.New("snapshot not found")
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -823,7 +825,7 @@ func (ln *localNetwork) loadSnapshot(
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+			return ErrSnapshotNotFound
 		} else {
 			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
 		}
@@ -883,7 +885,7 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+			return ErrSnapshotNotFound
 		} else {
 			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
 		}

@@ -82,6 +82,7 @@ var (
 	ErrNotBootstrapped                    = errors.New("not bootstrapped")
 	ErrPeerNotFound                       = errors.New("peer not found")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
+	ErrNoBlockchainSpec                   = errors.New("no blockchain spec was provided")
 )
 
 const (
@@ -91,6 +92,16 @@ const (
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
+
+// grpc encapsulates the non protocol-related, ANR server domain errors,
+// inside grpc.status.Status structs, with status.Code() code.Unknown,
+// and original error msg inside status.Message() string
+// this aux function is to be used by clients, to check for the appropiate
+// ANR domain error kind
+func IsServerError(err error, serverError error) bool {
+	status := status.Convert(err)
+	return status.Code() == codes.Unknown && status.Message() == serverError.Error()
+}
 
 func New(cfg Config) (Server, error) {
 	if cfg.Port == "" || cfg.GwPort == "" {
@@ -434,7 +445,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	if len(req.GetBlockchainSpecs()) == 0 {
-		return nil, errors.New("no blockchain spec was provided")
+		return nil, ErrNoBlockchainSpec
 	}
 
 	chainSpecs := []network.BlockchainSpec{}
