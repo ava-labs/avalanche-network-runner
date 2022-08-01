@@ -94,6 +94,11 @@ const (
 	rootDataDirPrefix = "network-runner-root-data"
 )
 
+// grpc encapsulates the non protocol-related, ANR server domain errors,
+// inside grpc.status.Status structs, with status.Code() code.Unknown,
+// and original error msg inside status.Message() string
+// this aux function is to be used by clients, to check for the appropiate
+// ANR domain error kind
 func IsServerError(err error, serverError error) bool {
 	status := status.Convert(err)
 	return status.Code() == codes.Unknown && status.Message() == serverError.Error()
