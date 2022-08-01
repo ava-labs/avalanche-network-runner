@@ -946,7 +946,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 
 	node, err := s.network.nw.GetNode(req.NodeName)
 	if err != nil {
-		return nil, ErrNodeNotFound
+		return nil, err
 	}
 
 	lh := &loggingInboundHandler{nodeName: req.NodeName}

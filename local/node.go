@@ -38,6 +38,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 const (
 	peerMsgQueueBufferSize      = 1024
 	peerResourceTrackerDuration = 10 * time.Second
+	peerStartWaitTimeout        = 30 * time.Second
 )
 
 // Gives access to basic node info, and to most avalanchego apis
@@ -161,7 +162,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 			peerMsgQueueBufferSize,
 		),
 	)
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, peerStartWaitTimeout)
 	err = p.AwaitReady(cctx)
 	cancel()
 	if err != nil {
