@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -247,7 +248,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if pluginDir == "" {
 		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	}
-	chainSpecs := []blockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
 		for i := range req.GetBlockchainSpecs() {
@@ -276,9 +277,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			if err != nil {
 				return nil, err
 			}
-			chainSpecs = append(chainSpecs, blockchainSpec{
-				vmName:  vmName,
-				genesis: b,
+			chainSpecs = append(chainSpecs, network.BlockchainSpec{
+				VmName:  vmName,
+				Genesis: b,
 			})
 		}
 	}
@@ -438,7 +439,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, errors.New("no blockchain spec was provided")
 	}
 
-	chainSpecs := []blockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
@@ -461,10 +462,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		if err != nil {
 			return nil, err
 		}
-		chainSpecs = append(chainSpecs, blockchainSpec{
-			vmName:   vmName,
-			genesis:  b,
-			subnetId: req.GetBlockchainSpecs()[i].SubnetId,
+		chainSpecs = append(chainSpecs, network.BlockchainSpec{
+			VmName:   vmName,
+			Genesis:  b,
+			SubnetId: req.GetBlockchainSpecs()[i].SubnetId,
 		})
 	}
 
@@ -474,10 +475,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		subnetsMap[subnet] = struct{}{}
 	}
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.subnetId != nil {
-			_, ok := subnetsMap[*chainSpec.subnetId]
+		if chainSpec.SubnetId != nil {
+			_, ok := subnetsMap[*chainSpec.SubnetId]
 			if !ok {
-				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.subnetId)
+				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetId)
 			}
 		}
 	}
@@ -488,7 +489,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	// if there will be a restart, network will not be healthy
 	// until finishing
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.subnetId == nil {
+		if chainSpec.SubnetId == nil {
 			s.clusterInfo.Healthy = false
 		}
 	}

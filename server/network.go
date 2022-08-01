@@ -6,7 +6,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -294,7 +293,7 @@ func (lc *localNetwork) start() error {
 
 func (lc *localNetwork) startWait(
 	argCtx context.Context,
-	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
 ) {
 	defer close(lc.startDoneCh)
@@ -317,7 +316,7 @@ func (lc *localNetwork) startWait(
 
 func (lc *localNetwork) createBlockchains(
 	argCtx context.Context,
-	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// createBlockchains triggers a series of different time consuming actions
@@ -336,13 +335,17 @@ func (lc *localNetwork) createBlockchains(
 		return
 	}
 
-	chainInfos, err := lc.installCustomVMs(ctx, chainSpecs)
-	if err != nil {
+	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
-	if err := lc.waitForCustomVMsReady(ctx, chainInfos); err != nil {
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -376,13 +379,17 @@ func (lc *localNetwork) createSubnets(
 		return
 	}
 
-	_, err := lc.setupWalletAndInstallSubnets(ctx, numSubnets)
-	if err != nil {
+	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -491,8 +498,6 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	return nil
 }
-
-var errAborted = errors.New("aborted")
 
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
