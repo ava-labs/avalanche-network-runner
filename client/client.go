@@ -389,7 +389,7 @@ func WithPluginDir(pluginDir string) OpOption {
 	}
 }
 
-// Slice of VM name, genesis path, (optional) subnet ID.
+// Slice of BlockchainSpec
 func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
 	return func(op *Op) {
 		op.blockchainSpecs = blockchainSpecs

@@ -251,11 +251,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
 		for i := range req.GetBlockchainSpecs() {
-			vmName := req.GetBlockchainSpecs()[i].VmName
-			vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-			if req.GetBlockchainSpecs()[i].SubnetId != nil {
+			spec := req.GetBlockchainSpecs()[i]
+			if spec.SubnetId != nil {
 				return nil, errors.New("blockchain subnet id must be nil if starting a new empty network")
 			}
+			vmName := spec.VmName
+			vmGenesisFilePath := spec.Genesis
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
