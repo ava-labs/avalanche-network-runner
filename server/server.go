@@ -20,11 +20,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -80,7 +80,6 @@ var (
 	ErrNotEnoughNodesForStart             = errors.New("not enough nodes specified for start")
 	ErrAlreadyBootstrapped                = errors.New("already bootstrapped")
 	ErrNotBootstrapped                    = errors.New("not bootstrapped")
-	ErrNodeNotFound                       = errors.New("node not found")
 	ErrPeerNotFound                       = errors.New("peer not found")
 	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
 )
@@ -242,15 +241,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 	buildDir := getBuildDir(req.GetExecPath(), req.GetBuildDir())
 	pluginDir := filepath.Join(buildDir, "plugins")
-	chainSpecs := []blockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
 		for i := range req.GetBlockchainSpecs() {
-			vmName := req.GetBlockchainSpecs()[i].VmName
-			vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-			if req.GetBlockchainSpecs()[i].SubnetId != nil {
+			spec := req.GetBlockchainSpecs()[i]
+			if spec.SubnetId != nil {
 				return nil, errors.New("blockchain subnet id must be nil if starting a new empty network")
 			}
+			vmName := spec.VmName
+			vmGenesisFilePath := spec.Genesis
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
@@ -270,9 +270,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			if err != nil {
 				return nil, err
 			}
-			chainSpecs = append(chainSpecs, blockchainSpec{
-				vmName:  vmName,
-				genesis: b,
+			chainSpecs = append(chainSpecs, network.BlockchainSpec{
+				VmName:  vmName,
+				Genesis: b,
 			})
 		}
 	}
@@ -433,7 +433,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	pluginDir := filepath.Join(s.network.buildDir, "plugins")
-	chainSpecs := []blockchainSpec{}
+	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
@@ -456,10 +456,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		if err != nil {
 			return nil, err
 		}
-		chainSpecs = append(chainSpecs, blockchainSpec{
-			vmName:   vmName,
-			genesis:  b,
-			subnetId: req.GetBlockchainSpecs()[i].SubnetId,
+		chainSpecs = append(chainSpecs, network.BlockchainSpec{
+			VmName:   vmName,
+			Genesis:  b,
+			SubnetId: req.GetBlockchainSpecs()[i].SubnetId,
 		})
 	}
 
@@ -469,10 +469,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		subnetsMap[subnet] = struct{}{}
 	}
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.subnetId != nil {
-			_, ok := subnetsMap[*chainSpec.subnetId]
+		if chainSpec.SubnetId != nil {
+			_, ok := subnetsMap[*chainSpec.SubnetId]
 			if !ok {
-				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.subnetId)
+				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetId)
 			}
 		}
 	}
@@ -483,7 +483,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	// if there will be a restart, network will not be healthy
 	// until finishing
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.subnetId == nil {
+		if chainSpec.SubnetId == nil {
 			s.clusterInfo.Healthy = false
 		}
 	}
@@ -796,7 +796,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	defer s.mu.Unlock()
 
 	if _, ok := s.network.nodeInfos[req.Name]; !ok {
-		return nil, ErrNodeNotFound
+		return nil, network.ErrNodeNotFound
 	}
 
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
@@ -826,12 +826,12 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	nodeInfo, ok := s.network.nodeInfos[req.Name]
 	if !ok {
-		return nil, ErrNodeNotFound
+		return nil, network.ErrNodeNotFound
 	}
 
 	node, err := s.network.nw.GetNode(req.Name)
 	if err != nil {
-		return nil, ErrNodeNotFound
+		return nil, err
 	}
 	nodeConfig := node.GetConfig()
 
@@ -916,6 +916,19 @@ func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopR
 	return &rpcpb.StopResponse{ClusterInfo: info}, nil
 }
 
+var _ router.InboundHandler = &loggingInboundHandler{}
+
+type loggingInboundHandler struct {
+	nodeName string
+}
+
+func (lh *loggingInboundHandler) HandleInbound(m message.InboundMessage) {
+	zap.L().Debug("inbound handler received a message",
+		zap.String("node-name", lh.nodeName),
+		zap.String("message-op", m.Op().String()),
+	)
+}
+
 func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (*rpcpb.AttachPeerResponse, error) {
 	zap.L().Debug("received attach peer request")
 	info := s.getClusterInfo()
@@ -926,7 +939,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	node, err := s.network.nw.GetNode((req.NodeName))
+	node, err := s.network.nw.GetNode(req.NodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -937,27 +950,12 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 		return nil, err
 	}
 
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	err = newPeer.AwaitReady(cctx)
-	cancel()
-	if err != nil {
-		return nil, err
-	}
 	newPeerID := newPeer.ID().String()
 
 	zap.L().Debug("new peer is attached",
-		zap.String("node-name", req.NodeName),
+		zap.String("node-name", node.GetName()),
 		zap.String("peer-id", newPeerID),
 	)
-
-	peers, ok := s.network.attachedPeers[req.NodeName]
-	if !ok {
-		peers = make(map[string]peer.Peer)
-		peers[newPeerID] = newPeer
-	} else {
-		peers[newPeerID] = newPeer
-	}
-	s.network.attachedPeers[req.NodeName] = peers
 
 	if s.clusterInfo.AttachedPeerInfos == nil {
 		s.clusterInfo.AttachedPeerInfos = make(map[string]*rpcpb.ListOfAttachedPeerInfo)
@@ -974,19 +972,6 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	return &rpcpb.AttachPeerResponse{ClusterInfo: info, AttachedPeerInfo: peerInfo}, nil
 }
 
-var _ router.InboundHandler = &loggingInboundHandler{}
-
-type loggingInboundHandler struct {
-	nodeName string
-}
-
-func (lh *loggingInboundHandler) HandleInbound(m message.InboundMessage) {
-	zap.L().Debug("inbound handler received a message",
-		zap.String("node-name", lh.nodeName),
-		zap.String("message-op", m.Op().String()),
-	)
-}
-
 func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboundMessageRequest) (*rpcpb.SendOutboundMessageResponse, error) {
 	zap.L().Debug("received send outbound message request")
 	info := s.getClusterInfo()
@@ -994,18 +979,13 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 		return nil, ErrNotBootstrapped
 	}
 
-	peers, ok := s.network.attachedPeers[req.NodeName]
-	if !ok {
-		return nil, ErrNodeNotFound
-	}
-	attachedPeer, ok := peers[req.PeerId]
-	if !ok {
-		return nil, ErrPeerNotFound
+	node, err := s.network.nw.GetNode(req.NodeName)
+	if err != nil {
+		return nil, err
 	}
 
-	msg := message.NewTestMsg(message.Op(req.Op), req.Bytes, false)
-	sent := attachedPeer.Send(ctx, msg)
-	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, nil
+	sent, err := node.SendOutboundMessage(ctx, req.PeerId, req.Bytes, req.Op)
+	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, err
 }
 
 func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
