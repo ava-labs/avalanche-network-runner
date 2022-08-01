@@ -173,7 +173,7 @@ Additional optional parameters which can be passed to the start command:
 
 ```bash
   --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
-	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+	--blockchain-specs '{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}'
 	--global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
 	--custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
 ```
@@ -190,7 +190,7 @@ avalanche-network-runner control start \
 --global-node-config '{"http-host":"0.0.0.0"}'
 ```
 
-`--plugin-dir` and `--custom-vms` are parameters relevant to subnet operation.
+`--plugin-dir` and `--blockchain-specs` are parameters relevant to subnet operation.
 See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
 
 The network-runner supports avalanchego node configuration at different levels.
@@ -326,7 +326,7 @@ To create a blockchain without a subnet id (requires network restart):
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
 
 # or
-avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
+avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
 To create a blockchain with a subnet id (does not require restart):
@@ -335,7 +335,7 @@ To create a blockchain with a subnet id (does not require restart):
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
 
 # or
-avalanche-network-runner control create-blockchains --custom-vms '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
+avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
 To remove (stop) a node:
@@ -393,7 +393,6 @@ You can also provide additional flags that specify the node's config, and what c
 
 ```
 	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
-	--custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
 ```
 
 `--node-config` allows to specify specific avalanchego config parameters to the new node.
@@ -402,13 +401,6 @@ See [here](https://docs.avax.network/build/references/avalanchego-config-flags) 
 **Note**: The following parameters will be *ignored* if set in `--node-config`, because the network runner needs to set its own in order to function properly:
 `--log-dir`
 `--db-dir`
-
-`--custom-vms` allows to configure custom VMs supported by this node.
-See the [subnet](#network-runner-rpc-server-subnet-evm-example) section for details about how to run subnets.
-
-**Note**: The following subnet parameters will be set from the global network configuration to this node:
-`--whitelisted-subnets`
-`--plugin-dir`
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
 (See [here](https://github.com/ava-labs/avalanchego/blob/master/network/peer/test_peer.go) for more information.)
@@ -560,7 +552,7 @@ avalanche-network-runner control start \
 --endpoint="0.0.0.0:8080" \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
 --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
---custom-vms '{"subnetevm":"/tmp/subnet-evm.genesis.json"}'
+--blockchain-specs '{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}'
 ```
 
 ```bash
@@ -632,7 +624,7 @@ avalanche-network-runner control start \
 --endpoint="0.0.0.0:8080" \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
 --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
---custom-vms '{"blobvm":"/tmp/blobvm.genesis.json"}'
+--blockchain-specs '{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json"}'
 ```
 
 ```bash

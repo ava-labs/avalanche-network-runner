@@ -247,9 +247,15 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	}
 	chainSpecs := []network.BlockchainSpec{}
-	if len(req.GetCustomVms()) > 0 {
+	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
-		for vmName, vmGenesisFilePath := range req.GetCustomVms() {
+		for i := range req.GetBlockchainSpecs() {
+			spec := req.GetBlockchainSpecs()[i]
+			if spec.SubnetId != nil {
+				return nil, errors.New("blockchain subnet id must be nil if starting a new empty network")
+			}
+			vmName := spec.VmName
+			vmGenesisFilePath := spec.Genesis
 			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
@@ -371,7 +377,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// to decide cluster/subnet readiness
 	go func() {
 		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
-		if len(req.GetCustomVms()) == 0 {
+		if len(req.GetBlockchainSpecs()) == 0 {
 			zap.L().Info("no custom VM installation request, skipping its readiness check")
 		} else {
 			s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
@@ -710,12 +716,9 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if _, exists := s.network.nodeInfos[req.Name]; exists {
 		return nil, fmt.Errorf("repeated node name %q", req.Name)
 	}
-	// fix if not given
-	if req.StartRequest == nil {
-		req.StartRequest = &rpcpb.StartRequest{}
-	}
+
 	// user can override bin path for this node...
-	execPath := req.StartRequest.ExecPath
+	execPath := req.ExecPath
 	if execPath == "" {
 		// ...or use the same binary as the rest of the network
 		execPath = s.network.execPath
@@ -744,8 +747,8 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
 		return nil, err
 	}
-	if req.StartRequest.GetGlobalNodeConfig() != "" {
-		if err := json.Unmarshal([]byte(req.StartRequest.GetGlobalNodeConfig()), &globalConfig); err != nil {
+	if req.GetNodeConfig() != "" {
+		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &globalConfig); err != nil {
 			return nil, err
 		}
 	}
@@ -777,7 +780,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	for k, v := range s.network.chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
-	for k, v := range req.StartRequest.ChainConfigs {
+	for k, v := range req.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
 	_, err = s.network.nw.AddNode(nodeConfig)

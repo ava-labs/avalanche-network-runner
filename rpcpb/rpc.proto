@@ -206,7 +206,7 @@ message StartRequest {
   // Must be non-empty to install custom VMs.
   optional string plugin_dir = 6;
 
-  // The map of custom VM name to its genesis file path.
+  // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
@@ -215,7 +215,7 @@ message StartRequest {
   // If this field is set to none (by default), the node/network-runner
   // does not install the custom VM and does not create the subnet,
   // even if the VM binary exists on the local plugins directory.
-  map<string, string> custom_vms = 7;
+  repeated BlockchainSpec blockchain_specs = 7;
 
   map<string, string> custom_node_configs = 8;
 
@@ -312,8 +312,10 @@ message RemoveNodeResponse {
 }
 
 message AddNodeRequest {
-  string name = 1;
-  StartRequest start_request = 2;
+  string name                       = 1;
+  string exec_path                  = 2;
+  optional string node_config       = 3;
+  map<string, string> chain_configs = 4;
 }
 
 message AddNodeResponse {
