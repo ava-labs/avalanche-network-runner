@@ -52,6 +52,9 @@ type Network interface {
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
+	// Restart a given node using the same config, optionally changing binary path,
+	// whitelisted subnets
+	RestartNode(context.Context, string, string, string) error
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
