@@ -721,7 +721,6 @@ func (ln *localNetwork) RestartNode(
 	nodeName string,
 	binaryPath string,
 	whitelistedSubnets string,
-	dbDir string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -742,13 +741,8 @@ func (ln *localNetwork) RestartNode(
 		nodeConfig.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
 	}
 
-	if dbDir != "" {
-		nodeConfig.Flags[config.DBPathKey] = dbDir
-	} else {
-		nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
-	}
-
-	// keep same ports in node flags
+	// keep same ports, dbdir in node flags
+	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
 	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
 	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
 

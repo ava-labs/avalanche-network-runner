@@ -843,17 +843,11 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dbDir := ""
-	if req.GetRootDataDir() != "" {
-		dbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
-	}
-
 	if err := s.network.nw.RestartNode(
 		ctx,
 		req.Name,
 		req.GetExecPath(),
 		req.GetWhitelistedSubnets(),
-		dbDir,
 	); err != nil {
 		return nil, err
 	}

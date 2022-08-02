@@ -260,9 +260,6 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
-	if ret.rootDataDir != "" {
-		req.RootDataDir = &ret.rootDataDir
-	}
 
 	zap.L().Info("restart node", zap.String("name", name))
 	return c.controlc.RestartNode(ctx, req)

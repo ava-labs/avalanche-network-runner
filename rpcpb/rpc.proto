@@ -294,9 +294,6 @@ message RestartNodeRequest {
   // Optional fields are set to the previous values if empty.
   optional string exec_path           = 2;
   optional string whitelisted_subnets = 3;
-
-  // Used for both database and log files.
-  optional string root_data_dir = 4;
 }
 
 message RestartNodeResponse {
