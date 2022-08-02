@@ -45,19 +45,19 @@ var (
 
 type localTestSuccessfulNodeProcessCreator struct{}
 
-func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
-	return newMockProcessSuccessful(config, log, flags...)
+func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+	return newMockProcessSuccessful(config, flags...)
 }
 
 type localTestFailedStartProcessCreator struct{}
 
-func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+func (*localTestFailedStartProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	return nil, errors.New("error on purpose for test")
 }
 
 type localTestProcessUndefNodeProcessCreator struct{}
 
-func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	return newMockProcessUndef(config, flags...)
 }
 
@@ -66,11 +66,11 @@ type localTestFlagCheckProcessCreator struct {
 	assert        *assert.Assertions
 }
 
-func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	if ok := lt.assert.EqualValues(lt.expectedFlags, config.Flags); !ok {
 		return nil, errors.New("assertion failed: flags not equal value")
 	}
-	return newMockProcessSuccessful(config, log, flags...)
+	return newMockProcessSuccessful(config, flags...)
 }
 
 // Returns an API client where:
@@ -107,7 +107,7 @@ func newMockProcessUndef(node.Config, ...string) (NodeProcess, error) {
 }
 
 // Returns a NodeProcess that always returns nil
-func newMockProcessSuccessful(node.Config, logging.Logger, ...string) (NodeProcess, error) {
+func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 	process := &mocks.NodeProcess{}
 	process.On("Wait").Return(nil)
 	process.On("Stop", mock.Anything).Return(0)
@@ -157,7 +157,7 @@ func newLocalTestOneNodeCreator(assert *assert.Assertions, networkConfig network
 
 // Assert that the node's config is being passed correctly
 // to the function that starts the node process.
-func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, log logging.Logger, flags ...string) (NodeProcess, error) {
+func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	lt.assert.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
 	lt.assert.EqualValues(expectedConfig.ChainConfigFiles, config.ChainConfigFiles)
@@ -173,7 +173,7 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, log loggin
 		lt.assert.True(ok)
 		lt.assert.EqualValues(v, gotV)
 	}
-	return lt.successCreator.NewNodeProcess(config, log, flags...)
+	return lt.successCreator.NewNodeProcess(config, flags...)
 }
 
 // Start a network with one node.
@@ -842,7 +842,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	// Sleep for a second after echoing so that we have a chance to read from the stdout pipe
 	// before it closes when the process exits and Wait() returns.
 	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
-	proc, err := npc.NewNodeProcess(testConfig, logging.NoLog{}, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
+	proc, err := npc.NewNodeProcess(testConfig, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
 	if err != nil {
 		t.Fatal(err)
 	}
