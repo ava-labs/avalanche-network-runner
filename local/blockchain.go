@@ -120,8 +120,8 @@ func (ln *localNetwork) installCustomVMs(
 	platformCli := platformvm.NewClient(clientURI)
 
 	// wallet needs txs for all previously created subnets
-	pTXs := make([]ids.ID, 0, len(chainSpecs))
-	for i, chainSpec := range chainSpecs {
+	var pTXs []ids.ID
+	for _, chainSpec := range chainSpecs {
 		// if subnet id for the blockchain is specified, we need to add the subnet id
 		// tx info to the wallet so blockchain creation does not fail
 		// if subnet id is not specified, a new subnet will later be created by using the wallet,
@@ -139,7 +139,7 @@ func (ln *localNetwork) installCustomVMs(
 			if _, err := platformvm.Codec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
 				return nil, fmt.Errorf("couldn not unmarshal tx for subnet %q: %w", subnetID.String(), err)
 			}
-			pTXs[i] = subnetID
+			pTXs = append(pTXs, subnetID)
 		}
 	}
 
