@@ -6,14 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -26,11 +23,9 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	dircopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -200,52 +195,6 @@ func init() {
 	defaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
 }
 
-// NodeProcessCreator is an interface for new node process creation
-type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
-}
-
-type nodeProcessCreator struct {
-	log logging.Logger
-	// If this node's stdout or stderr are redirected, [colorPicker] determines
-	// the color of logs printed to stdout and/or stderr
-	colorPicker utils.ColorPicker
-	// If this node's stdout is redirected, it will be to here.
-	// In practice this is usually os.Stdout, but for testing can be replaced.
-	stdout io.Writer
-	// If this node's stderr is redirected, it will be to here.
-	// In practice this is usually os.Stderr, but for testing can be replaced.
-	stderr io.Writer
-}
-
-// NewNodeProcess creates a new process of the passed binary
-// If the config has redirection set to `true` for either StdErr or StdOut,
-// the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
-	// Start the AvalancheGo node and pass it the flags defined above
-	cmd := exec.Command(config.BinaryPath, args...)
-	// assign a new color to this process (might not be used if the config isn't set for it)
-	color := npc.colorPicker.NextColor()
-	// Optionally redirect stdout and stderr
-	if config.RedirectStdout {
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create stdout pipe: %s", err)
-		}
-		// redirect stdout and assign a color to the text
-		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
-	}
-	if config.RedirectStderr {
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create stderr pipe: %s", err)
-		}
-		// redirect stderr and assign a color to the text
-		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
-	}
-	return newNodeProcess(config.Name, npc.log, cmd)
-}
-
 // NewNetwork returns a new network that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [rootDir].
 // If there isn't a directory at [dir] one will be created.
@@ -314,35 +263,6 @@ func newNetwork(
 		snapshotsDir:       snapshotsDir,
 	}
 	return net, nil
-}
-
-// NewNetwork returns a new network from the given snapshot
-func NewNetworkFromSnapshot(
-	log logging.Logger,
-	snapshotName string,
-	rootDir string,
-	snapshotsDir string,
-	binaryPath string,
-	buildDir string,
-	chainConfigs map[string]string,
-	flags map[string]interface{},
-) (network.Network, error) {
-	net, err := newNetwork(
-		log,
-		api.NewAPIClient,
-		&nodeProcessCreator{
-			colorPicker: utils.NewColorPicker(),
-			stdout:      os.Stdout,
-			stderr:      os.Stderr,
-		},
-		rootDir,
-		snapshotsDir,
-	)
-	if err != nil {
-		return net, err
-	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, flags)
-	return net, err
 }
 
 // NewDefaultNetwork returns a new network using a pre-defined
@@ -713,210 +633,6 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
-// Save network snapshot
-// Network is stopped in order to do a safe preservation
-func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	if ln.stopCalled() {
-		return "", network.ErrStopped
-	}
-	if len(snapshotName) == 0 {
-		return "", fmt.Errorf("invalid snapshotName %q", snapshotName)
-	}
-	// check if snapshot already exists
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	_, err := os.Stat(snapshotDir)
-	if err == nil {
-		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
-	}
-	// keep copy of node info that will be removed by stop
-	nodesConfig := map[string]node.Config{}
-	nodesDbDir := map[string]string{}
-	for nodeName, node := range ln.nodes {
-		nodeConfig := node.config
-		// depending on how the user generated the config, different nodes config flags
-		// may point to the same map, so we made a copy to avoid always modifying the same value
-		nodeConfigFlags := make(map[string]interface{})
-		for fk, fv := range nodeConfig.Flags {
-			nodeConfigFlags[fk] = fv
-		}
-		nodeConfig.Flags = nodeConfigFlags
-		nodesConfig[nodeName] = nodeConfig
-		nodesDbDir[nodeName] = node.GetDbDir()
-	}
-	// we change nodeConfig.Flags so as to preserve in snapshot the current node ports
-	for nodeName, nodeConfig := range nodesConfig {
-		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
-		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
-	}
-	// make copy of network flags
-	networkConfigFlags := make(map[string]interface{})
-	for fk, fv := range ln.flags {
-		networkConfigFlags[fk] = fv
-	}
-	// remove all log dir references
-	delete(networkConfigFlags, config.LogsDirKey)
-	for nodeName, nodeConfig := range nodesConfig {
-		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
-		if err != nil {
-			return "", err
-		}
-		delete(nodeConfig.Flags, config.LogsDirKey)
-		nodesConfig[nodeName] = nodeConfig
-	}
-
-	// stop network to safely save snapshot
-	if err := ln.stop(ctx); err != nil {
-		return "", err
-	}
-	// create main snapshot dirs
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
-	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-	// save db
-	for _, nodeConfig := range nodesConfig {
-		sourceDbDir, ok := nodesDbDir[nodeConfig.Name]
-		if !ok {
-			return "", fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
-		}
-		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
-		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
-		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
-			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
-		}
-	}
-	// save network conf
-	networkConfig := network.Config{
-		Genesis:     string(ln.genesis),
-		Flags:       networkConfigFlags,
-		NodeConfigs: []node.Config{},
-	}
-	for _, nodeConfig := range nodesConfig {
-		// no need to save this, will be generated automatically on snapshot load
-		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
-	}
-	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
-	if err != nil {
-		return "", err
-	}
-	err = createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
-	if err != nil {
-		return "", err
-	}
-	return snapshotDir, nil
-}
-
-// start network from snapshot
-func (ln *localNetwork) loadSnapshot(
-	ctx context.Context,
-	snapshotName string,
-	binaryPath string,
-	buildDir string,
-	chainConfigs map[string]string,
-	flags map[string]interface{},
-) error {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
-	_, err := os.Stat(snapshotDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return ErrSnapshotNotFound
-		} else {
-			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
-		}
-	}
-	// load network config
-	networkConfigJSON, err := os.ReadFile(filepath.Join(snapshotDir, "network.json"))
-	if err != nil {
-		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
-	}
-	networkConfig := network.Config{}
-	err = json.Unmarshal(networkConfigJSON, &networkConfig)
-	if err != nil {
-		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
-	}
-	// add flags
-	for i := range networkConfig.NodeConfigs {
-		for k, v := range flags {
-			networkConfig.NodeConfigs[i].Flags[k] = v
-		}
-	}
-	// load db
-	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
-		targetDbDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDbSubdir)
-		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
-			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
-		}
-		nodeConfig.Flags[config.DBPathKey] = targetDbDir
-	}
-	// replace binary path
-	if binaryPath != "" {
-		for i := range networkConfig.NodeConfigs {
-			networkConfig.NodeConfigs[i].BinaryPath = binaryPath
-		}
-	}
-	// replace build dir
-	if buildDir != "" {
-		for i := range networkConfig.NodeConfigs {
-			networkConfig.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
-		}
-	}
-	// add chain configs
-	for i := range networkConfig.NodeConfigs {
-		if networkConfig.NodeConfigs[i].ChainConfigFiles == nil {
-			networkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{}
-		}
-		for k, v := range chainConfigs {
-			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
-		}
-	}
-	return ln.loadConfig(ctx, networkConfig)
-}
-
-// Remove network snapshot
-func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	_, err := os.Stat(snapshotDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return ErrSnapshotNotFound
-		} else {
-			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
-		}
-	}
-	if err := os.RemoveAll(snapshotDir); err != nil {
-		return fmt.Errorf("failure removing snapshot path %q: %w", snapshotDir, err)
-	}
-	return nil
-}
-
-// Get network snapshots
-func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
-	_, err := os.Stat(ln.snapshotsDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
-		} else {
-			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", ln.snapshotsDir, err)
-		}
-	}
-	matches, err := filepath.Glob(filepath.Join(ln.snapshotsDir, snapshotPrefix+"*"))
-	if err != nil {
-		return nil, err
-	}
-	snapshots := []string{}
-	for _, match := range matches {
-		snapshots = append(snapshots, strings.TrimPrefix(filepath.Base(match), snapshotPrefix))
-	}
-	return snapshots, nil
-}
-
 // Returns whether Stop has been called.
 func (ln *localNetwork) stopCalled() bool {
 	select {
@@ -924,42 +640,6 @@ func (ln *localNetwork) stopCalled() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// createFileAndWrite creates a file with the given path and
-// writes the given contents
-func createFileAndWrite(path string, contents []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return err
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-	if _, err := file.Write(contents); err != nil {
-		return err
-	}
-	return nil
-}
-
-// addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].
-// [nodeFlags] must not be nil.
-func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
-	for flagName, flagVal := range networkFlags {
-		// If the same flag is given in network config and node config,
-		// the flag in the node config takes precedence
-		if val, ok := nodeFlags[flagName]; !ok {
-			nodeFlags[flagName] = flagVal
-		} else {
-			log.Info(
-				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
-				flagName, val, flagVal,
-			)
-		}
 	}
 }
 
@@ -981,79 +661,6 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 		return fmt.Errorf("repeated node name %q", nodeConfig.Name)
 	}
 	return nil
-}
-
-func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
-	if rootDir == "" {
-		log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
-	}
-	// [nodeRootDir] is where this node's config file, C-Chain config file,
-	// staking key, staking certificate and genesis file will be written.
-	// (Other file locations are given in the node's config file.)
-	// TODO should we do this for other directories? Profiles?
-	nodeRootDir := filepath.Join(rootDir, nodeName)
-	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			log.Warn("node root directory %s already exists", nodeRootDir)
-		} else {
-			return "", fmt.Errorf("error creating temp dir: %w", err)
-		}
-	}
-	return nodeRootDir, nil
-}
-
-// getConfigEntry returns an entry in the config file if it is found, otherwise returns the default value
-func getConfigEntry(
-	nodeConfigFlags map[string]interface{},
-	configFile map[string]interface{},
-	flag string,
-	defaultVal string,
-) (string, error) {
-	var entry string
-	if val, ok := nodeConfigFlags[flag]; ok {
-		if entry, ok := val.(string); ok {
-			return entry, nil
-		}
-		return "", fmt.Errorf("expected node config flag %q to be string but got %T", flag, entry)
-	}
-	if val, ok := configFile[flag]; ok {
-		if entry, ok := val.(string); ok {
-			return entry, nil
-		}
-		return "", fmt.Errorf("expected config file flag %q to be string but got %T", flag, entry)
-	}
-	return defaultVal, nil
-}
-
-// getPort looks up the port config in the config file, if there is none, it tries to get a random free port from the OS
-func getPort(
-	flags map[string]interface{},
-	configFile map[string]interface{},
-	portKey string,
-) (port uint16, err error) {
-	if portIntf, ok := flags[portKey]; ok {
-		if portFromFlags, ok := portIntf.(int); ok {
-			port = uint16(portFromFlags)
-		} else if portFromFlags, ok := portIntf.(float64); ok {
-			port = uint16(portFromFlags)
-		} else {
-			return 0, fmt.Errorf("expected flag %q to be int/float64 but got %T", portKey, portIntf)
-		}
-	} else if portIntf, ok := configFile[portKey]; ok {
-		if portFromConfigFile, ok := portIntf.(float64); ok {
-			port = uint16(portFromConfigFile)
-		} else {
-			return 0, fmt.Errorf("expected flag %q to be float64 but got %T", portKey, portIntf)
-		}
-	} else {
-		// Use a random free port.
-		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
-		port, err = getFreePort()
-		if err != nil {
-			return 0, fmt.Errorf("couldn't get free API port: %w", err)
-		}
-	}
-	return port, nil
 }
 
 type buildFlagsReturn struct {
@@ -1159,62 +766,4 @@ func (ln *localNetwork) buildFlags(
 		buildDir: buildDir,
 		httpHost: httpHost,
 	}, nil
-}
-
-// writeFiles writes the files a node needs on startup.
-// It returns flags used to point to those files.
-func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]string, error) {
-	type file struct {
-		pathKey   string
-		flagValue string
-		path      string
-		contents  []byte
-	}
-	files := []file{
-		{
-			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
-			path:      filepath.Join(nodeRootDir, stakingKeyFileName),
-			pathKey:   config.StakingKeyPathKey,
-			contents:  []byte(nodeConfig.StakingKey),
-		},
-		{
-			flagValue: filepath.Join(nodeRootDir, stakingCertFileName),
-			path:      filepath.Join(nodeRootDir, stakingCertFileName),
-			pathKey:   config.StakingCertPathKey,
-			contents:  []byte(nodeConfig.StakingCert),
-		},
-		{
-			flagValue: filepath.Join(nodeRootDir, genesisFileName),
-			path:      filepath.Join(nodeRootDir, genesisFileName),
-			pathKey:   config.GenesisConfigFileKey,
-			contents:  genesis,
-		},
-	}
-	if len(nodeConfig.ConfigFile) != 0 {
-		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, configFileName),
-			path:      filepath.Join(nodeRootDir, configFileName),
-			pathKey:   config.ConfigFileKey,
-			contents:  []byte(nodeConfig.ConfigFile),
-		})
-	}
-	flags := []string{}
-	for _, f := range files {
-		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.flagValue))
-		if err := createFileAndWrite(f.path, f.contents); err != nil {
-			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
-		}
-	}
-	if nodeConfig.ChainConfigFiles != nil {
-		// only one flag and multiple files
-		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
-		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
-			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
-			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
-				return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
-			}
-		}
-	}
-	return flags, nil
 }

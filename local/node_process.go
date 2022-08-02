@@ -3,11 +3,14 @@ package local
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
 
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/shirou/gopsutil/process"
 )
@@ -25,6 +28,52 @@ type NodeProcess interface {
 	Stop(ctx context.Context) int
 	// Returns the status of the process.
 	Status() status.Status
+}
+
+// NodeProcessCreator is an interface for new node process creation
+type NodeProcessCreator interface {
+	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
+}
+
+type nodeProcessCreator struct {
+	log logging.Logger
+	// If this node's stdout or stderr are redirected, [colorPicker] determines
+	// the color of logs printed to stdout and/or stderr
+	colorPicker utils.ColorPicker
+	// If this node's stdout is redirected, it will be to here.
+	// In practice this is usually os.Stdout, but for testing can be replaced.
+	stdout io.Writer
+	// If this node's stderr is redirected, it will be to here.
+	// In practice this is usually os.Stderr, but for testing can be replaced.
+	stderr io.Writer
+}
+
+// NewNodeProcess creates a new process of the passed binary
+// If the config has redirection set to `true` for either StdErr or StdOut,
+// the output will be redirected and colored
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
+	// Start the AvalancheGo node and pass it the flags defined above
+	cmd := exec.Command(config.BinaryPath, args...)
+	// assign a new color to this process (might not be used if the config isn't set for it)
+	color := npc.colorPicker.NextColor()
+	// Optionally redirect stdout and stderr
+	if config.RedirectStdout {
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create stdout pipe: %s", err)
+		}
+		// redirect stdout and assign a color to the text
+		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
+	}
+	if config.RedirectStderr {
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create stderr pipe: %s", err)
+		}
+		// redirect stderr and assign a color to the text
+		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
+	}
+	return newNodeProcess(config.Name, npc.log, cmd)
 }
 
 type nodeProcess struct {
@@ -125,7 +174,6 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 	defer p.lock.RUnlock()
 
 	return p.cmd.ProcessState.ExitCode()
-
 }
 
 func (p *nodeProcess) Status() status.Status {
