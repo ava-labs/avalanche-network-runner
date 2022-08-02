@@ -744,7 +744,13 @@ func (ln *localNetwork) RestartNode(
 
 	if dbDir != "" {
 		nodeConfig.Flags[config.DBPathKey] = dbDir
+	} else {
+		nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
 	}
+
+	// keep same ports in node flags
+	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
+	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
 
 	if err := ln.removeNode(ctx, nodeName); err != nil {
 		return err

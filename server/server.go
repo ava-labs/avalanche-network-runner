@@ -858,12 +858,12 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	zap.L().Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	zap.L().Info("waiting for local cluster readiness")
+	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
 	}
 
