@@ -154,7 +154,7 @@ message ClusterInfo {
 
   // Set to "true" once custom blockchains are ready.
   bool custom_chains_healthy = 7;
-  // The map of blockchain IDs in "ids.ID" format to its information.
+  // The map of blockchain IDs in "ids.ID" format to its blockchain information.
   map<string, CustomChainInfo> custom_chains = 8;
   repeated string subnets          = 9;
 }
