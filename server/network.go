@@ -57,9 +57,9 @@ type localNetwork struct {
 	options localNetworkOptions
 
 	// map from blockchain ID to blockchain info
-	customVMBlockchainIDToInfo map[ids.ID]vmInfo
+	customChainIDToInfo map[ids.ID]chainInfo
 
-	customVMRestartMu *sync.RWMutex
+	customChainRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -75,8 +75,8 @@ type localNetwork struct {
 	chainConfigs map[string]string
 }
 
-type vmInfo struct {
-	info         *rpcpb.CustomVmInfo
+type chainInfo struct {
+	info         *rpcpb.CustomChainInfo
 	subnetID     ids.ID
 	blockchainID ids.ID
 }
@@ -95,7 +95,7 @@ type localNetworkOptions struct {
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
 
-	// to block racey restart while installing custom VMs
+	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
@@ -122,8 +122,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
-		customVMRestartMu:          opts.restartMu,
+		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainRestartMu: opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -243,7 +243,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	if buildDir != "" {
 		configFileMap[config.BuildDirKey] = buildDir
 	}
-	// need to whitelist subnet ID to create custom VM chain
+	// need to whitelist subnet ID to create custom chain
 	// ref. vms/platformvm/createChain
 	if whitelistedSubnets != "" {
 		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
@@ -311,7 +311,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
 
@@ -448,12 +448,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       blockchain.Name,
-					VmId:         blockchain.VMID.String(),
-					SubnetId:     blockchain.SubnetID.String(),
-					BlockchainId: blockchain.ID.String(),
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
 				},
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
@@ -472,8 +472,8 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
+		for chainID, chainInfo := range lc.customChainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil

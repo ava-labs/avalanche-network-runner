@@ -389,7 +389,7 @@ avalanche-network-runner control add-node \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
 
-You can also provide additional flags that specify the node's config, and what custom VMs it supports:
+You can also provide additional flags that specify the node's config:
 
 ```
 	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
@@ -460,7 +460,7 @@ avalanche-network-runner server \
 curl -X POST -k http://localhost:8081/v1/ping -d ''
 ```
 
-To start the cluster with custom VMs:
+To start the cluster with custom chains:
 
 ```bash
 # or download from https://github.com/ava-labs/subnet-cli/releases
@@ -490,7 +490,7 @@ find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
 # .../build/plugins/evm
 # .../build/avalanchego
 
-# generate the genesis for the custom VM
+# generate the genesis for the custom chain
 export CHAIN_ID=99999
 export GENESIS_ADDRESS="0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
 cat <<EOF > /tmp/subnet-evm.genesis.json
@@ -574,7 +574,7 @@ avalanche-network-runner server \
 curl -X POST -k http://localhost:8081/v1/ping -d ''
 ```
 
-To start the cluster with custom VMs:
+To start the cluster with custom chains:
 
 ```bash
 # or download from https://github.com/ava-labs/subnet-cli/releases
@@ -603,7 +603,7 @@ find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
 # .../build/plugins/evm
 # .../build/avalanchego
 
-# generate the genesis for the custom VM
+# generate the genesis for the custom chain
 cd ${HOME}/go/src/github.com/ava-labs/blobvm
 go install -v ./cmd/blob-cli
 echo "[]" > /tmp/alloc.json
