@@ -120,8 +120,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.pluginDir != "" {
 		req.PluginDir = &ret.pluginDir
 	}
-	if len(ret.customVMs) > 0 {
-		req.CustomVms = ret.customVMs
+	if len(ret.blockchainSpecs) > 0 {
+		req.BlockchainSpecs = ret.blockchainSpecs
 	}
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
@@ -233,19 +233,12 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret.applyOpts(opts)
 
 	req := &rpcpb.AddNodeRequest{
-		Name:         name,
-		StartRequest: &rpcpb.StartRequest{},
-	}
-	if ret.whitelistedSubnets != "" {
-		req.StartRequest.WhitelistedSubnets = &ret.whitelistedSubnets
+		Name: name,
 	}
 	if ret.execPath != "" {
-		req.StartRequest.ExecPath = ret.execPath
+		req.ExecPath = ret.execPath
 	}
-	if ret.pluginDir != "" {
-		req.StartRequest.PluginDir = &ret.pluginDir
-	}
-	req.StartRequest.ChainConfigs = ret.chainConfigs
+	req.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
 	return c.controlc.AddNode(ctx, req)
@@ -346,7 +339,7 @@ type Op struct {
 	globalNodeConfig   string
 	rootDataDir        string
 	pluginDir          string
-	customVMs          map[string]string
+	blockchainSpecs    []*rpcpb.BlockchainSpec
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
 	chainConfigs       map[string]string
@@ -396,10 +389,10 @@ func WithPluginDir(pluginDir string) OpOption {
 	}
 }
 
-// Map from VM name to its genesis path.
-func WithCustomVMs(customVMs map[string]string) OpOption {
+// Slice of BlockchainSpec
+func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
 	return func(op *Op) {
-		op.customVMs = customVMs
+		op.blockchainSpecs = blockchainSpecs
 	}
 }
 
