@@ -43,8 +43,8 @@ var ignoreFields = map[string]struct{}{
 type localNetwork struct {
 	logger logging.Logger
 
-	execPath  string
-	pluginDir string
+	execPath string
+	buildDir string
 
 	cfg network.Config
 
@@ -89,7 +89,7 @@ type localNetworkOptions struct {
 	redirectNodesOutput bool
 	globalNodeConfig    string
 
-	pluginDir         string
+	buildDir          string
 	customNodeConfigs map[string]string
 
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
@@ -118,7 +118,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		execPath: opts.execPath,
 
-		pluginDir: opts.pluginDir,
+		buildDir: getBuildDir(opts.execPath, opts.buildDir),
 
 		options: opts,
 
@@ -169,17 +169,12 @@ func (lc *localNetwork) createConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-		if err != nil {
-			return err
-		}
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
 		}
 
-		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
 	}
@@ -221,21 +216,17 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 	return baseConfig, nil
 }
 
-// generates buildDir from pluginDir, and if not available, from execPath
+// if givenBuildDir is empty, generates it from execPath
 // returns error if pluginDir is non empty and invalid
-func getBuildDir(execPath string, pluginDir string) (string, error) {
+func getBuildDir(execPath string, givenBuildDir string) string {
 	buildDir := ""
 	if execPath != "" {
 		buildDir = filepath.Dir(execPath)
 	}
-	if pluginDir != "" {
-		pluginDir := filepath.Clean(pluginDir)
-		if filepath.Base(pluginDir) != "plugins" {
-			return "", fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-		}
-		buildDir = filepath.Dir(pluginDir)
+	if givenBuildDir != "" {
+		buildDir = givenBuildDir
 	}
-	return buildDir, nil
+	return buildDir
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
@@ -403,11 +394,6 @@ func (lc *localNetwork) loadSnapshot(
 ) error {
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
 
-	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-	if err != nil {
-		return err
-	}
-
 	var globalNodeConfig map[string]interface{}
 	if lc.options.globalNodeConfig != "" {
 		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalNodeConfig); err != nil {
@@ -421,7 +407,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.rootDataDir,
 		lc.options.snapshotsDir,
 		lc.execPath,
-		buildDir,
+		lc.buildDir,
 		lc.options.chainConfigs,
 		globalNodeConfig,
 	)
@@ -522,7 +508,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
 		configFile := []byte(node.GetConfigFile())
-		var pluginDir string
 		var whitelistedSubnets string
 		var configFileMap map[string]interface{}
 		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
@@ -535,10 +520,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
 			}
 		}
-		buildDir := node.GetBuildDir()
-		if buildDir != "" {
-			pluginDir = filepath.Join(buildDir, "plugins")
-		}
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
@@ -548,16 +529,16 @@ func (lc *localNetwork) updateNodeInfo() error {
 			LogDir:             node.GetLogsDir(),
 			DbDir:              node.GetDbDir(),
 			Config:             []byte(node.GetConfigFile()),
-			PluginDir:          pluginDir,
+			BuildDir:           node.GetBuildDir(),
 			WhitelistedSubnets: whitelistedSubnets,
 		}
 
-		// update default exec and pluginDir if empty (snapshots started without this params)
+		// update default exec and buildDir if empty (snapshots started without this params)
 		if lc.execPath == "" {
 			lc.execPath = node.GetBinaryPath()
 		}
-		if lc.pluginDir == "" {
-			lc.pluginDir = pluginDir
+		if lc.buildDir == "" {
+			lc.buildDir = node.GetBuildDir()
 		}
 		// update default chain configs if empty
 		if lc.chainConfigs == nil {
