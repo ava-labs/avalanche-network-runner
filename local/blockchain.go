@@ -331,7 +331,7 @@ func (ln *localNetwork) waitForCustomVMsReady(
 	println()
 	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
 
-	if err := ln.Healthy(ctx); err != nil {
+	if err := ln.healthy(ctx); err != nil {
 		return err
 	}
 
