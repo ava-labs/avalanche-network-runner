@@ -168,9 +168,9 @@ Additional optional parameters which can be passed to the start command:
 
 ```bash
   --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
-	--blockchain-specs '{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}'
-	--global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
-	--custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
+  --blockchain-specs '{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}'
+  --global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+  --custom-node-configs" '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
 ```
 
 For example, to set `avalanchego --http-host` flag for all nodes:
@@ -388,13 +388,13 @@ avalanche-network-runner control add-node \
 
 You can also provide additional flags that specify the node's config, and what custom VMs it supports:
 
-```
-	--node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+```sh
+  --node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
 ```
 
 `--node-config` allows to specify specific avalanchego config parameters to the new node. See [here](https://docs.avax.network/build/references/avalanchego-config-flags) for the reference of supported flags.
 
-**Note**: The following parameters will be *ignored* if set in `--node-config`, because the network runner needs to set its own in order to function properly:
+**Note**: The following parameters will be _ignored_ if set in `--node-config`, because the network runner needs to set its own in order to function properly:
 `--log-dir`
 `--db-dir`
 
