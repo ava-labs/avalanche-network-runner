@@ -50,10 +50,10 @@ var (
 )
 
 type blockchainInfo struct {
-	vmName       string
-	vmID         ids.ID
-	subnetID     ids.ID
-	blockchainID ids.ID
+	chainName string
+	vmID      ids.ID
+	subnetID  ids.ID
+	chainID   ids.ID
 }
 
 // get an arbitrary node in the network
@@ -79,7 +79,7 @@ func (ln *localNetwork) CreateBlockchains(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	chainInfos, err := ln.installCustomVMs(ctx, chainSpecs)
+	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (ln *localNetwork) CreateSubnets(
 
 // provisions local cluster and install custom chains if applicable
 // assumes the local cluster is already set up and healthy
-func (lc *localNetwork) installCustomChains(
+func (ln *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
@@ -215,12 +215,12 @@ func (lc *localNetwork) installCustomChains(
 			return nil, err
 		}
 		chainInfos[i] = blockchainInfo{
-            // we keep a record of VM name in blockchain name field,
-            // as there is no way to recover VM name from VM ID
-			ChainName:       chainSpec.VmName,
-			VmID:         vmID,
-			SubnetID:     subnetID,
-			ChainID: blockchainIDs[i],
+			// we keep a record of VM name in blockchain name field,
+			// as there is no way to recover VM name from VM ID
+			chainName: chainSpec.VmName,
+			vmID:      vmID,
+			subnetID:  subnetID,
+			chainID:   blockchainIDs[i],
 		}
 	}
 
@@ -356,11 +356,11 @@ func (ln *localNetwork) waitForCustomVMsReady(
 			zap.String("log-dir", node.GetLogsDir()),
 		)
 		for _, chainInfo := range chainInfos {
-			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
+			p := filepath.Join(node.GetLogsDir(), chainInfo.chainID.String()+".log")
 			zap.L().Info("checking log",
 				zap.String("vm-id", chainInfo.vmID.String()),
 				zap.String("subnet-id", chainInfo.subnetID.String()),
-				zap.String("blockchain-id", chainInfo.blockchainID.String()),
+				zap.String("blockchain-id", chainInfo.chainID.String()),
 				zap.String("log-path", p),
 			)
 			for {
@@ -373,7 +373,7 @@ func (ln *localNetwork) waitForCustomVMsReady(
 				zap.L().Info("log not found yet, retrying...",
 					zap.String("vm-id", chainInfo.vmID.String()),
 					zap.String("subnet-id", chainInfo.subnetID.String()),
-					zap.String("blockchain-id", chainInfo.blockchainID.String()),
+					zap.String("blockchain-id", chainInfo.chainID.String()),
 					zap.String("log-path", p),
 					zap.Error(err),
 				)

@@ -81,7 +81,7 @@ var (
 	ErrNodeNotFound           = errors.New("node not found")
 	ErrPeerNotFound           = errors.New("peer not found")
 	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
-	ErrNoBlockchainSpec                   = errors.New("no blockchain spec was provided")
+	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
 )
 
 const (
