@@ -17,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
@@ -56,9 +55,6 @@ type localNetwork struct {
 	nodeInfos map[string]*rpcpb.NodeInfo
 
 	options localNetworkOptions
-
-	// maps from node name to peer ID to peer object
-	attachedPeers map[string]map[string]peer.Peer
 
 	// map from blockchain ID to blockchain info
 	customVMBlockchainIDToInfo map[ids.ID]vmInfo
@@ -125,8 +121,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		pluginDir: opts.pluginDir,
 
 		options: opts,
-
-		attachedPeers: make(map[string]map[string]peer.Peer),
 
 		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
 		customVMRestartMu:          opts.restartMu,

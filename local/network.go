@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -64,6 +65,8 @@ var (
 	chainConfigSubDir = "chainConfigs"
 
 	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
+
+	ErrSnapshotNotFound = errors.New("snapshot not found")
 )
 
 // network keeps information uses for network management, and accessing all the nodes
@@ -199,7 +202,7 @@ func init() {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
+	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
 type nodeProcessCreator struct {
@@ -218,7 +221,7 @@ type nodeProcessCreator struct {
 // NewNodeProcess creates a new process of the passed binary
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(config.BinaryPath, args...)
 	// assign a new color to this process (might not be used if the config isn't set for it)
@@ -329,6 +332,7 @@ func NewNetworkFromSnapshot(
 		api.NewAPIClient,
 		&nodeProcessCreator{
 			colorPicker: utils.NewColorPicker(),
+			log:         log,
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
@@ -501,7 +505,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, ln.log, nodeData.flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.flags...)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"couldn't create new node process with binary %q and flags %v: %w",
@@ -512,19 +516,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:        nodeConfig.Name,
-		nodeID:      nodeID,
-		networkID:   ln.networkID,
-		client:      ln.newAPIClientF("localhost", nodeData.apiPort),
-		process:     nodeProcess,
-		apiPort:     nodeData.apiPort,
-		p2pPort:     nodeData.p2pPort,
-		getConnFunc: defaultGetConnFunc,
-		dbDir:       nodeData.dbDir,
-		logsDir:     nodeData.logsDir,
-		config:      nodeConfig,
-		buildDir:    nodeData.buildDir,
-		httpHost:    nodeData.httpHost,
+		name:          nodeConfig.Name,
+		nodeID:        nodeID,
+		networkID:     ln.networkID,
+		client:        ln.newAPIClientF("localhost", nodeData.apiPort),
+		process:       nodeProcess,
+		apiPort:       nodeData.apiPort,
+		p2pPort:       nodeData.p2pPort,
+		getConnFunc:   defaultGetConnFunc,
+		dbDir:         nodeData.dbDir,
+		logsDir:       nodeData.logsDir,
+		config:        nodeConfig,
+		buildDir:      nodeData.buildDir,
+		httpHost:      nodeData.httpHost,
+		attachedPeers: map[string]peer.Peer{},
 	}
 	ln.nodes[node.name] = node
 	// If this node is a beacon, add its IP/ID to the beacon lists.
@@ -609,7 +614,7 @@ func (ln *localNetwork) GetNode(nodeName string) (node.Node, error) {
 
 	node, ok := ln.nodes[nodeName]
 	if !ok {
-		return nil, fmt.Errorf("node %q not found in network", nodeName)
+		return nil, network.ErrNodeNotFound
 	}
 	return node, nil
 }
@@ -864,7 +869,7 @@ func (ln *localNetwork) loadSnapshot(
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+			return ErrSnapshotNotFound
 		} else {
 			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
 		}
@@ -924,7 +929,7 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("snapshot %q does not exists", snapshotName)
+			return ErrSnapshotNotFound
 		} else {
 			return fmt.Errorf("failure accessing snapshot %q: %w", snapshotName, err)
 		}
