@@ -43,8 +43,8 @@ var ignoreFields = map[string]struct{}{
 type localNetwork struct {
 	logger logging.Logger
 
-	execPath  string
-	pluginDir string
+	execPath string
+	buildDir string
 
 	cfg network.Config
 
@@ -57,9 +57,9 @@ type localNetwork struct {
 	options localNetworkOptions
 
 	// map from blockchain ID to blockchain info
-	customVMBlockchainIDToInfo map[ids.ID]vmInfo
+	customChainIDToInfo map[ids.ID]chainInfo
 
-	customVMRestartMu *sync.RWMutex
+	customChainRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -75,8 +75,8 @@ type localNetwork struct {
 	chainConfigs map[string]string
 }
 
-type vmInfo struct {
-	info         *rpcpb.CustomVmInfo
+type chainInfo struct {
+	info         *rpcpb.CustomChainInfo
 	subnetID     ids.ID
 	blockchainID ids.ID
 }
@@ -89,13 +89,13 @@ type localNetworkOptions struct {
 	redirectNodesOutput bool
 	globalNodeConfig    string
 
-	pluginDir         string
+	buildDir          string
 	customNodeConfigs map[string]string
 
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
 
-	// to block racey restart while installing custom VMs
+	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
@@ -118,12 +118,12 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		execPath: opts.execPath,
 
-		pluginDir: opts.pluginDir,
+		buildDir: getBuildDir(opts.execPath, opts.buildDir),
 
 		options: opts,
 
-		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
-		customVMRestartMu:          opts.restartMu,
+		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainRestartMu: opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -169,17 +169,12 @@ func (lc *localNetwork) createConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-		if err != nil {
-			return err
-		}
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.buildDir, lc.options.whitelistedSubnets)
 		if err != nil {
 			return err
 		}
 
-		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
 	}
@@ -221,21 +216,17 @@ func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]
 	return baseConfig, nil
 }
 
-// generates buildDir from pluginDir, and if not available, from execPath
+// if givenBuildDir is empty, generates it from execPath
 // returns error if pluginDir is non empty and invalid
-func getBuildDir(execPath string, pluginDir string) (string, error) {
+func getBuildDir(execPath string, givenBuildDir string) string {
 	buildDir := ""
 	if execPath != "" {
 		buildDir = filepath.Dir(execPath)
 	}
-	if pluginDir != "" {
-		pluginDir := filepath.Clean(pluginDir)
-		if filepath.Base(pluginDir) != "plugins" {
-			return "", fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-		}
-		buildDir = filepath.Dir(pluginDir)
+	if givenBuildDir != "" {
+		buildDir = givenBuildDir
 	}
-	return buildDir, nil
+	return buildDir
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
@@ -252,7 +243,7 @@ func createConfigFileString(configFileMap map[string]interface{}, logDir string,
 	if buildDir != "" {
 		configFileMap[config.BuildDirKey] = buildDir
 	}
-	// need to whitelist subnet ID to create custom VM chain
+	// need to whitelist subnet ID to create custom chain
 	// ref. vms/platformvm/createChain
 	if whitelistedSubnets != "" {
 		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
@@ -320,7 +311,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
 
@@ -403,11 +394,6 @@ func (lc *localNetwork) loadSnapshot(
 ) error {
 	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
 
-	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-	if err != nil {
-		return err
-	}
-
 	var globalNodeConfig map[string]interface{}
 	if lc.options.globalNodeConfig != "" {
 		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalNodeConfig); err != nil {
@@ -421,7 +407,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.rootDataDir,
 		lc.options.snapshotsDir,
 		lc.execPath,
-		buildDir,
+		lc.buildDir,
 		lc.options.chainConfigs,
 		globalNodeConfig,
 	)
@@ -462,12 +448,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       blockchain.Name,
-					VmId:         blockchain.VMID.String(),
-					SubnetId:     blockchain.SubnetID.String(),
-					BlockchainId: blockchain.ID.String(),
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
 				},
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
@@ -486,8 +472,8 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
+		for chainID, chainInfo := range lc.customChainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil
@@ -522,7 +508,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
 		configFile := []byte(node.GetConfigFile())
-		var pluginDir string
 		var whitelistedSubnets string
 		var configFileMap map[string]interface{}
 		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
@@ -535,10 +520,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
 			}
 		}
-		buildDir := node.GetBuildDir()
-		if buildDir != "" {
-			pluginDir = filepath.Join(buildDir, "plugins")
-		}
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
@@ -548,16 +529,16 @@ func (lc *localNetwork) updateNodeInfo() error {
 			LogDir:             node.GetLogsDir(),
 			DbDir:              node.GetDbDir(),
 			Config:             []byte(node.GetConfigFile()),
-			PluginDir:          pluginDir,
+			BuildDir:           node.GetBuildDir(),
 			WhitelistedSubnets: whitelistedSubnets,
 		}
 
-		// update default exec and pluginDir if empty (snapshots started without this params)
+		// update default exec and buildDir if empty (snapshots started without this params)
 		if lc.execPath == "" {
 			lc.execPath = node.GetBinaryPath()
 		}
-		if lc.pluginDir == "" {
-			lc.pluginDir = pluginDir
+		if lc.buildDir == "" {
+			lc.buildDir = node.GetBuildDir()
 		}
 		// update default chain configs if empty
 		if lc.chainConfigs == nil {
