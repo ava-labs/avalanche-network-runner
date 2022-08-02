@@ -84,7 +84,7 @@ func (ln *localNetwork) CreateBlockchains(
 		return err
 	}
 
-	if err := ln.waitForCustomVMsReady(ctx, chainInfos); err != nil {
+	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
 		return err
 	}
 	return nil
@@ -326,7 +326,7 @@ func (ln *localNetwork) installSubnets(
 	return subnetIDs, nil
 }
 
-func (ln *localNetwork) waitForCustomVMsReady(
+func (ln *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 ) error {
