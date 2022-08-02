@@ -38,7 +38,7 @@ const (
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
 	subnetValidatorsWeight = 1000
-	// check period for blockchain logs while waiting for custom VMs to be ready
+	// check period for blockchain logs while waiting for custom chains to be ready
 	blockchainLogPullFrequency = time.Second
 	// check period while waiting for all validators to be ready
 	waitForValidatorsPullFrequency = time.Second
@@ -51,7 +51,7 @@ var (
 )
 
 type blockchainInfo struct {
-	vmName       string
+	chainName    string
 	vmID         ids.ID
 	subnetID     ids.ID
 	blockchainID ids.ID
@@ -80,12 +80,12 @@ func (ln *localNetwork) CreateBlockchains(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	chainInfos, err := ln.installCustomVMs(ctx, chainSpecs)
+	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
 	if err != nil {
 		return err
 	}
 
-	if err := ln.waitForCustomVMsReady(ctx, chainInfos); err != nil {
+	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
 		return err
 	}
 	return nil
@@ -103,14 +103,14 @@ func (ln *localNetwork) CreateSubnets(
 	return nil
 }
 
-// provisions local cluster and install custom VMs if applicable
+// provisions local cluster and install custom chains if applicable
 // assumes the local cluster is already set up and healthy
-func (ln *localNetwork) installCustomVMs(
+func (ln *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
 	println()
-	color.Outf("{{blue}}{{bold}}create and install custom VMs{{/}}\n")
+	color.Outf("{{blue}}{{bold}}create and install custom chains{{/}}\n")
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
@@ -209,7 +209,9 @@ func (ln *localNetwork) installCustomVMs(
 			return nil, err
 		}
 		chainInfos[i] = blockchainInfo{
-			vmName:       chainSpec.VmName,
+			// we keep a record of VM name in blockchain name field,
+			// as there is no way to recover VM name from VM ID
+			chainName:    chainSpec.VmName,
 			vmID:         vmID,
 			subnetID:     subnetID,
 			blockchainID: blockchainIDs[i],
@@ -324,12 +326,12 @@ func (ln *localNetwork) installSubnets(
 	return baseWallet, subnetIDs, nil
 }
 
-func (ln *localNetwork) waitForCustomVMsReady(
+func (ln *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 ) error {
 	println()
-	color.Outf("{{blue}}{{bold}}waiting for custom VMs to report healthy...{{/}}\n")
+	color.Outf("{{blue}}{{bold}}waiting for custom chains to report healthy...{{/}}\n")
 
 	if err := ln.healthy(ctx); err != nil {
 		return err
@@ -349,7 +351,7 @@ func (ln *localNetwork) waitForCustomVMsReady(
 	}
 
 	for nodeName, node := range ln.nodes {
-		zap.L().Info("inspecting node log directory for custom VM logs",
+		zap.L().Info("inspecting node log directory for custom chain logs",
 			zap.String("node-name", nodeName),
 			zap.String("log-dir", node.GetLogsDir()),
 		)
@@ -387,10 +389,10 @@ func (ln *localNetwork) waitForCustomVMsReady(
 	}
 
 	println()
-	color.Outf("{{green}}{{bold}}all custom VMs are running!!!{{/}}\n")
+	color.Outf("{{green}}{{bold}}all custom chains are running!!!{{/}}\n")
 
 	println()
-	color.Outf("{{green}}{{bold}}all custom VMs are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
+	color.Outf("{{green}}{{bold}}all custom chains are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status{{/}}\n")
 
 	return nil
 }
@@ -729,7 +731,7 @@ func createBlockchains(
 	testKeyAddr ids.ShortID,
 ) ([]ids.ID, error) {
 	println()
-	color.Outf("{{green}}creating blockchain for each custom VM{{/}}\n")
+	color.Outf("{{green}}creating each custom chain{{/}}\n")
 	blockchainIDs := make([]ids.ID, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.VmName

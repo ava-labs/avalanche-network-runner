@@ -152,15 +152,18 @@ message ClusterInfo {
   // Maps from the node ID to its attached peer infos.
   map<string, ListOfAttachedPeerInfo> attached_peer_infos = 6;
 
-  // Set to "true" once custom VMs are ready.
-  bool custom_vms_healthy = 7;
-  // The map of custom VM IDs in "ids.ID" format to its VM information.
-  map<string, CustomVmInfo> custom_vms = 8;
+  // Set to "true" once custom blockchains are ready.
+  bool custom_chains_healthy = 7;
+  // The map of blockchain IDs in "ids.ID" format to its blockchain information.
+  map<string, CustomChainInfo> custom_chains = 8;
   repeated string subnets          = 9;
 }
 
-message CustomVmInfo {
-  string vm_name = 1;
+message CustomChainInfo {
+  // Blockchain name given to the create blockchain TX
+  // Currently used to keep a record of the VM name,
+  // which is not saved anywhere and can't be recovered from VM ID
+  string chain_name = 1;
 
   // VM ID in "ids.ID" format.
   string vm_id = 2;
@@ -170,8 +173,8 @@ message CustomVmInfo {
   string subnet_id = 3;
 
   // Create blockchain transaction ID -- blockchain ID>
-  // The blockchain ID is used for RPC endpoints for the custom VM.
-  string blockchain_id = 4;
+  // The blockchain ID is used for RPC endpoints.
+  string chain_id = 4;
 }
 
 message NodeInfo {
@@ -181,7 +184,7 @@ message NodeInfo {
   string id                   = 4;
   string log_dir              = 5;
   string db_dir               = 6;
-  string plugin_dir           = 7;
+  string build_dir            = 7;
   string whitelisted_subnets  = 8;
   bytes config                = 9;
 }
@@ -202,18 +205,21 @@ message StartRequest {
   // Used for both database and log files.
   optional string root_data_dir = 5;
 
-  // Plugin directory to load all custom VM executables.
-  // Must be non-empty to install custom VMs.
-  optional string plugin_dir = 6;
+  // Build directory that contains the subdir 'plugins' from which to load all custom VM executables.
+  // If not specified, will be derived from the exec_path (its basedir)
+  optional string build_dir = 6;
 
-  // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
+  // The list of custom chain's VM name, genesis file path, and (optional) subnet id to use.
+  //
+  // subnet id must be always nil when using StartRequest, as the network is empty and has no preloaded
+  // subnet ids available.
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
   // e.g., subnet-cli create VMID subnetevm
   //
   // If this field is set to none (by default), the node/network-runner
-  // does not install the custom VM and does not create the subnet,
+  // does not install the custom chain and does not create the subnet,
   // even if the VM binary exists on the local plugins directory.
   repeated BlockchainSpec blockchain_specs = 7;
 
@@ -238,7 +244,7 @@ message BlockchainSpec {
 }
 
 message CreateBlockchainsRequest {
-  // The list of custom VM name, its genesis file path, and (optional) subnet id to use.
+  // The list of custom chain's VM name, genesis file path, and (optional) subnet id to use.
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
@@ -359,7 +365,7 @@ message SaveSnapshotResponse {
 message LoadSnapshotRequest {
   string snapshot_name = 1;
   optional string exec_path = 2;
-  optional string plugin_dir = 3;
+  optional string build_dir = 3;
   optional string root_data_dir = 4;
   map<string, string> chain_configs = 5;
   optional string global_node_config  = 6;
