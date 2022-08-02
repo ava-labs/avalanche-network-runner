@@ -249,13 +249,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	pluginDir := ""
-	if req.GetPluginDir() != "" {
-		pluginDir = req.GetPluginDir()
-	}
-	if pluginDir == "" {
-		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
-	}
+	buildDir := getBuildDir(req.GetExecPath(), req.GetBuildDir())
+	pluginDir := filepath.Join(buildDir, "plugins")
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
@@ -332,7 +327,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("whitelistedSubnets", whitelistedSubnets),
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
-		zap.String("pluginDir", pluginDir),
+		zap.String("buildDir", buildDir),
 		zap.Any("chainConfigs", req.ChainConfigs),
 		zap.String("defaultNodeConfig", globalNodeConfig),
 	)
@@ -352,7 +347,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		pluginDir:           pluginDir,
+		buildDir:            buildDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
@@ -447,6 +442,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, ErrNoBlockchainSpec
 	}
 
+	pluginDir := filepath.Join(s.network.buildDir, "plugins")
 	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
@@ -461,7 +457,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
-			filepath.Join(s.network.pluginDir, vmID.String()),
+			filepath.Join(pluginDir, vmID.String()),
 			vmGenesisFilePath,
 		); err != nil {
 			return nil, err
@@ -743,11 +739,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	// use same configs from other nodes
 	whitelistedSubnets = s.network.options.whitelistedSubnets
-	buildDir, err := getBuildDir(execPath, s.network.pluginDir)
-	if err != nil {
-		return nil, err
-	}
-
+	buildDir := getBuildDir(execPath, s.network.buildDir)
 	rootDataDir := s.clusterInfo.RootDataDir
 
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
@@ -869,10 +861,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
-	if err != nil {
-		return nil, err
-	}
+	buildDir := getBuildDir(nodeInfo.ExecPath, nodeInfo.BuildDir)
 
 	nodeConfig.ConfigFile, err = createConfigFileString(
 		defaultConfig,
@@ -1060,7 +1049,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:         req.GetExecPath(),
-		pluginDir:        req.GetPluginDir(),
+		buildDir:         req.GetBuildDir(),
 		rootDataDir:      rootDataDir,
 		chainConfigs:     req.ChainConfigs,
 		globalNodeConfig: req.GetGlobalNodeConfig(),

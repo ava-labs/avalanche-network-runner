@@ -134,7 +134,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Start(ctx, execPath1,
-				client.WithPluginDir(os.TempDir()),
+				client.WithBuildDir(os.TempDir()),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: "invalid",
@@ -146,14 +146,17 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("start request with invalid custom VM name format should fail", func() {
-			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
+			pluginsPath := filepath.Join(os.TempDir(), "plugins")
+			err := os.MkdirAll(pluginsPath, fs.ModePerm)
+			gomega.Ω(err).Should(gomega.BeNil())
+			f, err := os.CreateTemp(pluginsPath, strings.Repeat("a", 33))
 			gomega.Ω(err).Should(gomega.BeNil())
 			filePath := f.Name()
 			gomega.Ω(f.Close()).Should(gomega.BeNil())
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithBuildDir(filepath.Dir(filepath.Dir(filePath))),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: filepath.Base(filePath),
@@ -169,12 +172,15 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
 			vmID, err := utils.VMID("hello")
 			gomega.Ω(err).Should(gomega.BeNil())
-			filePath := filepath.Join(os.TempDir(), vmID.String())
+			pluginsPath := filepath.Join(os.TempDir(), "plugins")
+			err = os.MkdirAll(pluginsPath, fs.ModePerm)
+			gomega.Ω(err).Should(gomega.BeNil())
+			filePath := filepath.Join(pluginsPath, vmID.String())
 			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
+				client.WithBuildDir(filepath.Dir(filepath.Dir(filePath))),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "hello",
