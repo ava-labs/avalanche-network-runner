@@ -6,7 +6,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -18,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
@@ -57,9 +55,6 @@ type localNetwork struct {
 	nodeInfos map[string]*rpcpb.NodeInfo
 
 	options localNetworkOptions
-
-	// maps from node name to peer ID to peer object
-	attachedPeers map[string]map[string]peer.Peer
 
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
@@ -126,8 +121,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		pluginDir: opts.pluginDir,
 
 		options: opts,
-
-		attachedPeers: make(map[string]map[string]peer.Peer),
 
 		customChainIDToInfo:  make(map[ids.ID]chainInfo),
 		customChainRestartMu: opts.restartMu,
@@ -294,7 +287,7 @@ func (lc *localNetwork) start() error {
 
 func (lc *localNetwork) startWait(
 	argCtx context.Context,
-	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
 ) {
 	defer close(lc.startDoneCh)
@@ -317,7 +310,7 @@ func (lc *localNetwork) startWait(
 
 func (lc *localNetwork) createBlockchains(
 	argCtx context.Context,
-	chainSpecs []blockchainSpec, // VM name + genesis bytes
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// createBlockchains triggers a series of different time consuming actions
@@ -336,13 +329,17 @@ func (lc *localNetwork) createBlockchains(
 		return
 	}
 
-	chainInfos, err := lc.installCustomChains(ctx, chainSpecs)
-	if err != nil {
+	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
-	if err := lc.waitForCustomChainsReady(ctx, chainInfos); err != nil {
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -376,13 +373,17 @@ func (lc *localNetwork) createSubnets(
 		return
 	}
 
-	_, err := lc.setupWalletAndInstallSubnets(ctx, numSubnets)
-	if err != nil {
+	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -491,8 +492,6 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	return nil
 }
-
-var errAborted = errors.New("aborted")
 
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
