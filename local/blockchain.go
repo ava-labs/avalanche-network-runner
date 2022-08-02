@@ -24,7 +24,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/platformvm/validator"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
@@ -130,14 +129,6 @@ func (ln *localNetwork) installCustomVMs(
 			subnetID, err := ids.FromString(*chainSpec.SubnetId)
 			if err != nil {
 				return nil, err
-			}
-			subnetTxBytes, err := platformCli.GetTx(ctx, subnetID)
-			if err != nil {
-				return nil, fmt.Errorf("tx not found for subnet %q: %w", subnetID.String(), err)
-			}
-			var subnetTx txs.Tx
-			if _, err := platformvm.Codec.Unmarshal(subnetTxBytes, &subnetTx); err != nil {
-				return nil, fmt.Errorf("couldn not unmarshal tx for subnet %q: %w", subnetID.String(), err)
 			}
 			pTXs = append(pTXs, subnetID)
 		}
@@ -252,7 +243,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 
-	pTXs := make([]ids.ID, 0)
+	pTXs := []ids.ID{}
 	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs)
 	if err != nil {
 		return nil, err
