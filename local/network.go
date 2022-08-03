@@ -714,6 +714,49 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
+// Restart [nodeName] using the same config, optionally changing [binaryPath],
+// [buildDir], [whitelistedSubnets], [dbDir]
+func (ln *localNetwork) RestartNode(
+	ctx context.Context,
+	nodeName string,
+	binaryPath string,
+	whitelistedSubnets string,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	node, ok := ln.nodes[nodeName]
+	if !ok {
+		return fmt.Errorf("node %q not found", nodeName)
+	}
+
+	nodeConfig := node.GetConfig()
+
+	if binaryPath != "" {
+		nodeConfig.BinaryPath = binaryPath
+		nodeConfig.Flags[config.BuildDirKey] = filepath.Dir(binaryPath)
+	}
+
+	if whitelistedSubnets != "" {
+		nodeConfig.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	}
+
+	// keep same ports, dbdir in node flags
+	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
+	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
+	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+
+	if err := ln.removeNode(ctx, nodeName); err != nil {
+		return err
+	}
+
+	if _, err := ln.addNode(nodeConfig); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {

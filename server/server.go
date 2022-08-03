@@ -72,17 +72,16 @@ type server struct {
 }
 
 var (
-	ErrInvalidVMName                      = errors.New("invalid VM name")
-	ErrInvalidPort                        = errors.New("invalid port")
-	ErrClosed                             = errors.New("server closed")
-	ErrPluginDirEmptyButCustomVMsNotEmpty = errors.New("empty plugin-dir but non-empty custom VMs")
-	ErrPluginDirNonEmptyButCustomVMsEmpty = errors.New("non-empty plugin-dir but empty custom VM")
-	ErrNotEnoughNodesForStart             = errors.New("not enough nodes specified for start")
-	ErrAlreadyBootstrapped                = errors.New("already bootstrapped")
-	ErrNotBootstrapped                    = errors.New("not bootstrapped")
-	ErrPeerNotFound                       = errors.New("peer not found")
-	ErrStatusCanceled                     = errors.New("gRPC stream status canceled")
-	ErrNoBlockchainSpec                   = errors.New("no blockchain spec was provided")
+	ErrInvalidVMName          = errors.New("invalid VM name")
+	ErrInvalidPort            = errors.New("invalid port")
+	ErrClosed                 = errors.New("server closed")
+	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
+	ErrAlreadyBootstrapped    = errors.New("already bootstrapped")
+	ErrNotBootstrapped        = errors.New("not bootstrapped")
+	ErrNodeNotFound           = errors.New("node not found")
+	ErrPeerNotFound           = errors.New("peer not found")
+	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
+	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
 )
 
 const (
@@ -250,13 +249,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	pluginDir := ""
-	if req.GetPluginDir() != "" {
-		pluginDir = req.GetPluginDir()
-	}
-	if pluginDir == "" {
-		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
-	}
+	buildDir := getBuildDir(req.GetExecPath(), req.GetBuildDir())
+	pluginDir := filepath.Join(buildDir, "plugins")
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
@@ -267,7 +261,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			}
 			vmName := spec.VmName
 			vmGenesisFilePath := spec.Genesis
-			zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+			zap.L().Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
 				zap.L().Warn("failed to convert VM name to VM ID",
@@ -333,7 +327,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("whitelistedSubnets", whitelistedSubnets),
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
-		zap.String("pluginDir", pluginDir),
+		zap.String("buildDir", buildDir),
 		zap.Any("chainConfigs", req.ChainConfigs),
 		zap.String("defaultNodeConfig", globalNodeConfig),
 	)
@@ -353,7 +347,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		pluginDir:           pluginDir,
+		buildDir:            buildDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
@@ -378,7 +372,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
-	// start non-blocking to install local cluster + custom VMs (if applicable)
+	// start non-blocking to install local cluster + custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
 	go s.network.startWait(ctx, chainSpecs, readyCh)
@@ -389,9 +383,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	go func() {
 		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
 		if len(req.GetBlockchainSpecs()) == 0 {
-			zap.L().Info("no custom VM installation request, skipping its readiness check")
+			zap.L().Info("no custom chain installation request, skipping its readiness check")
 		} else {
-			s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+			s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 		}
 	}()
 
@@ -417,10 +411,10 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		s.clusterInfo.NodeNames = s.network.nodeNames
 		s.clusterInfo.NodeInfos = s.network.nodeInfos
 		if updateCustomVmsInfo {
-			s.clusterInfo.CustomVmsHealthy = true
-			s.clusterInfo.CustomVms = make(map[string]*rpcpb.CustomVmInfo)
-			for blockchainID, vmInfo := range s.network.customVMBlockchainIDToInfo {
-				s.clusterInfo.CustomVms[blockchainID.String()] = vmInfo.info
+			s.clusterInfo.CustomChainsHealthy = true
+			s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
+			for chainID, chainInfo := range s.network.customChainIDToInfo {
+				s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 			}
 			s.clusterInfo.Subnets = s.network.subnets
 		}
@@ -448,11 +442,12 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, ErrNoBlockchainSpec
 	}
 
+	pluginDir := filepath.Join(s.network.buildDir, "plugins")
 	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-		zap.L().Info("checking custom VM ID before installation", zap.String("vm-id", vmName))
+		zap.L().Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
 			zap.L().Warn("failed to convert VM name to VM ID",
@@ -462,7 +457,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
-			filepath.Join(s.network.pluginDir, vmID.String()),
+			filepath.Join(pluginDir, vmID.String()),
 			vmGenesisFilePath,
 		); err != nil {
 			return nil, err
@@ -503,9 +498,9 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		}
 	}
 
-	s.clusterInfo.CustomVmsHealthy = false
+	s.clusterInfo.CustomChainsHealthy = false
 
-	// start non-blocking to install custom VMs (if applicable)
+	// start non-blocking to install custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
 	go s.network.createBlockchains(ctx, chainSpecs, readyCh)
@@ -514,7 +509,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -552,7 +547,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	defer s.mu.Unlock()
 
 	s.clusterInfo.Healthy = false
-	s.clusterInfo.CustomVmsHealthy = false
+	s.clusterInfo.CustomChainsHealthy = false
 
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
@@ -563,7 +558,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom VMs readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -744,11 +739,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 
 	// use same configs from other nodes
 	whitelistedSubnets = s.network.options.whitelistedSubnets
-	buildDir, err := getBuildDir(execPath, s.network.pluginDir)
-	if err != nil {
-		return nil, err
-	}
-
+	buildDir := getBuildDir(execPath, s.network.buildDir)
 	rootDataDir := s.clusterInfo.RootDataDir
 
 	logDir := filepath.Join(rootDataDir, req.Name, "log")
@@ -843,62 +834,16 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	nodeInfo, ok := s.network.nodeInfos[req.Name]
-	if !ok {
-		return nil, network.ErrNodeNotFound
-	}
-
-	node, err := s.network.nw.GetNode(req.Name)
-	if err != nil {
-		return nil, err
-	}
-	nodeConfig := node.GetConfig()
-
-	// use existing value if not specified
-	if req.GetExecPath() != "" {
-		nodeInfo.ExecPath = req.GetExecPath()
-	}
-	if req.GetWhitelistedSubnets() != "" {
-		nodeInfo.WhitelistedSubnets = req.GetWhitelistedSubnets()
-	}
-	if req.GetRootDataDir() != "" {
-		nodeInfo.DbDir = filepath.Join(req.GetRootDataDir(), req.Name, "db-dir")
-	}
-
-	var defaultConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
+	if err := s.network.nw.RestartNode(
+		ctx,
+		req.Name,
+		req.GetExecPath(),
+		req.GetWhitelistedSubnets(),
+	); err != nil {
 		return nil, err
 	}
 
-	buildDir, err := getBuildDir(nodeInfo.ExecPath, nodeInfo.PluginDir)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeConfig.ConfigFile, err = createConfigFileString(
-		defaultConfig,
-		nodeInfo.LogDir,
-		nodeInfo.DbDir,
-		buildDir,
-		nodeInfo.WhitelistedSubnets,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
-	}
-
-	nodeConfig.BinaryPath = nodeInfo.ExecPath
-	nodeConfig.RedirectStdout = s.cfg.RedirectNodesOutput
-	nodeConfig.RedirectStderr = s.cfg.RedirectNodesOutput
-
-	// now remove the node before restart
-	zap.L().Info("removing the node")
-	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
-		return nil, err
-	}
-
-	// now adding the new node
-	zap.L().Info("adding the node")
-	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -1061,7 +1006,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:         req.GetExecPath(),
-		pluginDir:        req.GetPluginDir(),
+		buildDir:         req.GetBuildDir(),
 		rootDataDir:      rootDataDir,
 		chainConfigs:     req.ChainConfigs,
 		globalNodeConfig: req.GetGlobalNodeConfig(),
