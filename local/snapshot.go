@@ -88,7 +88,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// make copy of network flags
 	networkConfigFlags := make(map[string]interface{})
-	for fk, fv := range ln.flags {
+	for fk, fv := range ln.defaultNodeConfig.Flags {
 		networkConfigFlags[fk] = fv
 	}
 	// remove all log dir references
