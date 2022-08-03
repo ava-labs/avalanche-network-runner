@@ -20,14 +20,14 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/prometheus/client_golang/prometheus"
+
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestE2e(t *testing.T) {
@@ -39,11 +39,13 @@ func TestE2e(t *testing.T) {
 }
 
 var (
-	logLevel      string
-	gRPCEp        string
-	gRPCGatewayEp string
-	execPath1     string
-	execPath2     string
+	logLevel         string
+	gRPCEp           string
+	gRPCGatewayEp    string
+	execPath1        string
+	execPath2        string
+	subnetEvmPath    string
+	existingSubnetID string
 
 	newNodeName       = "test-add-node"
 	customNodeConfigs = map[string]string{
@@ -89,6 +91,12 @@ func init() {
 		"",
 		"avalanchego executable path (to upgrade to)",
 	)
+	flag.StringVar(
+		&subnetEvmPath,
+		"subnet-evm-path",
+		"",
+		"path to subnet-evm binary",
+	)
 }
 
 var cli client.Client
@@ -116,6 +124,70 @@ var _ = ginkgo.AfterSuite(func() {
 })
 
 var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
+	ginkgo.It("can start with blockchain", func() {
+		color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath1)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		resp, err := cli.Start(ctx, execPath2,
+			client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
+				{
+					VmName:  "subnetevm",
+					Genesis: "tests/e2e/subnet-evm-genesis.json",
+				},
+			}),
+		)
+		cancel()
+		gomega.Ω(err).Should(gomega.BeNil())
+		color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+
+		color.Outf("{{blue}}wait for health{{/}\n")
+		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+		_, err = cli.Health(ctx)
+		cancel()
+		gomega.Ω(err).Should(gomega.BeNil())
+
+		color.Outf("{{blue}}get status for existing subnet ID{{/}}\n")
+		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+		subnetDeployed := false
+	LOOP:
+		for !subnetDeployed {
+			select {
+			case <-ctx.Done():
+				break LOOP
+			case <-time.After(5 * time.Second):
+				stat, err := cli.Status(ctx)
+				gomega.Ω(err).Should(gomega.BeNil())
+				if stat.ClusterInfo.CustomChainsHealthy {
+					subnetDeployed = true
+					existingSubnetID = stat.ClusterInfo.GetSubnets()[0]
+					gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
+				}
+			}
+		}
+		cancel()
+		gomega.Ω(subnetDeployed).Should(gomega.BeTrue())
+		color.Outf("{{blue}}can create a blockchain in an existing subnet{{/}}\n")
+		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+		_, err = cli.CreateBlockchains(ctx,
+			[]*rpcpb.BlockchainSpec{
+				{
+					VmName:   "subnetevm",
+					Genesis:  "tests/e2e/subnet-evm-genesis.json",
+					SubnetId: &existingSubnetID,
+				},
+			},
+		)
+		cancel()
+		gomega.Ω(err).Should(gomega.BeNil())
+		color.Outf("{{blue}}wait for health{{/}\n")
+		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+		_, err = cli.Health(ctx)
+		cancel()
+		gomega.Ω(err).Should(gomega.BeNil())
+		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+		_, err = cli.Stop(ctx)
+		cancel()
+		gomega.Ω(err).Should(gomega.BeNil())
+	})
 	ginkgo.It("can start", func() {
 		ginkgo.By("start request with invalid exec path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
