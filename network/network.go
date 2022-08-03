@@ -7,8 +7,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
-var ErrUndefined = errors.New("undefined network")
-var ErrStopped = errors.New("network stopped")
+var (
+	ErrUndefined    = errors.New("undefined network")
+	ErrStopped      = errors.New("network stopped")
+	ErrNodeNotFound = errors.New("node not found in network")
+)
 
 type BlockchainSpec struct {
 	VmName   string
@@ -49,6 +52,9 @@ type Network interface {
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
+	// Restart a given node using the same config, optionally changing binary path,
+	// whitelisted subnets
+	RestartNode(context.Context, string, string, string) error
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets

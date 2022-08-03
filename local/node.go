@@ -39,6 +39,7 @@ type getConnFunc func(context.Context, node.Node) (net.Conn, error)
 const (
 	peerMsgQueueBufferSize      = 1024
 	peerResourceTrackerDuration = 10 * time.Second
+	peerStartWaitTimeout        = 30 * time.Second
 )
 
 // Gives access to basic node info, and to most avalanchego apis
@@ -70,6 +71,8 @@ type localNode struct {
 	config node.Config
 	// The node httpHost
 	httpHost string
+	// maps from peer ID to peer object
+	attachedPeers map[string]peer.Peer
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -160,11 +163,24 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 			peerMsgQueueBufferSize,
 		),
 	)
+	cctx, cancel := context.WithTimeout(ctx, peerStartWaitTimeout)
+	err = p.AwaitReady(cctx)
+	cancel()
 	if err != nil {
 		return nil, err
 	}
 
+	node.attachedPeers[p.ID().String()] = p
 	return p, nil
+}
+
+func (node *localNode) SendOutboundMessage(ctx context.Context, peerID string, content []byte, op uint32) (bool, error) {
+	attachedPeer, ok := node.attachedPeers[peerID]
+	if !ok {
+		return false, fmt.Errorf("peer with ID %s is not attached here", peerID)
+	}
+	msg := message.NewTestMsg(message.Op(op), content, false)
+	return attachedPeer.Send(ctx, msg), nil
 }
 
 // See node.Node

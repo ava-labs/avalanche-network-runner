@@ -35,6 +35,8 @@ type Node interface {
 	// It's left to the caller to maintain a reference to the returned peer.
 	// The caller should call StartClose() on the peer when they're done with it.
 	AttachPeer(ctx context.Context, handler router.InboundHandler) (peer.Peer, error)
+	// Sends a message  from the attached peer to the node
+	SendOutboundMessage(ctx context.Context, peerID string, content []byte, op uint32) (bool, error)
 	// Return the state of the node process
 	Status() status.Status
 	// Return this node's avalanchego binary path

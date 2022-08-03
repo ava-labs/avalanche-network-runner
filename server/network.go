@@ -17,7 +17,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -38,13 +37,10 @@ type localNetwork struct {
 
 	options localNetworkOptions
 
-	// maps from node name to peer ID to peer object
-	attachedPeers map[string]map[string]peer.Peer
-
 	// map from blockchain ID to blockchain info
-	customVMBlockchainIDToInfo map[ids.ID]vmInfo
+	customChainIDToInfo map[ids.ID]chainInfo
 
-	customVMRestartMu *sync.RWMutex
+	customChainRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -60,8 +56,8 @@ type localNetwork struct {
 	chainConfigs map[string]string
 }
 
-type vmInfo struct {
-	info         *rpcpb.CustomVmInfo
+type chainInfo struct {
+	info         *rpcpb.CustomChainInfo
 	subnetID     ids.ID
 	blockchainID ids.ID
 }
@@ -80,7 +76,7 @@ type localNetworkOptions struct {
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
 
-	// to block racey restart while installing custom VMs
+	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
@@ -107,10 +103,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		attachedPeers: make(map[string]map[string]peer.Peer),
-
-		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
-		customVMRestartMu:          opts.restartMu,
+		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainRestartMu: opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -183,7 +177,7 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
 		}
 
-		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
 	}
@@ -264,7 +258,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
 
@@ -406,12 +400,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       blockchain.Name,
-					VmId:         blockchain.VMID.String(),
-					SubnetId:     blockchain.SubnetID.String(),
-					BlockchainId: blockchain.ID.String(),
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
 				},
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
@@ -430,8 +424,8 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
+		for chainID, chainInfo := range lc.customChainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil

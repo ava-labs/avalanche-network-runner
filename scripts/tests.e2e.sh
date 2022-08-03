@@ -3,24 +3,31 @@ set -e
 
 export RUN_E2E="true"
 # e.g.,
-# ./scripts/tests.e2e.sh 1.7.9 1.7.10
+# ./scripts/tests.e2e.sh 1.7.12 1.7.13
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255
 fi
 
-VERSION_1=$1
-if [[ -z "${VERSION_1}" ]]; then
-  echo "Missing version argument!"
-  echo "Usage: ${0} [VERSION_1] [VERSION_2]" >> /dev/stderr
-  exit 255
-fi
+DEFAULT_VERSION_1=1.7.12
+DEFAULT_VERSION_2=1.7.13
 
-VERSION_2=$2
-if [[ -z "${VERSION_2}" ]]; then
-  echo "Missing version argument!"
-  echo "Usage: ${0} [VERSION_1] [VERSION_2]" >> /dev/stderr
-  exit 255
+if [ $# == 0 ]; then
+    VERSION_1=$DEFAULT_VERSION_1
+    VERSION_2=$DEFAULT_VERSION_2
+else
+    VERSION_1=$1
+    if [[ -z "${VERSION_1}" ]]; then
+      echo "Missing version argument!"
+      echo "Usage: ${0} [VERSION_1] [VERSION_2]" >> /dev/stderr
+      exit 255
+    fi
+    VERSION_2=$2
+    if [[ -z "${VERSION_2}" ]]; then
+      echo "Missing version argument!"
+      echo "Usage: ${0} [VERSION_1] [VERSION_2]" >> /dev/stderr
+      exit 255
+    fi
 fi
 
 echo "Running e2e tests with:"
