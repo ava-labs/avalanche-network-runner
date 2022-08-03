@@ -117,8 +117,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
 	}
-	if ret.buildDir != "" {
-		req.BuildDir = &ret.buildDir
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
 	}
 	if len(ret.blockchainSpecs) > 0 {
 		req.BlockchainSpecs = ret.blockchainSpecs
@@ -296,8 +296,8 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
 	}
-	if ret.buildDir != "" {
-		req.BuildDir = &ret.buildDir
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
@@ -335,7 +335,7 @@ type Op struct {
 	whitelistedSubnets string
 	globalNodeConfig   string
 	rootDataDir        string
-	buildDir           string
+	pluginDir          string
 	blockchainSpecs    []*rpcpb.BlockchainSpec
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
@@ -380,9 +380,9 @@ func WithRootDataDir(rootDataDir string) OpOption {
 	}
 }
 
-func WithBuildDir(buildDir string) OpOption {
+func WithPluginDir(pluginDir string) OpOption {
 	return func(op *Op) {
-		op.buildDir = buildDir
+		op.pluginDir = pluginDir
 	}
 }
 
