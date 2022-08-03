@@ -74,7 +74,7 @@ func NewCommand() *cobra.Command {
 var (
 	avalancheGoBinPath string
 	numNodes           uint32
-	buildDir           string
+	pluginDir          string
 	globalNodeConfig   string
 	addNodeConfig      string
 	blockchainSpecsStr string
@@ -104,10 +104,10 @@ func newStartCommand() *cobra.Command {
 		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
-		&buildDir,
-		"build-dir",
+		&pluginDir,
+		"plugin-dir",
 		"",
-		"[optional] build directory",
+		"[optional] plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
 		&rootDataDir,
@@ -157,7 +157,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
-		client.WithBuildDir(buildDir),
+		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 		client.WithRootDataDir(rootDataDir),
 	}
@@ -765,10 +765,10 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&buildDir,
-		"build-dir",
+		&pluginDir,
+		"plugin-dir",
 		"",
-		"build directory",
+		"plugin directory",
 	)
 	cmd.PersistentFlags().StringVar(
 		&rootDataDir,
@@ -800,7 +800,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
-		client.WithBuildDir(buildDir),
+		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
 	}
 
