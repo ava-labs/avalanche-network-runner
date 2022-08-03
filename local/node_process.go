@@ -32,7 +32,7 @@ type NodeProcess interface {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
-	NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error)
+	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
 type nodeProcessCreator struct {
@@ -51,7 +51,7 @@ type nodeProcessCreator struct {
 // NewNodeProcess creates a new process of the passed binary
 // If the config has redirection set to `true` for either StdErr or StdOut,
 // the output will be redirected and colored
-func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, log logging.Logger, args ...string) (NodeProcess, error) {
+func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
 	cmd := exec.Command(config.BinaryPath, args...)
 	// assign a new color to this process (might not be used if the config isn't set for it)

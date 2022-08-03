@@ -35,6 +35,7 @@ func NewNetworkFromSnapshot(
 		api.NewAPIClient,
 		&nodeProcessCreator{
 			colorPicker: utils.NewColorPicker(),
+			log:         log,
 			stdout:      os.Stdout,
 			stderr:      os.Stderr,
 		},
