@@ -21,11 +21,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
-const (
-	// TODO: replace with config.PluginDirKey when included in avalanchego
-	PluginDirKey = "plugin-dir"
-)
-
 type localNetwork struct {
 	logger logging.Logger
 
@@ -178,9 +173,10 @@ func (lc *localNetwork) createConfig() error {
 		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
-		if lc.pluginDir != "" {
-			cfg.NodeConfigs[i].Flags[PluginDirKey] = lc.pluginDir
-		}
+		// TODO: enable this when the key is available
+		//if lc.pluginDir != "" {
+		//	cfg.NodeConfigs[i].Flags[config.PluginDirKey] = lc.pluginDir
+		//}
 		if lc.options.whitelistedSubnets != "" {
 			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
 		}
