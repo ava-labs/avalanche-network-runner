@@ -618,7 +618,7 @@ var (
 
 func newSendOutboundMessageCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:       "send-outbound-message [options]",
+		Use:       "send-outbound-message node-name [options]",
 		Short:     "Sends an outbound message to an attached peer.",
 		RunE:      sendOutboundMessageFunc,
 		Args:      cobra.ExactArgs(1),
