@@ -10,8 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	//"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -25,7 +23,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -722,22 +719,6 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	/*
-		// user can override bin path for this node...
-		execPath := req.ExecPath
-		if execPath == "" {
-			// ...or use the same binary as the rest of the network
-			execPath = s.network.execPath
-		}
-		_, err := os.Stat(execPath)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, utils.ErrNotExists
-			}
-			return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
-		}
-	*/
-
 	nodeFlags := map[string]interface{}{}
 	if req.GetNodeConfig() != "" {
 		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &nodeFlags); err != nil {
@@ -745,23 +726,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		}
 	}
 
-	// as execPath can be provided by this function, we might need a new `build-dir`
-	buildDir, err := getBuildDir(req.ExecPath, s.network.pluginDir)
-	if err != nil {
-		return nil, err
-	}
-	nodeFlags[config.BuildDirKey] = buildDir
-
 	nodeConfig := node.Config{
-		Name:           req.Name,
-		Flags:          nodeFlags,
-		BinaryPath:     req.ExecPath,
-		RedirectStdout: s.cfg.RedirectNodesOutput,
-		RedirectStderr: s.cfg.RedirectNodesOutput,
-	}
-	nodeConfig.ChainConfigFiles = map[string]string{}
-	for k, v := range req.ChainConfigs {
-		nodeConfig.ChainConfigFiles[k] = v
+		Name:             req.Name,
+		Flags:            nodeFlags,
+		BinaryPath:       req.ExecPath,
+		RedirectStdout:   s.cfg.RedirectNodesOutput,
+		RedirectStderr:   s.cfg.RedirectNodesOutput,
+		ChainConfigFiles: req.ChainConfigs,
 	}
 
 	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
@@ -771,6 +742,9 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -784,20 +758,14 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.network.nodeInfos[req.Name]; !ok {
-		return nil, network.ErrNodeNotFound
-	}
-
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 
-	zap.L().Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
-	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
@@ -826,15 +794,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	zap.L().Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
-		return nil, err
-	}
-
-	// update with the new config
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
-	s.clusterInfo.Healthy = true
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
