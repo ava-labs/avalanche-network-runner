@@ -88,10 +88,14 @@ type localNetwork struct {
 	// rootDir is the root directory under which we write all node
 	// logs, databases, etc.
 	rootDir string
-	// Flags to apply to all nodes if not present
-	flags map[string]interface{}
 	// directory where networks can be persistently saved
 	snapshotsDir string
+	// flags to apply to all nodes per default
+	flags map[string]interface{}
+	// binary path to use per default
+	binaryPath string
+	// chain config files to use per default
+	chainConfigFiles map[string]string
 }
 
 var (
@@ -113,16 +117,11 @@ func init() {
 		panic(err)
 	}
 
-	defaultNetworkConfig = network.Config{
-		NodeConfigs: make([]node.Config, DefaultNumNodes),
-	}
-
+	// load genesis, updating validation start time
 	genesis, err := fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
 		panic(err)
 	}
-
-	// update genesis validation start time
 	var genesisMap map[string]interface{}
 	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
 		panic(err)
@@ -158,31 +157,51 @@ func init() {
 		panic(err)
 	}
 
-	defaultNetworkConfig.Genesis = string(updatedGenesis)
+	// load network flags
+	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
+	if err != nil {
+		panic(err)
+	}
+	flags := map[string]interface{}{}
+	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
+		panic(err)
+	}
+
+	// load chain config
+	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
+	if err != nil {
+		panic(err)
+	}
+
+	defaultNetworkConfig = network.Config{
+		NodeConfigs: make([]node.Config, DefaultNumNodes),
+		Flags:       flags,
+		Genesis:     string(updatedGenesis),
+		ChainConfigFiles: map[string]string{
+			"C": string(cChainConfig),
+		},
+	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		configFile, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/config.json", i))
+		flagsBytes, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/flags.json", i+1))
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].ConfigFile = string(configFile)
-		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i))
+		flags := map[string]interface{}{}
+		if err = json.Unmarshal(flagsBytes, &flags); err != nil {
+			panic(err)
+		}
+		defaultNetworkConfig.NodeConfigs[i].Flags = flags
+		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i+1))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
-		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i))
+		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i+1))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
-		cChainConfig, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/cchain_config.json", i))
-		if err != nil {
-			panic(err)
-		}
-		defaultNetworkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{
-			"C": string(cChainConfig),
-		}
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -291,14 +310,34 @@ func NewDefaultNetwork(
 	return NewNetwork(log, config, "", "")
 }
 
+func copyMapStringInterface(flags map[string]interface{}) map[string]interface{} {
+	outFlags := map[string]interface{}{}
+	for k, v := range flags {
+		outFlags[k] = v
+	}
+	return outFlags
+}
+
+func copyMapStringString(flags map[string]string) map[string]string {
+	outFlags := map[string]string{}
+	for k, v := range flags {
+		outFlags[k] = v
+	}
+	return outFlags
+}
+
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
+	config.BinaryPath = binaryPath
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
-	for i := 0; i < len(config.NodeConfigs); i++ {
-		config.NodeConfigs[i].BinaryPath = binaryPath
+	// copy maps
+	config.ChainConfigFiles = copyMapStringString(config.ChainConfigFiles)
+	config.Flags = copyMapStringInterface(config.Flags)
+	for i := range config.NodeConfigs {
+		config.NodeConfigs[i].Flags = copyMapStringInterface(config.NodeConfigs[i].Flags)
 	}
 	return config
 }
@@ -348,7 +387,10 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
 
+	// save node defaults
 	ln.flags = networkConfig.Flags
+	ln.binaryPath = networkConfig.BinaryPath
+	ln.chainConfigFiles = networkConfig.ChainConfigFiles
 
 	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
@@ -391,7 +433,33 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 // Assumes [ln.lock] is held and [ln.Stop] hasn't been called.
 func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.Flags == nil {
-		nodeConfig.Flags = make(map[string]interface{})
+		nodeConfig.Flags = map[string]interface{}{}
+	}
+	if nodeConfig.ChainConfigFiles == nil {
+		nodeConfig.ChainConfigFiles = map[string]string{}
+	}
+
+	// load node defaults
+	if nodeConfig.BinaryPath == "" {
+		nodeConfig.BinaryPath = ln.binaryPath
+	}
+	for k, v := range ln.chainConfigFiles {
+		_, ok := nodeConfig.ChainConfigFiles[k]
+		if !ok {
+			nodeConfig.ChainConfigFiles[k] = v
+		}
+	}
+	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
+
+	// it shouldn't happen that just one is empty, most probably both,
+	// but in any case if just one is empty it's unusable so we just assign a new one.
+	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
+		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+		}
+		nodeConfig.StakingCert = string(stakingCert)
+		nodeConfig.StakingKey = string(stakingKey)
 	}
 
 	if err := ln.setNodeName(&nodeConfig); err != nil {
@@ -430,6 +498,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			nodeConfig.BinaryPath, nodeData.flags, err,
 		)
 	}
+
+	ln.log.Info(
+		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		nodeConfig.Name, nodeDir, nodeData.logsDir, nodeData.dbDir, nodeData.p2pPort, nodeData.apiPort,
+	)
+
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
 
 	// Create a wrapper for this node so we can reference it later
@@ -633,7 +707,7 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 }
 
 // Restart [nodeName] using the same config, optionally changing [binaryPath],
-// [buildDir], [whitelistedSubnets], [dbDir]
+// [buildDir], [whitelistedSubnets]
 func (ln *localNetwork) RestartNode(
 	ctx context.Context,
 	nodeName string,
@@ -691,11 +765,11 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 	if len(nodeConfig.Name) == 0 {
 		for {
 			nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
-			ln.nextNodeSuffix++
 			_, ok := ln.nodes[nodeConfig.Name]
 			if !ok {
 				break
 			}
+			ln.nextNodeSuffix++
 		}
 	}
 	// Enforce name uniqueness
@@ -727,10 +801,6 @@ func (ln *localNetwork) buildFlags(
 	nodeDir string,
 	nodeConfig *node.Config,
 ) (buildFlagsReturn, error) {
-	// Add flags in [ln.Flags] to [nodeConfig.Flags]
-	// Assumes [nodeConfig.Flags] is non-nil
-	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
-
 	// httpHost from all configs for node
 	httpHost, err := getConfigEntry(nodeConfig.Flags, configFile, config.HTTPHostKey, "")
 	if err != nil {
@@ -795,10 +865,6 @@ func (ln *localNetwork) buildFlags(
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}
 
-	ln.log.Info(
-		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, nodeDir, logsDir, dbDir, p2pPort, apiPort,
-	)
 	return buildFlagsReturn{
 		flags:    flags,
 		apiPort:  apiPort,

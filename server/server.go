@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -26,7 +25,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -252,8 +250,13 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	buildDir := getBuildDir(req.GetExecPath(), req.GetBuildDir())
-	pluginDir := filepath.Join(buildDir, "plugins")
+	pluginDir := ""
+	if req.GetPluginDir() != "" {
+		pluginDir = req.GetPluginDir()
+	}
+	if pluginDir == "" {
+		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
+	}
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		s.log.Info("plugin dir: %s", pluginDir)
@@ -321,13 +324,13 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 
-	s.log.Info("starting with execPath %s, numNodes %d, whitelistedSubnets %s, pid %d, rootDataDir %s, buildDir %s, chainConfigs %s, defaultNodeConfig %s",
+	s.log.Info("starting with execPath %s, numNodes %d, whitelistedSubnets %s, pid %d, rootDataDir %s, pluginDir %s, chainConfigs %s, globalNodeConfig %s",
 		execPath,
 		numNodes,
 		whitelistedSubnets,
 		pid,
 		rootDataDir,
-		buildDir,
+		pluginDir,
 		req.ChainConfigs,
 		globalNodeConfig,
 	)
@@ -347,7 +350,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		buildDir:            buildDir,
+		pluginDir:           pluginDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
@@ -443,7 +446,6 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, ErrNoBlockchainSpec
 	}
 
-	pluginDir := filepath.Join(s.network.buildDir, "plugins")
 	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
@@ -455,7 +457,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
-			filepath.Join(pluginDir, vmID.String()),
+			filepath.Join(s.network.pluginDir, vmID.String()),
 			vmGenesisFilePath,
 		); err != nil {
 			return nil, err
@@ -715,81 +717,32 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var whitelistedSubnets string
-
-	if _, exists := s.network.nodeInfos[req.Name]; exists {
-		return nil, fmt.Errorf("repeated node name %q", req.Name)
-	}
-
-	// user can override bin path for this node...
-	execPath := req.ExecPath
-	if execPath == "" {
-		// ...or use the same binary as the rest of the network
-		execPath = s.network.execPath
-	}
-	_, err := os.Stat(execPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, utils.ErrNotExists
-		}
-		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
-	}
-
-	// use same configs from other nodes
-	whitelistedSubnets = s.network.options.whitelistedSubnets
-	buildDir := getBuildDir(execPath, s.network.buildDir)
-	rootDataDir := s.clusterInfo.RootDataDir
-
-	logDir := filepath.Join(rootDataDir, req.Name, "log")
-	dbDir := filepath.Join(rootDataDir, req.Name, "db-dir")
-
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return nil, err
-	}
+	nodeFlags := map[string]interface{}{}
 	if req.GetNodeConfig() != "" {
-		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &globalConfig); err != nil {
+		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &nodeFlags); err != nil {
 			return nil, err
 		}
 	}
 
-	var mergedConfig map[string]interface{}
-	// we only need to merge from the default node config here, as we are only adding one node
-	mergedConfig, err = mergeNodeConfig(defaultConfig, globalConfig, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed merging provided configs: %w", err)
-	}
-	configFile, err := createConfigFileString(mergedConfig, logDir, dbDir, buildDir, whitelistedSubnets, s.log)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate json node config string: %w", err)
-	}
-	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
-	}
 	nodeConfig := node.Config{
-		Name:           req.Name,
-		ConfigFile:     configFile,
-		StakingKey:     string(stakingKey),
-		StakingCert:    string(stakingCert),
-		BinaryPath:     execPath,
-		RedirectStdout: s.cfg.RedirectNodesOutput,
-		RedirectStderr: s.cfg.RedirectNodesOutput,
+		Name:             req.Name,
+		Flags:            nodeFlags,
+		BinaryPath:       req.ExecPath,
+		RedirectStdout:   s.cfg.RedirectNodesOutput,
+		RedirectStderr:   s.cfg.RedirectNodesOutput,
+		ChainConfigFiles: req.ChainConfigs,
 	}
-	nodeConfig.ChainConfigFiles = map[string]string{}
-	for k, v := range s.network.chainConfigs {
-		nodeConfig.ChainConfigFiles[k] = v
-	}
-	for k, v := range req.ChainConfigs {
-		nodeConfig.ChainConfigFiles[k] = v
-	}
-	_, err = s.network.nw.AddNode(nodeConfig)
-	if err != nil {
+
+	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
 		return nil, err
 	}
+
 	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -803,20 +756,14 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.network.nodeInfos[req.Name]; !ok {
-		return nil, network.ErrNodeNotFound
-	}
-
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
 	}
 
-	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
-	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
@@ -845,15 +792,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
-		return nil, err
-	}
-
-	// update with the new config
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
-	s.clusterInfo.Healthy = true
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -996,7 +936,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:         req.GetExecPath(),
-		buildDir:         req.GetBuildDir(),
+		pluginDir:        req.GetPluginDir(),
 		rootDataDir:      rootDataDir,
 		chainConfigs:     req.ChainConfigs,
 		globalNodeConfig: req.GetGlobalNodeConfig(),

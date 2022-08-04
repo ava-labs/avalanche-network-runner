@@ -424,13 +424,15 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
 
 	ln.log.Info("restarting all nodes to whitelist subnets: %s", whitelistedSubnetIDs)
+
+	// change default setting
+	ln.flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+
 	for nodeName, node := range ln.nodes {
-		// replace WhitelistedSubnetsKey flag
 		nodeConfig := node.GetConfig()
-		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.WhitelistedSubnetsKey, whitelistedSubnets)
-		if err != nil {
-			return err
-		}
+
+		// delete node specific flag so as to use default one
+		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
 
 		ln.log.Info("removing and adding back the node %q for whitelisted subnets", nodeName)
 		if err := ln.removeNode(ctx, nodeName); err != nil {

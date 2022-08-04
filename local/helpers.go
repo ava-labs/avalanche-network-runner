@@ -169,7 +169,7 @@ func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, no
 		if val, ok := nodeFlags[flagName]; !ok {
 			nodeFlags[flagName] = flagVal
 		} else {
-			log.Info(
+			log.Debug(
 				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
 				flagName, val, flagVal,
 			)
