@@ -454,9 +454,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
-	// TODO: remove this when plugin-dir is available
-	delete(nodeConfig.Flags, PluginDirKey)
-
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
 	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
@@ -713,7 +710,7 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 }
 
 // Restart [nodeName] using the same config, optionally changing [binaryPath],
-// [pluginDir], [whitelistedSubnets]
+// [whitelistedSubnets]
 func (ln *localNetwork) RestartNode(
 	ctx context.Context,
 	nodeName string,
@@ -732,7 +729,8 @@ func (ln *localNetwork) RestartNode(
 
 	if binaryPath != "" {
 		nodeConfig.BinaryPath = binaryPath
-		nodeConfig.Flags[PluginDirKey] = filepath.Join(filepath.Dir(binaryPath), "plugins")
+		// remove old value if present, to look for vm binaries in new binary path location
+		delete(nodeConfig.Flags, PluginDirKey)
 	}
 
 	if whitelistedSubnets != "" {

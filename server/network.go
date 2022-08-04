@@ -99,20 +99,12 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	pluginDir := ""
-	if opts.execPath != "" {
-		pluginDir = filepath.Join(filepath.Dir(opts.execPath), "plugins")
-	}
-	if opts.pluginDir != "" {
-		pluginDir = opts.pluginDir
-	}
-
 	return &localNetwork{
 		logger: logger,
 
 		execPath: opts.execPath,
 
-		pluginDir: pluginDir,
+		pluginDir: opts.pluginDir,
 
 		options: opts,
 
@@ -145,6 +137,12 @@ func (lc *localNetwork) createConfig() error {
 	// set flags applied to all nodes
 	for k, v := range globalConfig {
 		cfg.Flags[k] = v
+	}
+	if lc.pluginDir != "" {
+		cfg.Flags[PluginDirKey] = lc.pluginDir
+	}
+	if lc.options.whitelistedSubnets != "" {
+		cfg.Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
 	}
 
 	for i := range cfg.NodeConfigs {
@@ -181,14 +179,7 @@ func (lc *localNetwork) createConfig() error {
 
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
-		if lc.pluginDir != "" {
-			cfg.NodeConfigs[i].Flags[PluginDirKey] = lc.pluginDir
-		}
-		if lc.options.whitelistedSubnets != "" {
-			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
-		}
 
-		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
 	}
