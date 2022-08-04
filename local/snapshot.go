@@ -94,9 +94,11 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	// remove all log dir references
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
-		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
-		if err != nil {
-			return "", err
+		if nodeConfig.ConfigFile != "" {
+			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
+			if err != nil {
+				return "", err
+			}
 		}
 		delete(nodeConfig.Flags, config.LogsDirKey)
 		nodesConfig[nodeName] = nodeConfig
@@ -126,10 +128,13 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// save network conf
 	networkConfig := network.Config{
-		Genesis:     string(ln.genesis),
-		Flags:       networkConfigFlags,
-		NodeConfigs: []node.Config{},
+		Genesis:          string(ln.genesis),
+		Flags:            networkConfigFlags,
+		NodeConfigs:      []node.Config{},
+		BinaryPath:       ln.binaryPath,
+		ChainConfigFiles: ln.chainConfigFiles,
 	}
+
 	for _, nodeConfig := range nodesConfig {
 		// no need to save this, will be generated automatically on snapshot load
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
