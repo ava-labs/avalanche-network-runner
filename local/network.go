@@ -89,8 +89,6 @@ type localNetwork struct {
 	// rootDir is the root directory under which we write all node
 	// logs, databases, etc.
 	rootDir string
-	// flags from the networkConfig
-	networkConfigFlags map[string]interface{}
 	// directory where networks can be persistently saved
 	snapshotsDir string
 	// flags to apply to all nodes per default
