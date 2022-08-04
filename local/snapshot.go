@@ -128,10 +128,13 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// save network conf
 	networkConfig := network.Config{
-		Genesis:     string(ln.genesis),
-		Flags:       networkConfigFlags,
-		NodeConfigs: []node.Config{},
+		Genesis:          string(ln.genesis),
+		Flags:            networkConfigFlags,
+		NodeConfigs:      []node.Config{},
+		BinaryPath:       ln.binaryPath,
+		ChainConfigFiles: ln.chainConfigFiles,
 	}
+
 	for _, nodeConfig := range nodesConfig {
 		// no need to save this, will be generated automatically on snapshot load
 		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
