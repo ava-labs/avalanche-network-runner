@@ -240,8 +240,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	}
 
 	zap.L().Info("add node", zap.String("name", name))
-	r, err := c.controlc.AddNode(ctx, req)
-	return r, err
+	return c.controlc.AddNode(ctx, req)
 }
 
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {

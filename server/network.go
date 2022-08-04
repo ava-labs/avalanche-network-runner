@@ -175,7 +175,10 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].Flags[k] = v
 		}
 
+		// remove http port defined in local network config, to get dynamic port
+		// generation when creating a new network
 		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
 		if lc.pluginDir != "" {
