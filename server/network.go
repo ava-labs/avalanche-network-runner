@@ -179,7 +179,7 @@ func (lc *localNetwork) createConfig() error {
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
 		if lc.pluginDir != "" {
-			cfg.NodeConfigs[i].Flags[config.PluginDirKey] = lc.pluginDir
+			cfg.NodeConfigs[i].Flags[PluginDirKey] = lc.pluginDir
 		}
 		if lc.options.whitelistedSubnets != "" {
 			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
