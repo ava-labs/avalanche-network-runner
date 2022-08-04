@@ -55,6 +55,10 @@ type Config struct {
 	// and the node's config file has flag W set to Z,
 	// then the node will be started with flag W set to Y.
 	Flags map[string]interface{} `json:"flags"`
+	// Binary path to use per default, if not specified in node config
+	BinaryPath string `json:"binaryPath"`
+	// Chain config files to use per default, if not specified in node config
+	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
 }
 
 // Validate returns an error if this config is invalid

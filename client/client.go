@@ -233,12 +233,11 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret.applyOpts(opts)
 
 	req := &rpcpb.AddNodeRequest{
-		Name: name,
+		Name:         name,
+		ExecPath:     execPath,
+		NodeConfig:   &ret.globalNodeConfig,
+		ChainConfigs: ret.chainConfigs,
 	}
-	if ret.execPath != "" {
-		req.ExecPath = ret.execPath
-	}
-	req.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
 	return c.controlc.AddNode(ctx, req)
@@ -259,9 +258,6 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
-	}
-	if ret.rootDataDir != "" {
-		req.RootDataDir = &ret.rootDataDir
 	}
 
 	zap.L().Info("restart node", zap.String("name", name))

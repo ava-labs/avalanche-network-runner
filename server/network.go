@@ -19,26 +19,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
 )
-
-const (
-	defaultNodeConfig = `{
-		"network-peer-list-gossip-frequency":"250ms",
-		"network-max-reconnect-delay":"1s",
-		"public-ip":"127.0.0.1",
-		"health-check-frequency":"2s",
-		"api-admin-enabled":true,
-		"api-ipcs-enabled":true,
-		"index-enabled":true
-  }`
-)
-
-var ignoreFields = map[string]struct{}{
-	"public-ip":    {},
-	"http-port":    {},
-	"staking-port": {},
-}
 
 type localNetwork struct {
 	logger logging.Logger
@@ -57,9 +38,9 @@ type localNetwork struct {
 	options localNetworkOptions
 
 	// map from blockchain ID to blockchain info
-	customVMBlockchainIDToInfo map[ids.ID]vmInfo
+	customChainIDToInfo map[ids.ID]chainInfo
 
-	customVMRestartMu *sync.RWMutex
+	customChainRestartMu *sync.RWMutex
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
@@ -75,8 +56,8 @@ type localNetwork struct {
 	chainConfigs map[string]string
 }
 
-type vmInfo struct {
-	info         *rpcpb.CustomVmInfo
+type chainInfo struct {
+	info         *rpcpb.CustomChainInfo
 	subnetID     ids.ID
 	blockchainID ids.ID
 }
@@ -95,7 +76,7 @@ type localNetworkOptions struct {
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
 
-	// to block racey restart while installing custom VMs
+	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
@@ -122,8 +103,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		customVMBlockchainIDToInfo: make(map[ids.ID]vmInfo),
-		customVMRestartMu:          opts.restartMu,
+		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainRestartMu: opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -140,15 +121,17 @@ func (lc *localNetwork) createConfig() error {
 		return err
 	}
 
-	var defaultConfig, globalConfig map[string]interface{}
-	if err := json.Unmarshal([]byte(defaultNodeConfig), &defaultConfig); err != nil {
-		return err
-	}
+	var globalConfig map[string]interface{}
 
 	if lc.options.globalNodeConfig != "" {
 		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalConfig); err != nil {
 			return err
 		}
+	}
+
+	// set flags applied to all nodes
+	for k, v := range globalConfig {
+		cfg.Flags[k] = v
 	}
 
 	for i := range cfg.NodeConfigs {
@@ -164,9 +147,19 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 
-		mergedConfig, err := mergeNodeConfig(defaultConfig, globalConfig, lc.options.customNodeConfigs[nodeName])
-		if err != nil {
-			return fmt.Errorf("failed merging provided configs: %w", err)
+		if cfg.NodeConfigs[i].Flags == nil {
+			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
+		}
+
+		// set flags applied to the specific node
+		var customNodeConfig map[string]interface{}
+		if lc.options.customNodeConfigs != nil && lc.options.customNodeConfigs[nodeName] != "" {
+			if err := json.Unmarshal([]byte(lc.options.customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
+				return err
+			}
+		}
+		for k, v := range customNodeConfig {
+			cfg.NodeConfigs[i].Flags[k] = v
 		}
 
 		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
@@ -174,51 +167,27 @@ func (lc *localNetwork) createConfig() error {
 		if err != nil {
 			return err
 		}
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, buildDir, lc.options.whitelistedSubnets)
-		if err != nil {
-			return err
+
+		// remove http port defined in local network config, to get dynamic port
+		// generation when creating a new network
+		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+
+		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
+		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
+		if buildDir != "" {
+			cfg.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
+		}
+		if lc.options.whitelistedSubnets != "" {
+			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
 		}
 
-		cfg.NodeConfigs[i].BinaryPath = lc.options.execPath
+		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
 	}
 
 	lc.cfg = cfg
 	return nil
-}
-
-// mergeAndCheckForIgnores takes two maps, merging the two and overriding the first with the second
-// if common entries are found.
-// It also skips some entries which are internal to the runner
-func mergeAndCheckForIgnores(base, override map[string]interface{}) {
-	for k, v := range override {
-		if _, ok := ignoreFields[k]; ok {
-			continue
-		}
-		base[k] = v
-	}
-}
-
-// mergeNodeConfig evaluates the final node config.
-// defaultConfig: map of base config to be applied
-// globalConfig: map of global config provided to be applied to all nodes. Overrides defaultConfig
-// customConfig: a custom config provided to be applied to this node. Overrides globalConfig and defaultConfig
-// returns final map of node config entries
-func mergeNodeConfig(baseConfig map[string]interface{}, globalConfig map[string]interface{}, customConfig string) (map[string]interface{}, error) {
-	mergeAndCheckForIgnores(baseConfig, globalConfig)
-
-	var jsonCustom map[string]interface{}
-	// merge, overwriting entries in default with the global ones
-	if customConfig != "" {
-		if err := json.Unmarshal([]byte(customConfig), &jsonCustom); err != nil {
-			return nil, err
-		}
-		// merge, overwriting entries in default with the custom ones
-		mergeAndCheckForIgnores(baseConfig, jsonCustom)
-	}
-
-	return baseConfig, nil
 }
 
 // generates buildDir from pluginDir, and if not available, from execPath
@@ -236,33 +205,6 @@ func getBuildDir(execPath string, pluginDir string) (string, error) {
 		buildDir = filepath.Dir(pluginDir)
 	}
 	return buildDir, nil
-}
-
-// createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(configFileMap map[string]interface{}, logDir string, dbDir string, buildDir string, whitelistedSubnets string) (string, error) {
-	// add (or overwrite, if given) the following entries
-	if configFileMap[config.LogsDirKey] != "" {
-		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.LogsDirKey))
-	}
-	configFileMap[config.LogsDirKey] = logDir
-	if configFileMap[config.DBPathKey] != "" {
-		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.DBPathKey))
-	}
-	configFileMap[config.DBPathKey] = dbDir
-	if buildDir != "" {
-		configFileMap[config.BuildDirKey] = buildDir
-	}
-	// need to whitelist subnet ID to create custom VM chain
-	// ref. vms/platformvm/createChain
-	if whitelistedSubnets != "" {
-		configFileMap[config.WhitelistedSubnetsKey] = whitelistedSubnets
-	}
-
-	finalJSON, err := json.Marshal(configFileMap)
-	if err != nil {
-		return "", err
-	}
-	return string(finalJSON), nil
 }
 
 func (lc *localNetwork) start() error {
@@ -320,7 +262,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom VM not specified, skipping installation and its health checks...{{/}}\n")
+		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
 		return
 	}
 
@@ -334,12 +276,12 @@ func (lc *localNetwork) createBlockchains(
 		return
 	}
 
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+	if err := lc.updateNodeInfo(); err != nil {
 		lc.startErrCh <- err
 		return
 	}
 
-	if err := lc.updateNodeInfo(); err != nil {
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		lc.startErrCh <- err
 		return
 	}
@@ -462,12 +404,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, blockchain := range blockchains {
 		if blockchain.Name != "C-Chain" && blockchain.Name != "X-Chain" {
-			lc.customVMBlockchainIDToInfo[blockchain.ID] = vmInfo{
-				info: &rpcpb.CustomVmInfo{
-					VmName:       blockchain.Name,
-					VmId:         blockchain.VMID.String(),
-					SubnetId:     blockchain.SubnetID.String(),
-					BlockchainId: blockchain.ID.String(),
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
 				},
 				subnetID:     blockchain.SubnetID,
 				blockchainID: blockchain.ID,
@@ -486,8 +428,8 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		for blockchainID, vmInfo := range lc.customVMBlockchainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", vmInfo.info.VmId, nodeInfo.GetUri(), blockchainID)
+		for chainID, chainInfo := range lc.customChainIDToInfo {
+			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil
@@ -521,19 +463,10 @@ func (lc *localNetwork) updateNodeInfo() error {
 	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		configFile := []byte(node.GetConfigFile())
 		var pluginDir string
-		var whitelistedSubnets string
-		var configFileMap map[string]interface{}
-		if err := json.Unmarshal(configFile, &configFileMap); err != nil {
+		whitelistedSubnets, err := node.GetFlag(config.WhitelistedSubnetsKey)
+		if err != nil {
 			return err
-		}
-		whitelistedSubnetsIntf, ok := configFileMap[config.WhitelistedSubnetsKey]
-		if ok {
-			whitelistedSubnets, ok = whitelistedSubnetsIntf.(string)
-			if !ok {
-				return fmt.Errorf("unexpected type for %q expected string got %T", config.WhitelistedSubnetsKey, whitelistedSubnetsIntf)
-			}
 		}
 		buildDir := node.GetBuildDir()
 		if buildDir != "" {
