@@ -313,8 +313,16 @@ func NewDefaultNetwork(
 	return NewNetwork(log, config, "", "")
 }
 
-func copyFlags(flags map[string]interface{}) map[string]interface{} {
+func copyMapStringInterface(flags map[string]interface{}) map[string]interface{} {
 	outFlags := map[string]interface{}{}
+	for k, v := range flags {
+		outFlags[k] = v
+	}
+	return outFlags
+}
+
+func copyMapStringString(flags map[string]string) map[string]string {
+	outFlags := map[string]string{}
 	for k, v := range flags {
 		outFlags[k] = v
 	}
@@ -329,9 +337,10 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	// copy maps
-	config.Flags = copyFlags(config.Flags)
+	config.ChainConfigFiles = copyMapStringString(config.ChainConfigFiles)
+	config.Flags = copyMapStringInterface(config.Flags)
 	for i := range config.NodeConfigs {
-		config.NodeConfigs[i].Flags = copyFlags(config.NodeConfigs[i].Flags)
+		config.NodeConfigs[i].Flags = copyMapStringInterface(config.NodeConfigs[i].Flags)
 	}
 	return config
 }
