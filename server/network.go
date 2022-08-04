@@ -168,6 +168,7 @@ func (lc *localNetwork) createConfig() error {
 			return err
 		}
 
+		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
 		if buildDir != "" {
