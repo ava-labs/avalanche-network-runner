@@ -432,6 +432,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
 
+	// TODO: remove this when plugin-dir is available
+	delete(nodeConfig.Flags, PluginDirKey)
+
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
 	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
