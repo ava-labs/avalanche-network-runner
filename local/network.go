@@ -368,6 +368,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
 
+	// save node defaults
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
@@ -419,7 +420,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		nodeConfig.ChainConfigFiles = map[string]string{}
 	}
 
-	// set defaults
+	// load node defaults
 	if nodeConfig.BinaryPath == "" {
 		nodeConfig.BinaryPath = ln.binaryPath
 	}
