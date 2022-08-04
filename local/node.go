@@ -65,8 +65,8 @@ type localNode struct {
 	dbDir string
 	// The logs dir of the node
 	logsDir string
-	// The plugin dir of the node
-	pluginDir string
+	// The build dir of the node
+	buildDir string
 	// The node config
 	config node.Config
 	// The node httpHost
@@ -226,11 +226,11 @@ func (node *localNode) GetBinaryPath() string {
 }
 
 // See node.Node
-func (node *localNode) GetPluginDir() string {
-	if node.pluginDir == "" {
-		return filepath.Join(filepath.Dir(node.GetBinaryPath()), "plugins")
+func (node *localNode) GetBuildDir() string {
+	if node.buildDir == "" {
+		return filepath.Dir(node.GetBinaryPath())
 	}
-	return node.pluginDir
+	return node.buildDir
 }
 
 // See node.Node
