@@ -247,16 +247,13 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	pluginDir := ""
+	pluginDir := filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	if req.GetPluginDir() != "" {
 		pluginDir = req.GetPluginDir()
 	}
-	if pluginDir == "" {
-		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
-	}
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
-		zap.L().Info("plugin dir", zap.String("plugin-dir", pluginDir))
+		zap.L().Info("checking vm binaries", zap.String("plugin-dir", pluginDir))
 		for i := range req.GetBlockchainSpecs() {
 			spec := req.GetBlockchainSpecs()[i]
 			if spec.SubnetId != nil {
@@ -330,7 +327,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("whitelistedSubnets", whitelistedSubnets),
 		zap.Int32("pid", pid),
 		zap.String("rootDataDir", rootDataDir),
-		zap.String("pluginDir", pluginDir),
+		zap.String("pluginDir", req.GetPluginDir()),
 		zap.Any("chainConfigs", req.ChainConfigs),
 		zap.String("globalNodeConfig", globalNodeConfig),
 	)
@@ -350,7 +347,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		pluginDir:           pluginDir,
+		pluginDir:           req.GetPluginDir(),
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
@@ -445,6 +442,14 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		return nil, ErrNoBlockchainSpec
 	}
 
+	pluginDir := ""
+	if s.network.execPath != "" {
+		pluginDir = filepath.Join(filepath.Dir(s.network.execPath), "plugins")
+	}
+	if s.network.pluginDir != "" {
+		pluginDir = s.network.pluginDir
+	}
+
 	chainSpecs := []network.BlockchainSpec{}
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
@@ -459,7 +464,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
-			filepath.Join(s.network.pluginDir, vmID.String()),
+			filepath.Join(pluginDir, vmID.String()),
 			vmGenesisFilePath,
 		); err != nil {
 			return nil, err
