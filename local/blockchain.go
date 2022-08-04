@@ -447,6 +447,9 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	for nodeName, node := range ln.nodes {
 		nodeConfig := node.GetConfig()
 
+		// delete node specific flag so as to use default one
+		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
+
 		zap.L().Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
