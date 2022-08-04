@@ -94,9 +94,11 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	// remove all log dir references
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
-		nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
-		if err != nil {
-			return "", err
+		if nodeConfig.ConfigFile != "" {
+			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
+			if err != nil {
+				return "", err
+			}
 		}
 		delete(nodeConfig.Flags, config.LogsDirKey)
 		nodesConfig[nodeName] = nodeConfig
