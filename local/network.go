@@ -165,7 +165,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	flags := map[string]interface{}{}
+	var flags map[string]interface{}
 	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
 		panic(err)
 	}
@@ -190,7 +190,7 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
-		flags := map[string]interface{}{}
+		var flags map[string]interface{}
 		if err = json.Unmarshal(flagsBytes, &flags); err != nil {
 			panic(err)
 		}
