@@ -1,0 +1,65 @@
+[08-04|12:32:45.357] INFO client/client.go:140 start
+[08-04|12:34:08.474] INFO client/client.go:149 create blockchains
+[08-04|12:35:05.621] INFO client/client.go:149 create blockchains
+[08-04|12:35:21.955] INFO client/client.go:140 start
+[08-04|12:35:42.103] INFO client/client.go:140 start
+[08-04|12:36:23.186] INFO client/client.go:140 start
+[08-04|12:38:03.619] DEBUG client/client.go:80 dialing server at endpoint 0.0.0.0:8080
+[08-04|12:38:03.623] INFO client/client.go:140 start
+[08-04|12:38:03.625] INFO client/client.go:140 start
+[08-04|12:38:03.626] INFO client/client.go:140 start
+[08-04|12:38:03.626] INFO client/client.go:140 start
+[08-04|12:38:03.627] INFO client/client.go:140 start
+[08-04|12:38:03.627] INFO client/client.go:140 start
+[08-04|12:38:03.634] INFO client/client.go:168 health
+[08-04|12:38:12.645] INFO client/client.go:173 uris
+[08-04|12:38:12.646] INFO client/client.go:182 status
+[08-04|12:38:12.646] INFO client/client.go:200 start receive routine
+[08-04|12:38:12.647] WARN client/client.go:223 failed to receive status request from gRPC stream due to client cancellation: %!w(*status.Error=&{0xc000010948})
+[08-04|12:38:12.647] DEBUG client/client.go:197 closing stream send %!w(<nil>)
+[08-04|12:38:12.647] INFO client/client.go:255 remove node "node5"
+[08-04|12:38:12.664] INFO client/client.go:271 restart node "node4"
+[08-04|12:38:21.690] INFO client/client.go:276 attaching peer "node1"
+[08-04|12:38:22.583] INFO client/client.go:281 sending outbound message: node-name node1, peer-id NodeID-rU4MSf9rx9sQF5yV91ehiciUiY7LRwEi
+[08-04|12:38:22.583] INFO client/client.go:250 add node "test-add-node"
+[08-04|12:38:23.021] INFO client/client.go:250 add node "test-add-node"
+[08-04|12:38:23.021] INFO client/client.go:234 stop
+[08-04|12:38:23.079] INFO client/client.go:140 start
+[08-04|12:38:58.575] INFO client/client.go:168 health
+[08-04|12:38:58.680] INFO client/client.go:173 uris
+[08-04|12:38:58.745] INFO client/client.go:234 stop
+[08-04|12:38:58.873] INFO client/client.go:140 start
+[08-04|12:38:58.892] INFO client/client.go:168 health
+[08-04|12:39:10.919] INFO client/client.go:182 status
+[08-04|12:39:10.920] INFO client/client.go:163 create subnets
+[08-04|12:39:15.927] INFO client/client.go:182 status
+[08-04|12:39:20.939] INFO client/client.go:182 status
+[08-04|12:39:25.942] INFO client/client.go:182 status
+[08-04|12:39:30.944] INFO client/client.go:182 status
+[08-04|12:39:35.954] INFO client/client.go:182 status
+[08-04|12:39:40.966] INFO client/client.go:182 status
+[08-04|12:39:45.977] INFO client/client.go:182 status
+[08-04|12:39:50.988] INFO client/client.go:182 status
+[08-04|12:39:55.990] INFO client/client.go:182 status
+[08-04|12:40:00.993] INFO client/client.go:182 status
+[08-04|12:40:05.996] INFO client/client.go:182 status
+[08-04|12:40:10.999] INFO client/client.go:182 status
+[08-04|12:40:16.002] INFO client/client.go:182 status
+[08-04|12:40:16.005] INFO client/client.go:182 status
+[08-04|12:40:16.016] INFO client/client.go:173 uris
+[08-04|12:40:16.017] INFO client/client.go:182 status
+[08-04|12:40:16.019] INFO client/client.go:324 get snapshot names
+[08-04|12:40:16.020] INFO client/client.go:291 save snapshot with name pepe
+[08-04|12:40:16.128] INFO client/client.go:168 health
+[08-04|12:40:16.128] INFO client/client.go:296 load snapshot with name papa
+[08-04|12:40:16.129] INFO client/client.go:296 load snapshot with name pepe
+[08-04|12:40:21.147] INFO client/client.go:182 status
+[08-04|12:40:26.151] INFO client/client.go:182 status
+[08-04|12:40:26.160] INFO client/client.go:173 uris
+[08-04|12:40:26.161] INFO client/client.go:182 status
+[08-04|12:40:26.161] INFO client/client.go:291 save snapshot with name pepe
+[08-04|12:40:26.162] INFO client/client.go:324 get snapshot names
+[08-04|12:40:26.162] INFO client/client.go:319 remove snapshot with name pepe
+[08-04|12:40:26.164] INFO client/client.go:324 get snapshot names
+[08-04|12:40:26.165] INFO client/client.go:319 remove snapshot with name pepe
+[08-04|12:40:26.165] INFO client/client.go:234 stop

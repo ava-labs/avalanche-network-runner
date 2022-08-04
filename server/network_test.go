@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +24,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err := mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
-	finalJSON, err := createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err := createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets, logging.NoLog{})
 	assert.NoError(err)
 
 	var controlMap map[string]interface{}
@@ -64,7 +65,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err = mergeNodeConfig(defaultConfig, globalConfig, "")
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets, logging.NoLog{})
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
@@ -88,7 +89,7 @@ func TestEvalConfig(t *testing.T) {
 	customConfigJSON := globalConfigJSON
 	config, err = mergeNodeConfig(defaultConfig, map[string]interface{}{}, customConfigJSON)
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets, logging.NoLog{})
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)
@@ -130,7 +131,7 @@ func TestEvalConfig(t *testing.T) {
 
 	config, err = mergeNodeConfig(defaultConfig, globalConfig, customConfigJSON)
 	assert.NoError(err)
-	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets)
+	finalJSON, err = createConfigFileString(config, tLogDir, tDbDir, tPluginDir, tWhitelistedSubnets, logging.NoLog{})
 	assert.NoError(err)
 
 	err = json.Unmarshal([]byte(finalJSON), &controlMap)

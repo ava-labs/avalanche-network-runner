@@ -13,13 +13,11 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
-	"github.com/ava-labs/avalanche-network-runner/pkg/color"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
 )
 
 const (
@@ -41,7 +39,7 @@ var ignoreFields = map[string]struct{}{
 }
 
 type localNetwork struct {
-	logger logging.Logger
+	log logging.Logger
 
 	execPath string
 	buildDir string
@@ -99,6 +97,8 @@ type localNetworkOptions struct {
 	restartMu *sync.RWMutex
 
 	snapshotsDir string
+
+	logLevel logging.Level
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -114,7 +114,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}
 
 	return &localNetwork{
-		logger: logger,
+		log: logger,
 
 		execPath: opts.execPath,
 
@@ -169,7 +169,7 @@ func (lc *localNetwork) createConfig() error {
 			return fmt.Errorf("failed merging provided configs: %w", err)
 		}
 
-		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.buildDir, lc.options.whitelistedSubnets)
+		cfg.NodeConfigs[i].ConfigFile, err = createConfigFileString(mergedConfig, logDir, dbDir, lc.buildDir, lc.options.whitelistedSubnets, lc.log)
 		if err != nil {
 			return err
 		}
@@ -230,14 +230,21 @@ func getBuildDir(execPath string, givenBuildDir string) string {
 }
 
 // createConfigFileString finalizes the config setup and returns the node config JSON string
-func createConfigFileString(configFileMap map[string]interface{}, logDir string, dbDir string, buildDir string, whitelistedSubnets string) (string, error) {
+func createConfigFileString(
+	configFileMap map[string]interface{},
+	logDir string,
+	dbDir string,
+	buildDir string,
+	whitelistedSubnets string,
+	log logging.Logger,
+) (string, error) {
 	// add (or overwrite, if given) the following entries
 	if configFileMap[config.LogsDirKey] != "" {
-		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.LogsDirKey))
+		log.Warn("ignoring config file entry %q provided; the network runner needs to set its own", config.LogsDirKey)
 	}
 	configFileMap[config.LogsDirKey] = logDir
 	if configFileMap[config.DBPathKey] != "" {
-		zap.L().Warn("ignoring config file entry provided; the network runner needs to set its own", zap.String("entry", config.DBPathKey))
+		log.Warn("ignoring config file entry %q provided; the network runner needs to set its own", config.DBPathKey)
 	}
 	configFileMap[config.DBPathKey] = dbDir
 	if buildDir != "" {
@@ -261,8 +268,8 @@ func (lc *localNetwork) start() error {
 		return err
 	}
 
-	color.Outf("{{blue}}{{bold}}create and run local network{{/}}\n")
-	nw, err := local.NewNetwork(lc.logger, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
+	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
 		return err
 	}
@@ -311,7 +318,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		color.Outf("{{orange}}{{bold}}custom chain not specified, skipping installation and its health checks...{{/}}\n")
+		lc.log.Info(logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
 		return
 	}
 
@@ -355,7 +362,7 @@ func (lc *localNetwork) createSubnets(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if numSubnets == 0 {
-		color.Outf("{{orange}}{{bold}}no subnets specified...{{/}}\n")
+		lc.log.Info(logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
 		return
 	}
 
@@ -383,7 +390,7 @@ func (lc *localNetwork) createSubnets(
 		lc.startErrCh <- err
 	}
 
-	color.Outf("{{green}}{{bold}}finish adding subnets{{/}}\n")
+	lc.log.Info(logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
 
 	close(createSubnetsReadyCh)
 }
@@ -392,7 +399,7 @@ func (lc *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
 ) error {
-	color.Outf("{{blue}}{{bold}}create and run local network from snapshot{{/}}\n")
+	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
 
 	var globalNodeConfig map[string]interface{}
 	if lc.options.globalNodeConfig != "" {
@@ -402,7 +409,7 @@ func (lc *localNetwork) loadSnapshot(
 	}
 
 	nw, err := local.NewNetworkFromSnapshot(
-		lc.logger,
+		lc.log,
 		snapshotName,
 		lc.options.rootDataDir,
 		lc.options.snapshotsDir,
@@ -473,14 +480,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
-			color.Outf("{{blue}}{{bold}}[blockchain RPC for %q] \"%s/ext/bc/%s\"{{/}}\n", chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
+			lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\"")), chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil
 }
 
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
-	color.Outf("{{blue}}{{bold}}waiting for all nodes to report healthy...{{/}}\n")
+	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
 
 	if err := lc.nw.Healthy(ctx); err != nil {
 		return err
@@ -488,7 +495,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
-		color.Outf("{{cyan}}%s: node ID %q, URI %q{{/}}\n", name, nodeInfo.Id, nodeInfo.Uri)
+		lc.log.Info(logging.Cyan.Wrap("%s: node ID %q, URI %q"), name, nodeInfo.Id, nodeInfo.Uri)
 	}
 	return nil
 }
@@ -558,6 +565,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		color.Outf("{{red}}{{bold}}terminated network{{/}} (error %v)\n", serr)
+		lc.log.Info(logging.Red.Wrap(logging.Bold.Wrap("terminated network (error %v)")), serr)
 	})
 }

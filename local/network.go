@@ -26,7 +26,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -471,7 +470,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 }
 
 func (ln *localNetwork) healthy(ctx context.Context) error {
-	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
+	ln.log.Info("checking local network healthiness, nodes: %d", len(ln.nodes))
 
 	// Return unhealthy if the network is stopped
 	if ln.stopCalled() {
