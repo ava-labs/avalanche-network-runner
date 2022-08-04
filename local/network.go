@@ -165,7 +165,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	var flags map[string]interface{}
+	flags := map[string]interface{}{}
 	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
 		panic(err)
 	}
@@ -190,7 +190,7 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
-		var flags map[string]interface{}
+		flags := map[string]interface{}{}
 		if err = json.Unmarshal(flagsBytes, &flags); err != nil {
 			panic(err)
 		}
@@ -313,6 +313,14 @@ func NewDefaultNetwork(
 	return NewNetwork(log, config, "", "")
 }
 
+func copyFlags(flags map[string]interface{}) map[string]interface{} {
+	outFlags := map[string]interface{}{}
+	for k, v := range flags {
+		outFlags[k] = v
+	}
+	return outFlags
+}
+
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
@@ -320,6 +328,11 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
+	// copy maps
+	config.Flags = copyFlags(config.Flags)
+	for i := range config.NodeConfigs {
+		config.NodeConfigs[i].Flags = copyFlags(config.NodeConfigs[i].Flags)
+	}
 	return config
 }
 
