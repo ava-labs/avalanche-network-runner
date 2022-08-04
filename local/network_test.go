@@ -1006,19 +1006,13 @@ func TestSetNodeName(t *testing.T) {
 	config.Name = ""
 	err = ln.setNodeName(config)
 	assert.NoError(err)
-	assert.Equal("node2", config.Name)
+	assert.Equal("node1", config.Name)
 
 	// Case: name given
 	config.Name = "hi"
 	err = ln.setNodeName(config)
 	assert.NoError(err)
 	assert.Equal("hi", config.Name)
-
-	// Case: No name given again
-	config.Name = ""
-	err = ln.setNodeName(config)
-	assert.NoError(err)
-	assert.Equal("node3", config.Name)
 
 	// Case: name already present
 	config.Name = "hi"
