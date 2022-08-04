@@ -233,12 +233,11 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret.applyOpts(opts)
 
 	req := &rpcpb.AddNodeRequest{
-		Name: name,
+		Name:         name,
+		ExecPath:     execPath,
+		NodeConfig:   &ret.globalNodeConfig,
+		ChainConfigs: ret.chainConfigs,
 	}
-	if ret.execPath != "" {
-		req.ExecPath = ret.execPath
-	}
-	req.ChainConfigs = ret.chainConfigs
 
 	zap.L().Info("add node", zap.String("name", name))
 	r, err := c.controlc.AddNode(ctx, req)

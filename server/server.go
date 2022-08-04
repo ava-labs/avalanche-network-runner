@@ -10,7 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
+
+	//"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -721,45 +722,40 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.network.nodeInfos[req.Name]; exists {
-		return nil, fmt.Errorf("repeated node name %q", req.Name)
-	}
-
-	// user can override bin path for this node...
-	execPath := req.ExecPath
-	if execPath == "" {
-		// ...or use the same binary as the rest of the network
-		execPath = s.network.execPath
-	}
-	_, err := os.Stat(execPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, utils.ErrNotExists
+	/*
+		// user can override bin path for this node...
+		execPath := req.ExecPath
+		if execPath == "" {
+			// ...or use the same binary as the rest of the network
+			execPath = s.network.execPath
 		}
-		return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
+		_, err := os.Stat(execPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, utils.ErrNotExists
+			}
+			return nil, fmt.Errorf("failed to stat exec %q (%w)", execPath, err)
+		}
+	*/
+
+	nodeFlags := map[string]interface{}{}
+	if req.GetNodeConfig() != "" {
+		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &nodeFlags); err != nil {
+			return nil, err
+		}
 	}
 
 	// as execPath can be provided by this function, we might need a new `build-dir`
-	buildDir, err := getBuildDir(execPath, s.network.pluginDir)
+	buildDir, err := getBuildDir(req.ExecPath, s.network.pluginDir)
 	if err != nil {
 		return nil, err
 	}
-
-	var globalConfig map[string]interface{}
-	if req.GetNodeConfig() != "" {
-		if err := json.Unmarshal([]byte(req.GetNodeConfig()), &globalConfig); err != nil {
-			return nil, err
-		}
-	} else {
-		globalConfig = map[string]interface{}{}
-	}
-
-	globalConfig[config.BuildDirKey] = buildDir
+	nodeFlags[config.BuildDirKey] = buildDir
 
 	nodeConfig := node.Config{
 		Name:           req.Name,
-		Flags:          globalConfig,
-		BinaryPath:     execPath,
+		Flags:          nodeFlags,
+		BinaryPath:     req.ExecPath,
 		RedirectStdout: s.cfg.RedirectNodesOutput,
 		RedirectStderr: s.cfg.RedirectNodesOutput,
 	}
@@ -767,10 +763,11 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	for k, v := range req.ChainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
 	}
-	_, err = s.network.nw.AddNode(nodeConfig)
-	if err != nil {
+
+	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
 		return nil, err
 	}
+
 	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}

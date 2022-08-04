@@ -391,6 +391,9 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 
 	// set defaults only if this is not the first node
 	if ln.defaultNodeConfig != nil {
+		if nodeConfig.BinaryPath == "" {
+			nodeConfig.BinaryPath = ln.defaultNodeConfig.BinaryPath
+		}
 		nodeConfig.Flags = ln.defaultNodeConfig.Flags
 		nodeConfig.ChainConfigFiles = ln.defaultNodeConfig.ChainConfigFiles
 	}
@@ -408,6 +411,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// this should therefore be running for the first node only
 	if ln.defaultNodeConfig == nil {
 		ln.defaultNodeConfig = &node.Config{
+			BinaryPath:       nodeConfig.BinaryPath,
 			Flags:            GetDefaultFlags(),
 			ChainConfigFiles: map[string]string{},
 		}
@@ -423,6 +427,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			ln.defaultNodeConfig.ChainConfigFiles[k] = v
 		}
 	}
+
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
 	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
@@ -470,6 +475,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			nodeConfig.BinaryPath, nodeData.flags, err,
 		)
 	}
+
+	ln.log.Info(
+		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
+		nodeConfig.Name, nodeDir, nodeData.logsDir, nodeData.dbDir, nodeData.p2pPort, nodeData.apiPort,
+	)
+
 	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
 
 	// Create a wrapper for this node so we can reference it later
@@ -731,11 +742,11 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 	if len(nodeConfig.Name) == 0 {
 		for {
 			nodeConfig.Name = fmt.Sprintf("%s%d", defaultNodeNamePrefix, ln.nextNodeSuffix)
-			ln.nextNodeSuffix++
 			_, ok := ln.nodes[nodeConfig.Name]
 			if !ok {
 				break
 			}
+			ln.nextNodeSuffix++
 		}
 	}
 	// Enforce name uniqueness
@@ -835,10 +846,6 @@ func (ln *localNetwork) buildFlags(
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}
 
-	ln.log.Info(
-		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, nodeDir, logsDir, dbDir, p2pPort, apiPort,
-	)
 	return buildFlagsReturn{
 		flags:    flags,
 		apiPort:  apiPort,
