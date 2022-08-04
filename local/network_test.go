@@ -160,11 +160,9 @@ func newLocalTestOneNodeCreator(assert *assert.Assertions, networkConfig network
 func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	lt.assert.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
-	// TODO without this the test FAILS, is this the correct way to fix it?
-	expectedConfig.Flags = GetDefaultFlags()
-	lt.assert.EqualValues(expectedConfig.ChainConfigFiles, config.ChainConfigFiles)
+	lt.assert.EqualValues(lt.networkConfig.ChainConfigFiles, config.ChainConfigFiles)
 	lt.assert.EqualValues(expectedConfig.ConfigFile, config.ConfigFile)
-	lt.assert.EqualValues(expectedConfig.BinaryPath, config.BinaryPath)
+	lt.assert.EqualValues(lt.networkConfig.BinaryPath, config.BinaryPath)
 	lt.assert.EqualValues(expectedConfig.IsBeacon, config.IsBeacon)
 	lt.assert.EqualValues(expectedConfig.Name, config.Name)
 	lt.assert.EqualValues(expectedConfig.StakingCert, config.StakingCert)
@@ -722,9 +720,6 @@ func TestFlags(t *testing.T) {
 		"test2-node-config-flag":   "config",
 	}
 
-	for k, v := range GetDefaultFlags() {
-		expectedFlags[k] = v
-	}
 	nw, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, one flag should have been overridden by the node configs
 		expectedFlags: expectedFlags,
@@ -752,9 +747,6 @@ func TestFlags(t *testing.T) {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = flags
 	}
-	for k, v := range GetDefaultFlags() {
-		flags[k] = v
-	}
 	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only node configs should exist
 		expectedFlags: flags,
@@ -780,9 +772,6 @@ func TestFlags(t *testing.T) {
 	for i := range networkConfig.NodeConfigs {
 		v := &networkConfig.NodeConfigs[i]
 		v.Flags = nil
-	}
-	for k, v := range GetDefaultFlags() {
-		flags[k] = v
 	}
 	nw, err = newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestFlagCheckProcessCreator{
 		// after creating the network, only flags from the network config should exist
