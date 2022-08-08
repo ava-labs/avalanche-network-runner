@@ -212,7 +212,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		time.Sleep(1 * time.Second)
 		ginkgo.By("can create a blockchain with an existing subnet id", func() {
 			color.Outf("{{blue}}can create a blockchain in an existing subnet{{/}}\n")
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
