@@ -714,6 +714,7 @@ func (ln *localNetwork) RestartNode(
 	nodeName string,
 	binaryPath string,
 	whitelistedSubnets string,
+	chainConfigs map[string]string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -738,6 +739,10 @@ func (ln *localNetwork) RestartNode(
 	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
 	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
 	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+	// apply chain configs
+	for k, v := range chainConfigs {
+		nodeConfig.ChainConfigFiles[k] = v
+	}
 
 	if err := ln.removeNode(ctx, nodeName); err != nil {
 		return err

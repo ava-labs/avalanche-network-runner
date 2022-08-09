@@ -552,6 +552,12 @@ func newRestartNodeCommand() *cobra.Command {
 		"",
 		"whitelisted subnets (comma-separated)",
 	)
+	cmd.PersistentFlags().StringVar(
+		&chainConfigs,
+		"chain-configs",
+		"",
+		"[optional] JSON string of map that maps from chain id to its config file contents",
+	)
 	return cmd
 }
 
@@ -564,12 +570,24 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
+	opts := []client.OpOption{
+		client.WithExecPath(avalancheGoBinPath),
+		client.WithWhitelistedSubnets(whitelistedSubnets),
+	}
+
+	if chainConfigs != "" {
+		chainConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(chainConfigs), &chainConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	info, err := cli.RestartNode(
 		ctx,
 		nodeName,
-		client.WithExecPath(avalancheGoBinPath),
-		client.WithWhitelistedSubnets(whitelistedSubnets),
+		opts...,
 	)
 	cancel()
 	if err != nil {
