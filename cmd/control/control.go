@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -72,16 +71,16 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath        string
-	numNodes                  uint32
-	pluginDir                 string
-	globalNodeConfig          string
-	addNodeConfig             string
-	customVMNameToGenesisPath string
-	customNodeConfigs         string
-	rootDataDir               string
-	numSubnets                uint32
-	chainConfigs              string
+	avalancheGoBinPath string
+	numNodes           uint32
+	pluginDir          string
+	globalNodeConfig   string
+	addNodeConfig      string
+	blockchainSpecsStr string
+	customNodeConfigs  string
+	rootDataDir        string
+	numSubnets         uint32
+	chainConfigs       string
 )
 
 func newStartCommand() *cobra.Command {
@@ -116,10 +115,10 @@ func newStartCommand() *cobra.Command {
 		"[optional] root data directory to store logs and configurations",
 	)
 	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
+		&blockchainSpecsStr,
+		"blockchain-specs",
 		"",
-		"[optional] JSON string of map that maps from VM to its genesis file path",
+		"[optional] JSON string of array of [(VM name, genesis file path)]",
 	)
 	cmd.PersistentFlags().StringVar(
 		&globalNodeConfig,
@@ -137,14 +136,17 @@ func newStartCommand() *cobra.Command {
 		&whitelistedSubnets,
 		"whitelisted-subnets",
 		"",
-		"whitelisted subnets (comma-separated)",
+		"[optional] whitelisted subnets (comma-separated)",
 	)
 	cmd.PersistentFlags().StringVar(
 		&chainConfigs,
 		"chain-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its config file contents",
+		"[optional] JSON string of map from chain id to its config file contents",
 	)
+	if err := cmd.MarkPersistentFlagRequired("avalanchego-path"); err != nil {
+		panic(err)
+	}
 	return cmd
 }
 
@@ -181,12 +183,12 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		opts = append(opts, client.WithCustomNodeConfigs(nodeConfigs))
 	}
 
-	if customVMNameToGenesisPath != "" {
-		customVMs := make(map[string]string)
-		if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs); err != nil {
+	if blockchainSpecsStr != "" {
+		blockchainSpecs := []*rpcpb.BlockchainSpec{}
+		if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 			return err
 		}
-		opts = append(opts, client.WithCustomVMs(customVMs))
+		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
 
 	if chainConfigs != "" {
@@ -214,19 +216,10 @@ func startFunc(cmd *cobra.Command, args []string) error {
 
 func newCreateBlockchainsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-blockchains [options]",
+		Use:   "create-blockchains blockchain-specs [options]",
 		Short: "Create blockchains.",
 		RunE:  createBlockchainsFunc,
-		Args:  cobra.ExactArgs(0),
-	}
-	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
-		"",
-		"JSON string of list of [(VM name, its genesis file path, optional subnet id to use)]",
-	)
-	if err := cmd.MarkPersistentFlagRequired("custom-vms"); err != nil {
-		panic(err)
+		Args:  cobra.ExactArgs(1),
 	}
 	return cmd
 }
@@ -238,12 +231,10 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	if customVMNameToGenesisPath == "" {
-		return errors.New("empty custom-vms argument")
-	}
+	blockchainSpecsStr := args[0]
 
 	blockchainSpecs := []*rpcpb.BlockchainSpec{}
-	if err := json.Unmarshal([]byte(customVMNameToGenesisPath), &blockchainSpecs); err != nil {
+	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 		return err
 	}
 
@@ -439,20 +430,19 @@ func streamStatusFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var nodeName string
-
 func newRemoveNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-node [options]",
+		Use:   "remove-node node-name [options]",
 		Short: "Removes a node.",
 		RunE:  removeNodeFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(&nodeName, "node-name", "", "node name to remove")
 	return cmd
 }
 
 func removeNodeFunc(cmd *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -472,28 +462,16 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 
 func newAddNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add-node [options]",
+		Use:   "add-node node-name [options]",
 		Short: "Add a new node to the network",
 		RunE:  addNodeFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(
-		&nodeName,
-		"node-name",
-		"",
-		"node name to add",
-	)
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
 		"avalanchego-path",
 		"",
 		"avalanchego binary path",
-	)
-	cmd.PersistentFlags().StringVar(
-		&customVMNameToGenesisPath,
-		"custom-vms",
-		"",
-		"[optional] JSON string of map that maps from VM to its genesis file path",
 	)
 	cmd.PersistentFlags().StringVar(
 		&addNodeConfig,
@@ -511,6 +489,8 @@ func newAddNodeCommand() *cobra.Command {
 }
 
 func addNodeFunc(cmd *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -527,15 +507,6 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
 		}
 		opts = append(opts, client.WithGlobalNodeConfig(addNodeConfig))
-	}
-
-	if customVMNameToGenesisPath != "" {
-		customVMs := make(map[string]string)
-		err = json.Unmarshal([]byte(customVMNameToGenesisPath), &customVMs)
-		if err != nil {
-			return err
-		}
-		opts = append(opts, client.WithCustomVMs(customVMs))
 	}
 
 	if chainConfigs != "" {
@@ -564,17 +535,11 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 
 func newRestartNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "restart-node [options]",
-		Short: "Restarts the server.",
+		Use:   "restart-node node-name [options]",
+		Short: "Restarts a node.",
 		RunE:  restartNodeFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(
-		&nodeName,
-		"node-name",
-		"",
-		"node name to restart",
-	)
 	cmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
 		"avalanchego-path",
@@ -591,6 +556,8 @@ func newRestartNodeCommand() *cobra.Command {
 }
 
 func restartNodeFunc(cmd *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -615,21 +582,17 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 
 func newAttachPeerCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "attach-peer [options]",
+		Use:   "attach-peer node-name [options]",
 		Short: "Attaches a peer to the node.",
 		RunE:  attachPeerFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().StringVar(
-		&nodeName,
-		"node-name",
-		"",
-		"node name to attach a peer to",
-	)
 	return cmd
 }
 
 func attachPeerFunc(cmd *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -655,17 +618,12 @@ var (
 
 func newSendOutboundMessageCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "send-outbound-message [options]",
-		Short: "Sends an outbound message to an attached peer.",
-		RunE:  sendOutboundMessageFunc,
-		Args:  cobra.ExactArgs(0),
+		Use:       "send-outbound-message node-name [options]",
+		Short:     "Sends an outbound message to an attached peer.",
+		RunE:      sendOutboundMessageFunc,
+		Args:      cobra.ExactArgs(1),
+		ValidArgs: []string{"node-name"},
 	}
-	cmd.PersistentFlags().StringVar(
-		&nodeName,
-		"node-name",
-		"",
-		"node name that has an attached peer",
-	)
 	cmd.PersistentFlags().StringVar(
 		&peerID,
 		"peer-id",
@@ -684,10 +642,21 @@ func newSendOutboundMessageCommand() *cobra.Command {
 		"",
 		"Message bytes in base64 encoding",
 	)
+	if err := cmd.MarkPersistentFlagRequired("peer-id"); err != nil {
+		panic(err)
+	}
+	if err := cmd.MarkPersistentFlagRequired("message-op"); err != nil {
+		panic(err)
+	}
+	if err := cmd.MarkPersistentFlagRequired("message-bytes-b64"); err != nil {
+		panic(err)
+	}
 	return cmd
 }
 
 func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -841,7 +810,6 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	ctx := getAsyncContext()
 
 	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
-
 	if err != nil {
 		return err
 	}

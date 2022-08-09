@@ -190,6 +190,7 @@ func TestAttachPeer(t *testing.T) {
 		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
 			return peerConn, nil
 		},
+		attachedPeers: map[string]peer.Peer{},
 	}
 
 	// For message creation and parsing
@@ -217,11 +218,6 @@ func TestAttachPeer(t *testing.T) {
 	// attach a test peer to [node]
 	handler := &noOpInboundHandler{}
 	p, err := node.AttachPeer(context.Background(), handler)
-	assert.NoError(err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err = p.AwaitReady(ctx)
 	assert.NoError(err)
 
 	// we'll use a Chits message for testing. (We could use any message type.)
