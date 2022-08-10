@@ -14,6 +14,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -72,7 +73,7 @@ func New(cfg Config) (Client, error) {
 		LogLevel:     lvl,
 	}
 	logFactory := logging.NewFactory(lcfg)
-	log, err := logFactory.Make("client")
+	log, err := logFactory.Make(constants.LogNameClient)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +195,7 @@ func (c *client) StreamStatus(ctx context.Context, pushInterval time.Duration) (
 	ch := make(chan *rpcpb.ClusterInfo, 1)
 	go func() {
 		defer func() {
-			c.log.Debug("closing stream send %w", stream.CloseSend())
+			c.log.Debug("closing stream send %s", stream.CloseSend())
 			close(ch)
 		}()
 		c.log.Info("start receive routine")
@@ -220,9 +221,9 @@ func (c *client) StreamStatus(ctx context.Context, pushInterval time.Duration) (
 				return
 			}
 			if isClientCanceled(stream.Context().Err(), err) {
-				c.log.Warn("failed to receive status request from gRPC stream due to client cancellation: %w", err)
+				c.log.Warn("failed to receive status request from gRPC stream due to client cancellation: %s", err)
 			} else {
-				c.log.Warn("failed to receive status request from gRPC stream: %w", err)
+				c.log.Warn("failed to receive status request from gRPC stream: %s", err)
 			}
 			return
 		}

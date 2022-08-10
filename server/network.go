@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
@@ -214,7 +215,7 @@ func (lc *localNetwork) start() error {
 		return err
 	}
 
-	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
+	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
 	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
 	if err != nil {
 		return err
@@ -264,7 +265,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		lc.log.Info(logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
 		return
 	}
 
@@ -308,7 +309,7 @@ func (lc *localNetwork) createSubnets(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if numSubnets == 0 {
-		lc.log.Info(logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
 		return
 	}
 
@@ -336,7 +337,7 @@ func (lc *localNetwork) createSubnets(
 		lc.startErrCh <- err
 	}
 
-	lc.log.Info(logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
 
 	close(createSubnetsReadyCh)
 }
@@ -345,7 +346,7 @@ func (lc *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
 ) error {
-	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
+	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
 
 	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
 	if err != nil {
@@ -431,14 +432,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
-			lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\"")), chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
+			ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\"")), chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil
 }
 
 func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
-	lc.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
+	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
 
 	if err := lc.nw.Healthy(ctx); err != nil {
 		return err
@@ -446,7 +447,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
-		lc.log.Info(logging.Cyan.Wrap("%s: node ID %q, URI %q"), name, nodeInfo.Id, nodeInfo.Uri)
+		ux.Print(lc.log, logging.Cyan.Wrap("%s: node ID %q, URI %q"), name, nodeInfo.Id, nodeInfo.Uri)
 	}
 	return nil
 }
@@ -512,6 +513,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		lc.log.Info(logging.Red.Wrap(logging.Bold.Wrap("terminated network (error %w)")), serr)
+		ux.Print(lc.log, logging.Red.Wrap(logging.Bold.Wrap("terminated network (error %w)")), serr)
 	})
 }

@@ -186,7 +186,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("root context is done")
 
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %w", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
 			<-gwErrc
 		}
 
@@ -196,14 +196,14 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("gRPC terminated")
 
 	case err = <-gRPCErrc:
-		s.log.Warn("gRPC server failed: %w", err)
+		s.log.Warn("gRPC server failed: %s", err)
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %w", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
 			<-gwErrc
 		}
 
 	case err = <-gwErrc: // if disabled, this will never be selected
-		s.log.Warn("gRPC gateway server failed: %w", err)
+		s.log.Warn("gRPC gateway server failed: %s", err)
 		s.gRPCServer.Stop()
 		s.log.Warn("closed gRPC server")
 		<-gRPCErrc
@@ -270,7 +270,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.log.Info("checking custom chain's VM ID before installation, id is %s", vmName)
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
-				s.log.Warn("failed to convert VM name %s to VM ID: %w", vmName, err)
+				s.log.Warn("failed to convert VM name %s to VM ID: %s", vmName, err)
 				return nil, ErrInvalidVMName
 			}
 			if err := utils.CheckPluginPaths(
@@ -407,7 +407,7 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		// TODO: decide what to do here, general failure cause network stop()?
 		// maybe try decide if operation was partial (undesired network, fail)
 		// or was not stated (preconditions check, continue)
-		s.log.Warn("async call %s failed to complete :%w", waitMsg, serr)
+		s.log.Warn("async call %s failed to complete :%s", waitMsg, serr)
 		panic(serr)
 	case <-readyCh:
 		s.mu.Lock()
@@ -453,7 +453,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		s.log.Info("checking custom chain's VM ID before installation, vm-id: %s", vmName)
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
-			s.log.Warn("failed to convert VM name %s to VM ID: %w", vmName, err)
+			s.log.Warn("failed to convert VM name %s to VM ID: %s", vmName, err)
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
@@ -630,9 +630,9 @@ func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.Contr
 		rerr := s.recvLoop(stream)
 		if rerr != nil {
 			if isClientCanceled(stream.Context().Err(), rerr) {
-				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation: %w", rerr)
+				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation: %s", rerr)
 			} else {
-				s.log.Warn("failed to receive status request from gRPC stream: %w", rerr)
+				s.log.Warn("failed to receive status request from gRPC stream: %s", rerr)
 			}
 		}
 		errc <- rerr
@@ -673,10 +673,10 @@ func (s *server) sendLoop(stream rpcpb.ControlService_StreamStatusServer, interv
 		s.log.Debug("sending cluster info")
 		if err := stream.Send(&rpcpb.StreamStatusResponse{ClusterInfo: s.getClusterInfo()}); err != nil {
 			if isClientCanceled(stream.Context().Err(), err) {
-				s.log.Debug("client stream canceled: %w", err)
+				s.log.Debug("client stream canceled: %s", err)
 				return
 			}
-			s.log.Warn("failed to send an event: %w", err)
+			s.log.Warn("failed to send an event: %s", err)
 			return
 		}
 	}
@@ -956,7 +956,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
-		s.log.Warn("snapshot load failed to complete: %w", err)
+		s.log.Warn("snapshot load failed to complete: %s", err)
 		s.network = nil
 		s.clusterInfo = nil
 		return nil, err
@@ -989,7 +989,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
 	if err != nil {
-		s.log.Warn("snapshot save failed to complete: %w", err)
+		s.log.Warn("snapshot save failed to complete: %s", err)
 		return nil, err
 	}
 	s.network = nil
@@ -1006,7 +1006,7 @@ func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRe
 	}
 
 	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
-		s.log.Warn("snapshot remove failed to complete: %w", err)
+		s.log.Warn("snapshot remove failed to complete: %s", err)
 		return nil, err
 	}
 	return &rpcpb.RemoveSnapshotResponse{}, nil
