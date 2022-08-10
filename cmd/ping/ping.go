@@ -48,10 +48,9 @@ func pingFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
-	})
+	}, log)
 	if err != nil {
 		return err
 	}

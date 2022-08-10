@@ -127,10 +127,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Ω(err).Should(gomega.BeNil())
 
 	cli, err = client.New(client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    gRPCEp,
 		DialTimeout: 10 * time.Second,
-	})
+	}, log)
 	gomega.Ω(err).Should(gomega.BeNil())
 })
 

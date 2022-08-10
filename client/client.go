@@ -14,7 +14,6 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,7 +22,6 @@ import (
 )
 
 type Config struct {
-	LogLevel    string
 	Endpoint    string
 	DialTimeout time.Duration
 }
@@ -63,24 +61,7 @@ type client struct {
 	closeOnce sync.Once
 }
 
-func New(cfg Config) (Client, error) {
-	lvl, err := logging.ToLevel(cfg.LogLevel)
-	if err != nil {
-		return nil, err
-	}
-	lcfg := logging.Config{
-		DisplayLevel: lvl,
-		// this will result in no written logs, just stdout
-		// to enable log files, a logDir param should be added and
-		// accordingly possibly a flag
-		LogLevel: logging.Off,
-	}
-	logFactory := logging.NewFactory(lcfg)
-	log, err := logFactory.Make(constants.LogNameClient)
-	if err != nil {
-		return nil, err
-	}
-
+func New(cfg Config, log logging.Logger) (Client, error) {
 	log.Debug("dialing server at endpoint %s", cfg.Endpoint)
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)

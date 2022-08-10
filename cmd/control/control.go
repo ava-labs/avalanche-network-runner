@@ -890,10 +890,9 @@ func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
 
 func newClient() (client.Client, error) {
 	return client.New(client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
-	})
+	}, log)
 }
 
 func getAsyncContext() context.Context {

@@ -4,7 +4,6 @@ package constants
 
 const (
 	LogNameMain    = "main"
-	LogNameClient  = "client"
 	LogNameControl = "control"
 	LogNameTest    = "test"
 )
