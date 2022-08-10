@@ -20,7 +20,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -44,6 +43,7 @@ var (
 	gRPCGatewayEp string
 	execPath1     string
 	execPath2     string
+	subnetEvmPath string
 
 	newNodeName       = "test-add-node"
 	customNodeConfigs = map[string]string{
@@ -89,6 +89,12 @@ func init() {
 		"",
 		"avalanchego executable path (to upgrade to)",
 	)
+	flag.StringVar(
+		&subnetEvmPath,
+		"subnet-evm-path",
+		"",
+		"path to subnet-evm binary",
+	)
 }
 
 var cli client.Client
@@ -116,6 +122,125 @@ var _ = ginkgo.AfterSuite(func() {
 })
 
 var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
+	ginkgo.It("can create blockhains", func() {
+		existingSubnetID := ""
+		ginkgo.By("start with blockchain specs", func() {
+			color.Outf("{{green}}sending 'start' with the valid binary path:{{/}} %q\n", execPath2)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.Start(ctx, execPath2,
+				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
+					{
+						VmName:  "subnetevm",
+						Genesis: "tests/e2e/subnet-evm-genesis.json",
+					},
+				}),
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			color.Outf("{{green}}successfully started:{{/}} %+v\n", resp.ClusterInfo.NodeNames)
+		})
+
+		ginkgo.By("wait for custom chains healthy", func() {
+			// ignore subnet ID here
+			_ = waitForCustomChainsHealthy()
+		})
+
+		ginkgo.By("can create a blockchain with a new subnet id", func() {
+			color.Outf("{{blue}}can create a blockchain in a new subnet{{/}}\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:  "subnetevm",
+						Genesis: "tests/e2e/subnet-evm-genesis.json",
+					},
+				},
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("get subnet ID", func() {
+			existingSubnetID = waitForCustomChainsHealthy()
+		})
+
+		ginkgo.By("can create a blockchain with an existing subnet id", func() {
+			color.Outf("{{blue}}can create a blockchain in an existing subnet{{/}}\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+				},
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("wait for custom chains healthy", func() {
+			// ignore subnet ID here
+			_ = waitForCustomChainsHealthy()
+		})
+
+		ginkgo.By("can save snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.SaveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can load snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.LoadSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("wait for custom chains healthy", func() {
+			// ignore subnet ID here
+			_ = waitForCustomChainsHealthy()
+		})
+
+		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
+		// (testing for no snapshots)
+		ginkgo.By("can remove snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.RemoveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("can create a blockchain with an existing subnet id", func() {
+			color.Outf("{{blue}}can create a blockchain in an existing subnet{{/}}\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+				},
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("wait for custom chains healthy", func() {
+			// ignore subnet ID here
+			_ = waitForCustomChainsHealthy()
+		})
+
+		ginkgo.By("stop the network", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Stop(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+	})
+
 	ginkgo.It("can start", func() {
 		ginkgo.By("start request with invalid exec path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -134,7 +259,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Start(ctx, execPath1,
-				client.WithBuildDir(os.TempDir()),
+				client.WithPluginDir(os.TempDir()),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: "invalid",
@@ -146,17 +271,14 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("start request with invalid custom VM name format should fail", func() {
-			pluginsPath := filepath.Join(os.TempDir(), "plugins")
-			err := os.MkdirAll(pluginsPath, fs.ModePerm)
-			gomega.Ω(err).Should(gomega.BeNil())
-			f, err := os.CreateTemp(pluginsPath, strings.Repeat("a", 33))
+			f, err := os.CreateTemp(os.TempDir(), strings.Repeat("a", 33))
 			gomega.Ω(err).Should(gomega.BeNil())
 			filePath := f.Name()
 			gomega.Ω(f.Close()).Should(gomega.BeNil())
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithBuildDir(filepath.Dir(filepath.Dir(filePath))),
+				client.WithPluginDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName: filepath.Base(filePath),
@@ -172,15 +294,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
 			vmID, err := utils.VMID("hello")
 			gomega.Ω(err).Should(gomega.BeNil())
-			pluginsPath := filepath.Join(os.TempDir(), "plugins")
-			err = os.MkdirAll(pluginsPath, fs.ModePerm)
-			gomega.Ω(err).Should(gomega.BeNil())
-			filePath := filepath.Join(pluginsPath, vmID.String())
+			filePath := filepath.Join(os.TempDir(), vmID.String())
 			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err = cli.Start(ctx, execPath1,
-				client.WithBuildDir(filepath.Dir(filepath.Dir(filePath))),
+				client.WithPluginDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "hello",
@@ -416,26 +535,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("wait for network to be healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			var created bool
-			continueLoop := true
-			for continueLoop {
-				select {
-				case <-ctx.Done():
-					continueLoop = false
-				case <-time.After(5 * time.Second):
-					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-					status, err := cli.Status(ctx)
-					cancel()
-					gomega.Ω(err).Should(gomega.BeNil())
-					created = status.ClusterInfo.CustomChainsHealthy
-					if created {
-						continueLoop = false
-					}
-				}
-			}
-			cancel()
-			gomega.Ω(created).Should(gomega.Equal(true))
+			// ignore subnet ID here
+			_ = waitForCustomChainsHealthy()
 		})
 		ginkgo.By("check subnets are 1", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -569,3 +670,31 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 })
+
+func waitForCustomChainsHealthy() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	var created bool
+	continueLoop := true
+	for continueLoop {
+		select {
+		case <-ctx.Done():
+			continueLoop = false
+		case <-time.After(5 * time.Second):
+			cctx, ccancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(cctx)
+			ccancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			created = status.ClusterInfo.CustomChainsHealthy
+			if created {
+				continueLoop = false
+				existingSubnetID := status.ClusterInfo.GetSubnets()[0]
+				gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
+				cancel()
+				return existingSubnetID
+			}
+		}
+	}
+	cancel()
+	gomega.Ω(created).Should(gomega.Equal(true))
+	return ""
+}

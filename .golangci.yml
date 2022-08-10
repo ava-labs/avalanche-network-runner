@@ -6,7 +6,7 @@ run:
     - api/mocks
     - local/mocks
     - rpcpb
-  go: "1.17"
+  go: "1.18"
 
 linters:
   disable:
