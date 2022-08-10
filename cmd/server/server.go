@@ -40,7 +40,7 @@ func NewCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 	}
 
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
+	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level for server logs")
 	cmd.PersistentFlags().StringVar(&logDir, "log-dir", "", "log directory")
 	cmd.PersistentFlags().StringVar(&port, "port", ":8080", "server port")
 	cmd.PersistentFlags().StringVar(&gwPort, "grpc-gateway-port", ":8081", "grpc-gateway server port")
@@ -101,11 +101,11 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		rootCancel()
 		// wait for server stop
 		waitForServerStop := <-errc
-		log.Warn("closed server; %w", waitForServerStop)
+		log.Warn("closed server; %s", waitForServerStop)
 	case serverClosed := <-errc:
 		// server already stopped here
 		_ = rootCancel
-		log.Warn("server closed: %w", serverClosed)
+		log.Warn("server closed: %s", serverClosed)
 	}
 	return err
 }

@@ -70,7 +70,10 @@ func New(cfg Config) (Client, error) {
 	}
 	lcfg := logging.Config{
 		DisplayLevel: lvl,
-		LogLevel:     lvl,
+		// this will result in no written logs, just stdout
+		// to enable log files, a logDir param should be added and
+		// accordingly possibly a flag
+		LogLevel: logging.Off,
 	}
 	logFactory := logging.NewFactory(lcfg)
 	log, err := logFactory.Make(constants.LogNameClient)

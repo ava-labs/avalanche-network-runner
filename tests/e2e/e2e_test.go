@@ -7,6 +7,7 @@ package e2e_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ func TestE2e(t *testing.T) {
 
 var (
 	logLevel      string
+	logDir        string
 	gRPCEp        string
 	gRPCGatewayEp string
 	execPath1     string
@@ -65,6 +67,12 @@ func init() {
 		"log-level",
 		logging.Info.String(),
 		"log level",
+	)
+	flag.StringVar(
+		&logDir,
+		"log-dir",
+		logging.Info.String(),
+		"log directory",
 	)
 	flag.StringVar(
 		&gRPCEp,
@@ -104,6 +112,11 @@ var (
 )
 
 var _ = ginkgo.BeforeSuite(func() {
+	if logDir == "" {
+		var err error
+		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-e2e-logs-%d", time.Now().Unix()))
+		gomega.Ω(err).Should(gomega.BeNil())
+	}
 	lvl, err := logging.ToLevel(logLevel)
 	gomega.Ω(err).Should(gomega.BeNil())
 	lcfg := logging.Config{

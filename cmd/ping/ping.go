@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
@@ -41,7 +42,7 @@ func pingFunc(cmd *cobra.Command, args []string) error {
 	}
 	logFactory := logging.NewFactory(lcfg)
 	var err error
-	log, err := logFactory.Make("control")
+	log, err := logFactory.Make(constants.LogNameControl)
 	if err != nil {
 		return err
 	}

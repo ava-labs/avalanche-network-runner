@@ -357,7 +357,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 					break
 				}
 
-				ln.log.Info("log not found yet, retrying... vm-id: %s, subnet-id: %s, blockchain-id: %s, log-path: %s, err: %w",
+				ln.log.Info("log not found yet, retrying... vm-id: %s, subnet-id: %s, blockchain-id: %s, log-path: %s, err: %s",
 					chainInfo.vmID.String(),
 					chainInfo.subnetID.String(),
 					chainInfo.blockchainID.String(),

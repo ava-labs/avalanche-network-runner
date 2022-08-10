@@ -70,7 +70,10 @@ func NewCommand() *cobra.Command {
 
 	lcfg := logging.Config{
 		DisplayLevel: logging.Info,
-		LogLevel:     logging.Debug,
+		// this will result in no written logs, just stdout
+		// to enable log files, a logDir param should be added and
+		// accordingly possibly a flag
+		LogLevel: logging.Off,
 	}
 	logFactory := logging.NewFactory(lcfg)
 	var err error
