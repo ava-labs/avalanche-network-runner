@@ -14,9 +14,10 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -85,12 +86,11 @@ type localNetworkOptions struct {
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	lcfg := logging.Config{
-		DisplayLevel: logging.Info,
-		LogLevel:     logging.Debug,
+		LogLevel: opts.logLevel,
 	}
 	lcfg.Directory = opts.rootDataDir
 	logFactory := logging.NewFactory(lcfg)
-	logger, err := logFactory.Make("main")
+	logger, err := logFactory.Make(constants.LogNameMain)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +424,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	}
 	lc.subnets = []string{}
 	for _, subnet := range subnets {
-		if subnet.ID != constants.PlatformChainID {
+		if subnet.ID != avago_constants.PlatformChainID {
 			lc.subnets = append(lc.subnets, subnet.ID.String())
 		}
 	}
@@ -512,6 +512,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		lc.log.Info(logging.Red.Wrap(logging.Bold.Wrap("terminated network (error %v)")), serr)
+		lc.log.Info(logging.Red.Wrap(logging.Bold.Wrap("terminated network (error %w)")), serr)
 	})
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 )
@@ -63,6 +64,6 @@ func pingFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	logString := "ping response " + logging.Green.Wrap("%+v")
-	log.Info(logString, resp)
+	ux.Print(log, logString, resp)
 	return nil
 }

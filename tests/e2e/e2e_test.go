@@ -18,11 +18,13 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanche-network-runner/ux"
 
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -102,7 +104,7 @@ var _ = ginkgo.BeforeSuite(func() {
 		DisplayLevel: lvl,
 	}
 	logFactory := logging.NewFactory(lcfg)
-	log, err = logFactory.Make("test")
+	log, err = logFactory.Make(constants.LogNameTest)
 	gomega.Ω(err).Should(gomega.BeNil())
 
 	cli, err = client.New(client.Config{
@@ -114,13 +116,13 @@ var _ = ginkgo.BeforeSuite(func() {
 })
 
 var _ = ginkgo.AfterSuite(func() {
-	log.Info(logging.Red.Wrap("shutting down cluster"))
+	ux.Print(log, logging.Red.Wrap("shutting down cluster"))
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	_, err := cli.Stop(ctx)
 	cancel()
 	gomega.Ω(err).Should(gomega.BeNil())
 
-	log.Info(logging.Red.Wrap("shutting down client"))
+	ux.Print(log, logging.Red.Wrap("shutting down client"))
 	err = cli.Close()
 	gomega.Ω(err).Should(gomega.BeNil())
 })
@@ -199,12 +201,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("calling start API with the valid binary path", func() {
-			log.Info(logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
 		})
 	})
 
@@ -220,7 +222,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		uris, err := cli.URIs(ctx)
 		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
-		log.Info(logging.Blue.Wrap("URIs: %q"), uris)
+		ux.Print(log, logging.Blue.Wrap("URIs: %q"), uris)
 	})
 
 	ginkgo.It("can fetch status", func() {
@@ -236,7 +238,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ch, err := cli.StreamStatus(ctx, 5*time.Second)
 		gomega.Ω(err).Should(gomega.BeNil())
 		for info := range ch {
-			log.Info(logging.Green.Wrap("fetched info: %q"), info.NodeNames)
+			ux.Print(log, logging.Green.Wrap("fetched info: %q"), info.NodeNames)
 			if info.Healthy {
 				break
 			}
@@ -250,7 +252,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.RemoveNode(ctx, "node5")
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("successfully removed: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully removed: %q"), resp.ClusterInfo.NodeNames)
 		})
 	})
 
@@ -261,7 +263,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.RestartNode(ctx, "node4", client.WithExecPath(execPath2))
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("successfully restarted: %+v"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully restarted: %+v"), resp.ClusterInfo.NodeNames)
 		})
 	})
 
@@ -275,7 +277,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 			v, ok := resp.ClusterInfo.AttachedPeerInfos["node1"]
 			gomega.Ω(ok).Should(gomega.BeTrue())
-			log.Info(logging.Green.Wrap("successfully attached peer: %+v"), v.Peers)
+			ux.Print(log, logging.Green.Wrap("successfully attached peer: %+v"), v.Peers)
 
 			mc, err := message.NewCreator(
 				prometheus.NewRegistry(),
@@ -291,7 +293,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				ids.GenerateTestID(),
 			}
 			requestID := uint32(42)
-			chainID := constants.PlatformChainID
+			chainID := avago_constants.PlatformChainID
 			msg, err := mc.Chits(chainID, requestID, containerIDs)
 			gomega.Ω(err).Should(gomega.BeNil())
 
@@ -306,38 +308,38 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	time.Sleep(10 * time.Second)
 	ginkgo.It("can add a node", func() {
 		ginkgo.By("calling AddNode", func() {
-			log.Info(logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("successfully started: %+v"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started: %+v"), resp.ClusterInfo.NodeNames)
 		})
 
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
-			log.Info(logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("repeated node name"))
 			gomega.Ω(resp).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("'add-node' failed as expected"))
+			ux.Print(log, logging.Green.Wrap("'add-node' failed as expected"))
 		})
 	})
 
 	ginkgo.It("can start with custom config", func() {
 		ginkgo.By("stopping network first", func() {
-			log.Info(logging.Red.Wrap("shutting down cluster"))
+			ux.Print(log, logging.Red.Wrap("shutting down cluster"))
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Stop(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 
-			log.Info(logging.Red.Wrap("shutting down client"))
+			ux.Print(log, logging.Red.Wrap("shutting down client"))
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("calling start API with custom config", func() {
-			log.Info(logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			opts := []client.OpOption{
 				client.WithNumNodes(numNodes),
@@ -346,7 +348,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.Start(ctx, execPath1, opts...)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			log.Info(logging.Green.Wrap("successfully started: %+v"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started: %+v"), resp.ClusterInfo.NodeNames)
 		})
 		ginkgo.By("can wait for health", func() {
 			// start is async, so wait some time for cluster health
@@ -358,15 +360,15 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("overrides num-nodes", func() {
-			log.Info(logging.Green.Wrap("checking that given num-nodes %d have been overriden by custom configs with %d"), numNodes, len(customNodeConfigs))
+			ux.Print(log, logging.Green.Wrap("checking that given num-nodes %d have been overriden by custom configs with %d"), numNodes, len(customNodeConfigs))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			uris, err := cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(uris).Should(gomega.HaveLen(len(customNodeConfigs)))
-			log.Info(logging.Green.Wrap("expected number of nodes up: %q"), len(customNodeConfigs))
+			ux.Print(log, logging.Green.Wrap("expected number of nodes up: %q"), len(customNodeConfigs))
 
-			log.Info(logging.Green.Wrap("checking correct admin APIs are enabled resp. disabled"))
+			ux.Print(log, logging.Green.Wrap("checking correct admin APIs are enabled resp. disabled"))
 			// we have 7 nodes, 3 have the admin API enabled, the other 4 disabled
 			// therefore we expect exactly 4 calls to fail and exactly 3 to succeed.
 			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
