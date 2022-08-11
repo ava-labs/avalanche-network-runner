@@ -101,7 +101,7 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		rootCancel()
 		// wait for server stop
 		waitForServerStop := <-errc
-		log.Warn("closed server; %s", waitForServerStop)
+		log.Warn("closed server: %v", waitForServerStop)
 	case serverClosed := <-errc:
 		// server already stopped here
 		_ = rootCancel
