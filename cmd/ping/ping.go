@@ -37,11 +37,15 @@ func NewCommand() *cobra.Command {
 }
 
 func pingFunc(cmd *cobra.Command, args []string) error {
+	lvl, err := logging.ToLevel(logLevel)
+	if err != nil {
+		return err
+	}
 	lcfg := logging.Config{
-		DisplayLevel: logging.Info,
+		DisplayLevel: lvl,
+		LogLevel:     logging.Off,
 	}
 	logFactory := logging.NewFactory(lcfg)
-	var err error
 	log, err := logFactory.Make(constants.LogNameControl)
 	if err != nil {
 		return err

@@ -68,15 +68,18 @@ func NewCommand() *cobra.Command {
 		newGetSnapshotNamesCommand(),
 	)
 
+	lvl, err := logging.ToLevel(logLevel)
+	if err != nil {
+		panic(err)
+	}
 	lcfg := logging.Config{
-		DisplayLevel: logging.Info,
+		DisplayLevel: lvl,
 		// this will result in no written logs, just stdout
 		// to enable log files, a logDir param should be added and
 		// accordingly possibly a flag
 		LogLevel: logging.Off,
 	}
 	logFactory := logging.NewFactory(lcfg)
-	var err error
 	log, err = logFactory.Make(constants.LogNameControl)
 	if err != nil {
 		panic(err)

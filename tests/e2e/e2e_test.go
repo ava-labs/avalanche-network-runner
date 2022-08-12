@@ -71,7 +71,7 @@ func init() {
 	flag.StringVar(
 		&logDir,
 		"log-dir",
-		logging.Info.String(),
+		"",
 		"log directory",
 	)
 	flag.StringVar(
