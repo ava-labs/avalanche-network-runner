@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -377,7 +378,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	if err := networkConfig.Validate(); err != nil {
 		return fmt.Errorf("config failed validation: %w", err)
 	}
-	ln.log.Info("creating network with %d nodes", len(networkConfig.NodeConfigs))
+	ln.log.Info("creating network with", zap.Int("node-num", len(networkConfig.NodeConfigs)))
 
 	ln.genesis = []byte(networkConfig.Genesis)
 
@@ -409,7 +410,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		if _, err := ln.addNode(nodeConfig); err != nil {
 			if err := ln.stop(ctx); err != nil {
 				// Clean up nodes already created
-				ln.log.Debug("error stopping network: %s", err)
+				ln.log.Debug("error stopping network", zap.Error(err))
 			}
 			return fmt.Errorf("error adding node %s: %s", nodeConfig.Name, err)
 		}
@@ -500,11 +501,20 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	ln.log.Info(
-		"adding node %q with tmp dir at %s, logs at %s, DB at %s, P2P port %d, API port %d",
-		nodeConfig.Name, nodeDir, nodeData.logsDir, nodeData.dbDir, nodeData.p2pPort, nodeData.apiPort,
+		"adding node",
+		zap.String("node-name", nodeConfig.Name),
+		zap.String("node-dir", nodeDir),
+		zap.String("log-dir", nodeData.logsDir),
+		zap.String("db-dir", nodeData.dbDir),
+		zap.Uint16("p2p-port", nodeData.p2pPort),
+		zap.Uint16("api-port", nodeData.apiPort),
 	)
 
-	ln.log.Debug("starting node %q with \"%s %s\"", nodeConfig.Name, nodeConfig.BinaryPath, nodeData.flags)
+	ln.log.Debug("starting node",
+		zap.String("node-name", nodeConfig.Name),
+		zap.String("binary-path", nodeConfig.BinaryPath),
+		zap.Strings("flags", nodeData.flags),
+	)
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
@@ -544,7 +554,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 }
 
 func (ln *localNetwork) healthy(ctx context.Context) error {
-	ln.log.Info("checking local network healthiness, nodes: %d", len(ln.nodes))
+	ln.log.Info("checking local network healthiness", zap.Int("num-of-nodes", len(ln.nodes)))
 
 	// Return unhealthy if the network is stopped
 	if ln.stopCalled() {
@@ -580,7 +590,7 @@ func (ln *localNetwork) healthy(ctx context.Context) error {
 				}
 				health, err := node.client.HealthAPI().Health(ctx)
 				if err == nil && health.Healthy {
-					ln.log.Debug("node %q became healthy", nodeName)
+					ln.log.Debug("node became healthy", zap.String("node-name", nodeName))
 					return nil
 				}
 				select {
@@ -666,7 +676,7 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 	for nodeName := range ln.nodes {
 		stopCtx, stopCtxCancel := context.WithTimeout(ctx, stopTimeout)
 		if err := ln.removeNode(stopCtx, nodeName); err != nil {
-			ln.log.Error("error stopping node %q: %s", nodeName, err)
+			ln.log.Error("error stopping node", zap.String("node-name", nodeName), zap.Error(err))
 			errs.Add(err)
 		}
 		stopCtxCancel()
@@ -687,7 +697,7 @@ func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
-	ln.log.Debug("removing node %q", nodeName)
+	ln.log.Debug("removing node", zap.String("node-name", nodeName))
 	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
@@ -860,7 +870,7 @@ func (ln *localNetwork) buildFlags(
 	// Note these will overwrite existing flags if the same flag is given twice.
 	for flagName, flagVal := range nodeConfig.Flags {
 		if _, ok := warnFlags[flagName]; ok {
-			ln.log.Warn("The flag %s has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", flagName)
+			ln.log.Warn("A flag has been provided. This can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flag-name", flagName))
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}

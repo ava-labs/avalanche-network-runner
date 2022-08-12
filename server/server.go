@@ -27,6 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -143,7 +144,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 
 	gRPCErrc := make(chan error)
 	go func() {
-		s.log.Info("serving gRPC server at port %s", s.cfg.Port)
+		s.log.Info("serving gRPC server", zap.String("port", s.cfg.Port))
 		gRPCErrc <- s.gRPCServer.Serve(s.ln)
 	}()
 
@@ -152,7 +153,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Info("gRPC gateway server is disabled")
 	} else {
 		go func() {
-			s.log.Info("dialing gRPC server for gRPC gateway at port %s", s.cfg.Port)
+			s.log.Info("dialing gRPC server for gRPC gateway", zap.String("port", s.cfg.Port))
 			ctx, cancel := context.WithTimeout(rootCtx, s.cfg.DialTimeout)
 			gwConn, err := grpc.DialContext(
 				ctx,
@@ -176,7 +177,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 				return
 			}
 
-			s.log.Info("serving gRPC gateway at port %s", s.cfg.GwPort)
+			s.log.Info("serving gRPC gateway", zap.String("port", s.cfg.GwPort))
 			gwErrc <- s.gwServer.ListenAndServe()
 		}()
 	}
@@ -186,7 +187,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("root context is done")
 
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
 			<-gwErrc
 		}
 
@@ -196,14 +197,15 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("gRPC terminated")
 
 	case err = <-gRPCErrc:
-		s.log.Warn("gRPC server failed: %s", err)
+		s.log.Warn("gRPC server failed", zap.Error(err))
+
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
 			<-gwErrc
 		}
 
 	case err = <-gwErrc: // if disabled, this will never be selected
-		s.log.Warn("gRPC gateway server failed: %s", err)
+		s.log.Warn("gRPC gateway server failed", zap.Error(err))
 		s.gRPCServer.Stop()
 		s.log.Warn("closed gRPC server")
 		<-gRPCErrc
@@ -235,9 +237,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout: %s", defaultStartTimeout.String())
+		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
-		s.log.Info("received start request with existing timeout: %s", deadline.String())
+		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	if req.NumNodes == nil {
@@ -259,7 +261,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
-		s.log.Info("plugin dir: %s", pluginDir)
+		s.log.Info("plugin-dir:", zap.String("plugin-dir", pluginDir))
 		for i := range req.GetBlockchainSpecs() {
 			spec := req.GetBlockchainSpecs()[i]
 			if spec.SubnetId != nil {
@@ -267,10 +269,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			}
 			vmName := spec.VmName
 			vmGenesisFilePath := spec.Genesis
-			s.log.Info("checking custom chain's VM ID before installation, id is %s", vmName)
+			s.log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
 			vmID, err := utils.VMID(vmName)
 			if err != nil {
-				s.log.Warn("failed to convert VM name %s to VM ID: %s", vmName, err)
+				s.log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
 				return nil, ErrInvalidVMName
 			}
 			if err := utils.CheckPluginPaths(
@@ -324,15 +326,15 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		Healthy:     false,
 	}
 
-	s.log.Info("starting with execPath %s, numNodes %d, whitelistedSubnets %s, pid %d, rootDataDir %s, pluginDir %s, chainConfigs %s, globalNodeConfig %s",
-		execPath,
-		numNodes,
-		whitelistedSubnets,
-		pid,
-		rootDataDir,
-		pluginDir,
-		req.ChainConfigs,
-		globalNodeConfig,
+	s.log.Info("starting",
+		zap.String("exec-path", execPath),
+		zap.Uint32("num-nodes", numNodes),
+		zap.String("whitelisted-subnets", whitelistedSubnets),
+		zap.Int32("pid", pid),
+		zap.String("root-data-dir", rootDataDir),
+		zap.String("plugin-dir", pluginDir),
+		zap.Any("chain-configs", req.ChainConfigs),
+		zap.String("global-node-config", globalNodeConfig),
 	)
 
 	if s.network != nil {
@@ -340,7 +342,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	if len(customNodeConfigs) > 0 {
-		s.log.Warn("custom node configs have been provided; ignoring the 'number-of-nodes' parameter and setting it to: %d", len(customNodeConfigs))
+		s.log.Warn("custom node configs have been provided; ignoring the 'number-of-nodes' parameter and setting it to:", zap.Int("number-of-nodes", len(customNodeConfigs)))
 		numNodes = uint32(len(customNodeConfigs))
 	}
 
@@ -407,7 +409,7 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		// TODO: decide what to do here, general failure cause network stop()?
 		// maybe try decide if operation was partial (undesired network, fail)
 		// or was not stated (preconditions check, continue)
-		s.log.Warn("async call %s failed to complete :%s", waitMsg, serr)
+		s.log.Warn("async call failed to complete", zap.String("async-call", waitMsg), zap.Error(serr))
 		panic(serr)
 	case <-readyCh:
 		s.mu.Lock()
@@ -432,9 +434,9 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout: %s", defaultStartTimeout.String())
+		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
-		s.log.Info("received start request with existing timeout: %s", deadline.String())
+		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	s.log.Debug("CreateBlockchains")
@@ -450,10 +452,10 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	for i := range req.GetBlockchainSpecs() {
 		vmName := req.GetBlockchainSpecs()[i].VmName
 		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-		s.log.Info("checking custom chain's VM ID before installation, vm-id: %s", vmName)
+		s.log.Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
-			s.log.Warn("failed to convert VM name %s to VM ID: %s", vmName, err)
+			s.log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
 			return nil, ErrInvalidVMName
 		}
 		if err := utils.CheckPluginPaths(
@@ -521,12 +523,12 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout: %s", defaultStartTimeout.String())
+		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
-		s.log.Info("received start request with existing timeout: %s", deadline.String())
+		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
-	s.log.Debug("CreateSubnets with num-subnets: %d ", req.GetNumSubnets())
+	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
 
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
@@ -617,7 +619,7 @@ func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.Contr
 	interval := time.Duration(req.PushInterval)
 
 	// returns this method, then server closes the stream
-	s.log.Info("pushing status updates to the stream with interval: %s", interval.String())
+	s.log.Info("pushing status updates to the stream", zap.String("interval", interval.String()))
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
@@ -630,9 +632,9 @@ func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.Contr
 		rerr := s.recvLoop(stream)
 		if rerr != nil {
 			if isClientCanceled(stream.Context().Err(), rerr) {
-				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation: %s", rerr)
+				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation", zap.Error(rerr))
 			} else {
-				s.log.Warn("failed to receive status request from gRPC stream: %s", rerr)
+				s.log.Warn("failed to receive status request from gRPC stream", zap.Error(rerr))
 			}
 		}
 		errc <- rerr
@@ -673,10 +675,10 @@ func (s *server) sendLoop(stream rpcpb.ControlService_StreamStatusServer, interv
 		s.log.Debug("sending cluster info")
 		if err := stream.Send(&rpcpb.StreamStatusResponse{ClusterInfo: s.getClusterInfo()}); err != nil {
 			if isClientCanceled(stream.Context().Err(), err) {
-				s.log.Debug("client stream canceled: %s", err)
+				s.log.Debug("client stream canceled", zap.Error(err))
 				return
 			}
-			s.log.Warn("failed to send an event: %s", err)
+			s.log.Warn("failed to send an event", zap.Error(err))
 			return
 		}
 	}
@@ -708,7 +710,7 @@ func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error 
 }
 
 func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.AddNodeResponse, error) {
-	s.log.Debug("received add node request with name: %s", req.Name)
+	s.log.Debug("received add node request", zap.String("name", req.Name))
 
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
@@ -748,7 +750,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 }
 
 func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (*rpcpb.RemoveNodeResponse, error) {
-	s.log.Debug("received remove node request for name: %s", req.Name)
+	s.log.Debug("received remove node request", zap.String("name", req.Name))
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -771,7 +773,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
-	s.log.Debug("received remove node request for name: %s", req.Name)
+	s.log.Debug("received remove node request", zap.String("name", req.Name))
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -829,7 +831,7 @@ type loggingInboundHandler struct {
 }
 
 func (lh *loggingInboundHandler) HandleInbound(m message.InboundMessage) {
-	lh.log.Debug("inbound handler received a message %s for node-name: %s", m.Op().String(), lh.nodeName)
+	lh.log.Debug("inbound handler received a message", zap.String("message", m.Op().String()), zap.String("node-name", lh.nodeName))
 }
 
 func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (*rpcpb.AttachPeerResponse, error) {
@@ -855,7 +857,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 
 	newPeerID := newPeer.ID().String()
 
-	s.log.Debug("new peer with peer-id %s is attached to node-name: %s", newPeerID, node.GetName())
+	s.log.Debug("new peer is attached to", zap.String("peer-ID", newPeerID), zap.String("node-name", node.GetName()))
 
 	if s.clusterInfo.AttachedPeerInfos == nil {
 		s.clusterInfo.AttachedPeerInfos = make(map[string]*rpcpb.ListOfAttachedPeerInfo)
@@ -894,9 +896,9 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout: %s", defaultStartTimeout.String())
+		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
-		s.log.Info("received start request with existing timeout: %s", deadline.String())
+		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	s.mu.Lock()
@@ -928,7 +930,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		Healthy:     false,
 	}
 
-	s.log.Info("starting with pid %d and rootDataDir %s", pid, rootDataDir)
+	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
 
 	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
@@ -956,7 +958,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
-		s.log.Warn("snapshot load failed to complete: %s", err)
+		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.network = nil
 		s.clusterInfo = nil
 		return nil, err
@@ -978,7 +980,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 }
 
 func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {
-	s.log.Info("received save snapshot request for snapshot-name: %s", req.SnapshotName)
+	s.log.Info("received save snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	info := s.getClusterInfo()
 	if info == nil {
 		return nil, ErrNotBootstrapped
@@ -989,7 +991,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
 	if err != nil {
-		s.log.Warn("snapshot save failed to complete: %s", err)
+		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
 	}
 	s.network = nil
@@ -999,14 +1001,14 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 }
 
 func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
-	s.log.Info("received remove snapshot request for snapshot-name: %s", req.SnapshotName)
+	s.log.Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	info := s.getClusterInfo()
 	if info == nil {
 		return nil, ErrNotBootstrapped
 	}
 
 	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
-		s.log.Warn("snapshot remove failed to complete: %s", err)
+		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
 	return &rpcpb.RemoveSnapshotResponse{}, nil
