@@ -844,4 +844,3 @@ type Node interface {
   GetConfigFile() string
 }
 ```
-
