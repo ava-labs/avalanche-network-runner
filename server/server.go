@@ -784,6 +784,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		req.Name,
 		req.GetExecPath(),
 		req.GetWhitelistedSubnets(),
+		req.GetChainConfigs(),
 	); err != nil {
 		return nil, err
 	}

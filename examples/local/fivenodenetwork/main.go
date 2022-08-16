@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"go.uber.org/zap"
 )
 
 const (
@@ -31,9 +32,9 @@ func shutdownOnSignal(
 	closedOnShutdownChan chan struct{},
 ) {
 	sig := <-signalChan
-	log.Info("got OS signal %s", sig)
+	log.Info("got OS signal", zap.Stringer("signal", sig))
 	if err := n.Stop(context.Background()); err != nil {
-		log.Info("error stopping network: %s", err)
+		log.Info("error stopping network", zap.Error(err))
 	}
 	signal.Reset()
 	close(signalChan)
@@ -60,7 +61,7 @@ func main() {
 	}
 	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
 	if err := run(log, binaryPath); err != nil {
-		log.Fatal("%s", err)
+		log.Fatal("fatal error", zap.Error(err))
 		os.Exit(1)
 	}
 }
@@ -73,7 +74,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 	defer func() { // Stop the network when this function returns
 		if err := nw.Stop(context.Background()); err != nil {
-			log.Info("error stopping network: %s", err)
+			log.Info("error stopping network", zap.Error(err))
 		}
 	}()
 
