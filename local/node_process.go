@@ -13,6 +13,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/shirou/gopsutil/process"
+	"go.uber.org/zap"
 )
 
 var _ NodeProcess = (*nodeProcess)(nil)
@@ -118,7 +119,7 @@ func (p *nodeProcess) start() error {
 // When it does, update the state and close [p.closedOnStop]
 func (p *nodeProcess) awaitExit() {
 	if err := p.cmd.Wait(); err != nil {
-		p.log.Debug("node %q returned error on wait: %s", p.name, err)
+		p.log.Debug("node returned error on wait", zap.String("node", p.name), zap.Error(err))
 	}
 
 	p.lock.Lock()
@@ -156,15 +157,15 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 	p.lock.Unlock()
 
 	if err := proc.Signal(os.Interrupt); err != nil {
-		p.log.Warn("sending SIGINT errored: %s", err)
+		p.log.Warn("sending SIGINT errored", zap.Error(err))
 	}
 
 	select {
 	case <-ctx.Done():
-		p.log.Warn("context cancelled while waiting for node %q to stop", p.name)
+		p.log.Warn("context cancelled while waiting for node to stop", zap.String("node", p.name))
 		killDescendants(int32(proc.Pid), p.log)
 		if err := proc.Signal(os.Kill); err != nil {
-			p.log.Warn("sending SIGKILL errored: %s", err)
+			p.log.Warn("sending SIGKILL errored", zap.Error(err))
 		}
 	case <-p.closedOnStop:
 	}
@@ -186,13 +187,13 @@ func (p *nodeProcess) Status() status.Status {
 func killDescendants(pid int32, log logging.Logger) {
 	procs, err := process.Processes()
 	if err != nil {
-		log.Warn("couldn't get processes: %s", err)
+		log.Warn("couldn't get processes", zap.Error(err))
 		return
 	}
 	for _, proc := range procs {
 		ppid, err := proc.Ppid()
 		if err != nil {
-			log.Warn("couldn't get process ID: %s", err)
+			log.Warn("couldn't get process ID", zap.Error(err))
 			continue
 		}
 		if ppid != pid {
@@ -200,7 +201,7 @@ func killDescendants(pid int32, log logging.Logger) {
 		}
 		killDescendants(proc.Pid, log)
 		if err := proc.Kill(); err != nil {
-			log.Warn("error killing process %d: %s", proc.Pid, err)
+			log.Warn("error killing process", zap.Int32("pid", proc.Pid), zap.Error(err))
 		}
 	}
 }

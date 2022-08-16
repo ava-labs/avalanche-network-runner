@@ -8,6 +8,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"go.uber.org/zap"
 )
 
 // writeFiles writes the files a node needs on startup.
@@ -133,7 +134,7 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	nodeRootDir := filepath.Join(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		if os.IsExist(err) {
-			log.Warn("node root directory %s already exists", nodeRootDir)
+			log.Warn("node root directory already exists", zap.String("dir", nodeRootDir))
 		} else {
 			return "", fmt.Errorf("error creating temp dir: %w", err)
 		}
@@ -170,8 +171,10 @@ func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, no
 			nodeFlags[flagName] = flagVal
 		} else {
 			log.Debug(
-				"not overwriting node config flag %s (value %v) with network config flag (value %v)",
-				flagName, val, flagVal,
+				"not overwriting node config flag with network config flag",
+				zap.String("flagName", flagName),
+				zap.Any("val", val),
+				zap.Any("networkConfigVal", flagVal),
 			)
 		}
 	}
