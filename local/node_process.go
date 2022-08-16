@@ -156,7 +156,7 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 	p.lock.Unlock()
 
 	if err := proc.Signal(os.Interrupt); err != nil {
-		p.log.Warn("sending SIGINT errored: %w", err)
+		p.log.Warn("sending SIGINT errored: %s", err)
 	}
 
 	select {
@@ -164,7 +164,7 @@ func (p *nodeProcess) Stop(ctx context.Context) int {
 		p.log.Warn("context cancelled while waiting for node %q to stop", p.name)
 		killDescendants(int32(proc.Pid), p.log)
 		if err := proc.Signal(os.Kill); err != nil {
-			p.log.Warn("sending SIGKILL errored: %w", err)
+			p.log.Warn("sending SIGKILL errored: %s", err)
 		}
 	case <-p.closedOnStop:
 	}
