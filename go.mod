@@ -2,6 +2,10 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.18
 
+replace github.com/ava-labs/avalanchego => ../avalanchego-internal
+
+replace github.com/ava-labs/avalanche-ledger-go => ../avalanche-ledger-go
+
 require (
 	github.com/ava-labs/avalanchego v1.7.17
 	github.com/ava-labs/coreth v0.8.15-rc.2
@@ -14,6 +18,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.2
+	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/genproto v0.0.0-20220712132514-bdd2acd4974d
 	google.golang.org/grpc v1.47.0
@@ -21,10 +26,12 @@ require (
 )
 
 require (
+	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.0-00010101000000-000000000000 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
@@ -112,9 +119,10 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
+	github.com/zondax/hid v0.9.0 // indirect
+	github.com/zondax/ledger-go v0.12.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect

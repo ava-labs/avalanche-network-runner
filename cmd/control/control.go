@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -183,8 +184,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if globalNodeConfig != "" {
-		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes: %+v"), globalNodeConfig)
-
+		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes"), zap.String("global-node-config", globalNodeConfig))
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
@@ -228,7 +228,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("start response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("start"), zap.Any("response", info))
 	return nil
 }
 
@@ -266,7 +266,7 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("deploy-blockchains response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("deploy-blockchains"), zap.Any("response", info))
 	return nil
 }
 
@@ -307,7 +307,7 @@ func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("add-subnets response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("add-subnets"), zap.Any("response", info))
 	return nil
 }
 
@@ -335,7 +335,7 @@ func healthFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("health response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("health"), zap.Any("response", resp))
 	return nil
 }
 
@@ -363,7 +363,7 @@ func urisFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("URIs: %q"), uris)
+	ux.Print(log, logging.Green.Wrap("URIs"), zap.Any("uris", uris))
 	return nil
 }
 
@@ -391,7 +391,7 @@ func statusFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("status response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("status"), zap.Any("response", resp))
 	return nil
 }
 
@@ -429,7 +429,7 @@ func streamStatusFunc(cmd *cobra.Command, args []string) error {
 	go func() {
 		select {
 		case sig := <-sigc:
-			log.Warn("received signal: %s", sig.String())
+			log.Warn("received signal", zap.String("signal", sig.String()))
 		case <-ctx.Done():
 		}
 		cancel()
@@ -441,7 +441,7 @@ func streamStatusFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for info := range ch {
-		ux.Print(log, logging.Cyan.Wrap("cluster info: %+v"), info)
+		ux.Print(log, logging.Cyan.Wrap("cluster"), zap.Any("info", info))
 	}
 	cancel() // receiver channel is closed, so cancel goroutine
 	<-donec
@@ -474,7 +474,7 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("remove node response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("remove node"), zap.Any("response", info))
 	return nil
 }
 
@@ -518,7 +518,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{}
 
 	if addNodeConfig != "" {
-		ux.Print(log, logging.Yellow.Wrap("WARNING: overriding node configs with custom provided config: %+v"), addNodeConfig)
+		ux.Print(log, logging.Yellow.Wrap("WARNING: overriding node configs with custom provided config"), zap.String("add-node-config", addNodeConfig))
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(addNodeConfig), &js); err != nil {
@@ -547,7 +547,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("add node response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("add node"), zap.Any("response", info))
 	return nil
 }
 
@@ -612,7 +612,7 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("restart node response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("restart node"), zap.Any("response", info))
 	return nil
 }
 
@@ -642,7 +642,7 @@ func attachPeerFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("attach peer response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("attach peer"), zap.Any("response", resp))
 	return nil
 }
 
@@ -711,7 +711,7 @@ func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("send outbound message response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("send outbound message"), zap.Any("response", resp))
 	return nil
 }
 
@@ -739,7 +739,7 @@ func stopFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("stop response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("stop"), zap.Any("response", info))
 	return nil
 }
 
@@ -767,7 +767,7 @@ func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("save-snapshot response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("save-snapshot"), zap.Any("response", resp))
 	return nil
 }
 
@@ -833,7 +833,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if globalNodeConfig != "" {
-		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes: %+v"), globalNodeConfig)
+		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes"), zap.String("global-node-config", globalNodeConfig))
 
 		// validate it's valid JSON
 		var js json.RawMessage
@@ -850,7 +850,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("load-snapshot response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("load-snapshot"), zap.Any("response", resp))
 	return nil
 }
 
@@ -878,7 +878,7 @@ func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("remove-snapshot response: %+v"), resp)
+	ux.Print(log, logging.Green.Wrap("remove-snapshot"), zap.Any("response", resp))
 	return nil
 }
 
@@ -905,7 +905,7 @@ func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("Snapshots: %+v"), snapshotNames)
+	ux.Print(log, logging.Green.Wrap("Snapshots"), zap.Strings("snapshot-names", snapshotNames))
 	return nil
 }
 

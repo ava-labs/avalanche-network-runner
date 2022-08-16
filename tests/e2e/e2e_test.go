@@ -29,6 +29,7 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 )
 
 func TestE2e(t *testing.T) {
@@ -149,7 +150,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	ginkgo.It("can create blockhains", func() {
 		existingSubnetID := ""
 		ginkgo.By("start with blockchain specs", func() {
-			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path"), execPath2)
+			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path"), zap.String("execPath2", execPath2))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath2,
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
@@ -161,7 +162,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
@@ -338,12 +339,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("calling start API with the valid binary path", func() {
-			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path"), zap.String("execPath1", execPath1))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 	})
 
@@ -359,7 +360,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		uris, err := cli.URIs(ctx)
 		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
-		ux.Print(log, logging.Blue.Wrap("URIs: %q"), uris)
+		ux.Print(log, logging.Blue.Wrap("URIs"), zap.Strings("uris", uris))
 	})
 
 	ginkgo.It("can fetch status", func() {
@@ -375,7 +376,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ch, err := cli.StreamStatus(ctx, 5*time.Second)
 		gomega.Ω(err).Should(gomega.BeNil())
 		for info := range ch {
-			ux.Print(log, logging.Green.Wrap("fetched info: %q"), info.NodeNames)
+			ux.Print(log, logging.Green.Wrap("fetched info"), zap.Strings("node-names", info.NodeNames))
 			if info.Healthy {
 				break
 			}
@@ -389,7 +390,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.RemoveNode(ctx, "node5")
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully removed: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully removed"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 	})
 
@@ -400,7 +401,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.RestartNode(ctx, "node4", client.WithExecPath(execPath2))
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully restarted: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully restarted"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 	})
 
@@ -414,7 +415,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 			v, ok := resp.ClusterInfo.AttachedPeerInfos["node1"]
 			gomega.Ω(ok).Should(gomega.BeTrue())
-			ux.Print(log, logging.Green.Wrap("successfully attached peer: %+v"), v.Peers)
+			ux.Print(log, logging.Green.Wrap("successfully attached peer"), zap.Any("peers", v.Peers))
 
 			mc, err := message.NewCreator(
 				prometheus.NewRegistry(),
@@ -445,16 +446,16 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	time.Sleep(10 * time.Second)
 	ginkgo.It("can add a node", func() {
 		ginkgo.By("calling AddNode", func() {
-			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path"), zap.String("execPath1", execPath1))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
-			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path"), zap.String("execPath1", execPath1))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
 			cancel()
@@ -476,7 +477,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("calling start API with custom config", func() {
-			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %q"), execPath1)
+			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path"), zap.String("execPath1", execPath1))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			opts := []client.OpOption{
 				client.WithNumNodes(numNodes),
@@ -485,7 +486,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.Start(ctx, execPath1, opts...)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully started: %q"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully started"), zap.Strings("node-names", resp.ClusterInfo.NodeNames))
 		})
 		ginkgo.By("can wait for health", func() {
 			// start is async, so wait some time for cluster health
@@ -497,13 +498,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("overrides num-nodes", func() {
-			ux.Print(log, logging.Green.Wrap("checking that given num-nodes %d have been overriden by custom configs with %d"), numNodes, len(customNodeConfigs))
+			ux.Print(log, logging.Green.Wrap("checking that given num-nodes have been overriden by custom configs"), zap.Uint32("num-nodes", numNodes), zap.Int("len(custom-node-configs)", len(customNodeConfigs)))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			uris, err := cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(uris).Should(gomega.HaveLen(len(customNodeConfigs)))
-			ux.Print(log, logging.Green.Wrap("expected number of nodes up: %q"), len(customNodeConfigs))
+			ux.Print(log, logging.Green.Wrap("expected number of nodes up"), zap.Int("num-nodes", len(customNodeConfigs)))
 
 			ux.Print(log, logging.Green.Wrap("checking correct admin APIs are enabled resp. disabled"))
 			// we have 7 nodes, 3 have the admin API enabled, the other 4 disabled

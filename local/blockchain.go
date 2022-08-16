@@ -28,6 +28,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
+	"go.uber.org/zap"
 )
 
 const (
@@ -223,7 +224,7 @@ func (ln *localNetwork) installCustomChains(
 	if err != nil {
 		return nil, err
 	}
-	ln.log.Info("base wallet AVAX balance %d for address %s ", balances[avaxAssetID], testKeyAddr.String())
+	ln.log.Info("base wallet AVAX balance", zap.Uint64("balance", balances[avaxAssetID]), zap.String("address", testKeyAddr.String()))
 
 	return chainInfos, nil
 }
@@ -276,7 +277,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	if err != nil {
 		return nil, err
 	}
-	ln.log.Info("base wallet AVAX balance %d for address %s", balances[avaxAssetID], testKeyAddr.String())
+	ln.log.Info("base wallet AVAX balance", zap.Uint64("balance", balances[avaxAssetID]), zap.String("address", testKeyAddr.String()))
 
 	return subnetIDs, nil
 }
@@ -311,7 +312,7 @@ func (ln *localNetwork) installSubnets(
 		if err != nil {
 			return nil, nil, err
 		}
-		ln.log.Info("set up base wallet at endpoint %s with pre-funded test key address %s", clientURI, testKeyAddr.String())
+		ln.log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
 	}
 	return baseWallet, subnetIDs, nil
 }
@@ -341,27 +342,27 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	}
 
 	for nodeName, node := range ln.nodes {
-		ln.log.Info("inspecting node log directory %s for custom chain logs for node-name %s", node.GetLogsDir(), nodeName)
+		ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
 		for _, chainInfo := range chainInfos {
 			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
-			ln.log.Info("checking log, vm-id: %s, subnet-id: %s, blockchain-id: %s, log-path: %s",
-				chainInfo.vmID.String(),
-				chainInfo.subnetID.String(),
-				chainInfo.blockchainID.String(),
-				p,
+			ln.log.Info("checking log",
+				zap.String("vm-ID", chainInfo.vmID.String()),
+				zap.String("subnet-ID", chainInfo.subnetID.String()),
+				zap.String("blockchain-ID", chainInfo.blockchainID.String()),
+				zap.String("path", p),
 			)
 			for {
 				_, err := os.Stat(p)
 				if err == nil {
-					ln.log.Info("found the log at path %s", p)
+					ln.log.Info("found the log", zap.String("path", p))
 					break
 				}
 
-				ln.log.Info("log not found yet, retrying... vm-id: %s, subnet-id: %s, blockchain-id: %s, log-path: %s, err: %s",
-					chainInfo.vmID.String(),
-					chainInfo.subnetID.String(),
-					chainInfo.blockchainID.String(),
-					err,
+				ln.log.Info("log not found yet, retrying...",
+					zap.String("vm-ID", chainInfo.vmID.String()),
+					zap.String("subnet-ID", chainInfo.subnetID.String()),
+					zap.String("blockchain-ID", chainInfo.blockchainID.String()),
+					zap.Error(err),
 				)
 				select {
 				case <-ln.onStopCh:
@@ -404,7 +405,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	subnetIDs []ids.ID,
 ) (err error) {
 	println()
-	ln.log.Info(logging.Green.Wrap("restarting each node with %s"), config.WhitelistedSubnetsKey)
+	ln.log.Info(logging.Green.Wrap("restarting each node"), zap.String("whitelisted-subnets", config.WhitelistedSubnetsKey))
 	whitelistedSubnetIDsMap := map[string]struct{}{}
 	currentSubnets, err := ln.getCurrentSubnets(ctx)
 	if err != nil {
@@ -423,7 +424,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	sort.Strings(whitelistedSubnetIDs)
 	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
 
-	ln.log.Info("restarting all nodes to whitelist subnets: %s", whitelistedSubnetIDs)
+	ln.log.Info("restarting all nodes to whitelist subnets", zap.Strings("whitelisted-subnet-IDs", whitelistedSubnetIDs))
 
 	// change default setting
 	ln.flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
@@ -434,7 +435,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 		// delete node specific flag so as to use default one
 		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
 
-		ln.log.Info("removing and adding back the node %q for whitelisted subnets", nodeName)
+		ln.log.Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
 		}
@@ -443,7 +444,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 			return err
 		}
 
-		ln.log.Info("waiting for local cluster readiness after restarting node %q", nodeName)
+		ln.log.Info("waiting for local cluster readiness after restarting node", zap.String("node-name", nodeName))
 		if err := ln.healthy(ctx); err != nil {
 			return err
 		}
@@ -469,7 +470,7 @@ func setupWallet(
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
-	log.Info("set up base wallet at endpoint %s with pre-funded test key address %s", clientURI, testKeyAddr.String())
+	log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
 
 	println()
 	log.Info(logging.Green.Wrap("check if the seed test key has enough balance to create validators and subnets"))
@@ -482,7 +483,7 @@ func setupWallet(
 	if bal <= 1*units.Avax || !ok {
 		return nil, ids.Empty, ids.ShortEmpty, fmt.Errorf("not enough AVAX balance %v in the address %q", bal, testKeyAddr)
 	}
-	log.Info("fetched base wallet at api %s with AVAX balance %d at address %s", clientURI, bal, testKeyAddr.String())
+	log.Info("fetched base wallet", zap.String("api", clientURI), zap.Uint64("balance", bal), zap.String("address", testKeyAddr.String()))
 
 	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
@@ -536,7 +537,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		if err != nil {
 			return err
 		}
-		ln.log.Info("added the node %q with node-id as primary subnet validator, tx-id: %s", nodeName, nodeID.String(), txID.String())
+		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
 	}
 	return nil
 }
@@ -549,7 +550,7 @@ func createSubnets(
 	log logging.Logger,
 ) ([]ids.ID, error) {
 	println()
-	log.Info(logging.Green.Wrap("creating %d subnets VM"), numSubnets)
+	log.Info(logging.Green.Wrap("creating subnets VM"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	var i uint32
 	for i = 0; i < numSubnets; i++ {
@@ -567,7 +568,7 @@ func createSubnets(
 		if err != nil {
 			return nil, err
 		}
-		log.Info("created subnet tx, subnet-id: %s", subnetID.String())
+		log.Info("created subnet tx", zap.String("subnet-ID", subnetID.String()))
 		subnetIDs[i] = subnetID
 	}
 	return subnetIDs, nil
@@ -629,11 +630,11 @@ func (ln *localNetwork) addSubnetValidators(
 			if err != nil {
 				return err
 			}
-			ln.log.Info("added the node %q with node-id %s as a subnet validator to subnet-id %s, tx-id: %s",
-				nodeName,
-				nodeID.String(),
-				subnetID.String(),
-				txID.String(),
+			ln.log.Info("added node as a subnet validator to subnet",
+				zap.String("node-name", nodeName),
+				zap.String("node-ID", nodeID.String()),
+				zap.String("subnet-ID", subnetID.String()),
+				zap.String("tx-ID", txID.String()),
 			)
 		}
 	}
@@ -719,10 +720,10 @@ func createBlockchains(
 		}
 		vmGenesisBytes := chainSpec.Genesis
 
-		log.Info("creating blockchain tx for vm-name %s, vm-id %s; length of genesis bytes: %d",
-			vmName,
-			vmID.String(),
-			len(vmGenesisBytes),
+		log.Info("creating blockchain tx",
+			zap.String("vm-name", vmName),
+			zap.String("vm-ID", vmID.String()),
+			zap.Int("bytes length of genesis", len(vmGenesisBytes)),
 		)
 		cctx, cancel := createDefaultCtx(ctx)
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
@@ -745,10 +746,10 @@ func createBlockchains(
 
 		blockchainIDs[i] = blockchainID
 
-		log.Info("created a new blockchain for vm-name %s with vm-id %s, blockchain-id: %s",
-			vmName,
-			vmID.String(),
-			blockchainID.String(),
+		log.Info("created a new blockchain",
+			zap.String("vm-name", vmName),
+			zap.String("vm-ID", vmID.String()),
+			zap.String("blockchain-ID", blockchainID.String()),
 		)
 	}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -97,15 +98,15 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case sig := <-sigc:
-		log.Warn("signal received; closing server: %s", sig.String())
+		log.Warn("signal received; closing server: %s", zap.String("signal", sig.String()))
 		rootCancel()
 		// wait for server stop
 		waitForServerStop := <-errc
-		log.Warn("closed server: %v", waitForServerStop)
+		log.Warn("closed server", zap.Error(waitForServerStop))
 	case serverClosed := <-errc:
 		// server already stopped here
 		_ = rootCancel
-		log.Warn("server closed: %s", serverClosed)
+		log.Warn("server closed", zap.Error(serverClosed))
 	}
 	return err
 }
