@@ -15,9 +15,10 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/local"
-	"github.com/ava-labs/avalanche-network-runner/pkg/color"
-	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanche-network-runner/ux"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -32,6 +33,7 @@ var (
 	endpoint           string
 	dialTimeout        time.Duration
 	requestTimeout     time.Duration
+	log                logging.Logger
 )
 
 // NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
@@ -42,7 +44,7 @@ func NewCommand() *cobra.Command {
 		Short: "Start a network runner controller.",
 	}
 
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
+	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
@@ -66,6 +68,23 @@ func NewCommand() *cobra.Command {
 		newRemoveSnapshotCommand(),
 		newGetSnapshotNamesCommand(),
 	)
+
+	lvl, err := logging.ToLevel(logLevel)
+	if err != nil {
+		panic(err)
+	}
+	lcfg := logging.Config{
+		DisplayLevel: lvl,
+		// this will result in no written logs, just stdout
+		// to enable log files, a logDir param should be added and
+		// accordingly possibly a flag
+		LogLevel: logging.Off,
+	}
+	logFactory := logging.NewFactory(lcfg)
+	log, err = logFactory.Make(constants.LogNameControl)
+	if err != nil {
+		panic(err)
+	}
 
 	return cmd
 }
@@ -165,8 +184,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if globalNodeConfig != "" {
-		color.Outf("{{yellow}} global node config provided, will be applied to all nodes{{/}} %+v\n", globalNodeConfig)
-
+		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes: %s"), globalNodeConfig)
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
@@ -210,7 +228,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}start response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("start response: %+v"), info)
 	return nil
 }
 
@@ -248,7 +266,7 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}deploy-blockchains response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("deploy-blockchains response: %+v"), info)
 	return nil
 }
 
@@ -289,7 +307,7 @@ func createSubnetsFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}add-subnets response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("add-subnets response: %+v"), info)
 	return nil
 }
 
@@ -317,7 +335,7 @@ func healthFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}health response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("health response: %+v"), resp)
 	return nil
 }
 
@@ -345,7 +363,7 @@ func urisFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}URIs:{{/}} %q\n", uris)
+	ux.Print(log, logging.Green.Wrap("URIs: %s"), uris)
 	return nil
 }
 
@@ -373,7 +391,7 @@ func statusFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}status response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("status response: %+v"), resp)
 	return nil
 }
 
@@ -411,7 +429,7 @@ func streamStatusFunc(cmd *cobra.Command, args []string) error {
 	go func() {
 		select {
 		case sig := <-sigc:
-			zap.L().Warn("received signal", zap.String("signal", sig.String()))
+			log.Warn("received signal", zap.String("signal", sig.String()))
 		case <-ctx.Done():
 		}
 		cancel()
@@ -423,7 +441,7 @@ func streamStatusFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for info := range ch {
-		color.Outf("{{cyan}}cluster info:{{/}} %+v\n", info)
+		ux.Print(log, logging.Cyan.Wrap("cluster info: %+v"), info)
 	}
 	cancel() // receiver channel is closed, so cancel goroutine
 	<-donec
@@ -456,7 +474,7 @@ func removeNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}remove node response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("remove node response: %+v"), info)
 	return nil
 }
 
@@ -500,7 +518,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{}
 
 	if addNodeConfig != "" {
-		color.Outf("{{yellow}}WARNING: overriding node configs with custom provided config {{/}} %+v\n", addNodeConfig)
+		ux.Print(log, logging.Yellow.Wrap("WARNING: overriding node configs with custom provided config %s"), addNodeConfig)
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(addNodeConfig), &js); err != nil {
@@ -529,7 +547,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}add node response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("add node response: %+v"), info)
 	return nil
 }
 
@@ -594,7 +612,7 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}restart node response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("restart node response: %+v"), info)
 	return nil
 }
 
@@ -624,7 +642,7 @@ func attachPeerFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}attach peer response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("attach peer response: %+v"), resp)
 	return nil
 }
 
@@ -693,7 +711,7 @@ func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}send outbound message response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("send outbound message response: %+v"), resp)
 	return nil
 }
 
@@ -721,7 +739,7 @@ func stopFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}stop response:{{/}} %+v\n", info)
+	ux.Print(log, logging.Green.Wrap("stop response: %+v"), info)
 	return nil
 }
 
@@ -749,7 +767,7 @@ func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}save-snapshot response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("save-snapshot response: %+v"), resp)
 	return nil
 }
 
@@ -815,7 +833,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if globalNodeConfig != "" {
-		color.Outf("{{yellow}} global node config provided, will be applied to all nodes{{/}} %+v\n", globalNodeConfig)
+		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes: %s"), globalNodeConfig)
 
 		// validate it's valid JSON
 		var js json.RawMessage
@@ -832,7 +850,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}load-snapshot response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("load-snapshot response: %+v"), resp)
 	return nil
 }
 
@@ -860,7 +878,7 @@ func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}remove-snapshot response:{{/}} %+v\n", resp)
+	ux.Print(log, logging.Green.Wrap("remove-snapshot response: %+v"), resp)
 	return nil
 }
 
@@ -887,16 +905,15 @@ func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}Snapshots:{{/}} %q\n", snapshotNames)
+	ux.Print(log, logging.Green.Wrap("Snapshots: %s"), snapshotNames)
 	return nil
 }
 
 func newClient() (client.Client, error) {
 	return client.New(client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
-	})
+	}, log)
 }
 
 func getAsyncContext() context.Context {

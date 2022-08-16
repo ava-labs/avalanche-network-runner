@@ -378,7 +378,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	if err := networkConfig.Validate(); err != nil {
 		return fmt.Errorf("config failed validation: %w", err)
 	}
-	ln.log.Info("creating network", zap.Int("nodes", len(networkConfig.NodeConfigs)))
+	ln.log.Info("creating network", zap.Int("node-num", len(networkConfig.NodeConfigs)))
 
 	ln.genesis = []byte(networkConfig.Genesis)
 
@@ -502,12 +502,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	ln.log.Info(
 		"adding node",
-		zap.String("name", nodeConfig.Name),
-		zap.String("tmpDir", nodeDir),
-		zap.String("logDir", nodeData.logsDir),
-		zap.String("dbDir", nodeData.dbDir),
-		zap.Uint16("p2pPort", nodeData.p2pPort),
-		zap.Uint16("apiPort", nodeData.apiPort),
+		zap.String("node-name", nodeConfig.Name),
+		zap.String("node-dir", nodeDir),
+		zap.String("log-dir", nodeData.logsDir),
+		zap.String("db-dir", nodeData.dbDir),
+		zap.Uint16("p2p-port", nodeData.p2pPort),
+		zap.Uint16("api-port", nodeData.apiPort),
 	)
 
 	ln.log.Debug(
@@ -555,7 +555,7 @@ func (ln *localNetwork) Healthy(ctx context.Context) error {
 }
 
 func (ln *localNetwork) healthy(ctx context.Context) error {
-	zap.L().Info("checking local network healthiness", zap.Int("nodes", len(ln.nodes)))
+	ln.log.Info("checking local network healthiness", zap.Int("num-of-nodes", len(ln.nodes)))
 
 	// Return unhealthy if the network is stopped
 	if ln.stopCalled() {
@@ -876,7 +876,7 @@ func (ln *localNetwork) buildFlags(
 	// Note these will overwrite existing flags if the same flag is given twice.
 	for flagName, flagVal := range nodeConfig.Flags {
 		if _, ok := warnFlags[flagName]; ok {
-			ln.log.Warn("A provided flag can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flagName", flagName))
+			ln.log.Warn("A provided flag can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flag-name", flagName))
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}

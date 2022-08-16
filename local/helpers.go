@@ -134,9 +134,9 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	nodeRootDir := filepath.Join(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		if os.IsExist(err) {
-			log.Warn("node root directory already exists", zap.String("dir", nodeRootDir))
+			log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
 		} else {
-			return "", fmt.Errorf("error creating temp dir: %w", err)
+			return "", fmt.Errorf("error creating temp dir %w", err)
 		}
 	}
 	return nodeRootDir, nil
@@ -172,9 +172,9 @@ func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, no
 		} else {
 			log.Debug(
 				"not overwriting node config flag with network config flag",
-				zap.String("flagName", flagName),
-				zap.Any("val", val),
-				zap.Any("networkConfigVal", flagVal),
+				zap.String("flag-name", flagName),
+				zap.Any("value", val),
+				zap.Any("network config value", flagVal),
 			)
 		}
 	}
