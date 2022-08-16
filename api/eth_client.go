@@ -42,26 +42,35 @@ type EthClient interface {
 // ethClient websocket ethclient.Client with mutexed api calls and lazy conn (on first call)
 // All calls are wrapped in a mutex, and try to create a connection if it doesn't exist yet
 type ethClient struct {
-	ipAddr string
-	port   uint
-	client ethclient.Client
-	lock   sync.Mutex
+	ipAddr  string
+	chainID string
+	port    uint
+	client  ethclient.Client
+	lock    sync.Mutex
 }
 
 // NewEthClient mainly takes ip/port info for usage in future calls
 // Connection can't be initialized in constructor because node is not ready when the constructor is called
 // It follows convention of most avalanchego api constructors that can be called without having a ready node
 func NewEthClient(ipAddr string, port uint) EthClient {
+	// default to using the C chain
+	return NewEthClientWithChainID(ipAddr, port, "C")
+}
+
+// NewEthClientWithChainID creates an EthClient initialized to connect to
+// ipAddr/port and communicate with the given chainID.
+func NewEthClientWithChainID(ipAddr string, port uint, chainID string) EthClient {
 	return &ethClient{
-		ipAddr: ipAddr,
-		port:   port,
+		ipAddr:  ipAddr,
+		port:    port,
+		chainID: chainID,
 	}
 }
 
 // connect attempts to connect with websocket ethclient API
 func (c *ethClient) connect() error {
 	if c.client == nil {
-		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", c.ipAddr, c.port))
+		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/%s/ws", c.ipAddr, c.port, c.chainID))
 		if err != nil {
 			return err
 		}
