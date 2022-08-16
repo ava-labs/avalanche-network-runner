@@ -186,7 +186,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("root context is done")
 
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server: %v", s.gwServer.Close())
 			<-gwErrc
 		}
 
@@ -198,7 +198,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	case err = <-gRPCErrc:
 		s.log.Warn("gRPC server failed: %s", err)
 		if !s.cfg.GwDisabled {
-			s.log.Warn("closed gRPC gateway server: %s", s.gwServer.Close())
+			s.log.Warn("closed gRPC gateway server: %v", s.gwServer.Close())
 			<-gwErrc
 		}
 
