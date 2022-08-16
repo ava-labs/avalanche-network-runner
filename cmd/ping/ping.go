@@ -12,7 +12,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (
@@ -68,7 +67,7 @@ func pingFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	logString := logging.Green.Wrap("ping")
-	ux.Print(log, logString, zap.Any("response", resp))
+	logString := "ping response: " + logging.Green.Wrap("%s")
+	ux.Print(log, logString, resp)
 	return nil
 }

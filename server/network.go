@@ -20,7 +20,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
 )
 
 type localNetwork struct {
@@ -433,7 +432,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
-			ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("blockchain RPC")), zap.String("vm-id", chainInfo.info.VmId), zap.String("RPC endpoint", fmt.Sprintf("\"%s/ext/bc/%s\"", nodeInfo.GetUri(), chainID)))
+			ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\"")), chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
 		}
 	}
 	return nil
@@ -448,7 +447,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
-		ux.Print(lc.log, logging.Cyan.Wrap("node-info"), zap.String("node-name", name), zap.String("node-ID", nodeInfo.Id), zap.String("URI", nodeInfo.Uri))
+		ux.Print(lc.log, logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri)
 	}
 	return nil
 }
@@ -514,6 +513,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		ux.Print(lc.log, logging.Red.Wrap(logging.Bold.Wrap("terminated network")), zap.Error(serr))
+		ux.Print(lc.log, logging.Red.Wrap(logging.Bold.Wrap("terminated network %s")), serr)
 	})
 }

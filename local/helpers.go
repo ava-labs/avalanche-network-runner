@@ -136,7 +136,7 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 		if os.IsExist(err) {
 			log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
 		} else {
-			return "", fmt.Errorf("error creating temp dir %s", err)
+			return "", fmt.Errorf("error creating temp dir %w", err)
 		}
 	}
 	return nodeRootDir, nil

@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
 )
 
-func Print(log logging.Logger, msg string, args ...zap.Field) {
-	fmt.Println(zap.Any("", args))
-	log.Info(msg, args...)
+func Print(log logging.Logger, msg string, args ...interface{}) {
+	fmtMsg := fmt.Sprintf(msg, args...)
+	fmt.Println(fmtMsg)
+	log.Info(fmtMsg)
 }

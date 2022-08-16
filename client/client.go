@@ -180,7 +180,7 @@ func (c *client) StreamStatus(ctx context.Context, pushInterval time.Duration) (
 	ch := make(chan *rpcpb.ClusterInfo, 1)
 	go func() {
 		defer func() {
-			c.log.Debug("closing stream send ", zap.Error(stream.CloseSend()))
+			c.log.Debug("closing stream send", zap.Error(stream.CloseSend()))
 			close(ch)
 		}()
 		c.log.Info("start receive routine")
@@ -206,9 +206,9 @@ func (c *client) StreamStatus(ctx context.Context, pushInterval time.Duration) (
 				return
 			}
 			if isClientCanceled(stream.Context().Err(), err) {
-				c.log.Warn("failed to receive status request from gRPC stream due to client cancellation: ", zap.Error(err))
+				c.log.Warn("failed to receive status request from gRPC stream due to client cancellation", zap.Error(err))
 			} else {
-				c.log.Warn("failed to receive status request from gRPC stream:", zap.Error(err))
+				c.log.Warn("failed to receive status request from gRPC stream", zap.Error(err))
 			}
 			return
 		}
