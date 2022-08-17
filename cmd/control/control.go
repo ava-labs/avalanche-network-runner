@@ -217,6 +217,13 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
 	}
+	if upgradeConfigs != "" {
+		upgradeConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(upgradeConfigs), &upgradeConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
+	}
 
 	ctx := getAsyncContext()
 
@@ -541,10 +548,9 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
 	}
-
 	if upgradeConfigs != "" {
 		upgradeConfigsMap := make(map[string]string)
-		if err := json.Unmarshal([]byte(chainConfigs), &upgradeConfigsMap); err != nil {
+		if err := json.Unmarshal([]byte(upgradeConfigs), &upgradeConfigsMap); err != nil {
 			return err
 		}
 		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
@@ -620,6 +626,13 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
+	}
+	if upgradeConfigs != "" {
+		upgradeConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(upgradeConfigs), &upgradeConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
