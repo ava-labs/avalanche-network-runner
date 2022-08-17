@@ -356,6 +356,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
+		upgradeConfigs:      req.UpgradeConfigs,
 		logLevel:            s.cfg.LogLevel,
 
 		// to block racey restart
@@ -944,6 +945,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		pluginDir:        req.GetPluginDir(),
 		rootDataDir:      rootDataDir,
 		chainConfigs:     req.ChainConfigs,
+		upgradeConfigs:   req.UpgradeConfigs,
 		globalNodeConfig: req.GetGlobalNodeConfig(),
 		logLevel:         s.cfg.LogLevel,
 

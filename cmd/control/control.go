@@ -502,13 +502,13 @@ func newAddNodeCommand() *cobra.Command {
 		&chainConfigs,
 		"chain-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its config file contents",
+		"[optional] JSON string of map from chain id to its config file contents",
 	)
 	cmd.PersistentFlags().StringVar(
 		&upgradeConfigs,
 		"upgrade-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its upgrade file contents",
+		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
 	return cmd
 }
@@ -589,13 +589,13 @@ func newRestartNodeCommand() *cobra.Command {
 		&chainConfigs,
 		"chain-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its config file contents",
+		"[optional] JSON string of map from chain id to its config file contents",
 	)
 	cmd.PersistentFlags().StringVar(
 		&upgradeConfigs,
 		"upgrade-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its upgrade file contents",
+		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
 	return cmd
 }
@@ -821,7 +821,13 @@ func newLoadSnapshotCommand() *cobra.Command {
 		&chainConfigs,
 		"chain-configs",
 		"",
-		"[optional] JSON string of map that maps from chain id to its config file contents",
+		"[optional] JSON string of map from chain id to its config file contents",
+	)
+	cmd.PersistentFlags().StringVar(
+		&upgradeConfigs,
+		"upgrade-configs",
+		"",
+		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
 	cmd.PersistentFlags().StringVar(
 		&globalNodeConfig,
@@ -851,6 +857,13 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
+	}
+	if upgradeConfigs != "" {
+		upgradeConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(upgradeConfigs), &upgradeConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
 	}
 
 	if globalNodeConfig != "" {
