@@ -87,11 +87,6 @@ type Config struct {
 	RedirectStdout bool `json:"redirectStdout"`
 	// If non-nil, direct this node's Stderr to os.Stderr
 	RedirectStderr bool `json:"redirectStderr"`
-
-	// If non-zero, prefer these ports to the one specified in the config file
-	// Used to persist node ports accross restart
-	ApiPort     uint16
-	StakingPort uint16
 }
 
 // Validate returns an error if this config is invalid

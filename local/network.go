@@ -848,23 +848,17 @@ func (ln *localNetwork) buildFlags(
 		return buildFlagsReturn{}, err
 	}
 
-	// Prefer API port and P2P (staking) port from nodeConfig
-	apiPort, p2pPort := nodeConfig.ApiPort, nodeConfig.StakingPort
-
-	if apiPort == 0 {
-		// Use random free API port unless given in config file
-		apiPort, err = getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
-		if err != nil {
-			return buildFlagsReturn{}, err
-		}
+	// Use random free API port unless given in config file
+	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
+	if err != nil {
+		return buildFlagsReturn{}, err
 	}
 
-	if p2pPort == 0 {
-		// Use a random free P2P (staking) port unless given in config file
-		p2pPort, err = getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
-		if err != nil {
-			return buildFlagsReturn{}, err
-		}
+	// Use a random free P2P (staking) port unless given in config file
+	// Use random free API port unless given in config file
+	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
+	if err != nil {
+		return buildFlagsReturn{}, err
 	}
 
 	// Flags for AvalancheGo
