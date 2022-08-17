@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
-	"github.com/ava-labs/avalanche-network-runner/pkg/color"
-	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanche-network-runner/ux"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +28,7 @@ func NewCommand() *cobra.Command {
 		RunE:  pingFunc,
 	}
 
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
+	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 10*time.Second, "client request timeout")
@@ -36,11 +37,24 @@ func NewCommand() *cobra.Command {
 }
 
 func pingFunc(cmd *cobra.Command, args []string) error {
+	lvl, err := logging.ToLevel(logLevel)
+	if err != nil {
+		return err
+	}
+	lcfg := logging.Config{
+		DisplayLevel: lvl,
+		LogLevel:     logging.Off,
+	}
+	logFactory := logging.NewFactory(lcfg)
+	log, err := logFactory.Make(constants.LogNameControl)
+	if err != nil {
+		return err
+	}
+
 	cli, err := client.New(client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    endpoint,
 		DialTimeout: dialTimeout,
-	})
+	}, log)
 	if err != nil {
 		return err
 	}
@@ -53,6 +67,7 @@ func pingFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("ping response {{green}}%+v{{/}}\n", resp)
+	logString := "ping response: " + logging.Green.Wrap("%s")
+	ux.Print(log, logString, resp)
 	return nil
 }

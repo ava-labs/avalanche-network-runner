@@ -5,14 +5,15 @@ package server
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/pkg/logutil"
 	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -23,6 +24,7 @@ func init() {
 
 var (
 	logLevel           string
+	logDir             string
 	port               string
 	gwPort             string
 	gwDisabled         bool
@@ -39,7 +41,8 @@ func NewCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 	}
 
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
+	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level for server logs")
+	cmd.PersistentFlags().StringVar(&logDir, "log-dir", "", "log directory")
 	cmd.PersistentFlags().StringVar(&port, "port", ":8080", "server port")
 	cmd.PersistentFlags().StringVar(&gwPort, "grpc-gateway-port", ":8081", "grpc-gateway server port")
 	cmd.PersistentFlags().BoolVar(&gwDisabled, "disable-grpc-gateway", false, "true to disable grpc-gateway server (overrides --grpc-gateway-port)")
@@ -51,13 +54,26 @@ func NewCommand() *cobra.Command {
 }
 
 func serverFunc(cmd *cobra.Command, args []string) (err error) {
-	lcfg := logutil.GetDefaultZapLoggerConfig()
-	lcfg.Level = zap.NewAtomicLevelAt(logutil.ConvertToZapLevel(logLevel))
-	logger, err := lcfg.Build()
-	if err != nil {
-		log.Fatalf("failed to build global logger, %v", err)
+	if logDir == "" {
+		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-server-logs-%d", time.Now().Unix()))
+		if err != nil {
+			return err
+		}
 	}
-	_ = zap.ReplaceGlobals(logger)
+	lvl, err := logging.ToLevel(logLevel)
+	if err != nil {
+		return err
+	}
+	lcfg := logging.Config{
+		DisplayLevel: lvl,
+		LogLevel:     lvl,
+	}
+	lcfg.Directory = logDir
+	logFactory := logging.NewFactory(lcfg)
+	log, err := logFactory.Make(constants.LogNameMain)
+	if err != nil {
+		return err
+	}
 
 	s, err := server.New(server.Config{
 		Port:                port,
@@ -66,7 +82,8 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 		DialTimeout:         dialTimeout,
 		RedirectNodesOutput: !disableNodesOutput,
 		SnapshotsDir:        snapshotsDir,
-	})
+		LogLevel:            lvl,
+	}, log)
 	if err != nil {
 		return err
 	}
@@ -81,15 +98,15 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case sig := <-sigc:
-		zap.L().Warn("signal received; closing server", zap.String("signal", sig.String()))
+		log.Warn("signal received; closing server: %s", zap.String("signal", sig.String()))
 		rootCancel()
 		// wait for server stop
 		waitForServerStop := <-errc
-		zap.L().Warn("closed server", zap.Error(waitForServerStop))
+		log.Warn("closed server", zap.Error(waitForServerStop))
 	case serverClosed := <-errc:
 		// server already stopped here
 		_ = rootCancel
-		zap.L().Warn("server closed", zap.Error(serverClosed))
+		log.Warn("server closed", zap.Error(serverClosed))
 	}
 	return err
 }
