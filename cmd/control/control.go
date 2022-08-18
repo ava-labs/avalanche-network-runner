@@ -168,7 +168,7 @@ func newStartCommand() *cobra.Command {
 		&upgradeConfigs,
 		"upgrade-configs",
 		"",
-		"[optional] JSON string of map from chain id to its config file contents",
+		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
 	if err := cmd.MarkPersistentFlagRequired("avalanchego-path"); err != nil {
 		panic(err)

@@ -51,14 +51,6 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
-
-	// default chain configs to be used when adding new nodes to the network
-	// includes the ones received in options, plus default config or snapshot
-	chainConfigs map[string]string
-
-	// default upgrade configs to be used when adding new nodes to the network
-	// includes the ones received in options, plus default config or snapshot
-	upgradeConfigs map[string]string
 }
 
 type chainInfo struct {
@@ -505,15 +497,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 		if lc.pluginDir == "" {
 			lc.pluginDir = pluginDir
 		}
-		// update default chain configs if empty
-		if lc.chainConfigs == nil {
-			lc.chainConfigs = node.GetConfig().ChainConfigFiles
-		}
-		// update default upgrade configs if empty
-		if lc.upgradeConfigs == nil {
-			lc.upgradeConfigs = node.GetConfig().UpgradeConfigFiles
-		}
-
 	}
 	return nil
 }

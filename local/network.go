@@ -98,6 +98,8 @@ type localNetwork struct {
 	binaryPath string
 	// chain config files to use per default
 	chainConfigFiles map[string]string
+	// upgrade config files to use per default
+	upgradeConfigFiles map[string]string
 }
 
 var (
@@ -394,6 +396,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
+	ln.upgradeConfigFiles = networkConfig.UpgradeConfigFiles
 
 	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
@@ -450,6 +453,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		_, ok := nodeConfig.ChainConfigFiles[k]
 		if !ok {
 			nodeConfig.ChainConfigFiles[k] = v
+		}
+	}
+	for k, v := range ln.upgradeConfigFiles {
+		_, ok := nodeConfig.UpgradeConfigFiles[k]
+		if !ok {
+			nodeConfig.UpgradeConfigFiles[k] = v
 		}
 	}
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
