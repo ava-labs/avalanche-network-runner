@@ -59,6 +59,8 @@ type Config struct {
 	BinaryPath string `json:"binaryPath"`
 	// Chain config files to use per default, if not specified in node config
 	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
+	// Upgrade config files to use per default, if not specified in node config
+	UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
 }
 
 // Validate returns an error if this config is invalid

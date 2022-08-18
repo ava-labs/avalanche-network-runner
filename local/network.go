@@ -33,6 +33,7 @@ import (
 const (
 	defaultNodeNamePrefix = "node"
 	configFileName        = "config.json"
+	upgradeConfigFileName = "upgrade.json"
 	stakingKeyFileName    = "staking.key"
 	stakingCertFileName   = "staking.crt"
 	genesisFileName       = "genesis.json"
@@ -97,6 +98,8 @@ type localNetwork struct {
 	binaryPath string
 	// chain config files to use per default
 	chainConfigFiles map[string]string
+	// upgrade config files to use per default
+	upgradeConfigFiles map[string]string
 }
 
 var (
@@ -181,6 +184,7 @@ func init() {
 		ChainConfigFiles: map[string]string{
 			"C": string(cChainConfig),
 		},
+		UpgradeConfigFiles: map[string]string{},
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
@@ -392,6 +396,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
+	ln.upgradeConfigFiles = networkConfig.UpgradeConfigFiles
 
 	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
@@ -448,6 +453,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		_, ok := nodeConfig.ChainConfigFiles[k]
 		if !ok {
 			nodeConfig.ChainConfigFiles[k] = v
+		}
+	}
+	for k, v := range ln.upgradeConfigFiles {
+		_, ok := nodeConfig.UpgradeConfigFiles[k]
+		if !ok {
+			nodeConfig.UpgradeConfigFiles[k] = v
 		}
 	}
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
@@ -725,6 +736,7 @@ func (ln *localNetwork) RestartNode(
 	binaryPath string,
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -752,6 +764,10 @@ func (ln *localNetwork) RestartNode(
 	// apply chain configs
 	for k, v := range chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
+	}
+	// apply upgrade configs
+	for k, v := range upgradeConfigs {
+		nodeConfig.UpgradeConfigFiles[k] = v
 	}
 
 	if err := ln.removeNode(ctx, nodeName); err != nil {

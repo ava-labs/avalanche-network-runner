@@ -228,9 +228,12 @@ message StartRequest {
   // Map of chain name to config file contents.
   // If specified, will create a file "chainname/config.json" with
   // the contents provided here.
-  // Currently only supports C chain, pending generalizing logic
-  // in avalanche-network-runner.
   map<string, string> chain_configs = 9;
+
+  // Map of chain name to upgrade file contents.
+  // If specified, will create a file "chainname/upgrade.json" with
+  // the contents provided here.
+  map<string, string> upgrade_configs = 10;
 }
 
 message StartResponse {
@@ -301,7 +304,15 @@ message RestartNodeRequest {
   optional string exec_path           = 2;
   optional string whitelisted_subnets = 3;
 
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/config.json" with
+  // the contents provided here.
   map<string, string> chain_configs = 4;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/upgrade.json" with
+  // the contents provided here.
+  map<string, string> upgrade_configs = 5;
 }
 
 message RestartNodeResponse {
@@ -320,7 +331,16 @@ message AddNodeRequest {
   string name                       = 1;
   string exec_path                  = 2;
   optional string node_config       = 3;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/config.json" with
+  // the contents provided here.
   map<string, string> chain_configs = 4;
+
+  // Map of chain name to config file contents.
+  // If specified, will create a file "chainname/upgrade.json" with
+  // the contents provided here.
+  map<string, string> upgrade_configs = 5;
 }
 
 message AddNodeResponse {
@@ -367,7 +387,8 @@ message LoadSnapshotRequest {
   optional string plugin_dir = 3;
   optional string root_data_dir = 4;
   map<string, string> chain_configs = 5;
-  optional string global_node_config  = 6;
+  map<string, string> upgrade_configs = 6;
+  optional string global_node_config  = 7;
 }
 
 message LoadSnapshotResponse {

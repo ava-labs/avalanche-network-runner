@@ -226,10 +226,11 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	ret.applyOpts(opts)
 
 	req := &rpcpb.AddNodeRequest{
-		Name:         name,
-		ExecPath:     execPath,
-		NodeConfig:   &ret.globalNodeConfig,
-		ChainConfigs: ret.chainConfigs,
+		Name:           name,
+		ExecPath:       execPath,
+		NodeConfig:     &ret.globalNodeConfig,
+		ChainConfigs:   ret.chainConfigs,
+		UpgradeConfigs: ret.upgradeConfigs,
 	}
 
 	c.log.Info("add node", zap.String("name", name))
@@ -253,6 +254,7 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
 	}
 	req.ChainConfigs = ret.chainConfigs
+	req.UpgradeConfigs = ret.upgradeConfigs
 
 	c.log.Info("restart node", zap.String("name", name))
 	return c.controlc.RestartNode(ctx, req)
@@ -283,8 +285,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	ret := &Op{}
 	ret.applyOpts(opts)
 	req := rpcpb.LoadSnapshotRequest{
-		SnapshotName: snapshotName,
-		ChainConfigs: ret.chainConfigs,
+		SnapshotName:   snapshotName,
+		ChainConfigs:   ret.chainConfigs,
+		UpgradeConfigs: ret.upgradeConfigs,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -333,6 +336,7 @@ type Op struct {
 	customNodeConfigs  map[string]string
 	numSubnets         uint32
 	chainConfigs       map[string]string
+	upgradeConfigs     map[string]string
 }
 
 type OpOption func(*Op)
@@ -390,6 +394,13 @@ func WithBlockchainSpecs(blockchainSpecs []*rpcpb.BlockchainSpec) OpOption {
 func WithChainConfigs(chainConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.chainConfigs = chainConfigs
+	}
+}
+
+// Map from chain name to its upgrade json contents.
+func WithUpgradeConfigs(upgradeConfigs map[string]string) OpOption {
+	return func(op *Op) {
+		op.upgradeConfigs = upgradeConfigs
 	}
 }
 

@@ -51,10 +51,6 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
-
-	// default chain configs to be used when adding new nodes to the network
-	// includes the ones received in options, plus default config or snapshot
-	chainConfigs map[string]string
 }
 
 type chainInfo struct {
@@ -76,6 +72,8 @@ type localNetworkOptions struct {
 
 	// chain configs to be added to the network, besides the ones in default config, or saved snapshot
 	chainConfigs map[string]string
+	// upgrade configs to be added to the network, besides the ones in default config, or saved snapshot
+	upgradeConfigs map[string]string
 
 	// to block racey restart while installing custom chains
 	restartMu *sync.RWMutex
@@ -147,6 +145,9 @@ func (lc *localNetwork) createConfig() error {
 
 		for k, v := range lc.options.chainConfigs {
 			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
+		}
+		for k, v := range lc.options.upgradeConfigs {
+			cfg.NodeConfigs[i].UpgradeConfigFiles[k] = v
 		}
 
 		if cfg.NodeConfigs[i].Flags == nil {
@@ -368,6 +369,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.execPath,
 		buildDir,
 		lc.options.chainConfigs,
+		lc.options.upgradeConfigs,
 		globalNodeConfig,
 	)
 	if err != nil {
@@ -495,11 +497,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 		if lc.pluginDir == "" {
 			lc.pluginDir = pluginDir
 		}
-		// update default chain configs if empty
-		if lc.chainConfigs == nil {
-			lc.chainConfigs = node.GetConfig().ChainConfigFiles
-		}
-
 	}
 	return nil
 }

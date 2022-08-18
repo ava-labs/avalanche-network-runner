@@ -356,6 +356,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
+		upgradeConfigs:      req.UpgradeConfigs,
 		logLevel:            s.cfg.LogLevel,
 
 		// to block racey restart
@@ -727,12 +728,13 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 	}
 
 	nodeConfig := node.Config{
-		Name:             req.Name,
-		Flags:            nodeFlags,
-		BinaryPath:       req.ExecPath,
-		RedirectStdout:   s.cfg.RedirectNodesOutput,
-		RedirectStderr:   s.cfg.RedirectNodesOutput,
-		ChainConfigFiles: req.ChainConfigs,
+		Name:               req.Name,
+		Flags:              nodeFlags,
+		BinaryPath:         req.ExecPath,
+		RedirectStdout:     s.cfg.RedirectNodesOutput,
+		RedirectStderr:     s.cfg.RedirectNodesOutput,
+		ChainConfigFiles:   req.ChainConfigs,
+		UpgradeConfigFiles: req.UpgradeConfigs,
 	}
 
 	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
@@ -773,7 +775,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
-	s.log.Debug("received remove node request", zap.String("name", req.Name))
+	s.log.Debug("received restart node request", zap.String("name", req.Name))
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
 	}
@@ -787,6 +789,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		req.GetExecPath(),
 		req.GetWhitelistedSubnets(),
 		req.GetChainConfigs(),
+		req.GetUpgradeConfigs(),
 	); err != nil {
 		return nil, err
 	}
@@ -942,6 +945,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		pluginDir:        req.GetPluginDir(),
 		rootDataDir:      rootDataDir,
 		chainConfigs:     req.ChainConfigs,
+		upgradeConfigs:   req.UpgradeConfigs,
 		globalNodeConfig: req.GetGlobalNodeConfig(),
 		logLevel:         s.cfg.LogLevel,
 

@@ -28,6 +28,7 @@ func NewNetworkFromSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
 	flags map[string]interface{},
 ) (network.Network, error) {
 	net, err := newNetwork(
@@ -45,7 +46,7 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, flags)
+	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, upgradeConfigs, flags)
 	return net, err
 }
 
@@ -128,11 +129,12 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// save network conf
 	networkConfig := network.Config{
-		Genesis:          string(ln.genesis),
-		Flags:            networkConfigFlags,
-		NodeConfigs:      []node.Config{},
-		BinaryPath:       ln.binaryPath,
-		ChainConfigFiles: ln.chainConfigFiles,
+		Genesis:            string(ln.genesis),
+		Flags:              networkConfigFlags,
+		NodeConfigs:        []node.Config{},
+		BinaryPath:         ln.binaryPath,
+		ChainConfigFiles:   ln.chainConfigFiles,
+		UpgradeConfigFiles: ln.upgradeConfigFiles,
 	}
 
 	for _, nodeConfig := range nodesConfig {
@@ -157,6 +159,7 @@ func (ln *localNetwork) loadSnapshot(
 	binaryPath string,
 	buildDir string,
 	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
 	flags map[string]interface{},
 ) error {
 	ln.lock.Lock()
@@ -208,13 +211,19 @@ func (ln *localNetwork) loadSnapshot(
 			networkConfig.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
 		}
 	}
-	// add chain configs
+	// add chain configs and upgrade configs
 	for i := range networkConfig.NodeConfigs {
 		if networkConfig.NodeConfigs[i].ChainConfigFiles == nil {
 			networkConfig.NodeConfigs[i].ChainConfigFiles = map[string]string{}
 		}
+		if networkConfig.NodeConfigs[i].UpgradeConfigFiles == nil {
+			networkConfig.NodeConfigs[i].UpgradeConfigFiles = map[string]string{}
+		}
 		for k, v := range chainConfigs {
 			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
+		}
+		for k, v := range upgradeConfigs {
+			networkConfig.NodeConfigs[i].UpgradeConfigFiles[k] = v
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
