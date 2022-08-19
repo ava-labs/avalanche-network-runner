@@ -77,8 +77,12 @@ github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj
 github.com/armon/go-radix v1.0.0/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/ava-labs/avalanchego v1.7.17 h1:+Kafk8GaveL/J97yiw+DDtt8TaLWDsyrB61p/QTiEuU=
 github.com/ava-labs/avalanchego v1.7.17/go.mod h1:PDJudeWWz4IXxexK95XRMuziAv6XPpMPbCHGwwlzNfw=
+github.com/ava-labs/avalanchego v1.7.18 h1:x4PrTKIyUZkxhPjjf/a4hQLZDUB8netA6oFMw6Z1M+Q=
+github.com/ava-labs/avalanchego v1.7.18/go.mod h1:Jo21X9sMxvkZNoo8B7GJbbelGrIJbwFPcMhwanink68=
 github.com/ava-labs/coreth v0.8.15-rc.2 h1:JYnxD1FWaTwwsWa92S4eoO9HRa0OD1YAvYThdblbCWQ=
 github.com/ava-labs/coreth v0.8.15-rc.2/go.mod h1:Kobp6Sl243ZwHk3Td6nxbV+naCNsJxFZj7wc1k227cA=
+github.com/ava-labs/coreth v0.8.16-rc.2 h1:Yo6J5faqK9sdnp7yzTIIEGodZqPctvy9l4SLRTVTWck=
+github.com/ava-labs/coreth v0.8.16-rc.2/go.mod h1:iOB8EcOy/9yY1+/MAUqI2UM5GUIuIbX2MVKK1gCHqHs=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
@@ -171,6 +175,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
 github.com/ethereum/go-ethereum v1.10.20 h1:75IW830ClSS40yrQC1ZCMZCt5I+zU16oqId2SiQwdQ4=
 github.com/ethereum/go-ethereum v1.10.20/go.mod h1:LWUN82TCHGpxB3En5HVmLLzPD7YSrEUFmFfN1nKkVN0=
+github.com/ethereum/go-ethereum v1.10.21 h1:5lqsEx92ZaZzRyOqBEXux4/UR06m296RGzN3ol3teJY=
+github.com/ethereum/go-ethereum v1.10.21/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
 github.com/fatih/color v1.13.0 h1:8LOYc1KYPPmyKMuN8QV2DNRWNbLo6LZ0iLs8+mlH53w=
@@ -1054,6 +1060,8 @@ google.golang.org/grpc v1.40.1/go.mod h1:ogyxbiOoUXAkP+4+xa6PZSE9DZgIHtSpzjDTB9K
 google.golang.org/grpc v1.42.0/go.mod h1:k+4IHHFw41K8+bbowsex27ge2rCb65oeWqe4jJ590SU=
 google.golang.org/grpc v1.47.0 h1:9n77onPX5F3qfFCqjy9dhn8PbNQsIKeVU04J9G7umt8=
 google.golang.org/grpc v1.47.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACuMGWk=
+google.golang.org/grpc v1.50.0-dev h1:cL3RBCQpJ9B+dJmkAVg0OeAogLIuGkH/kWiXKX+RVSI=
+google.golang.org/grpc v1.50.0-dev/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
