@@ -12,7 +12,7 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/spf13/cobra v1.3.0
+	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.7.2
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
