@@ -7,7 +7,7 @@ require (
 	github.com/ava-labs/coreth v0.8.16-rc.2
 	github.com/ethereum/go-ethereum v1.10.21
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
-	github.com/onsi/ginkgo/v2 v2.1.4
+	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/otiai10/copy v1.7.0
 	github.com/prometheus/client_golang v1.13.0
@@ -116,7 +116,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
-	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
