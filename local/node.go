@@ -86,7 +86,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	tlsConfg := peer.TLSConfig(*tlsCert)
+	tlsConfg := peer.TLSConfig(*tlsCert, nil)
 	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
 	conn, err := node.getConnFunc(ctx, node)
 	if err != nil {
