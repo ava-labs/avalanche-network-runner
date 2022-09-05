@@ -25,7 +25,7 @@ import (
 )
 
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
-	tlsConfig := peer.TLSConfig(*myTLSCert)
+	tlsConfig := peer.TLSConfig(*myTLSCert, nil)
 	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
 	// this will block until the ssh handshake is done
 	peerID, tlsConn, _, err := upgrader.Upgrade(conn)
