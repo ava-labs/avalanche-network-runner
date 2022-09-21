@@ -1,3 +1,4 @@
 {
-  "http-port": 9650
+  "http-port": 9650,
+  "staking-enabled": false
 }
