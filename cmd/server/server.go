@@ -98,7 +98,7 @@ func serverFunc(cmd *cobra.Command, args []string) (err error) {
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case sig := <-sigc:
-		log.Warn("signal received; closing server: %s", zap.String("signal", sig.String()))
+		log.Warn("signal received: closing server", zap.String("signal", sig.String()))
 		rootCancel()
 		// wait for server stop
 		waitForServerStop := <-errc

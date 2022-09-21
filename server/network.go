@@ -154,17 +154,6 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
 		}
 
-		// set flags applied to the specific node
-		var customNodeConfig map[string]interface{}
-		if lc.options.customNodeConfigs != nil && lc.options.customNodeConfigs[nodeName] != "" {
-			if err := json.Unmarshal([]byte(lc.options.customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
-				return err
-			}
-		}
-		for k, v := range customNodeConfig {
-			cfg.NodeConfigs[i].Flags[k] = v
-		}
-
 		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
 		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
 		if err != nil {
@@ -172,7 +161,7 @@ func (lc *localNetwork) createConfig() error {
 		}
 
 		// remove http port defined in local network config, to get dynamic port
-		// generation when creating a new network
+		// generation as default when creating a new network
 		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
 
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
@@ -187,6 +176,17 @@ func (lc *localNetwork) createConfig() error {
 		cfg.NodeConfigs[i].BinaryPath = lc.execPath
 		cfg.NodeConfigs[i].RedirectStdout = lc.options.redirectNodesOutput
 		cfg.NodeConfigs[i].RedirectStderr = lc.options.redirectNodesOutput
+
+		// set flags applied to the specific node
+		var customNodeConfig map[string]interface{}
+		if lc.options.customNodeConfigs != nil && lc.options.customNodeConfigs[nodeName] != "" {
+			if err := json.Unmarshal([]byte(lc.options.customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
+				return err
+			}
+		}
+		for k, v := range customNodeConfig {
+			cfg.NodeConfigs[i].Flags[k] = v
+		}
 	}
 
 	lc.cfg = cfg

@@ -178,10 +178,11 @@ For example, to set `avalanchego --http-host` flag for all nodes:
 ```bash
 # to expose local RPC server to all traffic
 # (e.g., run network runner within cloud instance)
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","globalNodeConfig":"{\"http-host\":\"0.0.0.0\"}",...}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","globalNodeConfig":"{\"http-host\":\"0.0.0.0\"}"}'
 
 # or
 avalanche-network-runner control start \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
 --global-node-config '{"http-host":"0.0.0.0"}'
 ```
 
@@ -208,14 +209,32 @@ The network-runner supports avalanchego node configuration at different levels.
 3. `--custom-node-configs` is a map of JSON strings representing the _complete_ network with individual configs. This allows to configure each node independently. If set, `--number-of-nodes` will be **ignored** to avoid conflicts.
 4. The configs can be combined and will be merged, i.e. one could set global `--global-node-config` entries applied to each node, and also set `--custom-node-configs` for additional entries.
 5. Common `--custom-node-configs` entries override `--global-node-config` entries which override the standard set.
-6. The following entries will be **ignored in all cases** because the network-runner needs to set them internally to function properly:
 
-```sh
-  --log-dir
-  --db-dir
-  --http-port
-  --staking-port
-  --public-ip
+Example usage of `--custom-node-configs` to get deterministic API port numbers:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/start -d\
+'{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","customNodeConfigs":
+{
+"node1":"{\"http-port\":9650}",
+"node2":"{\"http-port\":9652}",
+"node3":"{\"http-port\":9654}",
+"node4":"{\"http-port\":9656}",
+"node5":"{\"http-port\":9658}"
+}
+}'
+
+# or
+avalanche-network-runner control start \
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+--custom-node-configs \
+'{
+"node1":"{\"http-port\":9650}",
+"node2":"{\"http-port\":9652}",
+"node3":"{\"http-port\":9654}",
+"node4":"{\"http-port\":9656}",
+"node5":"{\"http-port\":9658}"
+}'
 ```
 
 **NAMING CONVENTION**: Currently, node names should be called `node` + a number, i.e. `node1,node2,node3,...node 101`
