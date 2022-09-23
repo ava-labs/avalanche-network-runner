@@ -513,6 +513,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		ux.Print(lc.log, logging.Red.Wrap(logging.Bold.Wrap("terminated network %s")), serr)
+		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
 	})
 }
