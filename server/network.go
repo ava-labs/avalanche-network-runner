@@ -81,6 +81,8 @@ type localNetworkOptions struct {
 	snapshotsDir string
 
 	logLevel logging.Level
+
+	reassignPortsIfUsed bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -217,7 +219,7 @@ func (lc *localNetwork) start() error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed)
 	if err != nil {
 		return err
 	}
@@ -371,6 +373,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.chainConfigs,
 		lc.options.upgradeConfigs,
 		globalNodeConfig,
+		lc.options.reassignPortsIfUsed,
 	)
 	if err != nil {
 		return err

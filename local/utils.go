@@ -19,6 +19,19 @@ const (
 	netListenTimeout = 3 * time.Second
 )
 
+// isFreePort verifies a given [port] is free
+func isFreePort(port uint16) bool {
+	// Verify it's free by binding to it
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		// Could not bind to [port]. Assumed to be not free.
+		return false
+	}
+	// We could bind to [port] so must be free.
+	_ = l.Close()
+	return true
+}
+
 // getFreePort generates a random port number and then
 // verifies it is free. If it is, returns that port, otherwise retries.
 // Returns an error if no free port is found within [netListenTimeout].
@@ -33,14 +46,10 @@ func getFreePort() (uint16, error) {
 		default:
 			// Generate random port in [minPort, maxPort]
 			port := uint16(rand.Intn(maxPort-minPort+1) + minPort)
-			// Verify it's free by binding to it
-			l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-			if err != nil {
-				// Couldn't bind to this port. Try another.
+			if !isFreePort(port) {
+				// Not free. Try another.
 				continue
 			}
-			// We could bind to [port] so must be free.
-			_ = l.Close()
 			return port, nil
 		}
 	}
