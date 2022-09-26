@@ -1,3 +1,4 @@
 {
-  "http-port": 9656
+  "http-port": 9656,
+  "staking-port": 9657
 }
