@@ -359,7 +359,23 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	netConfig := NewDefaultConfig(binaryPath)
 	if int(numNodes) > len(netConfig.NodeConfigs) {
 		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
-		refNodeConfig := netConfig.NodeConfigs[0]
+		refNodeConfig := netConfig.NodeConfigs[len(netConfig.NodeConfigs)-1]
+		refApiPortIntf, ok := refNodeConfig.Flags[config.HTTPPortKey]
+		if !ok {
+			return netConfig, fmt.Errorf("could not get last standard api port from config")
+		}
+		refApiPort, ok := refApiPortIntf.(float64)
+		if !ok {
+			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refApiPortIntf)
+		}
+		refStakingPortIntf, ok := refNodeConfig.Flags[config.StakingPortKey]
+		if !ok {
+			return netConfig, fmt.Errorf("could not get last standard staking port from config")
+		}
+		refStakingPort, ok := refStakingPortIntf.(float64)
+		if !ok {
+			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refStakingPortIntf)
+		}
 		for i := 0; i < toAdd; i++ {
 			nodeConfig := refNodeConfig
 			stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
@@ -368,13 +384,10 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 			}
 			nodeConfig.StakingKey = string(stakingKey)
 			nodeConfig.StakingCert = string(stakingCert)
-			// replace api port in refNodeConfig.ConfigFile
-			apiPort, err := getFreePort()
-			if err != nil {
-				return netConfig, fmt.Errorf("couldn't get free API port: %w", err)
-			}
+			// replace ports
 			nodeConfig.Flags = map[string]interface{}{
-				config.HTTPPortKey: int(apiPort),
+				config.HTTPPortKey:    int(refApiPort) + (i+1)*2,
+				config.StakingPortKey: int(refStakingPort) + (i+1)*2,
 			}
 			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
 		}
