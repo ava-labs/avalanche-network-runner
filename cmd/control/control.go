@@ -102,6 +102,7 @@ var (
 	chainConfigs        string
 	upgradeConfigs      string
 	reassignPortsIfUsed bool
+	dynamicPorts        bool
 )
 
 func newStartCommand() *cobra.Command {
@@ -175,7 +176,13 @@ func newStartCommand() *cobra.Command {
 		&reassignPortsIfUsed,
 		"reassign-ports-if-used",
 		false,
-		"true to reassign given ports if already taken",
+		"true to reassign default/given ports if already taken",
+	)
+	cmd.PersistentFlags().BoolVar(
+		&dynamicPorts,
+		"dynamic-ports",
+		false,
+		"true to assign dynamic ports",
 	)
 	if err := cmd.MarkPersistentFlagRequired("avalanchego-path"); err != nil {
 		panic(err)
@@ -196,6 +203,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
+		client.WithDynamicPorts(dynamicPorts),
 	}
 
 	if globalNodeConfig != "" {

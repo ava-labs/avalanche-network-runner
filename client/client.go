@@ -123,6 +123,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
+	req.DynamicPorts = &ret.dynamicPorts
 
 	c.log.Info("start")
 	return c.controlc.Start(ctx, req)
@@ -340,6 +341,7 @@ type Op struct {
 	chainConfigs        map[string]string
 	upgradeConfigs      map[string]string
 	reassignPortsIfUsed bool
+	dynamicPorts        bool
 }
 
 type OpOption func(*Op)
@@ -423,6 +425,12 @@ func WithNumSubnets(numSubnets uint32) OpOption {
 func WithReassignPortsIfUsed(reassignPortsIfUsed bool) OpOption {
 	return func(op *Op) {
 		op.reassignPortsIfUsed = reassignPortsIfUsed
+	}
+}
+
+func WithDynamicPorts(dynamicPorts bool) OpOption {
+	return func(op *Op) {
+		op.dynamicPorts = dynamicPorts
 	}
 }
 

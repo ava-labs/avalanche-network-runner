@@ -359,6 +359,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		upgradeConfigs:      req.UpgradeConfigs,
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
+		dynamicPorts:        req.GetDynamicPorts(),
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
