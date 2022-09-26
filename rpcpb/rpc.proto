@@ -234,6 +234,9 @@ message StartRequest {
   // If specified, will create a file "chainname/upgrade.json" with
   // the contents provided here.
   map<string, string> upgrade_configs = 10;
+
+  // reassign given ports (currently if using custom_node_configs) if they are already taken
+  optional bool reassign_ports_if_used = 11;
 }
 
 message StartResponse {
@@ -389,6 +392,7 @@ message LoadSnapshotRequest {
   map<string, string> chain_configs = 5;
   map<string, string> upgrade_configs = 6;
   optional string global_node_config  = 7;
+  optional bool reassign_ports_if_used = 8;
 }
 
 message LoadSnapshotResponse {
