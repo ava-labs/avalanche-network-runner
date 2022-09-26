@@ -768,6 +768,7 @@ The helper function `NewDefaultNetwork` returns a network using a pre-defined co
 func NewDefaultNetwork(
   log logging.Logger,
   binaryPath string,
+  reassignPortsIfUsed,
 ) (network.Network, error)
 ```
 
