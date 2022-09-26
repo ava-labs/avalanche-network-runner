@@ -196,8 +196,8 @@ func TestAttachPeer(t *testing.T) {
 	// For message creation and parsing
 	mc, err := message.NewCreator(
 		prometheus.NewRegistry(),
-		true,
 		"",
+		true,
 		10*time.Second,
 	)
 	assert.NoError(err)
