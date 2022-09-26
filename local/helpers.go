@@ -24,7 +24,7 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 		{
 			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
 			path:      filepath.Join(nodeRootDir, stakingKeyFileName),
-			pathKey:   config.StakingKeyPathKey,
+			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
