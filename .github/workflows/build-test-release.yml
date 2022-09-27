@@ -55,7 +55,28 @@ jobs:
       - name: Run e2e tests
         shell: bash
         run: scripts/tests.e2e.sh 1.8.0 1.8.1 0.3.0
-  release:
+  release-darwin:
+    needs: [lint_test, unit_test, e2e_test]
+    runs-on: macos-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist --config .goreleaser-darwin.yml
+        env:
+          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release-linux:
     needs: [lint_test, unit_test, e2e_test]
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +93,7 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --rm-dist
+          args: release --rm-dist --config .goreleaser-linux.yml
         env:
           # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
