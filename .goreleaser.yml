@@ -1,0 +1,8 @@
+release:
+  # Repo in which the release will be created.
+  # Default is extracted from the origin remote URL or empty if its private hosted.
+  github:
+    owner: ava-labs
+    name: avalanche-network-runner
+  extra_files:
+    - glob: ./dist/avalanche-network-runner*tar.gz
