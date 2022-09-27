@@ -93,7 +93,7 @@ jobs:
       - name: Set up arm64 cross compiler
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Test arm64 cross compiler
-        run: gcc-aarch64-linux-gnu
+        run: aarch64-linux-gnu-gcc
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
