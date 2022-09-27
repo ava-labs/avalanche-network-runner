@@ -14,6 +14,11 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=1
+    overrides:
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=gcc-aarch64-linux-gnu
 release:
   # Repo in which the release will be created.
   # Default is extracted from the origin remote URL or empty if its private hosted.
