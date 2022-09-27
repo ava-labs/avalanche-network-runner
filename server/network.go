@@ -83,6 +83,8 @@ type localNetworkOptions struct {
 	logLevel logging.Level
 
 	reassignPortsIfUsed bool
+
+	dynamicPorts bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -162,9 +164,11 @@ func (lc *localNetwork) createConfig() error {
 			return err
 		}
 
-		// remove http port defined in local network config, to get dynamic port
-		// generation as default when creating a new network
-		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+		if lc.options.dynamicPorts {
+			// remove http port defined in local network config, to get dynamic port generation
+			delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+			delete(cfg.NodeConfigs[i].Flags, config.StakingPortKey)
+		}
 
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
