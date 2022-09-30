@@ -22,7 +22,7 @@ jobs:
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
       - uses: actions/checkout@v2
         #- name: golangci-lint
-        # uses: golangci/golangci-lint-action@v2
+        #uses: golangci/golangci-lint-action@v2
         #with:
         #  version: "v1.47.0"
         #  working-directory: .
@@ -39,8 +39,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18
-      - run: ls
-        #- run: go test -v -timeout 10m -race ./...
+          #- run: go test -v -timeout 10m -race ./...
   e2e_test:
     name: e2e tests
     runs-on: ubuntu-latest
@@ -57,28 +56,7 @@ jobs:
         shell: bash
         run: ls
           #run: scripts/tests.e2e.sh 1.8.0 1.8.1 0.3.0
-  release-darwin:
-    needs: [lint_test, unit_test, e2e_test]
-    runs-on: macos-latest
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist --config .goreleaser-darwin.yml --skip-publish
-        env:
-          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  release-linux:
+  release:
     needs: [lint_test, unit_test, e2e_test]
     runs-on: ubuntu-latest
     steps:
@@ -92,27 +70,17 @@ jobs:
           go-version: 1.18
       - name: Set up arm64 cross compiler
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist --config .goreleaser-linux.yml --skip-publish
-        env:
-          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  release:
-    needs: [release-darwin, release-linux]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git checkout
+      - name: Checkout osxcross
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
+          repository: tpoechtrager/osxcross
+          path: osxcross
+      - name: Build osxcross
+        run: |
+          cd osxcross/tarballs
+          wget https://github.com/phracker/MacOSX-SDKs/releases/download/10.13/MacOSX10.11.sdk.tar.xz
+          cd ..
+          UNATTENDED=1 ./build.sh
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
