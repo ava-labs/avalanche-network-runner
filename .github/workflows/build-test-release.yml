@@ -77,11 +77,10 @@ jobs:
           path: osxcross
       - name: Build osxcross
         run: |
-          cd osxcross/tarballs
+          cd osxcross
           wget https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz -O tarballs/MacOSX11.3.sdk.tar.xz
-          cd ..
           UNATTENDED=1 ./build.sh
-          echo $PWD/osxcross/target/bin >> $GITHUB_PATH
+          echo $PWD/target/bin >> $GITHUB_PATH
       - name: check path
         run: echo $PATH
       - name: Run GoReleaser
