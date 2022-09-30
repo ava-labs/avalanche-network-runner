@@ -1131,7 +1131,7 @@ func TestWriteFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
-	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingKeyPathKey, stakingKeyPath)
+	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingTLSKeyPathKey, stakingKeyPath)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
 	stakingCertFlag := fmt.Sprintf("--%s=%v", config.StakingCertPathKey, stakingCertPath)
 	genesisPath := filepath.Join(tmpDir, genesisFileName)

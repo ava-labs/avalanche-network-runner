@@ -114,7 +114,7 @@ func run(log logging.Logger, binaryPath string) error {
 	}
 
 	// Get its node ID through its API and print it
-	node1ID, err := node1.GetAPIClient().InfoAPI().GetNodeID(context.Background())
+	node1ID, _, err := node1.GetAPIClient().InfoAPI().GetNodeID(context.Background())
 	if err != nil {
 		return err
 	}
