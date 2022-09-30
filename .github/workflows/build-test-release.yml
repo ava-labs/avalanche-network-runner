@@ -78,9 +78,12 @@ jobs:
       - name: Build osxcross
         run: |
           cd osxcross/tarballs
-          wget https://github.com/phracker/MacOSX-SDKs/releases/download/10.13/MacOSX10.11.sdk.tar.xz
+          wget https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz -O tarballs/MacOSX11.3.sdk.tar.xz
           cd ..
           UNATTENDED=1 ./build.sh
+          echo $PWD/osxcross/target/bin >> $GITHUB_PATH
+      - name: check path
+        run: echo $PATH
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -90,3 +93,4 @@ jobs:
         env:
           # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PATH: 
