@@ -80,7 +80,6 @@ jobs:
           wget https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz -O tarballs/MacOSX11.3.sdk.tar.xz
           UNATTENDED=1 ./build.sh
           echo $PWD/target/bin >> $GITHUB_PATH
-          cd ..
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
