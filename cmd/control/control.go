@@ -90,17 +90,19 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath string
-	numNodes           uint32
-	pluginDir          string
-	globalNodeConfig   string
-	addNodeConfig      string
-	blockchainSpecsStr string
-	customNodeConfigs  string
-	rootDataDir        string
-	numSubnets         uint32
-	chainConfigs       string
-	upgradeConfigs     string
+	avalancheGoBinPath  string
+	numNodes            uint32
+	pluginDir           string
+	globalNodeConfig    string
+	addNodeConfig       string
+	blockchainSpecsStr  string
+	customNodeConfigs   string
+	rootDataDir         string
+	numSubnets          uint32
+	chainConfigs        string
+	upgradeConfigs      string
+	reassignPortsIfUsed bool
+	dynamicPorts        bool
 )
 
 func newStartCommand() *cobra.Command {
@@ -170,6 +172,18 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&reassignPortsIfUsed,
+		"reassign-ports-if-used",
+		false,
+		"true to reassign default/given ports if already taken",
+	)
+	cmd.PersistentFlags().BoolVar(
+		&dynamicPorts,
+		"dynamic-ports",
+		false,
+		"true to assign dynamic ports",
+	)
 	if err := cmd.MarkPersistentFlagRequired("avalanchego-path"); err != nil {
 		panic(err)
 	}
@@ -188,6 +202,8 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 		client.WithRootDataDir(rootDataDir),
+		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
+		client.WithDynamicPorts(dynamicPorts),
 	}
 
 	if globalNodeConfig != "" {
@@ -854,6 +870,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"",
 		"[optional] global node config as JSON string, applied to all nodes",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&reassignPortsIfUsed,
+		"reassign-ports-if-used",
+		false,
+		"true to reassign snapshot ports if already taken",
+	)
 	return cmd
 }
 
@@ -868,6 +890,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
+		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 	}
 
 	if chainConfigs != "" {

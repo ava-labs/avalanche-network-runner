@@ -122,6 +122,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.customNodeConfigs != nil {
 		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
+	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
+	req.DynamicPorts = &ret.dynamicPorts
 
 	c.log.Info("start")
 	return c.controlc.Start(ctx, req)
@@ -301,6 +303,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
 	}
+	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
 
@@ -326,17 +329,19 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes           uint32
-	execPath           string
-	whitelistedSubnets string
-	globalNodeConfig   string
-	rootDataDir        string
-	pluginDir          string
-	blockchainSpecs    []*rpcpb.BlockchainSpec
-	customNodeConfigs  map[string]string
-	numSubnets         uint32
-	chainConfigs       map[string]string
-	upgradeConfigs     map[string]string
+	numNodes            uint32
+	execPath            string
+	whitelistedSubnets  string
+	globalNodeConfig    string
+	rootDataDir         string
+	pluginDir           string
+	blockchainSpecs     []*rpcpb.BlockchainSpec
+	customNodeConfigs   map[string]string
+	numSubnets          uint32
+	chainConfigs        map[string]string
+	upgradeConfigs      map[string]string
+	reassignPortsIfUsed bool
+	dynamicPorts        bool
 }
 
 type OpOption func(*Op)
@@ -414,6 +419,18 @@ func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 func WithNumSubnets(numSubnets uint32) OpOption {
 	return func(op *Op) {
 		op.numSubnets = numSubnets
+	}
+}
+
+func WithReassignPortsIfUsed(reassignPortsIfUsed bool) OpOption {
+	return func(op *Op) {
+		op.reassignPortsIfUsed = reassignPortsIfUsed
+	}
+}
+
+func WithDynamicPorts(dynamicPorts bool) OpOption {
+	return func(op *Op) {
+		op.dynamicPorts = dynamicPorts
 	}
 }
 

@@ -99,10 +99,12 @@ func getConfigEntry(
 }
 
 // getPort looks up the port config in the config file, if there is none, it tries to get a random free port from the OS
+// if [reassingIfUsed] is true, and the port from config is not free, also tries to get a random free port
 func getPort(
 	flags map[string]interface{},
 	configFile map[string]interface{},
 	portKey string,
+	reassignIfUsed bool,
 ) (port uint16, err error) {
 	if portIntf, ok := flags[portKey]; ok {
 		if portFromFlags, ok := portIntf.(int); ok {
@@ -123,8 +125,18 @@ func getPort(
 		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
 		port, err = getFreePort()
 		if err != nil {
-			return 0, fmt.Errorf("couldn't get free API port: %w", err)
+			return 0, fmt.Errorf("couldn't get free port: %w", err)
 		}
+	}
+	if reassignIfUsed && !isFreePort(port) {
+		port, err = getFreePort()
+		if err != nil {
+			return 0, fmt.Errorf("couldn't get free port: %w", err)
+		}
+	}
+	// last check, avoid starting network with used ports
+	if !isFreePort(port) {
+		return 0, fmt.Errorf("port %d is not free", port)
 	}
 	return port, nil
 }

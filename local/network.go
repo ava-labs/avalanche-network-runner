@@ -100,6 +100,8 @@ type localNetwork struct {
 	chainConfigFiles map[string]string
 	// upgrade config files to use per default
 	upgradeConfigFiles map[string]string
+	// if true, for ports given in conf that are already taken, assign new random ones
+	reassignPortsIfUsed bool
 }
 
 var (
@@ -228,6 +230,7 @@ func NewNetwork(
 	networkConfig network.Config,
 	rootDir string,
 	snapshotsDir string,
+	reassignPortsIfUsed bool,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -240,6 +243,7 @@ func NewNetwork(
 		},
 		rootDir,
 		snapshotsDir,
+		reassignPortsIfUsed,
 	)
 	if err != nil {
 		return net, err
@@ -256,6 +260,7 @@ func newNetwork(
 	nodeProcessCreator NodeProcessCreator,
 	rootDir string,
 	snapshotsDir string,
+	reassignPortsIfUsed bool,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -275,15 +280,16 @@ func newNetwork(
 	}
 	// Create the network
 	net := &localNetwork{
-		nextNodeSuffix:     1,
-		nodes:              map[string]*localNode{},
-		onStopCh:           make(chan struct{}),
-		log:                log,
-		bootstraps:         beacon.NewSet(),
-		newAPIClientF:      newAPIClientF,
-		nodeProcessCreator: nodeProcessCreator,
-		rootDir:            rootDir,
-		snapshotsDir:       snapshotsDir,
+		nextNodeSuffix:      1,
+		nodes:               map[string]*localNode{},
+		onStopCh:            make(chan struct{}),
+		log:                 log,
+		bootstraps:          beacon.NewSet(),
+		newAPIClientF:       newAPIClientF,
+		nodeProcessCreator:  nodeProcessCreator,
+		rootDir:             rootDir,
+		snapshotsDir:        snapshotsDir,
+		reassignPortsIfUsed: reassignPortsIfUsed,
 	}
 	return net, nil
 }
@@ -310,9 +316,10 @@ func newNetwork(
 func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
+	reassignPortsIfUsed bool,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return NewNetwork(log, config, "", "")
+	return NewNetwork(log, config, "", "", reassignPortsIfUsed)
 }
 
 func copyMapStringInterface(flags map[string]interface{}) map[string]interface{} {
@@ -352,7 +359,23 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	netConfig := NewDefaultConfig(binaryPath)
 	if int(numNodes) > len(netConfig.NodeConfigs) {
 		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
-		refNodeConfig := netConfig.NodeConfigs[0]
+		refNodeConfig := netConfig.NodeConfigs[len(netConfig.NodeConfigs)-1]
+		refApiPortIntf, ok := refNodeConfig.Flags[config.HTTPPortKey]
+		if !ok {
+			return netConfig, fmt.Errorf("could not get last standard api port from config")
+		}
+		refApiPort, ok := refApiPortIntf.(float64)
+		if !ok {
+			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refApiPortIntf)
+		}
+		refStakingPortIntf, ok := refNodeConfig.Flags[config.StakingPortKey]
+		if !ok {
+			return netConfig, fmt.Errorf("could not get last standard staking port from config")
+		}
+		refStakingPort, ok := refStakingPortIntf.(float64)
+		if !ok {
+			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refStakingPortIntf)
+		}
 		for i := 0; i < toAdd; i++ {
 			nodeConfig := refNodeConfig
 			stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
@@ -361,13 +384,10 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 			}
 			nodeConfig.StakingKey = string(stakingKey)
 			nodeConfig.StakingCert = string(stakingCert)
-			// replace api port in refNodeConfig.ConfigFile
-			apiPort, err := getFreePort()
-			if err != nil {
-				return netConfig, fmt.Errorf("couldn't get free API port: %w", err)
-			}
+			// replace ports
 			nodeConfig.Flags = map[string]interface{}{
-				config.HTTPPortKey: int(apiPort),
+				config.HTTPPortKey:    int(refApiPort) + (i+1)*2,
+				config.StakingPortKey: int(refStakingPort) + (i+1)*2,
 			}
 			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
 		}
@@ -858,14 +878,14 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// Use random free API port unless given in config file
-	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
+	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey, ln.reassignPortsIfUsed)
 	if err != nil {
 		return buildFlagsReturn{}, err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
-	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
+	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey, ln.reassignPortsIfUsed)
 	if err != nil {
 		return buildFlagsReturn{}, err
 	}
@@ -888,11 +908,20 @@ func (ln *localNetwork) buildFlags(
 	}
 	flags = append(flags, fileFlags...)
 
+	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
+	portFlags := map[string]struct{}{
+		config.HTTPPortKey:    struct{}{},
+		config.StakingPortKey: struct{}{},
+	}
+
 	// Add flags given in node config.
 	// Note these will overwrite existing flags if the same flag is given twice.
 	for flagName, flagVal := range nodeConfig.Flags {
 		if _, ok := warnFlags[flagName]; ok {
 			ln.log.Warn("A provided flag can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flag-name", flagName))
+		}
+		if _, ok := portFlags[flagName]; ok {
+			continue
 		}
 		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
 	}

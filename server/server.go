@@ -358,6 +358,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
 		logLevel:            s.cfg.LogLevel,
+		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
+		dynamicPorts:        req.GetDynamicPorts(),
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously
@@ -374,6 +376,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	if err := s.network.start(); err != nil {
+		s.log.Warn("start failed to complete", zap.Error(err))
 		s.network = nil
 		s.clusterInfo = nil
 		return nil, err
@@ -941,13 +944,14 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:         req.GetExecPath(),
-		pluginDir:        req.GetPluginDir(),
-		rootDataDir:      rootDataDir,
-		chainConfigs:     req.ChainConfigs,
-		upgradeConfigs:   req.UpgradeConfigs,
-		globalNodeConfig: req.GetGlobalNodeConfig(),
-		logLevel:         s.cfg.LogLevel,
+		execPath:            req.GetExecPath(),
+		pluginDir:           req.GetPluginDir(),
+		rootDataDir:         rootDataDir,
+		chainConfigs:        req.ChainConfigs,
+		upgradeConfigs:      req.UpgradeConfigs,
+		globalNodeConfig:    req.GetGlobalNodeConfig(),
+		logLevel:            s.cfg.LogLevel,
+		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 
 		// to block racey restart
 		// "s.network.start" runs asynchronously

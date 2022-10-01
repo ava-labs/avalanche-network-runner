@@ -81,6 +81,10 @@ type localNetworkOptions struct {
 	snapshotsDir string
 
 	logLevel logging.Level
+
+	reassignPortsIfUsed bool
+
+	dynamicPorts bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -160,9 +164,11 @@ func (lc *localNetwork) createConfig() error {
 			return err
 		}
 
-		// remove http port defined in local network config, to get dynamic port
-		// generation as default when creating a new network
-		delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+		if lc.options.dynamicPorts {
+			// remove http port defined in local network config, to get dynamic port generation
+			delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
+			delete(cfg.NodeConfigs[i].Flags, config.StakingPortKey)
+		}
 
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
@@ -217,7 +223,7 @@ func (lc *localNetwork) start() error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir)
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed)
 	if err != nil {
 		return err
 	}
@@ -371,6 +377,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.chainConfigs,
 		lc.options.upgradeConfigs,
 		globalNodeConfig,
+		lc.options.reassignPortsIfUsed,
 	)
 	if err != nil {
 		return err
@@ -510,6 +517,6 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		ux.Print(lc.log, logging.Red.Wrap(logging.Bold.Wrap("terminated network %s")), serr)
+		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
 	})
 }

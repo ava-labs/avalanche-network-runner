@@ -30,6 +30,7 @@ func NewNetworkFromSnapshot(
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
 	flags map[string]interface{},
+	reassignPortsIfUsed bool,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -42,6 +43,7 @@ func NewNetworkFromSnapshot(
 		},
 		rootDir,
 		snapshotsDir,
+		reassignPortsIfUsed,
 	)
 	if err != nil {
 		return net, err
