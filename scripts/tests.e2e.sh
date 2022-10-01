@@ -132,6 +132,7 @@ echo "building runner"
 ./scripts/build.sh
 
 echo "building e2e.test"
+CGO_FLAGS="-O -D__BLST_PORTABLE__"
 # to install the ginkgo binary (required for test build and run)
 go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.1.3
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e

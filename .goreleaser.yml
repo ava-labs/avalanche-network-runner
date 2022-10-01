@@ -15,6 +15,7 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=1
+      - CGO_FLAGS="-O -D__BLST_PORTABLE__"
     overrides:
       - goos: linux
         goarch: arm64
