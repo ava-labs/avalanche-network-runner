@@ -935,8 +935,8 @@ func testNetworkConfig(t *testing.T) network.Config {
 	assert.NoError(err)
 	for i := 0; i < 3; i++ {
 		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
-        delete(networkConfig.NodeConfigs[i].Flags, config.HTTPPortKey)
-        delete(networkConfig.NodeConfigs[i].Flags, config.StakingPortKey)
+		delete(networkConfig.NodeConfigs[i].Flags, config.HTTPPortKey)
+		delete(networkConfig.NodeConfigs[i].Flags, config.StakingPortKey)
 	}
 	return networkConfig
 }
