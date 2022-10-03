@@ -15,7 +15,7 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=1
-      - CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+      - CGO_CFLAGS=-O -D__BLST_PORTABLE__
     overrides:
       - goos: linux
         goarch: arm64
@@ -29,7 +29,7 @@ builds:
         goarch: amd64
         goamd64: v1
         env:
-          - CC=o64-clang
+          - CC=oa64-clang
 release:
   # Repo in which the release will be created.
   # Default is extracted from the origin remote URL or empty if its private hosted.
