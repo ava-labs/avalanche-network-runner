@@ -29,7 +29,7 @@ builds:
         goarch: amd64
         goamd64: v1
         env:
-          - CC=oa64-clang
+          - CC=o64-clang
 release:
   # Repo in which the release will be created.
   # Default is extracted from the origin remote URL or empty if its private hosted.
