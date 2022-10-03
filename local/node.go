@@ -94,8 +94,8 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 	mc, err := message.NewCreator(
 		prometheus.NewRegistry(),
-		true,
 		"",
+		true,
 		10*time.Second,
 	)
 	if err != nil {

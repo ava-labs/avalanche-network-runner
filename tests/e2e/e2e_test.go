@@ -418,8 +418,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 			mc, err := message.NewCreator(
 				prometheus.NewRegistry(),
-				true,
 				"",
+				true,
 				10*time.Second,
 			)
 			gomega.Ω(err).Should(gomega.BeNil())

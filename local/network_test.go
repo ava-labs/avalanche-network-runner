@@ -935,6 +935,8 @@ func testNetworkConfig(t *testing.T) network.Config {
 	assert.NoError(err)
 	for i := 0; i < 3; i++ {
 		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
+		delete(networkConfig.NodeConfigs[i].Flags, config.HTTPPortKey)
+		delete(networkConfig.NodeConfigs[i].Flags, config.StakingPortKey)
 	}
 	return networkConfig
 }
@@ -1131,7 +1133,7 @@ func TestWriteFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
-	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingKeyPathKey, stakingKeyPath)
+	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingTLSKeyPathKey, stakingKeyPath)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
 	stakingCertFlag := fmt.Sprintf("--%s=%v", config.StakingCertPathKey, stakingCertPath)
 	genesisPath := filepath.Join(tmpDir, genesisFileName)

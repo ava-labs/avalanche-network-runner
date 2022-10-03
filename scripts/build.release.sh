@@ -14,10 +14,7 @@ go install -v github.com/goreleaser/goreleaser@latest
 
 # e.g.,
 # git tag 1.0.0
-goreleaser release \
---config .goreleaser.yml \
---skip-announce \
---skip-publish
+#goreleaser release --config .goreleaser.yml --skip-announce --skip-publish
 
 # to test without git tags
-# goreleaser release --config .goreleaser.yml --rm-dist --skip-announce --skip-publish --snapshot
+goreleaser release --config .goreleaser.yml --rm-dist --skip-announce --skip-publish --snapshot
