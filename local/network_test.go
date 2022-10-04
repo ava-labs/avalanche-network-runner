@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -912,7 +913,7 @@ func emptyNetworkConfig() (network.Config, error) {
 		[]network.AddrAndBalance{
 			{
 				Addr:    ids.GenerateTestShortID(),
-				Balance: 1,
+				Balance: big.NewInt(1),
 			},
 		},
 		nil,
