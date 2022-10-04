@@ -58,6 +58,8 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
 github.com/ava-labs/avalanche-ledger-go v0.0.6 h1:d49EKL562iMbX305EjgBivYVVvkWghLlGS4YP9QeAzc=
 github.com/ava-labs/avalanche-ledger-go v0.0.6/go.mod h1:TU0U64JTMF1uCr7aS4BOrDY1bnHh6i5FenFXTsssm/c=
+github.com/ava-labs/avalanche-ledger-go v0.0.7-0.20221004225828-f58bbf639ae4 h1:11KeIyDgSwKaGeXImoRl2IRD/5buHONEZe2O1efbDrw=
+github.com/ava-labs/avalanche-ledger-go v0.0.7-0.20221004225828-f58bbf639ae4/go.mod h1:TU0U64JTMF1uCr7aS4BOrDY1bnHh6i5FenFXTsssm/c=
 github.com/ava-labs/avalanchego v1.8.6 h1:eYyW/m1+3o8HbhXsd6k52hcGxDTyGYfXHj7PX7fqc4A=
 github.com/ava-labs/avalanchego v1.8.6/go.mod h1:nYYiHRS6LmA+05rLVLDjaVjB3D7LZwAmBqYi0mweEgI=
 github.com/ava-labs/coreth v0.10.0-rc.1 h1:OIJmXLpKzkyBjmrbPqFEYGM+suewknNOb3iLctWluuM=

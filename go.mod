@@ -27,7 +27,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ava-labs/avalanche-ledger-go v0.0.6 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.7-0.20221004225828-f58bbf639ae4 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
