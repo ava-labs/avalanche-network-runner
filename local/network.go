@@ -26,8 +26,11 @@ import (
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"github.com/ava-labs/avalanche-ledger-go"
 )
 
 const (
@@ -123,6 +126,23 @@ func init() {
 		panic(err)
 	}
 
+    // get X custom ledger addr 0 to use as prefunded addr at genesis
+	ledgerDev, err := ledger.Connect()
+	if err != nil {
+        panic(err)
+	}
+	ledgerAddr, err := ledgerDev.Address("fuji", 0)
+	if err != nil {
+        panic(err)
+	}
+    ledgerAddrStr, err := address.Format("X", constants.FallbackHRP, ledgerAddr.ShortAddr[:])
+	if err != nil {
+        panic(err)
+	}
+	if err := ledgerDev.Disconnect(); err != nil {
+        panic(err)
+	}
+
 	// load genesis, updating validation start time
 	genesis, err := fs.ReadFile(configsDir, "genesis.json")
 	if err != nil {
@@ -139,7 +159,7 @@ func init() {
 	if !ok {
 		panic(errors.New("could not get allocations in genesis"))
 	}
-	for _, allocIntf := range allocations {
+	for i, allocIntf := range allocations {
 		alloc, ok := allocIntf.(map[string]interface{})
 		if !ok {
 			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
@@ -157,6 +177,10 @@ func init() {
 				sched["locktime"] = float64(lockTime)
 			}
 		}
+        if i == 1 {
+            // replace prefunded with ledger addr
+            alloc["avaxAddr"] = ledgerAddrStr
+        }
 	}
 	updatedGenesis, err := json.Marshal(genesisMap)
 	if err != nil {
