@@ -131,7 +131,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-    fmt.Println("PLEASE PROVIDE PUBLIC KEY ON THE LEDGER DEVICE")
+	fmt.Println("PLEASE PROVIDE PUBLIC KEY ON THE LEDGER DEVICE")
 	ledgerAddr, err := ledgerDev.Address(0)
 	if err != nil {
 		panic(err)
