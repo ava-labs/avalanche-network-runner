@@ -21,6 +21,8 @@ require (
 	google.golang.org/protobuf v1.28.1
 )
 
+replace github.com/zondax/ledger-go => ../ledger-go/
+
 require (
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
