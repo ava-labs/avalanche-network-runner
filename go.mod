@@ -27,7 +27,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ava-labs/avalanche-ledger-go v0.0.7-0.20221005122221-d97828ed5657 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.7-0.20221006030208-e6e27d143bf4 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
@@ -116,7 +116,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	github.com/zondax/hid v0.9.0 // indirect
-	github.com/zondax/ledger-go v0.12.2 // indirect
+	github.com/zondax/ledger-go v0.12.3-0.20221005223406-dbd460b7296d // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
