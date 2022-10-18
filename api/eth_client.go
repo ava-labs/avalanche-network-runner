@@ -69,7 +69,7 @@ func NewEthClientWithChainID(ipAddr string, port uint, chainID string) EthClient
 
 // connect attempts to connect with websocket ethclient API
 func (c *ethClient) connect() error {
-	if c.client == nil {
+	if c.client == ethclient.Client(nil) {
 		client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d/ext/bc/%s/ws", c.ipAddr, c.port, c.chainID))
 		if err != nil {
 			return err
@@ -81,7 +81,7 @@ func (c *ethClient) connect() error {
 
 // Close closes opened connection (if any)
 func (c *ethClient) Close() {
-	if c.client == nil {
+	if c.client == ethclient.Client(nil) {
 		return
 	}
 	c.lock.Lock()
