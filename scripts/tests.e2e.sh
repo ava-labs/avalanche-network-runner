@@ -166,7 +166,7 @@ echo "running e2e tests"
 --grpc-gateway-endpoint="0.0.0.0:8081" \
 --avalanchego-path-1=/tmp/avalanchego-v${VERSION_1}/avalanchego \
 --avalanchego-path-2=/tmp/avalanchego-v${VERSION_2}/avalanchego \
---subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
+--subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm || (kill ${PID}; exit)
 
-kill -9 ${PID}
+kill ${PID}
 echo "ALL SUCCESS!"
