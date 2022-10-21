@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	coreth_params "github.com/ava-labs/coreth/params"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -158,6 +159,28 @@ func init() {
 			}
 		}
 	}
+
+	// set the cchain genesis directly from coreth
+	// the whole of `cChainGenesis` should be set as a string, not a json object...
+	corethCChainGenesis := coreth_params.AvalancheLocalChainConfig
+	// but the part in coreth is only the "config" part.
+	// In order to set it easily, first we get the cChainGenesis item
+	cChainGenesis := genesisMap["cChainGenesis"]
+	// convert it to a map
+	cChainGenesisMap, ok := cChainGenesis.(map[string]interface{})
+	if !ok {
+		panic("expected field 'cChainGenesis' of genesisMap to be a map[string]interface{}, but it failed")
+	}
+	// set the `config` key to the actual coreth object
+	cChainGenesisMap["config"] = corethCChainGenesis
+	// and then marshal everything into a string
+	genesisBytes, err := json.Marshal(cChainGenesisMap)
+	if err != nil {
+		panic(err)
+	}
+	// this way the whole of `cChainGenesis` is a properly escaped string
+	genesisMap["cChainGenesis"] = string(genesisBytes)
+	// now we can marshal the *whole* thing into bytes
 	updatedGenesis, err := json.Marshal(genesisMap)
 	if err != nil {
 		panic(err)
@@ -910,8 +933,8 @@ func (ln *localNetwork) buildFlags(
 
 	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
 	portFlags := map[string]struct{}{
-		config.HTTPPortKey:    struct{}{},
-		config.StakingPortKey: struct{}{},
+		config.HTTPPortKey:    {},
+		config.StakingPortKey: {},
 	}
 
 	// Add flags given in node config.
