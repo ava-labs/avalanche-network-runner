@@ -12,7 +12,7 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
@@ -69,7 +69,7 @@ require (
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.2.0 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jackpal/gateway v1.0.6 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jessevdk/go-flags v1.5.0 // indirect
