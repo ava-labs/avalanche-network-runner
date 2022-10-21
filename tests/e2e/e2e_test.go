@@ -9,12 +9,15 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
@@ -26,6 +29,7 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ethereum/go-ethereum/common"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
@@ -146,7 +150,7 @@ var _ = ginkgo.AfterSuite(func() {
 })
 
 var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
-	ginkgo.It("can create blockhains", func() {
+	ginkgo.It("can create blockchains", func() {
 		existingSubnetID := ""
 		ginkgo.By("start with blockchain specs", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath2)
@@ -529,6 +533,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
+
 		ginkgo.By("starting", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Start(ctx, execPath1)
@@ -691,6 +696,36 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			_, err := cli.RemoveSnapshot(ctx, "pepe")
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot not found"))
+		})
+	})
+	ginkgo.It("basic coreth functionality", func() {
+		var (
+			uris []string
+			err  error
+		)
+		ginkgo.By("getURIs", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			uris, err = cli.URIs(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(uris).Should(gomega.HaveLen(5))
+		})
+		ginkgo.By("get cChain balance", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			// pick a "random" node
+			testNode := uris[2]
+			nodeURL, err := url.Parse(testNode)
+			gomega.Ω(err).Should(gomega.BeNil())
+			uintPort, err := strconv.Atoi(nodeURL.Port())
+			gomega.Ω(err).Should(gomega.BeNil())
+			ethClient := api.NewEthClient(nodeURL.Hostname(), uint(uintPort))
+			addr := common.HexToAddress("0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+			balance, err := ethClient.BalanceAt(ctx, addr, nil)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(balance).Should(gomega.Not(gomega.BeNil()))
+			gomega.Ω(balance.Uint64()).Should(gomega.BeNumerically(">", 0))
+			fmt.Println(balance.Uint64())
 		})
 	})
 })
