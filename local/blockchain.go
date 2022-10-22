@@ -702,7 +702,7 @@ func (ln *localNetwork) reloadVMPlugins(
 	return nil
 }
 
-func createBlockchains(
+func (ln *localNetwork) createBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 	baseWallet primary.Wallet,
@@ -719,10 +719,6 @@ func createBlockchains(
 			return nil, err
 		}
 		genesisBytes := chainSpec.Genesis
-		fmt.Println(string(chainSpec.Genesis))
-		fmt.Println(string(chainSpec.ChainConfig))
-		fmt.Println(string(chainSpec.NetworkUpgrade))
-		return nil, fmt.Errorf("pepe")
 
 		log.Info("creating blockchain tx",
 			zap.String("vm-name", vmName),
@@ -730,22 +726,51 @@ func createBlockchains(
 			zap.Int("bytes length of genesis", len(genesisBytes)),
 		)
 		cctx, cancel := createDefaultCtx(ctx)
+		defer cancel()
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
 		if err != nil {
 			return nil, err
 		}
-		blockchainID, err := baseWallet.P().IssueCreateChainTx(
+		utx, err := baseWallet.P().Builder().NewCreateChainTx(
 			subnetID,
 			genesisBytes,
 			vmID,
 			nil,
 			vmName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
+		}
+		tx, err := baseWallet.P().Signer().SignUnsigned(cctx, utx)
+		if err != nil {
+			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
+		}
+
+		chainID := tx.ID()
+		for nodeName := range ln.nodes {
+			ln.nodes[nodeName].config.UpgradeConfigFiles[k] = v
+			nodeConfig := node.config
+			// depending on how the user generated the config, different nodes config flags
+			// may point to the same map, so we made a copy to avoid always modifying the same value
+			nodeConfigFlags := make(map[string]interface{})
+			for fk, fv := range nodeConfig.Flags {
+				nodeConfigFlags[fk] = fv
+			}
+			nodeConfig.Flags = nodeConfigFlags
+			nodesConfig[nodeName] = nodeConfig
+			nodesDbDir[nodeName] = node.GetDbDir()
+		}
+
+		blockchainID, err := baseWallet.P().IssueTx(
+			tx,
 			common.WithContext(cctx),
 			defaultPoll,
 		)
-		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("failure creating blockchain: %w", err)
+			return nil, fmt.Errorf("failure issuing create blockchain: %w", err)
+		}
+		if blockchainID != chainID {
+			return nil, fmt.Errorf("failure issuing create blockchain: txID differs from blockchaindID")
 		}
 
 		blockchainIDs[i] = blockchainID
@@ -755,6 +780,8 @@ func createBlockchains(
 			zap.String("vm-ID", vmID.String()),
 			zap.String("blockchain-ID", blockchainID.String()),
 		)
+
+		return nil, fmt.Errorf("pepe")
 	}
 
 	return blockchainIDs, nil

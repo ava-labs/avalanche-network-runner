@@ -464,6 +464,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.ChainConfigFiles == nil {
 		nodeConfig.ChainConfigFiles = map[string]string{}
 	}
+	if nodeConfig.UpgradeConfigFiles == nil {
+		nodeConfig.UpgradeConfigFiles = map[string]string{}
+	}
 
 	// load node defaults
 	if nodeConfig.BinaryPath == "" {
