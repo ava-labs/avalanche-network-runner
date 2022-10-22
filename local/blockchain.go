@@ -192,6 +192,16 @@ func (ln *localNetwork) installCustomChains(
 		platformCli = platformvm.NewClient(clientURI)
 	}
 
+	// refresh vm list
+	if err := ln.reloadVMPlugins(ctx); err != nil {
+		return nil, err
+	}
+
+	// create blockchain from txs before spending more utxos
+	if err := ln.createBlockchains(ctx, chainSpecs, blockchainIDs, blockchainTxs, baseWallet, ln.log); err != nil {
+		return nil, err
+	}
+
 	// get all subnets for add subnet validator request
 	subnetIDs := []ids.ID{}
 	for _, chainSpec := range chainSpecs {
@@ -202,14 +212,6 @@ func (ln *localNetwork) installCustomChains(
 		subnetIDs = append(subnetIDs, subnetID)
 	}
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
-		return nil, err
-	}
-
-	if err := ln.reloadVMPlugins(ctx); err != nil {
-		return nil, err
-	}
-
-	if err := ln.createBlockchains(ctx, chainSpecs, blockchainIDs, blockchainTxs, baseWallet, ln.log); err != nil {
 		return nil, err
 	}
 
