@@ -746,20 +746,41 @@ func (ln *localNetwork) createBlockchains(
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
 		chainID := tx.ID()
-		chainIDStr := chainID.String()
+		chainAlias := chainID.String()
 
-		// update config info for snapshopt/restart purposes
-		// put into defaults and reset node specifics
+		// create config and network upgrade files
 		if chainSpec.ChainConfig != nil {
-			ln.chainConfigFiles[chainIDStr] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainIDStr)
+				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
+				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+				chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
+				if err := createFileAndWrite(chainConfigPath, chainSpec.ChainConfig); err != nil {
+					return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
+				}
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
-			ln.upgradeConfigFiles[chainIDStr] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainIDStr)
+				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
+				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+				chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
+				if err := createFileAndWrite(chainUpgradePath, chainSpec.NetworkUpgrade); err != nil {
+					return nil, fmt.Errorf("couldn't write file at %q: %w", chainUpgradePath, err)
+				}
+			}
+		}
+		// update config info for snapshopt/restart purposes
+		// put into defaults and reset node specifics
+		if chainSpec.ChainConfig != nil {
+			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
+			for nodeName := range ln.nodes {
+				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
+			}
+		}
+		if chainSpec.NetworkUpgrade != nil {
+			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
+			for nodeName := range ln.nodes {
+				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
 			}
 		}
 
