@@ -180,16 +180,10 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, testKeyAddr, pTXs)
+		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, pTXs, clientURI)
 		if err != nil {
 			return nil, err
 		}
-		// reset client uri after node restart
-		clientURI, err = ln.getClientURI()
-		if err != nil {
-			return nil, err
-		}
-		platformCli = platformvm.NewClient(clientURI)
 	}
 
 	// refresh vm list
@@ -211,6 +205,7 @@ func (ln *localNetwork) installCustomChains(
 		}
 		subnetIDs = append(subnetIDs, subnetID)
 	}
+	// add subnet validators
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
 		return nil, err
 	}
@@ -274,16 +269,11 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, testKeyAddr, pTXs)
+	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, pTXs, clientURI)
 	if err != nil {
 		return nil, err
 	}
 
-	clientURI, err = ln.getClientURI()
-	if err != nil {
-		return nil, err
-	}
-	platformCli = platformvm.NewClient(clientURI)
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
 		return nil, err
 	}
@@ -306,8 +296,8 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 func (ln *localNetwork) restartNodesAndResetWallet(
 	ctx context.Context,
 	subnetIDs []ids.ID,
-	testKeyAddr ids.ShortID,
 	pTXs []ids.ID,
+	clientURI string,
 ) (primary.Wallet, error) {
 	println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
@@ -316,19 +306,9 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 	}
 	println()
 	ln.log.Info(logging.Green.Wrap("reconnecting the wallet client after restart"))
-	clientURI, err := ln.getClientURI()
-	if err != nil {
-		return nil, err
-	}
 	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
 	allTxs := append(pTXs, subnetIDs...)
-	baseWallet, err := primary.NewWalletWithTxs(ctx, clientURI, testKeychain, allTxs...)
-	if err != nil {
-		return nil, err
-	}
-	ln.log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
-
-	return baseWallet, nil
+	return primary.NewWalletWithTxs(ctx, clientURI, testKeychain, allTxs...)
 }
 
 func (ln *localNetwork) waitForCustomChainsReady(
@@ -444,17 +424,12 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	ln.flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
 
 	for nodeName, node := range ln.nodes {
-		nodeConfig := node.GetConfig()
-
 		// delete node specific flag so as to use default one
+		nodeConfig := node.GetConfig()
 		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
 
 		ln.log.Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
-		if err := ln.removeNode(ctx, nodeName); err != nil {
-			return err
-		}
-
-		if _, err := ln.addNode(nodeConfig); err != nil {
+		if err := ln.restartNode(ctx, nodeName, "", "", nil, nil); err != nil {
 			return err
 		}
 
