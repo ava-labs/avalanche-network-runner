@@ -193,7 +193,7 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	blockchainIDs, err := createBlockchains(ctx, chainSpecs, baseWallet, testKeyAddr, ln.log)
+	blockchainIDs, err := ln.createBlockchains(ctx, chainSpecs, baseWallet, testKeyAddr, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -745,20 +745,22 @@ func (ln *localNetwork) createBlockchains(
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
-
 		chainID := tx.ID()
-		for nodeName := range ln.nodes {
-			ln.nodes[nodeName].config.UpgradeConfigFiles[k] = v
-			nodeConfig := node.config
-			// depending on how the user generated the config, different nodes config flags
-			// may point to the same map, so we made a copy to avoid always modifying the same value
-			nodeConfigFlags := make(map[string]interface{})
-			for fk, fv := range nodeConfig.Flags {
-				nodeConfigFlags[fk] = fv
+		chainIDStr := chainID.String()
+
+		// update config info for snapshopt/restart purposes
+		// put into defaults and reset node specifics
+		if chainSpec.ChainConfig != nil {
+			ln.chainConfigFiles[chainIDStr] = string(chainSpec.ChainConfig)
+			for nodeName := range ln.nodes {
+				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainIDStr)
 			}
-			nodeConfig.Flags = nodeConfigFlags
-			nodesConfig[nodeName] = nodeConfig
-			nodesDbDir[nodeName] = node.GetDbDir()
+		}
+		if chainSpec.NetworkUpgrade != nil {
+			ln.upgradeConfigFiles[chainIDStr] = string(chainSpec.NetworkUpgrade)
+			for nodeName := range ln.nodes {
+				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainIDStr)
+			}
 		}
 
 		blockchainID, err := baseWallet.P().IssueTx(
