@@ -803,8 +803,6 @@ func (ln *localNetwork) createBlockchains(
 			zap.String("vm-ID", vmID.String()),
 			zap.String("blockchain-ID", blockchainID.String()),
 		)
-
-		return nil, fmt.Errorf("pepe")
 	}
 
 	return blockchainIDs, nil
