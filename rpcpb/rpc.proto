@@ -209,7 +209,12 @@ message StartRequest {
   // If not specified, will be derived from the exec_path (its basedir)
   optional string plugin_dir = 6;
 
-  // The list of custom chain's VM name, genesis file path, and (optional) subnet id to use.
+  // The list of:
+  // - custom chain's VM name
+  // - genesis file path
+  // - (optional) subnet id to use.
+  // - chain config file path
+  // - network upgrade file path
   //
   // subnet id must be always nil when using StartRequest, as the network is empty and has no preloaded
   // subnet ids available.
@@ -250,10 +255,17 @@ message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
   optional string subnet_id = 3;
+  string chain_config = 4;
+  string network_upgrade = 5;
 }
 
 message CreateBlockchainsRequest {
-  // The list of custom chain's VM name, genesis file path, and (optional) subnet id to use.
+  // The list of:
+  // - custom chain's VM name
+  // - genesis file path
+  // - (optional) subnet id to use.
+  // - chain config file path
+  // - network upgrade file path
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
