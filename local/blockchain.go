@@ -718,12 +718,16 @@ func createBlockchains(
 		if err != nil {
 			return nil, err
 		}
-		vmGenesisBytes := chainSpec.Genesis
+		genesisBytes := chainSpec.Genesis
+		fmt.Println(string(chainSpec.Genesis))
+		fmt.Println(string(chainSpec.ChainConfig))
+		fmt.Println(string(chainSpec.NetworkUpgrade))
+		return nil, fmt.Errorf("pepe")
 
 		log.Info("creating blockchain tx",
 			zap.String("vm-name", vmName),
 			zap.String("vm-ID", vmID.String()),
-			zap.Int("bytes length of genesis", len(vmGenesisBytes)),
+			zap.Int("bytes length of genesis", len(genesisBytes)),
 		)
 		cctx, cancel := createDefaultCtx(ctx)
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
@@ -732,7 +736,7 @@ func createBlockchains(
 		}
 		blockchainID, err := baseWallet.P().IssueCreateChainTx(
 			subnetID,
-			vmGenesisBytes,
+			genesisBytes,
 			vmID,
 			nil,
 			vmName,

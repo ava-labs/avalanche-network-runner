@@ -86,9 +86,9 @@ var (
 )
 
 const (
-	MinNodes            uint32 = 1
-	DefaultNodes        uint32 = 5
-	stopOnSignalTimeout        = 2 * time.Second
+	MinNodes     uint32 = 1
+	DefaultNodes uint32 = 5
+	stopTimeout         = 2 * time.Second
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
@@ -212,7 +212,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	}
 
 	if s.network != nil {
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopOnSignalTimeout)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
 		defer stopCtxCancel()
 		s.network.stop(stopCtx)
 		s.log.Warn("network stopped")
@@ -389,11 +389,12 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 	case <-s.network.stopCh:
 		return
 	case serr := <-s.network.startErrCh:
-		// TODO: decide what to do here, general failure cause network stop()?
-		// maybe try decide if operation was partial (undesired network, fail)
-		// or was not stated (preconditions check, continue)
 		s.log.Warn("async call failed to complete", zap.String("async-call", waitMsg), zap.Error(serr))
-		panic(serr)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
+		s.network.stop(stopCtx)
+		stopCtxCancel()
+		s.network = nil
+		s.clusterInfo = nil
 	case <-readyCh:
 		s.mu.Lock()
 		s.clusterInfo.Healthy = true
