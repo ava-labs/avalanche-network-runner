@@ -341,7 +341,7 @@ avalanche-network-runner control create-subnets 5
 To create a blockchain without a subnet id (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
@@ -350,7 +350,7 @@ avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_na
 To create a blockchain with a subnet id (does not require restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
@@ -359,7 +359,7 @@ avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_na
 To create a blockchain with a subnet id, and both chain config and network upgrade file paths (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","customVms":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains --blockchain-specs '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]' --plugin-dir $PLUGIN_DIR
@@ -570,7 +570,7 @@ cat /tmp/subnet-evm.genesis.json
 AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
 
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json"}}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json"}}'
 
 # or
 avalanche-network-runner control start \
@@ -589,7 +589,7 @@ curl -X POST -k http://localhost:8081/v1/control/status -d ''
 Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}}'
 
 # or
 avalanche-network-runner control start \
@@ -656,7 +656,7 @@ cat /tmp/blobvm.genesis.json
 AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
 
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"vm_name":"blobvm","genesis":"/tmp/blobvm.genesis.json"}}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":{"vm_name":"blobvm","genesis":"/tmp/blobvm.genesis.json"}}'
 
 # or
 avalanche-network-runner control start \
@@ -675,7 +675,7 @@ curl -X POST -k http://localhost:8081/v1/control/status -d ''
 Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","customVms":{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}}'
 
 # or
 avalanche-network-runner control start \
