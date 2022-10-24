@@ -759,7 +759,7 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
 				chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
 				if err := createFileAndWrite(chainConfigPath, chainSpec.ChainConfig); err != nil {
-					return false, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
+					return false, fmt.Errorf("couldn't write chain config file at %q: %w", chainConfigPath, err)
 				}
 			}
 		}
@@ -770,7 +770,7 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
 				chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
 				if err := createFileAndWrite(chainUpgradePath, chainSpec.NetworkUpgrade); err != nil {
-					return false, fmt.Errorf("couldn't write file at %q: %w", chainUpgradePath, err)
+					return false, fmt.Errorf("couldn't write network upgrade file at %q: %w", chainUpgradePath, err)
 				}
 			}
 		}
