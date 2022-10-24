@@ -110,7 +110,7 @@ func (ln *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and install custom chains")))
 
 	clientURI, err := ln.getClientURI()
@@ -168,11 +168,11 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
-	blockchainIDs, blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, baseWallet, ln.log)
+	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, baseWallet, ln.log)
 	if err != nil {
 		return nil, err
 	}
-	blockchainFilesCreated, err := ln.createBlockchainConfigFiles(chainSpecs, blockchainIDs, ln.log)
+	blockchainFilesCreated, err := ln.createBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (ln *localNetwork) installCustomChains(
 	}
 
 	// create blockchain from txs before spending more utxos
-	if err := ln.createBlockchains(ctx, chainSpecs, blockchainIDs, blockchainTxs, baseWallet, ln.log); err != nil {
+	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, baseWallet, ln.log); err != nil {
 		return nil, err
 	}
 
@@ -226,11 +226,11 @@ func (ln *localNetwork) installCustomChains(
 			chainName:    chainSpec.VmName,
 			vmID:         vmID,
 			subnetID:     subnetID,
-			blockchainID: blockchainIDs[i],
+			blockchainID: blockchainTxs[i].ID(),
 		}
 	}
 
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("checking the remaining balance of the base wallet"))
 	balances, err := baseWallet.P().Builder().GetBalance()
 	if err != nil {
@@ -245,7 +245,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 ) ([]ids.ID, error) {
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create subnets")))
 
 	clientURI, err := ln.getClientURI()
@@ -282,7 +282,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("checking the remaining balance of the base wallet"))
 	balances, err := baseWallet.P().Builder().GetBalance()
 	if err != nil {
@@ -299,12 +299,12 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 	pTXs []ids.ID,
 	clientURI string,
 ) (primary.Wallet, error) {
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 	if err := ln.restartNodesWithWhitelistedSubnets(ctx, subnetIDs); err != nil {
 		return nil, err
 	}
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("reconnecting the wallet client after restart"))
 	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
 	allTxs := append(pTXs, subnetIDs...)
@@ -315,7 +315,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 ) error {
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("waiting for custom chains to report healthy...")))
 
 	if err := ln.healthy(ctx); err != nil {
@@ -369,10 +369,10 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		}
 	}
 
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("all custom chains are running!!!"))
 
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap(logging.Bold.Wrap("all custom chains are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status")))
 
 	return nil
@@ -398,7 +398,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 	ctx context.Context,
 	subnetIDs []ids.ID,
 ) (err error) {
-	println()
+	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("restarting each node"), zap.String("whitelisted-subnets", config.WhitelistedSubnetsKey))
 	whitelistedSubnetIDsMap := map[string]struct{}{}
 	currentSubnets, err := ln.getCurrentSubnets(ctx)
@@ -452,7 +452,7 @@ func setupWallet(
 	testKeyAddr = testKey.PublicKey().Address()
 	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
 
-	println()
+	fmt.Println()
 	log.Info(logging.Green.Wrap("setting up the base wallet with the seed test key"))
 
 	baseWallet, err = primary.NewWalletWithTxs(ctx, clientURI, testKeychain, pTXs...)
@@ -461,7 +461,7 @@ func setupWallet(
 	}
 	log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
 
-	println()
+	fmt.Println()
 	log.Info(logging.Green.Wrap("check if the seed test key has enough balance to create validators and subnets"))
 	avaxAssetID = baseWallet.P().AVAXAssetID()
 	balances, err := baseWallet.P().Builder().GetBalance()
@@ -538,7 +538,7 @@ func createSubnets(
 	testKeyAddr ids.ShortID,
 	log logging.Logger,
 ) ([]ids.ID, error) {
-	println()
+	fmt.Println()
 	log.Info(logging.Green.Wrap("creating subnets VM"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	var i uint32
@@ -696,16 +696,15 @@ func createBlockchainTxs(
 	chainSpecs []network.BlockchainSpec,
 	baseWallet primary.Wallet,
 	log logging.Logger,
-) ([]ids.ID, []*txs.Tx, error) {
-	println()
+) ([]*txs.Tx, error) {
+	fmt.Println()
 	log.Info(logging.Green.Wrap("creating tx for each custom chain"))
-	blockchainIDs := make([]ids.ID, len(chainSpecs))
 	blockchainTxs := make([]*txs.Tx, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.VmName
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		genesisBytes := chainSpec.Genesis
 
@@ -718,7 +717,7 @@ func createBlockchainTxs(
 		defer cancel()
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		utx, err := baseWallet.P().Builder().NewCreateChainTx(
 			subnetID,
@@ -728,30 +727,29 @@ func createBlockchainTxs(
 			vmName,
 		)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
+			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
 		}
 		tx, err := baseWallet.P().Signer().SignUnsigned(cctx, utx)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
+			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
 
-		blockchainIDs[i] = tx.ID()
 		blockchainTxs[i] = tx
 	}
 
-	return blockchainIDs, blockchainTxs, nil
+	return blockchainTxs, nil
 }
 
 func (ln *localNetwork) createBlockchainConfigFiles(
 	chainSpecs []network.BlockchainSpec,
-	blockchainIDs []ids.ID,
+	blockchainTxs []*txs.Tx,
 	log logging.Logger,
 ) (bool, error) {
-	println()
+	fmt.Println()
 	created := false
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
 	for i, chainSpec := range chainSpecs {
-		chainAlias := blockchainIDs[i].String()
+		chainAlias := blockchainTxs[i].ID().String()
 
 		// create config and network upgrade files
 		if chainSpec.ChainConfig != nil {
@@ -797,12 +795,11 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 func (ln *localNetwork) createBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
-	blockchainIDs []ids.ID,
 	blockchainTxs []*txs.Tx,
 	baseWallet primary.Wallet,
 	log logging.Logger,
 ) error {
-	println()
+	fmt.Println()
 	log.Info(logging.Green.Wrap("creating each custom chain"))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.VmName
@@ -826,7 +823,7 @@ func (ln *localNetwork) createBlockchains(
 		if err != nil {
 			return fmt.Errorf("failure issuing create blockchain: %w", err)
 		}
-		if blockchainID != blockchainIDs[i] {
+		if blockchainID != blockchainTxs[i].ID() {
 			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchaindID")
 		}
 
