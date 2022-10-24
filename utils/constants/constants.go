@@ -2,8 +2,15 @@
 // See the file LICENSE for licensing terms.
 package constants
 
+import "path/filepath"
+
 const (
 	LogNameMain    = "main"
 	LogNameControl = "control"
 	LogNameTest    = "test"
+)
+
+var (
+	LocalConfigDir   = filepath.Join("local", "default")
+	LocalGenesisFile = filepath.Join(LocalConfigDir, "genesis.json")
 )

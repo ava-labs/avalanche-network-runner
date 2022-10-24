@@ -2,11 +2,9 @@ package local
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net"
 	"os"
 	"os/user"
@@ -19,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
@@ -26,7 +25,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	coreth_params "github.com/ava-labs/coreth/params"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -106,8 +104,6 @@ type localNetwork struct {
 }
 
 var (
-	//go:embed default
-	embeddedDefaultNetworkConfigDir embed.FS
 	// Pre-defined network configuration.
 	// [defaultNetworkConfig] should not be modified.
 	// TODO add method Copy() to network.Config to prevent
@@ -119,20 +115,12 @@ var (
 
 // populate default network config from embedded default directory
 func init() {
-	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	// load genesis, updating validation start time
+	genesisMap, err := utils.LoadGenesisMap()
 	if err != nil {
 		panic(err)
 	}
 
-	// load genesis, updating validation start time
-	genesis, err := fs.ReadFile(configsDir, "genesis.json")
-	if err != nil {
-		panic(err)
-	}
-	var genesisMap map[string]interface{}
-	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
-		panic(err)
-	}
 	startTime := time.Now().Unix()
 	lockTime := startTime + genesisLocktimeStartimeDelta
 	genesisMap["startTime"] = float64(startTime)
@@ -160,26 +148,6 @@ func init() {
 		}
 	}
 
-	// set the cchain genesis directly from coreth
-	// the whole of `cChainGenesis` should be set as a string, not a json object...
-	corethCChainGenesis := coreth_params.AvalancheLocalChainConfig
-	// but the part in coreth is only the "config" part.
-	// In order to set it easily, first we get the cChainGenesis item
-	cChainGenesis := genesisMap["cChainGenesis"]
-	// convert it to a map
-	cChainGenesisMap, ok := cChainGenesis.(map[string]interface{})
-	if !ok {
-		panic("expected field 'cChainGenesis' of genesisMap to be a map[string]interface{}, but it failed")
-	}
-	// set the `config` key to the actual coreth object
-	cChainGenesisMap["config"] = corethCChainGenesis
-	// and then marshal everything into a string
-	genesisBytes, err := json.Marshal(cChainGenesisMap)
-	if err != nil {
-		panic(err)
-	}
-	// this way the whole of `cChainGenesis` is a properly escaped string
-	genesisMap["cChainGenesis"] = string(genesisBytes)
 	// now we can marshal the *whole* thing into bytes
 	updatedGenesis, err := json.Marshal(genesisMap)
 	if err != nil {
@@ -187,7 +155,7 @@ func init() {
 	}
 
 	// load network flags
-	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
+	flagsBytes, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, "flags.json"))
 	if err != nil {
 		panic(err)
 	}
@@ -197,7 +165,7 @@ func init() {
 	}
 
 	// load chain config
-	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
+	cChainConfig, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, "cchain_config.json"))
 	if err != nil {
 		panic(err)
 	}
@@ -213,7 +181,7 @@ func init() {
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		flagsBytes, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/flags.json", i+1))
+		flagsBytes, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/flags.json", i+1)))
 		if err != nil {
 			panic(err)
 		}
@@ -222,12 +190,12 @@ func init() {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].Flags = flags
-		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i+1))
+		stakingKey, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/staking.key", i+1)))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
-		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i+1))
+		stakingCert, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/staking.crt", i+1)))
 		if err != nil {
 			panic(err)
 		}
