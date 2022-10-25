@@ -25,7 +25,7 @@ const (
 
 func init() {
 	var err error
-	genesisMap, err := utils.LoadLocalGenesis()
+	genesisMap, err := LoadLocalGenesis()
 	if err != nil {
 		panic(err)
 	}

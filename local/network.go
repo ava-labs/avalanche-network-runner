@@ -2,9 +2,12 @@ package local
 
 import (
 	"context"
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/user"
@@ -17,7 +20,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
@@ -104,6 +106,8 @@ type localNetwork struct {
 }
 
 var (
+	//go:embed default
+	embeddedDefaultNetworkConfigDir embed.FS
 	// Pre-defined network configuration.
 	// [defaultNetworkConfig] should not be modified.
 	// TODO add method Copy() to network.Config to prevent
@@ -116,7 +120,7 @@ var (
 // populate default network config from embedded default directory
 func init() {
 	// load genesis, updating validation start time
-	genesisMap, err := utils.LoadLocalGenesis()
+	genesisMap, err := network.LoadLocalGenesis()
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +159,11 @@ func init() {
 	}
 
 	// load network flags
-	flagsBytes, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, "flags.json"))
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+		panic(err)
+	}
+	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +173,7 @@ func init() {
 	}
 
 	// load chain config
-	cChainConfig, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, "cchain_config.json"))
+	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
 	if err != nil {
 		panic(err)
 	}
@@ -181,7 +189,7 @@ func init() {
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		flagsBytes, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/flags.json", i+1)))
+		flagsBytes, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/flags.json", i+1))
 		if err != nil {
 			panic(err)
 		}
@@ -190,12 +198,12 @@ func init() {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].Flags = flags
-		stakingKey, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/staking.key", i+1)))
+		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i+1))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
-		stakingCert, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/staking.crt", i+1)))
+		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i+1))
 		if err != nil {
 			panic(err)
 		}

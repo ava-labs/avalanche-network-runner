@@ -1,24 +1,24 @@
-package utils
+package network
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	coreth_params "github.com/ava-labs/coreth/params"
 )
+
+//go:embed default/genesis.json
+var genesisBytes []byte
 
 // LoadLocalGenesis loads the local network genesis from disk
 // and returns it as a map[string]interface{}
 func LoadLocalGenesis() (map[string]interface{}, error) {
-	genesis, err := os.ReadFile(filepath.Join("..", constants.LocalGenesisFile))
-	if err != nil {
-		return nil, err
-	}
-	var genesisMap map[string]interface{}
-	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
+	var (
+		genesisMap map[string]interface{}
+		err        error
+	)
+	if err = json.Unmarshal(genesisBytes, &genesisMap); err != nil {
 		return nil, err
 	}
 

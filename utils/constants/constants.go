@@ -12,5 +12,5 @@ const (
 
 var (
 	LocalConfigDir   = filepath.Join("local", "default")
-	LocalGenesisFile = filepath.Join(LocalConfigDir, "genesis.json")
+	LocalGenesisFile = "genesis.json"
 )
