@@ -3,7 +3,6 @@ package local
 import (
 	"context"
 	"embed"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
