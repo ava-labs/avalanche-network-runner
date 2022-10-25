@@ -25,7 +25,16 @@ const (
 
 func init() {
 	var err error
-	cChainConfig, err = utils.LoadGenesisMap()
+	genesisMap, err := utils.LoadLocalGenesis()
+	if err != nil {
+		panic(err)
+	}
+	cChainConfigStr, ok := genesisMap["cChainGenesis"].(string)
+	if !ok {
+		panic(fmt.Errorf("expected cChainGenesis to be a string, but got %T", genesisMap["cChainGenesis"]))
+	}
+	cChainConfigBytes := []byte(cChainConfigStr)
+	err = json.Unmarshal(cChainConfigBytes, &cChainConfig)
 	if err != nil {
 		panic(err)
 	}

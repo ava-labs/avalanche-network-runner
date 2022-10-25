@@ -116,7 +116,7 @@ var (
 // populate default network config from embedded default directory
 func init() {
 	// load genesis, updating validation start time
-	genesisMap, err := utils.LoadGenesisMap()
+	genesisMap, err := utils.LoadLocalGenesis()
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +155,7 @@ func init() {
 	}
 
 	// load network flags
-	flagsBytes, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, "flags.json"))
+	flagsBytes, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, "flags.json"))
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +165,7 @@ func init() {
 	}
 
 	// load chain config
-	cChainConfig, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, "cchain_config.json"))
+	cChainConfig, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, "cchain_config.json"))
 	if err != nil {
 		panic(err)
 	}
@@ -181,7 +181,7 @@ func init() {
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		flagsBytes, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/flags.json", i+1)))
+		flagsBytes, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/flags.json", i+1)))
 		if err != nil {
 			panic(err)
 		}
@@ -190,12 +190,12 @@ func init() {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].Flags = flags
-		stakingKey, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/staking.key", i+1)))
+		stakingKey, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/staking.key", i+1)))
 		if err != nil {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
-		stakingCert, err := os.ReadFile(filepath.Join(constants.LocalConfigDir, fmt.Sprintf("node%d/staking.crt", i+1)))
+		stakingCert, err := os.ReadFile(filepath.Join("..", constants.LocalConfigDir, fmt.Sprintf("node%d/staking.crt", i+1)))
 		if err != nil {
 			panic(err)
 		}

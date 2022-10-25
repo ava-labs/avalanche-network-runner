@@ -4,19 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	coreth_params "github.com/ava-labs/coreth/params"
 )
 
-func LoadGenesisMap() (map[string]interface{}, error) {
-	genesis, err := os.ReadFile(constants.LocalGenesisFile)
+// LoadLocalGenesis loads the local network genesis from disk
+// and returns it as a map[string]interface{}
+func LoadLocalGenesis() (map[string]interface{}, error) {
+	genesis, err := os.ReadFile(filepath.Join("..", constants.LocalGenesisFile))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	var genesisMap map[string]interface{}
 	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	cChainGenesis := genesisMap["cChainGenesis"]
@@ -29,7 +32,7 @@ func LoadGenesisMap() (map[string]interface{}, error) {
 	cChainGenesisMap, ok := cChainGenesis.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf(
-			"expected field 'cChainGenesis' of genesisMap to be a map[string]interface{}, but it failed with type %T", cChainGenesisMap)
+			"expected field 'cChainGenesis' of genesisMap to be a map[string]interface{}, but it failed with type %T", cChainGenesis)
 	}
 	// set the `config` key to the actual coreth object
 	cChainGenesisMap["config"] = corethCChainGenesis
