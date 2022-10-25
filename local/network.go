@@ -118,20 +118,12 @@ var (
 
 // populate default network config from embedded default directory
 func init() {
-	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	// load genesis, updating validation start time
+	genesisMap, err := network.LoadLocalGenesis()
 	if err != nil {
 		panic(err)
 	}
 
-	// load genesis, updating validation start time
-	genesis, err := fs.ReadFile(configsDir, "genesis.json")
-	if err != nil {
-		panic(err)
-	}
-	var genesisMap map[string]interface{}
-	if err = json.Unmarshal(genesis, &genesisMap); err != nil {
-		panic(err)
-	}
 	startTime := time.Now().Unix()
 	lockTime := startTime + genesisLocktimeStartimeDelta
 	genesisMap["startTime"] = float64(startTime)
@@ -158,12 +150,18 @@ func init() {
 			}
 		}
 	}
+
+	// now we can marshal the *whole* thing into bytes
 	updatedGenesis, err := json.Marshal(genesisMap)
 	if err != nil {
 		panic(err)
 	}
 
 	// load network flags
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+		panic(err)
+	}
 	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
 	if err != nil {
 		panic(err)
@@ -924,8 +922,8 @@ func (ln *localNetwork) buildFlags(
 
 	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
 	portFlags := map[string]struct{}{
-		config.HTTPPortKey:    struct{}{},
-		config.StakingPortKey: struct{}{},
+		config.HTTPPortKey:    {},
+		config.StakingPortKey: {},
 	}
 
 	// Add flags given in node config.
