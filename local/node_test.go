@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/tls"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -117,6 +118,7 @@ func verifyProtocol(
 	// the expected sequence
 	for _, expectedOpMsg := range opSequence {
 		msgBytes, err := readMessage(nodeConn, errCh)
+		fmt.Println(msgBytes, err)
 		if err != nil {
 			// If there was an error no need continue
 			return

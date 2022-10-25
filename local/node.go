@@ -101,15 +101,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	mcProto, err := message.NewCreatorWithProto(
-		prometheus.NewRegistry(),
-		"",
-		true,
-		10*time.Second,
-	)
-	if err != nil {
-		return nil, err
-	}
 
 	metrics, err := peer.NewMetrics(
 		logging.NoLog{},
@@ -133,11 +124,10 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		return nil, err
 	}
 	config := &peer.Config{
-		Metrics:                 metrics,
-		MessageCreator:          mc,
-		MessageCreatorWithProto: mcProto,
-		Log:                     logging.NoLog{},
-		InboundMsgThrottler:     throttling.NewNoInboundThrottler(),
+		Metrics:             metrics,
+		MessageCreator:      mc,
+		Log:                 logging.NoLog{},
+		InboundMsgThrottler: throttling.NewNoInboundThrottler(),
 		Network: peer.NewTestNetwork(
 			mc,
 			node.networkID,
