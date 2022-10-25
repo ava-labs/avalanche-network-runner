@@ -733,6 +733,7 @@ find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
 # .../build/avalanchego
 
 # generate the genesis for the custom chain
+# NOTE: timestampvm takes arbitrary data for its genesis
 echo hello > /tmp/timestampvm.genesis.json
 ```
 
