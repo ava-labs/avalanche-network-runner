@@ -86,9 +86,9 @@ var (
 )
 
 const (
-	MinNodes            uint32 = 1
-	DefaultNodes        uint32 = 5
-	stopOnSignalTimeout        = 2 * time.Second
+	MinNodes     uint32 = 1
+	DefaultNodes uint32 = 5
+	stopTimeout         = 2 * time.Second
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
@@ -212,7 +212,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	}
 
 	if s.network != nil {
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopOnSignalTimeout)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
 		defer stopCtxCancel()
 		s.network.stop(stopCtx)
 		s.log.Warn("network stopped")
@@ -262,33 +262,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		s.log.Info("plugin-dir:", zap.String("plugin-dir", pluginDir))
-		for i := range req.GetBlockchainSpecs() {
-			spec := req.GetBlockchainSpecs()[i]
-			if spec.SubnetId != nil {
-				return nil, errors.New("blockchain subnet id must be nil if starting a new empty network")
-			}
-			vmName := spec.VmName
-			vmGenesisFilePath := spec.Genesis
-			s.log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
-			vmID, err := utils.VMID(vmName)
-			if err != nil {
-				s.log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
-				return nil, ErrInvalidVMName
-			}
-			if err := utils.CheckPluginPaths(
-				filepath.Join(pluginDir, vmID.String()),
-				vmGenesisFilePath,
-			); err != nil {
-				return nil, err
-			}
-			b, err := os.ReadFile(vmGenesisFilePath)
+		for _, spec := range req.GetBlockchainSpecs() {
+			chainSpec, err := getNetworkBlockchainSpec(s.log, spec, true, pluginDir)
 			if err != nil {
 				return nil, err
 			}
-			chainSpecs = append(chainSpecs, network.BlockchainSpec{
-				VmName:  vmName,
-				Genesis: b,
-			})
+			chainSpecs = append(chainSpecs, chainSpec)
 		}
 	}
 
@@ -410,11 +389,12 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 	case <-s.network.stopCh:
 		return
 	case serr := <-s.network.startErrCh:
-		// TODO: decide what to do here, general failure cause network stop()?
-		// maybe try decide if operation was partial (undesired network, fail)
-		// or was not stated (preconditions check, continue)
 		s.log.Warn("async call failed to complete", zap.String("async-call", waitMsg), zap.Error(serr))
-		panic(serr)
+		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
+		s.network.stop(stopCtx)
+		stopCtxCancel()
+		s.network = nil
+		s.clusterInfo = nil
 	case <-readyCh:
 		s.mu.Lock()
 		s.clusterInfo.Healthy = true
@@ -430,6 +410,55 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		}
 		s.mu.Unlock()
 	}
+}
+
+func getNetworkBlockchainSpec(
+	log logging.Logger,
+	spec *rpcpb.BlockchainSpec,
+	isNewEmptyNetwork bool,
+	pluginDir string,
+) (network.BlockchainSpec, error) {
+	if isNewEmptyNetwork && spec.SubnetId != nil {
+		return network.BlockchainSpec{}, errors.New("blockchain subnet id must be nil if starting a new empty network")
+	}
+	vmName := spec.VmName
+	log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
+	vmID, err := utils.VMID(vmName)
+	if err != nil {
+		log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
+		return network.BlockchainSpec{}, ErrInvalidVMName
+	}
+	if err := utils.CheckPluginPaths(
+		filepath.Join(pluginDir, vmID.String()),
+		spec.Genesis,
+	); err != nil {
+		return network.BlockchainSpec{}, err
+	}
+	genesisBytes, err := os.ReadFile(spec.Genesis)
+	if err != nil {
+		return network.BlockchainSpec{}, err
+	}
+	var chainConfigBytes []byte
+	if spec.ChainConfig != "" {
+		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+	var networkUpgradeBytes []byte
+	if spec.NetworkUpgrade != "" {
+		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+	return network.BlockchainSpec{
+		VmName:         vmName,
+		Genesis:        genesisBytes,
+		ChainConfig:    chainConfigBytes,
+		NetworkUpgrade: networkUpgradeBytes,
+		SubnetId:       spec.SubnetId,
+	}, nil
 }
 
 func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
@@ -453,30 +482,12 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	}
 
 	chainSpecs := []network.BlockchainSpec{}
-	for i := range req.GetBlockchainSpecs() {
-		vmName := req.GetBlockchainSpecs()[i].VmName
-		vmGenesisFilePath := req.GetBlockchainSpecs()[i].Genesis
-		s.log.Info("checking custom chain's VM ID before installation", zap.String("vm-id", vmName))
-		vmID, err := utils.VMID(vmName)
-		if err != nil {
-			s.log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
-			return nil, ErrInvalidVMName
-		}
-		if err := utils.CheckPluginPaths(
-			filepath.Join(s.network.pluginDir, vmID.String()),
-			vmGenesisFilePath,
-		); err != nil {
-			return nil, err
-		}
-		b, err := os.ReadFile(vmGenesisFilePath)
+	for _, spec := range req.GetBlockchainSpecs() {
+		chainSpec, err := getNetworkBlockchainSpec(s.log, spec, false, s.network.pluginDir)
 		if err != nil {
 			return nil, err
 		}
-		chainSpecs = append(chainSpecs, network.BlockchainSpec{
-			VmName:   vmName,
-			Genesis:  b,
-			SubnetId: req.GetBlockchainSpecs()[i].SubnetId,
-		})
+		chainSpecs = append(chainSpecs, chainSpec)
 	}
 
 	// check that defined subnets exist
