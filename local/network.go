@@ -464,6 +464,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if nodeConfig.ChainConfigFiles == nil {
 		nodeConfig.ChainConfigFiles = map[string]string{}
 	}
+	if nodeConfig.UpgradeConfigFiles == nil {
+		nodeConfig.UpgradeConfigFiles = map[string]string{}
+	}
 
 	// load node defaults
 	if nodeConfig.BinaryPath == "" {
@@ -761,6 +764,17 @@ func (ln *localNetwork) RestartNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	return ln.restartNode(ctx, nodeName, binaryPath, whitelistedSubnets, chainConfigs, upgradeConfigs)
+}
+
+func (ln *localNetwork) restartNode(
+	ctx context.Context,
+	nodeName string,
+	binaryPath string,
+	whitelistedSubnets string,
+	chainConfigs map[string]string,
+	upgradeConfigs map[string]string,
+) error {
 	node, ok := ln.nodes[nodeName]
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
