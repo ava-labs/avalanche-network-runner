@@ -6,7 +6,6 @@ import (
 	"crypto"
 	"crypto/tls"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -118,7 +117,6 @@ func verifyProtocol(
 	// the expected sequence
 	for _, expectedOpMsg := range opSequence {
 		msgBytes, err := readMessage(nodeConn, errCh)
-		fmt.Println(msgBytes, err)
 		if err != nil {
 			// If there was an error no need continue
 			return
@@ -176,7 +174,6 @@ func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
 // TestAttachPeer tests that we can attach a test peer to a node
 // and that the node receives messages sent through the test peer
 func TestAttachPeer(t *testing.T) {
-    t.Skip()
 	assert := assert.New(t)
 
 	// [nodeConn] is the connection that [node] uses to read from/write to [peer] (defined below)
