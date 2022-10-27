@@ -118,7 +118,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 
 type noOpInboundHandler struct{}
 
-func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
+func (*noOpInboundHandler) HandleInbound(context.Context, message.InboundMessage) {}
 
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
