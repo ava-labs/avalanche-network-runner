@@ -81,7 +81,7 @@ jobs:
         run: |
           sudo apt-get -y install clang llvm-dev libxml2-dev uuid-dev libssl-dev bash patch make tar xz-utils bzip2 gzip sed cpio libbz2-dev
           cd osxcross
-          wget https://github.com/joseluisq/macosx-sdks/releases/download/12.3/$MACOS_SDk_FNAME -O tarballs/$MACOS_SDK_FNAME
+          wget https://github.com/joseluisq/macosx-sdks/releases/download/12.3/$MACOS_SDK_FNAME -O tarballs/$MACOS_SDK_FNAME
           echo $MACOS_SDK_CHECKSUM tarballs/$MACOS_SDK_FNAME | sha256sum -c -
           UNATTENDED=1 ./build.sh
           echo $PWD/target/bin >> $GITHUB_PATH
