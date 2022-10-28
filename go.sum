@@ -60,6 +60,8 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/ava-labs/avalanche-ledger-go v0.0.10 h1:qEiTJvjuEmTYhYczk/CYvXoQuLlgd7xYyC2OcXOhAlw=
 github.com/ava-labs/avalanche-ledger-go v0.0.10/go.mod h1:60Ftil/0sHi8IwjvBFyrvRsPVAue8zAkIMGuvXXMwVM=
+github.com/ava-labs/avalanchego v1.9.1 h1:TJLvoA5kHAwsaBG80x57hCMnwJYWFDnHOoI/fw+Off8=
+github.com/ava-labs/avalanchego v1.9.1/go.mod h1:EwV2l8rFtFObM9jKwAWX2uhDkUw9UEGkUlXo3ICG1yk=
 github.com/ava-labs/coreth v0.11.1-rc.7 h1:cENs+9K/aLyRbvB7fa6JDOvKert3DAdsBfCNQBU5U9Y=
 github.com/ava-labs/coreth v0.11.1-rc.7/go.mod h1:VBJEpNMEGphnEZ6KjsX43g2fq5v+pupk8xFQSdqXwyM=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=

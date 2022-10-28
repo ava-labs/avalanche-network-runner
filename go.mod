@@ -2,10 +2,8 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.18
 
-replace github.com/ava-labs/avalanchego => ../avalanchego-internal/
-
 require (
-	github.com/ava-labs/avalanchego v1.9.1-rc.3
+	github.com/ava-labs/avalanchego v1.9.1
 	github.com/ava-labs/coreth v0.11.1-rc.7
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
