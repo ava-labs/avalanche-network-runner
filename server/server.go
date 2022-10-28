@@ -848,7 +848,7 @@ type loggingInboundHandler struct {
 	log      logging.Logger
 }
 
-func (lh *loggingInboundHandler) HandleInbound(m message.InboundMessage) {
+func (lh *loggingInboundHandler) HandleInbound(_ context.Context, m message.InboundMessage) {
 	lh.log.Debug("inbound handler received a message", zap.String("message", m.Op().String()), zap.String("node-name", lh.nodeName))
 }
 

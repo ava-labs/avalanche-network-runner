@@ -21,7 +21,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
-	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -82,7 +81,7 @@ func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, f
 // APIs and methods implemented
 func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: true}
-	healthClient := &healthmocks.Client{}
+	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
 	ethClient := &apimocks.EthClient{}
@@ -96,7 +95,7 @@ func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
 	healthReply := &health.APIHealthReply{Healthy: false}
-	healthClient := &healthmocks.Client{}
+	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
@@ -118,7 +117,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 
 type noOpInboundHandler struct{}
 
-func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
+func (*noOpInboundHandler) HandleInbound(context.Context, message.InboundMessage) {}
 
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {
@@ -1269,7 +1268,7 @@ func TestRemoveBeacon(t *testing.T) {
 // * The CChainEthAPI's Close method may be called
 // * Only the above 2 methods may be called
 func newMockAPIHealthyBlocks(ipAddr string, port uint16) api.Client {
-	healthClient := &healthmocks.Client{}
+	healthClient := &apimocks.HealthClient{}
 	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool { return true }), mock.Anything).Return(
 		func(ctx context.Context, _ ...rpc.Option) *health.APIHealthReply {
 			<-ctx.Done()
