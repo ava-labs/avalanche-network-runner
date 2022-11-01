@@ -16,12 +16,12 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	apimocks "github.com/ava-labs/avalanche-network-runner/api/mocks"
 	"github.com/ava-labs/avalanche-network-runner/local/mocks"
+	healthmocks "github.com/ava-labs/avalanche-network-runner/local/mocks/health"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/health"
-	healthmocks "github.com/ava-labs/avalanchego/api/health/mocks"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
@@ -118,7 +118,7 @@ func newMockProcessSuccessful(node.Config, ...string) (NodeProcess, error) {
 
 type noOpInboundHandler struct{}
 
-func (*noOpInboundHandler) HandleInbound(message.InboundMessage) {}
+func (*noOpInboundHandler) HandleInbound(context.Context, message.InboundMessage) {}
 
 // Start a network with no nodes
 func TestNewNetworkEmpty(t *testing.T) {

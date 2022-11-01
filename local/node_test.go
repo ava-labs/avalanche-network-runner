@@ -24,6 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const bitmaskCodec = uint32(1 << 31)
+
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert, nil)
 	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
@@ -139,6 +141,7 @@ func readMessage(nodeConn net.Conn, errCh chan error) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	msgLen := binary.BigEndian.Uint32(msgLenBytes.Bytes())
+	msgLen &^= bitmaskCodec
 	msgBytes := &bytes.Buffer{}
 	// read the message
 	if _, err := io.CopyN(msgBytes, nodeConn, int64(msgLen)); err != nil {
