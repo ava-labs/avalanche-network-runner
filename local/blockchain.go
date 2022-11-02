@@ -512,7 +512,7 @@ func (ln *localNetwork) addPrimaryValidators(
 				NodeID: nodeID,
 				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 				End:    uint64(time.Now().Add(validationDuration).Unix()),
-				Wght:   1 * units.Avax,
+				Wght:   genesis.LocalParams.MinValidatorStake,
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
