@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/ava-labs/avalanchego v1.9.1
-	github.com/ava-labs/coreth v0.11.1-rc.7
+	github.com/ava-labs/coreth v0.11.1
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0
 	github.com/onsi/ginkgo/v2 v2.4.0
