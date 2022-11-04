@@ -43,7 +43,7 @@ type localNetwork struct {
 
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
-	startErrCh     chan error
+	asyncErrCh     chan error
 	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
 
 	stopOnce sync.Once
@@ -102,11 +102,11 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainIDToInfo: make(map[ids.ID]chainInfo),
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
-		startErrCh:  make(chan error, 1),
+		asyncErrCh:  make(chan error, 1),
 
 		nodeInfos: make(map[string]*rpcpb.NodeInfo),
 		nodeNames: []string{},
@@ -245,7 +245,7 @@ func (lc *localNetwork) startWait(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
@@ -271,27 +271,27 @@ func (lc *localNetwork) createBlockchains(
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.updateNodeInfo(); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
@@ -315,27 +315,27 @@ func (lc *localNetwork) createSubnets(
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.updateNodeInfo(); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
@@ -389,11 +389,11 @@ func (lc *localNetwork) loadSnapshot(
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
 	defer close(lc.startDoneCh)
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
+		lc.asyncErrCh <- err
 		return
 	}
 	close(loadSnapshotReadyCh)
