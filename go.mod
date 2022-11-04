@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.18
 
 require (
-	github.com/ava-labs/avalanchego v1.9.1
-	github.com/ava-labs/coreth v0.11.1-rc.7
+	github.com/ava-labs/avalanchego v1.9.2
+	github.com/ava-labs/coreth v0.11.2-rc.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0
 	github.com/onsi/ginkgo/v2 v2.4.0
@@ -27,7 +27,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ava-labs/avalanche-ledger-go v0.0.10 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.11 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/decred/dcrd/lru v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -118,7 +118,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	github.com/zondax/hid v0.9.1-0.20220302062450-5552068d2266 // indirect
-	github.com/zondax/ledger-go v0.12.3-0.20221005223406-dbd460b7296d // indirect
+	github.com/zondax/ledger-go v0.13.0 // indirect
 	go.opentelemetry.io/otel v1.11.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.0 // indirect

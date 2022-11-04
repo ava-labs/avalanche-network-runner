@@ -179,7 +179,7 @@ func (node *localNode) SendOutboundMessage(ctx context.Context, peerID string, c
 	if !ok {
 		return false, fmt.Errorf("peer with ID %s is not attached here", peerID)
 	}
-	msg := message.NewTestMsg(message.Op(op), content, false)
+	msg := NewTestMsg(message.Op(op), content, false)
 	return attachedPeer.Send(ctx, msg), nil
 }
 
