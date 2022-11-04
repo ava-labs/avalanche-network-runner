@@ -207,9 +207,9 @@ func TestAttachPeer(t *testing.T) {
 
 	// Expect the peer to send these messages in this order.
 	expectedMessages := []message.Op{
-		message.Version,
-		message.PeerList,
-		message.Chits,
+		message.VersionOp,
+		message.PeerListOp,
+		message.ChitsOp,
 	}
 
 	// [p] define below will write to/read from [peerConn]

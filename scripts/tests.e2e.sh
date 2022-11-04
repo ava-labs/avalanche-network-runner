@@ -9,6 +9,7 @@ if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   exit 255
 fi
 
+# TODO: update when new subnet-evm release is out
 DEFAULT_VERSION_1=1.9.0
 DEFAULT_VERSION_2=1.9.0
 DEFAULT_SUBNET_EVM_VERSION=0.4.0
