@@ -89,7 +89,8 @@ type localNetworkOptions struct {
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	lcfg := logging.Config{
-		LogLevel: opts.logLevel,
+		LogLevel:     opts.logLevel,
+		DisplayLevel: opts.logLevel,
 	}
 	lcfg.Directory = opts.rootDataDir
 	logFactory := logging.NewFactory(lcfg)
