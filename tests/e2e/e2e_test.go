@@ -363,7 +363,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		}
 	})
 
-	time.Sleep(10 * time.Second)
 	ginkgo.It("can remove", func() {
 		ginkgo.By("calling remove API with the first binary", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -374,7 +373,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	time.Sleep(10 * time.Second)
 	ginkgo.It("can restart", func() {
 		ginkgo.By("calling restart API with the second binary", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -385,7 +383,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	time.Sleep(10 * time.Second)
 	ginkgo.It("can attach a peer", func() {
 		ginkgo.By("calling attach peer API", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -423,7 +420,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	time.Sleep(10 * time.Second)
 	ginkgo.It("can add a node", func() {
 		ginkgo.By("calling AddNode", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
