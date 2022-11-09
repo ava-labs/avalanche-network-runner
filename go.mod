@@ -17,7 +17,7 @@ require (
 	go.uber.org/zap v1.23.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
-	google.golang.org/grpc v1.51.0-dev
+	google.golang.org/grpc v1.52.0-dev
 	google.golang.org/protobuf v1.28.1
 )
 
