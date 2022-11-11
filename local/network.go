@@ -188,6 +188,7 @@ func init() {
 			"C": string(cChainConfig),
 		},
 		UpgradeConfigFiles: map[string]string{},
+		SubnetConfigFiles:  map[string]string{},
 	}
 
 	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
