@@ -100,9 +100,11 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
-		ExecPath:     execPath,
-		NumNodes:     &ret.numNodes,
-		ChainConfigs: ret.chainConfigs,
+		ExecPath:       execPath,
+		NumNodes:       &ret.numNodes,
+		ChainConfigs:   ret.chainConfigs,
+		UpgradeConfigs: ret.upgradeConfigs,
+		SubnetConfigs:  ret.subnetConfigs,
 	}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
@@ -233,6 +235,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 		NodeConfig:     &ret.globalNodeConfig,
 		ChainConfigs:   ret.chainConfigs,
 		UpgradeConfigs: ret.upgradeConfigs,
+		SubnetConfigs:  ret.subnetConfigs,
 	}
 
 	c.log.Info("add node", zap.String("name", name))
@@ -257,6 +260,7 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	}
 	req.ChainConfigs = ret.chainConfigs
 	req.UpgradeConfigs = ret.upgradeConfigs
+	req.SubnetConfigs = ret.subnetConfigs
 
 	c.log.Info("restart node", zap.String("name", name))
 	return c.controlc.RestartNode(ctx, req)
@@ -290,6 +294,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 		SnapshotName:   snapshotName,
 		ChainConfigs:   ret.chainConfigs,
 		UpgradeConfigs: ret.upgradeConfigs,
+		SubnetConfigs:  ret.subnetConfigs,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -340,6 +345,7 @@ type Op struct {
 	numSubnets          uint32
 	chainConfigs        map[string]string
 	upgradeConfigs      map[string]string
+	subnetConfigs       map[string]string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
 }
@@ -406,6 +412,13 @@ func WithChainConfigs(chainConfigs map[string]string) OpOption {
 func WithUpgradeConfigs(upgradeConfigs map[string]string) OpOption {
 	return func(op *Op) {
 		op.upgradeConfigs = upgradeConfigs
+	}
+}
+
+// Map from subnet id to its configuration json contents.
+func WithSubnetConfigs(subnetConfigs map[string]string) OpOption {
+	return func(op *Op) {
+		op.subnetConfigs = subnetConfigs
 	}
 }
 
