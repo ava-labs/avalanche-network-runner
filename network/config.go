@@ -72,6 +72,8 @@ type Config struct {
 	ChainConfigFiles map[string]string `json:"chainConfigFiles"`
 	// Upgrade config files to use per default, if not specified in node config
 	UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
+	// Subnet config files to use per default, if not specified in node config
+	SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
 }
 
 // Validate returns an error if this config is invalid

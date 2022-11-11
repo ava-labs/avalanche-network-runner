@@ -429,7 +429,7 @@ func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
 		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
 
 		ln.log.Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
-		if err := ln.restartNode(ctx, nodeName, "", "", nil, nil); err != nil {
+		if err := ln.restartNode(ctx, nodeName, "", "", nil, nil, nil); err != nil {
 			return err
 		}
 
