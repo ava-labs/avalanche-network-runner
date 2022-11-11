@@ -72,6 +72,23 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			}
 		}
 	}
+	if nodeConfig.SubnetConfigFiles != nil {
+		subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+
+		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
+			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
+			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
+			}
+		}
+		for chainAlias, chainUpgradeFile := range nodeConfig.UpgradeConfigFiles {
+			chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
+			if err := createFileAndWrite(chainUpgradePath, []byte(chainUpgradeFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", chainUpgradePath, err)
+			}
+		}
+	}
 	return flags, nil
 }
 

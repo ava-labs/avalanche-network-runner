@@ -58,7 +58,8 @@ var (
 		config.BootstrapIPsKey: {},
 		config.BootstrapIDsKey: {},
 	}
-	chainConfigSubDir = "chainConfigs"
+	chainConfigSubDir  = "chainConfigs"
+	subnetConfigSubDir = "subnetConfigs"
 
 	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
 
@@ -100,6 +101,8 @@ type localNetwork struct {
 	chainConfigFiles map[string]string
 	// upgrade config files to use per default
 	upgradeConfigFiles map[string]string
+	// subnet config files to use per default
+	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
 }
@@ -415,6 +418,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
 	ln.upgradeConfigFiles = networkConfig.UpgradeConfigFiles
+	ln.subnetConfigFiles = networkConfig.SubnetConfigFiles
 
 	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
@@ -480,6 +484,12 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		_, ok := nodeConfig.UpgradeConfigFiles[k]
 		if !ok {
 			nodeConfig.UpgradeConfigFiles[k] = v
+		}
+	}
+	for k, v := range ln.subnetConfigFiles {
+		_, ok := nodeConfig.SubnetConfigFiles[k]
+		if !ok {
+			nodeConfig.SubnetConfigFiles[k] = v
 		}
 	}
 	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
@@ -758,11 +768,12 @@ func (ln *localNetwork) RestartNode(
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
+	subnetConfigs map[string]string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.restartNode(ctx, nodeName, binaryPath, whitelistedSubnets, chainConfigs, upgradeConfigs)
+	return ln.restartNode(ctx, nodeName, binaryPath, whitelistedSubnets, chainConfigs, upgradeConfigs, subnetConfigs)
 }
 
 func (ln *localNetwork) restartNode(
@@ -772,6 +783,7 @@ func (ln *localNetwork) restartNode(
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
+	subnetConfigs map[string]string,
 ) error {
 	node, ok := ln.nodes[nodeName]
 	if !ok {
@@ -800,6 +812,10 @@ func (ln *localNetwork) restartNode(
 	// apply upgrade configs
 	for k, v := range upgradeConfigs {
 		nodeConfig.UpgradeConfigFiles[k] = v
+	}
+	// apply subnet configs
+	for k, v := range subnetConfigs {
+		nodeConfig.SubnetConfigFiles[k] = v
 	}
 
 	if err := ln.removeNode(ctx, nodeName); err != nil {
