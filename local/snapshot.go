@@ -29,6 +29,7 @@ func NewNetworkFromSnapshot(
 	buildDir string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
+	subnetConfigs map[string]string,
 	flags map[string]interface{},
 	reassignPortsIfUsed bool,
 ) (network.Network, error) {
@@ -48,7 +49,16 @@ func NewNetworkFromSnapshot(
 	if err != nil {
 		return net, err
 	}
-	err = net.loadSnapshot(context.Background(), snapshotName, binaryPath, buildDir, chainConfigs, upgradeConfigs, flags)
+	err = net.loadSnapshot(
+		context.Background(),
+		snapshotName,
+		binaryPath,
+		buildDir,
+		chainConfigs,
+		upgradeConfigs,
+		subnetConfigs,
+		flags,
+	)
 	return net, err
 }
 
@@ -137,6 +147,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		BinaryPath:         ln.binaryPath,
 		ChainConfigFiles:   ln.chainConfigFiles,
 		UpgradeConfigFiles: ln.upgradeConfigFiles,
+		SubnetConfigFiles:  ln.subnetConfigFiles,
 	}
 
 	for _, nodeConfig := range nodesConfig {
@@ -162,6 +173,7 @@ func (ln *localNetwork) loadSnapshot(
 	buildDir string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
+	subnetConfigs map[string]string,
 	flags map[string]interface{},
 ) error {
 	ln.lock.Lock()
@@ -221,11 +233,17 @@ func (ln *localNetwork) loadSnapshot(
 		if networkConfig.NodeConfigs[i].UpgradeConfigFiles == nil {
 			networkConfig.NodeConfigs[i].UpgradeConfigFiles = map[string]string{}
 		}
+		if networkConfig.NodeConfigs[i].SubnetConfigFiles == nil {
+			networkConfig.NodeConfigs[i].SubnetConfigFiles = map[string]string{}
+		}
 		for k, v := range chainConfigs {
 			networkConfig.NodeConfigs[i].ChainConfigFiles[k] = v
 		}
 		for k, v := range upgradeConfigs {
 			networkConfig.NodeConfigs[i].UpgradeConfigFiles[k] = v
+		}
+		for k, v := range subnetConfigs {
+			networkConfig.NodeConfigs[i].SubnetConfigFiles[k] = v
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)

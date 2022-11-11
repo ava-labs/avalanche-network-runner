@@ -336,6 +336,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
+		subnetConfigs:       req.SubnetConfigs,
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		dynamicPorts:        req.GetDynamicPorts(),
@@ -452,11 +453,19 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+	var subnetConfigBytes []byte
+	if spec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
 	return network.BlockchainSpec{
 		VmName:         vmName,
 		Genesis:        genesisBytes,
 		ChainConfig:    chainConfigBytes,
 		NetworkUpgrade: networkUpgradeBytes,
+		SubnetConfig:   subnetConfigBytes,
 		SubnetId:       spec.SubnetId,
 	}, nil
 }
@@ -749,6 +758,7 @@ func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb
 		RedirectStderr:     s.cfg.RedirectNodesOutput,
 		ChainConfigFiles:   req.ChainConfigs,
 		UpgradeConfigFiles: req.UpgradeConfigs,
+		SubnetConfigFiles:  req.SubnetConfigs,
 	}
 
 	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
@@ -961,6 +971,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		rootDataDir:         rootDataDir,
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
+		subnetConfigs:       req.SubnetConfigs,
 		globalNodeConfig:    req.GetGlobalNodeConfig(),
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
