@@ -245,6 +245,11 @@ message StartRequest {
 
   // use dynamic ports instead of default ones
   optional bool dynamic_ports = 12;
+
+  // Map of subnet id to subnet config file contents.
+  // If specified, will create a file "subnetid.json" under subnets config dir with
+  // the contents provided here.
+  map<string, string> subnet_configs = 13;
 }
 
 message StartResponse {
@@ -257,6 +262,7 @@ message BlockchainSpec {
   optional string subnet_id = 3;
   string chain_config = 4;
   string network_upgrade = 5;
+  string subnet_config = 6;
 }
 
 message CreateBlockchainsRequest {
@@ -331,6 +337,11 @@ message RestartNodeRequest {
   // If specified, will create a file "chainname/upgrade.json" with
   // the contents provided here.
   map<string, string> upgrade_configs = 5;
+
+  // Map of subnet id to subnet config file contents.
+  // If specified, will create a file "subnetid.json" under subnets config dir with
+  // the contents provided here.
+  map<string, string> subnet_configs = 6;
 }
 
 message RestartNodeResponse {
@@ -359,6 +370,11 @@ message AddNodeRequest {
   // If specified, will create a file "chainname/upgrade.json" with
   // the contents provided here.
   map<string, string> upgrade_configs = 5;
+
+  // Map of subnet id to subnet config file contents.
+  // If specified, will create a file "subnetid.json" under subnets config dir with
+  // the contents provided here.
+  map<string, string> subnet_configs = 6;
 }
 
 message AddNodeResponse {
@@ -408,6 +424,7 @@ message LoadSnapshotRequest {
   map<string, string> upgrade_configs = 6;
   optional string global_node_config  = 7;
   optional bool reassign_ports_if_used = 8;
+  map<string, string> subnet_configs = 9;
 }
 
 message LoadSnapshotResponse {
