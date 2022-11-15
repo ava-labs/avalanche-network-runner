@@ -777,12 +777,18 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 		// update config info for snapshopt/restart purposes
 		// put into defaults and reset node specifics
 		if chainSpec.ChainConfig != nil {
+			if ln.chainConfigFiles == nil {
+				ln.chainConfigFiles = map[string]string{}
+			}
 			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
+			if ln.upgradeConfigFiles == nil {
+				ln.upgradeConfigFiles = map[string]string{}
+			}
 			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
