@@ -414,7 +414,13 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
+	if ln.chainConfigFiles == nil {
+		ln.chainConfigFiles = map[string]string{}
+	}
 	ln.upgradeConfigFiles = networkConfig.UpgradeConfigFiles
+	if ln.upgradeConfigFiles == nil {
+		ln.upgradeConfigFiles = map[string]string{}
+	}
 
 	// Sort node configs so beacons start first
 	var nodeConfigs []node.Config
