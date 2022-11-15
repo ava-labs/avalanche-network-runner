@@ -19,6 +19,7 @@ type BlockchainSpec struct {
 	SubnetId       *string
 	ChainConfig    []byte
 	NetworkUpgrade []byte
+	SubnetConfig   []byte
 }
 
 // Network is an abstraction of an Avalanche network
@@ -55,8 +56,9 @@ type Network interface {
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
 	// Restart a given node using the same config, optionally changing binary path,
-	// whitelisted subnets, a map of chain configs, and a map of upgrade configs
-	RestartNode(context.Context, string, string, string, map[string]string, map[string]string) error
+	// whitelisted subnets, a map of chain configs, a map of upgrade configs, and
+	// a map of subnet configs
+	RestartNode(context.Context, string, string, string, map[string]string, map[string]string, map[string]string) error
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets

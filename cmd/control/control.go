@@ -101,6 +101,7 @@ var (
 	numSubnets          uint32
 	chainConfigs        string
 	upgradeConfigs      string
+	subnetConfigs       string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
 )
@@ -171,6 +172,12 @@ func newStartCommand() *cobra.Command {
 		"upgrade-configs",
 		"",
 		"[optional] JSON string of map from chain id to its upgrade file contents",
+	)
+	cmd.PersistentFlags().StringVar(
+		&subnetConfigs,
+		"subnet-configs",
+		"",
+		"[optional] JSON string of map from subnet id to its config file contents",
 	)
 	cmd.PersistentFlags().BoolVar(
 		&reassignPortsIfUsed,
@@ -245,6 +252,13 @@ func startFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
+	}
+	if subnetConfigs != "" {
+		subnetConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(subnetConfigs), &subnetConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithSubnetConfigs(subnetConfigsMap))
 	}
 
 	ctx := getAsyncContext()
@@ -539,6 +553,12 @@ func newAddNodeCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
+	cmd.PersistentFlags().StringVar(
+		&subnetConfigs,
+		"subnet-configs",
+		"",
+		"[optional] JSON string of map from subnet id to its config file contents",
+	)
 	return cmd
 }
 
@@ -576,6 +596,13 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
+	}
+	if subnetConfigs != "" {
+		subnetConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(subnetConfigs), &subnetConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithSubnetConfigs(subnetConfigsMap))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -625,6 +652,12 @@ func newRestartNodeCommand() *cobra.Command {
 		"",
 		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
+	cmd.PersistentFlags().StringVar(
+		&subnetConfigs,
+		"subnet-configs",
+		"",
+		"[optional] JSON string of map from subnet id to its config file contents",
+	)
 	return cmd
 }
 
@@ -655,6 +688,13 @@ func restartNodeFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
+	}
+	if subnetConfigs != "" {
+		subnetConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(subnetConfigs), &subnetConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithSubnetConfigs(subnetConfigsMap))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -865,6 +905,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		"[optional] JSON string of map from chain id to its upgrade file contents",
 	)
 	cmd.PersistentFlags().StringVar(
+		&subnetConfigs,
+		"subnet-configs",
+		"",
+		"[optional] JSON string of map from subnet id to its config file contents",
+	)
+	cmd.PersistentFlags().StringVar(
 		&globalNodeConfig,
 		"global-node-config",
 		"",
@@ -906,6 +952,13 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		opts = append(opts, client.WithUpgradeConfigs(upgradeConfigsMap))
+	}
+	if subnetConfigs != "" {
+		subnetConfigsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(subnetConfigs), &subnetConfigsMap); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithSubnetConfigs(subnetConfigsMap))
 	}
 
 	if globalNodeConfig != "" {

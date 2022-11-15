@@ -1142,8 +1142,10 @@ func TestWriteFiles(t *testing.T) {
 	configFilePath := filepath.Join(tmpDir, configFileName)
 	configFileFlag := fmt.Sprintf("--%s=%v", config.ConfigFileKey, configFilePath)
 	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
+	subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
 	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
 	chainConfigDirFlag := fmt.Sprintf("--%s=%v", config.ChainConfigDirKey, chainConfigDir)
+	subnetConfigDirFlag := fmt.Sprintf("--%s=%v", config.SubnetConfigDirKey, subnetConfigDir)
 
 	type test struct {
 		name          string
@@ -1166,6 +1168,8 @@ func TestWriteFiles(t *testing.T) {
 				stakingKeyFlag,
 				stakingCertFlag,
 				genesisFlag,
+				chainConfigDirFlag,
+				subnetConfigDirFlag,
 			},
 		},
 		{
@@ -1182,6 +1186,8 @@ func TestWriteFiles(t *testing.T) {
 				stakingCertFlag,
 				genesisFlag,
 				configFileFlag,
+				chainConfigDirFlag,
+				subnetConfigDirFlag,
 			},
 		},
 		{
@@ -1200,6 +1206,7 @@ func TestWriteFiles(t *testing.T) {
 				genesisFlag,
 				configFileFlag,
 				chainConfigDirFlag,
+				subnetConfigDirFlag,
 			},
 		},
 	}

@@ -356,13 +356,13 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
-To create a blockchain with a subnet id, and both chain config and network upgrade file paths (requires network restart):
+To create a blockchain with a subnet id, and chain config, network upgrade and subnet config file paths (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
-avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]' --plugin-dir $PLUGIN_DIR
+avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
 To remove (stop) a node:
@@ -586,10 +586,10 @@ avalanche-network-runner control start \
 curl -X POST -k http://localhost:8081/v1/control/status -d ''
 ```
 
-Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
+Blockchain config file, network upgrade file, and subnet config file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'","subnet_config":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control start \
@@ -597,7 +597,7 @@ avalanche-network-runner control start \
 --endpoint="0.0.0.0:8080" \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
 --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
---blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]'
+--blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
 ```
 
 ## `network-runner` RPC server: `blobvm` example
@@ -675,7 +675,7 @@ curl -X POST -k http://localhost:8081/v1/control/status -d ''
 Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'","subnet_config":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control start \
@@ -683,7 +683,7 @@ avalanche-network-runner control start \
 --endpoint="0.0.0.0:8080" \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
 --plugin-dir ${AVALANCHEGO_PLUGIN_PATH} \
---blockchain-specs '[{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'"}]'
+--blockchain-specs '[{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
 ```
 
 ## `network-runner` RPC server: `timestampvm` example
@@ -817,6 +817,10 @@ type Config struct {
   ConfigFile string `json:"configFile"`
   // May be nil.
   ChainConfigFiles map[string]string `json:"chainConfigFiles"`
+  // May be nil.
+  UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
+  // May be nil.
+  SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
   // Flags can hold additional flags for the node.
   // It can be empty.
   // The precedence of flags handling is:
