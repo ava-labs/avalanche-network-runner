@@ -880,5 +880,37 @@ func (ln *localNetwork) blsValidators(
 		fmt.Println(time.Unix(int64(v.StartTime), 0))
 		fmt.Println(time.Unix(int64(v.EndTime), 0))
 	}
+	var pTXs []ids.ID
+	baseWallet, _, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
+	if err != nil {
+		return err
+	}
+	for _, v := range vs {
+		fmt.Println("ACA ESTOU")
+		cctx, cancel := createDefaultCtx(ctx)
+		startTime := time.Unix(int64(v.EndTime), 0)
+		//startTime = startTime.Add(-time.Minute)
+		txID, err := baseWallet.P().IssueAddValidatorTx(
+			&validator.Validator{
+				NodeID: v.NodeID,
+				Start:  uint64(startTime.Unix()),
+				End:    uint64(startTime.Add(validationDuration).Unix()),
+				Wght:   genesis.LocalParams.MinValidatorStake,
+			},
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
+			},
+			10*10000, // 10% fee percent, times 10000 to make it as shares
+			common.WithContext(cctx),
+			defaultPoll,
+		)
+		cancel()
+		fmt.Println(err)
+		if err != nil {
+			return err
+		}
+		fmt.Println(txID)
+	}
 	return nil
 }
