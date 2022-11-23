@@ -89,7 +89,40 @@ func (ln *localNetwork) CreateBlockchains(
 	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
 		return err
 	}
+
+	ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs)
+
 	return nil
+}
+
+// if alias is defined in blockchain-specs, registers an alias for the previously created blockchain
+func (ln *localNetwork) RegisterBlockchainAliases(
+	ctx context.Context,
+	chainInfos []blockchainInfo,
+	chainSpecs []network.BlockchainSpec,
+) {
+	fmt.Println()
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("Registring blockchain aliases...")))
+	for i, chainSpec := range chainSpecs {
+		if chainSpec.BlockchainAlias != nil {
+			blockchainAlias := *chainSpec.BlockchainAlias
+			chainId := chainInfos[i].blockchainID.String()
+			for nodeName, node := range ln.nodes {
+				ln.log.Info("Registring blockchain alias",
+					zap.String("alias", blockchainAlias),
+					zap.String("chain-id", chainId),
+					zap.String("node-name", nodeName))
+				err := node.client.AdminAPI().AliasChain(ctx, chainId, blockchainAlias)
+				if err != nil {
+					ln.log.Error("Error while registring blockchain alias",
+						zap.String("alias", blockchainAlias),
+						zap.String("chain-id", chainId),
+						zap.String("node-name", nodeName),
+						zap.Error(err))
+				}
+			}
+		}
+	}
 }
 
 func (ln *localNetwork) CreateSubnets(

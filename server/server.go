@@ -461,12 +461,13 @@ func getNetworkBlockchainSpec(
 		}
 	}
 	return network.BlockchainSpec{
-		VmName:         vmName,
-		Genesis:        genesisBytes,
-		ChainConfig:    chainConfigBytes,
-		NetworkUpgrade: networkUpgradeBytes,
-		SubnetConfig:   subnetConfigBytes,
-		SubnetId:       spec.SubnetId,
+		VmName:          vmName,
+		Genesis:         genesisBytes,
+		ChainConfig:     chainConfigBytes,
+		NetworkUpgrade:  networkUpgradeBytes,
+		SubnetConfig:    subnetConfigBytes,
+		SubnetId:        spec.SubnetId,
+		BlockchainAlias: spec.BlockchainAlias,
 	}, nil
 }
 

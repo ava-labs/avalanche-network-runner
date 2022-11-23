@@ -263,6 +263,7 @@ message BlockchainSpec {
   string chain_config = 4;
   string network_upgrade = 5;
   string subnet_config = 6;
+  optional string blockchain_alias = 8;
 }
 
 message CreateBlockchainsRequest {
