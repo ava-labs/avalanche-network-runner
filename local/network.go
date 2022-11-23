@@ -453,6 +453,12 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
+	if err = ln.healthy(ctx); err != nil {
+		return err
+	}
+
+	ln.blsValidators(ctx)
+
 	return nil
 }
 

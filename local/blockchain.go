@@ -860,3 +860,25 @@ func createDefaultCtx(ctx context.Context) (context.Context, context.CancelFunc)
 	}
 	return context.WithTimeout(ctx, defaultTimeout)
 }
+
+func (ln *localNetwork) blsValidators(
+	ctx context.Context,
+) error {
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+	cctx, cancel := createDefaultCtx(ctx)
+	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	cancel()
+	if err != nil {
+		return err
+	}
+	for _, v := range vs {
+		fmt.Println(v.NodeID)
+		fmt.Println(time.Unix(int64(v.StartTime), 0))
+		fmt.Println(time.Unix(int64(v.EndTime), 0))
+	}
+	return nil
+}

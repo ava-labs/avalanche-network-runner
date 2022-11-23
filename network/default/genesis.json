@@ -39,8 +39,8 @@
     }
   ],
   "startTime": 1630987200,
-  "initialStakeDuration": 31536000,
-  "initialStakeDurationOffset": 5400,
+  "initialStakeDuration": 100,
+  "initialStakeDurationOffset": 0,
   "initialStakedFunds": [
     "X-custom1g65uqn6t77p656w64023nh8nd9updzmxwd59gh"
   ],
