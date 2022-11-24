@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -217,7 +218,8 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
-		defaultNetworkConfig.NodeConfigs[i].StakingSigningKey = string(stakingSigningKey)
+		encodedStakingSigningKey := base64.StdEncoding.EncodeToString(stakingSigningKey)
+		defaultNetworkConfig.NodeConfigs[i].StakingSigningKey = encodedStakingSigningKey
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -530,7 +532,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
 		}
 		keyBytes := bls.SecretKeyToBytes(key)
-		nodeConfig.StakingSigningKey = string(keyBytes)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+		nodeConfig.StakingSigningKey = encodedKey
 	}
 
 	if err := ln.setNodeName(&nodeConfig); err != nil {
