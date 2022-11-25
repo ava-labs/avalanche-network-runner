@@ -11,8 +11,8 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-This instructions will install the binary into `$GOPATH/bin`. Be sure that `$GOPATH` is defined
-in your environment, and that `$GOPATH/bin` is in your `$PATH`.
+The binary will be installed into `$GOPATH/bin`. Be sure that `$GOPATH` is defined in your environment,
+and that `$GOPATH/bin` is in your `$PATH`.
 
 To install the latest binary locally, run:
 
