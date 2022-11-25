@@ -22,7 +22,7 @@ curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/m
 
 ## Build from source code
 
-This is only needed by advanced users that want to modify or test Avalanche Network Runner is specific ways.
+This is only needed by advanced users who want to modify or test Avalanche Network Runner is specific ways.
 
 ### Download
 
