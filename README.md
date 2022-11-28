@@ -17,6 +17,8 @@ To install the latest binary locally, run:
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
+After that, `avalanche-network-runner` binary should be present under the `~/bin` directory.
+
 Add `~/bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
 ```sh
@@ -43,7 +45,7 @@ From inside the cloned directory:
 ./scripts/build.sh
 ```
 
-After that, `avalanche-network-runner` binary should be present under the `./bin/` directory, inside the cloned one.
+After that, `avalanche-network-runner` binary should be present under the `./bin` directory, inside the cloned one.
 
 Add `./bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
