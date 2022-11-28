@@ -11,74 +11,51 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-### Using install script
-
-This is the preferred way. Does not require golang to be installed on the system.
-
 To download a binary for the latest release, run:
 
 ```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
-The binary will be installed inside the `./bin` directory (relative to where the install command was run).
-
-_Downloading binaries from the Github UI will cause permission errors on Mac._
+The binary will be installed inside the `~/bin` directory.
 
 To add the binary to your path, run
 
 ```sh
-cd bin
-export PATH=$PWD:$PATH
+export PATH=~/bin:$PATH
 ```
 
 To add it to your path permanently, add an export command to your shell initialization script (ex: .bashrc).
 
-#### Installing in Custom Location
+## Build from source code
 
-To download the binary into a specific directory, run:
-
-```sh
-curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s -- -b <relative directory>
-```
-
-### Install using golang
+This is only needed by advanced users who want to modify or test Avalanche Network Runner in specific ways.
 
 Requires golang to be installed on the system ([https://go.dev/doc/install](https://go.dev/doc/install)).
 
-```sh
-go install github.com/ava-labs/avalanche-network-runner@latest
-```
-
-After that, the `avalanche-network-runner` binary should be present under the `$HOME/go/bin/` directory. Consider adding this directory to the `PATH` environment variable.
-
-### Install by release download
-
-Does not require golang to be installed on the system.
-
-Download the desired distribution from [https://github.com/ava-labs/avalanche-network-runner/releases](https://github.com/ava-labs/avalanche-network-runner/releases).
-
-Uncompress and locate where is convenient. Consider adding the target bin directory to the `PATH` environment variable.
-
-### Install from source code and execute tests
-
-#### Download
+### Download
 
 ```sh
 git clone https://github.com/ava-labs/avalanche-network-runner.git
 ```
 
-#### Install
+### Build
 
 From inside the cloned directory:
 
 ```sh
-go install
+./scripts/build.sh
 ```
 
-After that, `avalanche-network-runner` binary should be present under `$HOME/go/bin/` directory. Consider adding this directory to the `PATH` environment variable.
+The binary will be installed inside the `./bin` directory.
 
-#### Run Unit Tests
+To add the binary to your path, run
+
+```sh
+export PATH=$PWD/bin:$PATH
+```
+
+### Run Unit Tests
 
 Inside the directory cloned above:
 
@@ -86,7 +63,7 @@ Inside the directory cloned above:
 go test ./...
 ```
 
-#### Run E2E tests
+### Run E2E tests
 
 The E2E test checks `avalanche-network-runner` RPC communication and control. It starts a network against a fresh RPC
 server and executes a set of query and control operations on it.
@@ -94,22 +71,8 @@ server and executes a set of query and control operations on it.
 To start it, execute inside the cloned directory:
 
 ```sh
-./scripts/tests.e2e.sh AVALANCHEGO_VERSION1 AVALANCHEGO_VERSION2
+./scripts/tests.e2e.sh
 ```
-
-The E2E test checks whether a node can be restarted with a different binary version. Provide two
-different versions as arguments. For Example:
-
-```sh
-./scripts/tests.e2e.sh 1.7.9 1.7.10
-```
-
-##### `RUN_E2E` environment variable
-
-To specify that the E2E test should be run with `go test`, set environment variable `RUN_E2E` to any non-empty value.
-
-This environment variable is correctly set when executing `./scripts/tests.e2e.sh`, but the user should consider
-setting it if trying to execute E2E tests without using that script.
 
 ## Using `avalanche-network-runner`
 
