@@ -24,7 +24,7 @@ export PATH=$PATH:~/bin
 ```
 
 To have the shell always find the command, add that same `export` line to the 
-shell initialization script (`~/.bashrc` for the `bash` shell):
+shell initialization script (`~/.bashrc` for the `bash` shell).
 
 ## Build from source code
 
