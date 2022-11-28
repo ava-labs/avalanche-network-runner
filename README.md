@@ -48,7 +48,7 @@ After that, `avalanche-network-runner` binary should be present under the `./bin
 Add `./bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
 ```sh
-export PATH=$PATH:$P:WD/bin
+export PATH=$PATH:$PWD/bin
 ```
 
 ### Run Unit Tests
