@@ -20,6 +20,13 @@ To install the latest binary locally, run:
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s -- -b $GOPATH/bin
 ```
 
+The user should permanently add `$GOPATH/bin` to the `$PATH` variable by adding this to the shell initialization
+script (eg `$HOME/.bashrc` for `bash` shell):
+
+```sh
+export PATH=$PATH:$GOPATH/bin
+```
+
 ## Build from source code
 
 This is only needed by advanced users who want to modify or test Avalanche Network Runner in specific ways.
@@ -38,7 +45,14 @@ From inside the cloned directory:
 ./scripts/build.sh
 ```
 
-After that, `avalanche-network-runner` binary should be present under the `./bin/` directory, inside the cloned one. The user may consider to add this directory to the `$PATH` environment variable.
+After that, `avalanche-network-runner` binary should be present under the `./bin/` directory, inside the cloned one.
+
+The user may consider to permanently add this directory to the `$PATH` environment variable by including a line in the shell
+initialization script (eg `%HOME/.bashrc` for `bash` shell), replacing `CLONED_DIRECTORY` with the real one:
+
+```sh
+export PATH=$PATH:CLONED_DIRECTORY/bin
+```
 
 ### Run Unit Tests
 
