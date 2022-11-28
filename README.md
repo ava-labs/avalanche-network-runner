@@ -11,13 +11,11 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-To install the latest binary locally, run:
+To install the latest binary locally into `~/bin`, run:
 
 ```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
-
-After that, `avalanche-network-runner` binary should be present under the `~/bin` directory.
 
 Add `~/bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
@@ -39,6 +37,7 @@ git clone https://github.com/ava-labs/avalanche-network-runner.git
 ```
 
 ### Build
+
 From inside the cloned directory:
 
 ```sh
