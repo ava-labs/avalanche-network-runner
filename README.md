@@ -11,21 +11,20 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-The binary will be installed into `$GOPATH/bin`. Be sure that `$GOPATH` is defined in your environment,
-and that `$GOPATH/bin` is in your `$PATH`.
-
 To install the latest binary locally, run:
 
 ```sh
-curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s -- -b $GOPATH/bin
+curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
-The user should permanently add `$GOPATH/bin` to the `$PATH` variable by adding this to the shell initialization
-script (eg `$HOME/.bashrc` for `bash` shell):
+Add `~/bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
 ```sh
-export PATH=$PATH:$GOPATH/bin
+export PATH=$PATH:~/bin
 ```
+
+To have the shell always find the command, add that same `export` line to the 
+shell initialization script (`~/.bashrc` for the `bash` shell):
 
 ## Build from source code
 
@@ -38,7 +37,6 @@ git clone https://github.com/ava-labs/avalanche-network-runner.git
 ```
 
 ### Build
-
 From inside the cloned directory:
 
 ```sh
@@ -47,11 +45,10 @@ From inside the cloned directory:
 
 After that, `avalanche-network-runner` binary should be present under the `./bin/` directory, inside the cloned one.
 
-The user may consider to permanently add this directory to the `$PATH` environment variable by including a line in the shell
-initialization script (eg `%HOME/.bashrc` for `bash` shell), replacing `CLONED_DIRECTORY` with the real one:
+Add `./bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
 
 ```sh
-export PATH=$PATH:CLONED_DIRECTORY/bin
+export PATH=$PATH:$P:WD/bin
 ```
 
 ### Run Unit Tests
