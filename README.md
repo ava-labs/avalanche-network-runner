@@ -31,6 +31,8 @@ To add it to your path permanently, add an export command to your shell initiali
 
 This is only needed by advanced users who want to modify or test Avalanche Network Runner in specific ways.
 
+Requires golang to be installed on the system ([https://go.dev/doc/install](https://go.dev/doc/install)).
+
 ### Download
 
 ```sh
