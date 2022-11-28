@@ -11,20 +11,21 @@ This tool may be especially useful for development and testing.
 
 ## Installation
 
-To install the latest binary locally into `~/bin`, run:
+To download a binary for the latest release, run:
 
 ```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
-Add `~/bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
+The binary will be installed inside the `~/bin` directory.
+
+To add the binary to your path, run
 
 ```sh
-export PATH=$PATH:~/bin
+export PATH=~/bin:$PATH
 ```
 
-To have the shell always find the command, add that same `export` line to the 
-shell initialization script (`~/.bashrc` for the `bash` shell).
+To add it to your path permanently, add an export command to your shell initialization script (ex: .bashrc).
 
 ## Build from source code
 
@@ -44,12 +45,12 @@ From inside the cloned directory:
 ./scripts/build.sh
 ```
 
-After that, `avalanche-network-runner` binary should be present under the `./bin` directory, inside the cloned one.
+The binary will be installed inside the `./bin` directory.
 
-Add `./bin` to the `$PATH` environment variable so the shell can find the `avalanche-network-runner` command:
+To add the binary to your path, run
 
 ```sh
-export PATH=$PATH:$PWD/bin
+export PATH=$PWD/bin:$PATH
 ```
 
 ### Run Unit Tests
