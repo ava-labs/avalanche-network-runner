@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -31,19 +33,20 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix = "node"
-	configFileName        = "config.json"
-	upgradeConfigFileName = "upgrade.json"
-	stakingKeyFileName    = "staking.key"
-	stakingCertFileName   = "staking.crt"
-	genesisFileName       = "genesis.json"
-	stopTimeout           = 30 * time.Second
-	healthCheckFreq       = 3 * time.Second
-	DefaultNumNodes       = 5
-	snapshotPrefix        = "anr-snapshot-"
-	rootDirPrefix         = "network-runner-root-data"
-	defaultDbSubdir       = "db"
-	defaultLogsSubdir     = "logs"
+	defaultNodeNamePrefix     = "node"
+	configFileName            = "config.json"
+	upgradeConfigFileName     = "upgrade.json"
+	stakingKeyFileName        = "staking.key"
+	stakingCertFileName       = "staking.crt"
+	stakingSigningKeyFileName = "signer.key"
+	genesisFileName           = "genesis.json"
+	stopTimeout               = 30 * time.Second
+	healthCheckFreq           = 3 * time.Second
+	DefaultNumNodes           = 5
+	snapshotPrefix            = "anr-snapshot-"
+	rootDirPrefix             = "network-runner-root-data"
+	defaultDbSubdir           = "db"
+	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
 )
@@ -211,6 +214,12 @@ func init() {
 			panic(err)
 		}
 		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
+		stakingSigningKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/signer.key", i+1))
+		if err != nil {
+			panic(err)
+		}
+		encodedStakingSigningKey := base64.StdEncoding.EncodeToString(stakingSigningKey)
+		defaultNetworkConfig.NodeConfigs[i].StakingSigningKey = encodedStakingSigningKey
 		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
 	}
 
@@ -516,6 +525,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		nodeConfig.StakingCert = string(stakingCert)
 		nodeConfig.StakingKey = string(stakingKey)
+	}
+	if nodeConfig.StakingSigningKey == "" {
+		key, err := bls.NewSecretKey()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
+		}
+		keyBytes := bls.SecretKeyToBytes(key)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+		nodeConfig.StakingSigningKey = encodedKey
 	}
 
 	if err := ln.setNodeName(&nodeConfig); err != nil {
