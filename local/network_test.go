@@ -1137,6 +1137,8 @@ func TestWriteFiles(t *testing.T) {
 	stakingKeyFlag := fmt.Sprintf("--%s=%v", config.StakingTLSKeyPathKey, stakingKeyPath)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
 	stakingCertFlag := fmt.Sprintf("--%s=%v", config.StakingCertPathKey, stakingCertPath)
+	stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
+	stakingSigningKeyFlag := fmt.Sprintf("--%s=%v", config.StakingSignerKeyPathKey, stakingSigningKeyPath)
 	genesisPath := filepath.Join(tmpDir, genesisFileName)
 	genesisFlag := fmt.Sprintf("--%s=%v", config.GenesisConfigFileKey, genesisPath)
 	configFilePath := filepath.Join(tmpDir, configFileName)
@@ -1167,6 +1169,7 @@ func TestWriteFiles(t *testing.T) {
 			expectedFlags: []string{
 				stakingKeyFlag,
 				stakingCertFlag,
+				stakingSigningKeyFlag,
 				genesisFlag,
 				chainConfigDirFlag,
 				subnetConfigDirFlag,
@@ -1184,6 +1187,7 @@ func TestWriteFiles(t *testing.T) {
 			expectedFlags: []string{
 				stakingKeyFlag,
 				stakingCertFlag,
+				stakingSigningKeyFlag,
 				genesisFlag,
 				configFileFlag,
 				chainConfigDirFlag,
@@ -1203,6 +1207,7 @@ func TestWriteFiles(t *testing.T) {
 			expectedFlags: []string{
 				stakingKeyFlag,
 				stakingCertFlag,
+				stakingSigningKeyFlag,
 				genesisFlag,
 				configFileFlag,
 				chainConfigDirFlag,
