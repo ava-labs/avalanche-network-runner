@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.18
 
 require (
-	github.com/ava-labs/avalanchego v1.9.2
-	github.com/ava-labs/coreth v0.11.2
+	github.com/ava-labs/avalanchego v1.9.3-rc.1
+	github.com/ava-labs/coreth v0.11.3
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.13.0
 	github.com/onsi/ginkgo/v2 v2.5.1
@@ -27,7 +27,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ava-labs/avalanche-ledger-go v0.0.11 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.12 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
