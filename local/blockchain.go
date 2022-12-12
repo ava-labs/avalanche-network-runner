@@ -755,11 +755,21 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 		// create config, network upgrade and subnet config files
 		if chainSpec.ChainConfig != nil {
 			created = true
-			for nodeName := range ln.nodes {
+			for nodeName, node := range ln.nodes {
+				nodeChainConfig := chainSpec.ChainConfig
+				if conf, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
+					// keep contents to write file
+					nodeChainConfig = conf
+					// update node config for state preservation
+					if node.config.ChainConfigFiles == nil {
+						node.config.ChainConfigFiles = map[string]string{}
+					}
+					node.config.ChainConfigFiles[chainAlias] = string(conf)
+				}
 				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
 				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
 				chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
-				if err := createFileAndWrite(chainConfigPath, chainSpec.ChainConfig); err != nil {
+				if err := createFileAndWrite(chainConfigPath, nodeChainConfig); err != nil {
 					return false, fmt.Errorf("couldn't write chain config file at %q: %w", chainConfigPath, err)
 				}
 			}
