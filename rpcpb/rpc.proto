@@ -260,9 +260,12 @@ message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
   optional string subnet_id = 3;
+  // General chain config file path for all nodes
   string chain_config = 4;
   string network_upgrade = 5;
   string subnet_config = 6;
+  // Map of node name to chain config file path for specific nodes
+  map<string, string> per_node_chain_config = 9;
 }
 
 message CreateBlockchainsRequest {
@@ -272,6 +275,8 @@ message CreateBlockchainsRequest {
   // - (optional) subnet id to use.
   // - chain config file path
   // - network upgrade file path
+  // - subnet config file path
+  // - chain config file path for specific nodes
   //
   // The matching file with the name in "ids.ID" format must exist.
   // e.g., ids.ToID(hashing.ComputeHash256("subnetevm")).String()
