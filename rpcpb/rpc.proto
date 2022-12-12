@@ -260,12 +260,12 @@ message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
   optional string subnet_id = 3;
-  // General chain config file path for all nodes
+  // General chain config file path
   string chain_config = 4;
   string network_upgrade = 5;
   string subnet_config = 6;
-  // Map of node name to chain config file path for specific nodes
-  map<string, string> per_node_chain_config = 9;
+  // Per node chain config file path
+  string per_node_chain_config = 7;
 }
 
 message CreateBlockchainsRequest {
