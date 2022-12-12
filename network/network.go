@@ -14,12 +14,12 @@ var (
 )
 
 type BlockchainSpec struct {
-	VmName         string
-	Genesis        []byte
-	SubnetId       *string
-	ChainConfig    []byte
-	NetworkUpgrade []byte
-	SubnetConfig   []byte
+	VmName             string
+	Genesis            []byte
+	SubnetId           *string
+	ChainConfig        []byte
+	NetworkUpgrade     []byte
+	SubnetConfig       []byte
 	PerNodeChainConfig map[string][]byte
 }
 

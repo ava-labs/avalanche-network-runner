@@ -758,8 +758,8 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 			for nodeName := range ln.nodes {
 				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
 					ln.nodes[nodeName].config.ChainConfigFiles[chainAlias] = string(cfg)
-                } else {
-                    delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
+				} else {
+					delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
 				}
 			}
 		}
