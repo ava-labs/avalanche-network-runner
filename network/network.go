@@ -20,6 +20,7 @@ type BlockchainSpec struct {
 	ChainConfig    []byte
 	NetworkUpgrade []byte
 	SubnetConfig   []byte
+	PerNodeChainConfig map[string][]byte
 }
 
 // Network is an abstraction of an Avalanche network

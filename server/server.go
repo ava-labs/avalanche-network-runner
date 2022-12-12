@@ -460,17 +460,31 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+	perNodeChainConfig := map[string][]byte{}
+	if len(spec.PerNodeChainConfig) != 0 {
+		for nodeName, chainConfigPath := range spec.PerNodeChainConfig {
+			b, err := os.ReadFile(chainConfigPath)
+			if err != nil {
+				return network.BlockchainSpec{}, err
+			}
+			perNodeChainConfig[nodeName] = b
+		}
+	}
 	return network.BlockchainSpec{
-		VmName:         vmName,
-		Genesis:        genesisBytes,
-		ChainConfig:    chainConfigBytes,
-		NetworkUpgrade: networkUpgradeBytes,
-		SubnetConfig:   subnetConfigBytes,
-		SubnetId:       spec.SubnetId,
+		VmName:             vmName,
+		Genesis:            genesisBytes,
+		ChainConfig:        chainConfigBytes,
+		NetworkUpgrade:     networkUpgradeBytes,
+		SubnetConfig:       subnetConfigBytes,
+		SubnetId:           spec.SubnetId,
+		PerNodeChainConfig: perNodeChainConfig,
 	}, nil
 }
 
-func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
+func (s *server) CreateBlockchains(
+	ctx context.Context,
+	req *rpcpb.CreateBlockchainsRequest,
+) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
