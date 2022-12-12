@@ -752,7 +752,7 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 	for i, chainSpec := range chainSpecs {
 		chainAlias := blockchainTxs[i].ID().String()
 		// update config info. set defaults and node specifics
-		if chainSpec.ChainConfig != nil {
+		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
 			created = true
 			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
