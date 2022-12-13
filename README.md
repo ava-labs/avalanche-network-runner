@@ -328,6 +328,27 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
+Chain config can also we defined on a per node basis. For that, a per node chain config file is needed, which is a JSON that specifies the chain config per node, takes as example the following as the contents of the file with path `$PER_NODE_CHAIN_CONFIG`:
+
+```json
+{
+    "node1": {"subnet": "a", "rpc-tx-fee-cap": 101},
+    "node2": {"subnet": "b", "rpc-tx-fee-cap": 102},
+    "node3": {"subnet": "c", "rpc-tx-fee-cap": 103},
+    "node4": {"subnet": "d", "rpc-tx-fee-cap": 104},
+    "node5": {"subnet": "e", "rpc-tx-fee-cap": 105}
+}
+```
+
+With this, the blockchain can be created with this command:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
+```
+
 To remove (stop) a node:
 
 ```bash
