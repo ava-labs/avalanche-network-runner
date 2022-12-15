@@ -309,14 +309,11 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 	opts := []client.OpOption{}
 
 	if customNodeConfigs != "" {
-		fmt.Println("aca estoy")
-		fmt.Println(customNodeConfigs)
 		nodeConfigs := make(map[string]string)
 		if err := json.Unmarshal([]byte(customNodeConfigs), &nodeConfigs); err != nil {
 			return err
 		}
 		opts = append(opts, client.WithCustomNodeConfigs(nodeConfigs))
-		fmt.Println("aca me voy")
 	}
 
 	ctx := getAsyncContext()
