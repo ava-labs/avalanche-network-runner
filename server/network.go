@@ -263,12 +263,13 @@ func (lc *localNetwork) startWait(
 
 	readyCh <- struct{}{}
 
-	lc.createBlockchains(ctx, chainSpecs, readyCh)
+	lc.createBlockchains(ctx, chainSpecs, nil, readyCh)
 }
 
 func (lc *localNetwork) createBlockchains(
 	argCtx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	customNodeConfigs map[string]string,
 	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// createBlockchains triggers a series of different time consuming actions
@@ -287,7 +288,7 @@ func (lc *localNetwork) createBlockchains(
 		return
 	}
 
-	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
+	if err := lc.nw.CreateBlockchains(ctx, chainSpecs, customNodeConfigs); err != nil {
 		lc.startErrCh <- err
 		return
 	}

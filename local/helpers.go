@@ -67,31 +67,33 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 		}
 	}
 	// chain configs dir
-	chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-	if err := os.MkdirAll(chainConfigDir, 0o750); err != nil {
-		return nil, err
+	if _, ok := nodeConfig.Flags[config.ChainConfigDirKey]; !ok {
+		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+		if err := os.MkdirAll(chainConfigDir, 0o750); err != nil {
+			return nil, err
+		}
+		flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+		// chain configs
+		for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
+			chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
+			if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
+			}
+		}
+		// network upgrades
+		for chainAlias, chainUpgradeFile := range nodeConfig.UpgradeConfigFiles {
+			chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
+			if err := createFileAndWrite(chainUpgradePath, []byte(chainUpgradeFile)); err != nil {
+				return nil, fmt.Errorf("couldn't write file at %q: %w", chainUpgradePath, err)
+			}
+		}
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
 	// subnet configs dir
 	subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
 	if err := os.MkdirAll(subnetConfigDir, 0o750); err != nil {
 		return nil, err
 	}
 	flags = append(flags, fmt.Sprintf("--%s=%s", config.SubnetConfigDirKey, subnetConfigDir))
-	// chain configs
-	for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
-		chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
-		if err := createFileAndWrite(chainConfigPath, []byte(chainConfigFile)); err != nil {
-			return nil, fmt.Errorf("couldn't write file at %q: %w", chainConfigPath, err)
-		}
-	}
-	// network upgrades
-	for chainAlias, chainUpgradeFile := range nodeConfig.UpgradeConfigFiles {
-		chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
-		if err := createFileAndWrite(chainUpgradePath, []byte(chainUpgradeFile)); err != nil {
-			return nil, fmt.Errorf("couldn't write file at %q: %w", chainUpgradePath, err)
-		}
-	}
 	// subnet configs
 	for subnetID, subnetConfigFile := range nodeConfig.SubnetConfigFiles {
 		subnetConfigPath := filepath.Join(subnetConfigDir, subnetID+".json")

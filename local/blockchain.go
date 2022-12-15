@@ -5,6 +5,8 @@ package local
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -79,33 +81,21 @@ func (ln *localNetwork) getClientURI() (string, error) {
 func (ln *localNetwork) CreateBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	customNodeConfigs map[string]string,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
-	if err != nil {
-		return err
-	}
-
-	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
-		return err
-	}
-
-	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
-		return err
-	}
-
-	return nil
+	return ln.installCustomChains(ctx, chainSpecs, customNodeConfigs)
 }
 
 // if alias is defined in blockchain-specs, registers an alias for the previously created blockchain
-func (ln *localNetwork) RegisterBlockchainAliases(
+func (ln *localNetwork) setBlockchainAliasesWithAdminAPI(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 	chainSpecs []network.BlockchainSpec,
 ) error {
 	fmt.Println()
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases")))
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases via admin API")))
 	for i, chainSpec := range chainSpecs {
 		if chainSpec.BlockchainAlias != "" {
 			blockchainAlias := chainSpec.BlockchainAlias
@@ -140,13 +130,14 @@ func (ln *localNetwork) CreateSubnets(
 func (ln *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
-) ([]blockchainInfo, error) {
+	customNodeConfigs map[string]string,
+) error {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and install custom chains")))
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
 
@@ -160,7 +151,7 @@ func (ln *localNetwork) installCustomChains(
 		if chainSpec.SubnetId != nil {
 			subnetID, err := ids.FromString(*chainSpec.SubnetId)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			pTXs = append(pTXs, subnetID)
 		}
@@ -168,11 +159,11 @@ func (ln *localNetwork) installCustomChains(
 
 	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
-		return nil, err
+		return err
 	}
 
 	// get number of subnets to create
@@ -187,7 +178,7 @@ func (ln *localNetwork) installCustomChains(
 	// create missing subnets
 	addedSubnetIDs, err := createSubnets(ctx, numSubnetsToCreate, baseWallet, testKeyAddr, ln.log)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// assign created subnets to blockchain requests with undefined subnet id
 	j := 0
@@ -201,30 +192,48 @@ func (ln *localNetwork) installCustomChains(
 
 	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, baseWallet, ln.log)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	blockchainFilesCreated, err := ln.createBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
+	blockchainFilesCreated, err := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	aliasesSetWithAvagoFlags := false
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
+		if err := ln.setBlockchainAliasesWithAvagoFlags(chainSpecs, blockchainTxs, ln.log); err != nil {
+			return err
+		}
+		// set custom node configs
+		for nodeName := range ln.nodes {
+			var customNodeConfig map[string]interface{}
+			if customNodeConfigs != nil && customNodeConfigs[nodeName] != "" {
+				if err := json.Unmarshal([]byte(customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
+					return err
+				}
+			}
+			for k, v := range customNodeConfig {
+				ln.nodes[nodeName].config.Flags[k] = v
+			}
+		}
+
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
 		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, pTXs, clientURI)
 		if err != nil {
-			return nil, err
+			return err
 		}
+		aliasesSetWithAvagoFlags = true
 	}
 
 	// refresh vm list
 	if err := ln.reloadVMPlugins(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
 	// create blockchain from txs before spending more utxos
 	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, baseWallet, ln.log); err != nil {
-		return nil, err
+		return err
 	}
 
 	// get all subnets for add subnet validator request
@@ -232,24 +241,24 @@ func (ln *localNetwork) installCustomChains(
 	for _, chainSpec := range chainSpecs {
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		subnetIDs = append(subnetIDs, subnetID)
 	}
 	// add subnet validators
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs); err != nil {
-		return nil, err
+		return err
 	}
 
 	chainInfos := make([]blockchainInfo, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmID, err := utils.VMID(chainSpec.VmName)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		subnetID, err := ids.FromString(*chainSpec.SubnetId)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		chainInfos[i] = blockchainInfo{
 			// we keep a record of VM name in blockchain name field,
@@ -265,11 +274,21 @@ func (ln *localNetwork) installCustomChains(
 	ln.log.Info(logging.Green.Wrap("checking the remaining balance of the base wallet"))
 	balances, err := baseWallet.P().Builder().GetBalance()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	ln.log.Info("base wallet AVAX balance", zap.Uint64("balance", balances[avaxAssetID]), zap.String("address", testKeyAddr.String()))
 
-	return chainInfos, nil
+	if err := ln.waitForCustomChainsReady(ctx, chainInfos, chainSpecs, aliasesSetWithAvagoFlags); err != nil {
+		return err
+	}
+
+	if !aliasesSetWithAvagoFlags {
+		if err := ln.setBlockchainAliasesWithAdminAPI(ctx, chainInfos, chainSpecs); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ln *localNetwork) setupWalletAndInstallSubnets(
@@ -345,6 +364,8 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 func (ln *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
+	chainSpecs []network.BlockchainSpec,
+	aliasesSetWithAvagoFlags bool,
 ) error {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("waiting for custom chains to report healthy...")))
@@ -368,8 +389,12 @@ func (ln *localNetwork) waitForCustomChainsReady(
 
 	for nodeName, node := range ln.nodes {
 		ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
-		for _, chainInfo := range chainInfos {
-			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
+		for i, chainInfo := range chainInfos {
+			logName := chainInfo.blockchainID.String() + ".log"
+			if chainSpecs[i].BlockchainAlias != "" && aliasesSetWithAvagoFlags {
+				logName = chainSpecs[i].BlockchainAlias + ".log"
+			}
+			p := filepath.Join(node.GetLogsDir(), logName)
 			ln.log.Info("checking log",
 				zap.String("vm-ID", chainInfo.vmID.String()),
 				zap.String("subnet-ID", chainInfo.subnetID.String()),
@@ -771,7 +796,50 @@ func createBlockchainTxs(
 	return blockchainTxs, nil
 }
 
-func (ln *localNetwork) createBlockchainConfigFiles(
+func (ln *localNetwork) setBlockchainAliasesWithAvagoFlags(
+	chainSpecs []network.BlockchainSpec,
+	blockchainTxs []*txs.Tx,
+	log logging.Logger,
+) error {
+	fmt.Println()
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases via avago flags")))
+	for i, chainSpec := range chainSpecs {
+		blockchainID := blockchainTxs[i].ID().String()
+		if chainSpec.BlockchainAlias != "" {
+			ln.log.Info("registering blockchain alias",
+				zap.String("alias", chainSpec.BlockchainAlias),
+				zap.String("chain-id", blockchainID))
+			for nodeName := range ln.nodes {
+				aliases := base64.StdEncoding.EncodeToString([]byte("{}"))
+				aliasesIntf, ok := ln.nodes[nodeName].config.Flags[config.ChainAliasesContentKey]
+				if ok {
+					aliases, ok = aliasesIntf.(string)
+					if !ok {
+						return fmt.Errorf("expected string for %s, got %T", config.ChainAliasesContentKey, aliasesIntf)
+					}
+				}
+				decodedAliases, err := base64.StdEncoding.DecodeString(aliases)
+				if err != nil {
+					return err
+				}
+				var aliasesMap map[string]interface{}
+				if err := json.Unmarshal(decodedAliases, &aliasesMap); err != nil {
+					return err
+				}
+				aliasesMap[blockchainID] = []string{chainSpec.BlockchainAlias}
+				newDecodedAliases, err := json.Marshal(aliasesMap)
+				if err != nil {
+					return err
+				}
+				newAliases := base64.StdEncoding.EncodeToString(newDecodedAliases)
+				ln.nodes[nodeName].config.Flags[config.ChainAliasesContentKey] = newAliases
+			}
+		}
+	}
+	return nil
+}
+
+func (ln *localNetwork) setBlockchainConfigFiles(
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
 	log logging.Logger,
@@ -780,57 +848,28 @@ func (ln *localNetwork) createBlockchainConfigFiles(
 	created := false
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
 	for i, chainSpec := range chainSpecs {
-		chainAlias := blockchainTxs[i].ID().String()
-
-		// create config, network upgrade and subnet config files
-		if chainSpec.ChainConfig != nil {
+		blockchainID := blockchainTxs[i].ID().String()
+		// update config info. set defaults and node specifics
+		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
 			created = true
+			ln.chainConfigFiles[blockchainID] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-				chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
-				if err := createFileAndWrite(chainConfigPath, chainSpec.ChainConfig); err != nil {
-					return false, fmt.Errorf("couldn't write chain config file at %q: %w", chainConfigPath, err)
+				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
+					ln.nodes[nodeName].config.ChainConfigFiles[blockchainID] = string(cfg)
+				} else {
+					delete(ln.nodes[nodeName].config.ChainConfigFiles, blockchainID)
 				}
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
 			created = true
+			ln.upgradeConfigFiles[blockchainID] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-				chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
-				if err := createFileAndWrite(chainUpgradePath, chainSpec.NetworkUpgrade); err != nil {
-					return false, fmt.Errorf("couldn't write network upgrade file at %q: %w", chainUpgradePath, err)
-				}
+				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, blockchainID)
 			}
 		}
 		if chainSpec.SubnetConfig != nil {
 			created = true
-			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
-				subnetConfigPath := filepath.Join(subnetConfigDir, *chainSpec.SubnetId+".json")
-				if err := createFileAndWrite(subnetConfigPath, chainSpec.SubnetConfig); err != nil {
-					return false, fmt.Errorf("couldn't write chain config file at %q: %w", subnetConfigPath, err)
-				}
-			}
-		}
-		// update config info for snapshopt/restart purposes
-		// put into defaults and reset node specifics
-		if chainSpec.ChainConfig != nil {
-			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
-			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
-			}
-		}
-		if chainSpec.NetworkUpgrade != nil {
-			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
-			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
-			}
-		}
-		if chainSpec.SubnetConfig != nil {
 			ln.subnetConfigFiles[*chainSpec.SubnetId] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetId)

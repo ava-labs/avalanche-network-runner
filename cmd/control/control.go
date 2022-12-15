@@ -283,6 +283,12 @@ func newCreateBlockchainsCommand() *cobra.Command {
 		RunE:  createBlockchainsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
+	cmd.PersistentFlags().StringVar(
+		&customNodeConfigs,
+		"custom-node-configs",
+		"",
+		"[optional] custom node configs as JSON string of map, for each node individually",
+	)
 	return cmd
 }
 
@@ -300,11 +306,25 @@ func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	opts := []client.OpOption{}
+
+	if customNodeConfigs != "" {
+		fmt.Println("aca estoy")
+		fmt.Println(customNodeConfigs)
+		nodeConfigs := make(map[string]string)
+		if err := json.Unmarshal([]byte(customNodeConfigs), &nodeConfigs); err != nil {
+			return err
+		}
+		opts = append(opts, client.WithCustomNodeConfigs(nodeConfigs))
+		fmt.Println("aca me voy")
+	}
+
 	ctx := getAsyncContext()
 
 	info, err := cli.CreateBlockchains(
 		ctx,
 		blockchainSpecs,
+		opts...,
 	)
 	if err != nil {
 		return err

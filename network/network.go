@@ -14,13 +14,14 @@ var (
 )
 
 type BlockchainSpec struct {
-	VmName          string
-	Genesis         []byte
-	SubnetId        *string
-	ChainConfig     []byte
-	NetworkUpgrade  []byte
-	SubnetConfig    []byte
-	BlockchainAlias string
+	VmName             string
+	Genesis            []byte
+	SubnetId           *string
+	ChainConfig        []byte
+	NetworkUpgrade     []byte
+	SubnetConfig       []byte
+	BlockchainAlias    string
+	PerNodeChainConfig map[string][]byte
 }
 
 // Network is an abstraction of an Avalanche network
@@ -61,7 +62,7 @@ type Network interface {
 	// a map of subnet configs
 	RestartNode(context.Context, string, string, string, map[string]string, map[string]string, map[string]string) error
 	// Create the specified blockchains
-	CreateBlockchains(context.Context, []BlockchainSpec) error
+	CreateBlockchains(context.Context, []BlockchainSpec, map[string]string) error
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, uint32) error
 }

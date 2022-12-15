@@ -460,18 +460,40 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+	perNodeChainConfig := map[string][]byte{}
+	if spec.PerNodeChainConfig != "" {
+		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+		perNodeChainConfigMap := map[string]interface{}{}
+		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
+			return network.BlockchainSpec{}, err
+		}
+		for nodeName, cfg := range perNodeChainConfigMap {
+			cfgBytes, err := json.Marshal(cfg)
+			if err != nil {
+				return network.BlockchainSpec{}, err
+			}
+			perNodeChainConfig[nodeName] = cfgBytes
+		}
+	}
 	return network.BlockchainSpec{
-		VmName:          vmName,
-		Genesis:         genesisBytes,
-		ChainConfig:     chainConfigBytes,
-		NetworkUpgrade:  networkUpgradeBytes,
-		SubnetConfig:    subnetConfigBytes,
-		SubnetId:        spec.SubnetId,
-		BlockchainAlias: spec.BlockchainAlias,
+		VmName:             vmName,
+		Genesis:            genesisBytes,
+		ChainConfig:        chainConfigBytes,
+		NetworkUpgrade:     networkUpgradeBytes,
+		SubnetConfig:       subnetConfigBytes,
+		SubnetId:           spec.SubnetId,
+		BlockchainAlias:    spec.BlockchainAlias,
+		PerNodeChainConfig: perNodeChainConfig,
 	}, nil
 }
 
-func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
+func (s *server) CreateBlockchains(
+	ctx context.Context,
+	req *rpcpb.CreateBlockchainsRequest,
+) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
@@ -530,7 +552,7 @@ func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockch
 	// start non-blocking to install custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go s.network.createBlockchains(ctx, chainSpecs, readyCh)
+	go s.network.createBlockchains(ctx, chainSpecs, req.GetCustomNodeConfigs(), readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information

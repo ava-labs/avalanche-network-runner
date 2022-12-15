@@ -30,7 +30,7 @@ type Config struct {
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
-	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
+	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec, opts ...OpOption) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -131,9 +131,20 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	return c.controlc.Start(ctx, req)
 }
 
-func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error) {
+func (c *client) CreateBlockchains(
+    ctx context.Context,
+    blockchainSpecs []*rpcpb.BlockchainSpec,
+    opts ...OpOption,
+) (*rpcpb.CreateBlockchainsResponse, error) {
+	ret := &Op{numNodes: local.DefaultNumNodes}
+	ret.applyOpts(opts)
+
 	req := &rpcpb.CreateBlockchainsRequest{
 		BlockchainSpecs: blockchainSpecs,
+	}
+
+	if ret.customNodeConfigs != nil {
+		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
 
 	c.log.Info("create blockchains")
