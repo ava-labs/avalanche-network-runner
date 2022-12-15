@@ -1,6 +1,7 @@
 package local
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,10 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 		path      string
 		contents  []byte
 	}
+	decodedStakingSigningKey, err := base64.StdEncoding.DecodeString(nodeConfig.StakingSigningKey)
+	if err != nil {
+		return nil, err
+	}
 	files := []file{
 		{
 			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
@@ -32,6 +37,12 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			path:      filepath.Join(nodeRootDir, stakingCertFileName),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
+		},
+		{
+			flagValue: filepath.Join(nodeRootDir, stakingSigningKeyFileName),
+			path:      filepath.Join(nodeRootDir, stakingSigningKeyFileName),
+			pathKey:   config.StakingSignerKeyPathKey,
+			contents:  decodedStakingSigningKey,
 		},
 		{
 			flagValue: filepath.Join(nodeRootDir, genesisFileName),

@@ -22,6 +22,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
@@ -621,7 +622,7 @@ func (ln *localNetwork) addSubnetValidators(
 		if err != nil {
 			return err
 		}
-		subnetValidators := ids.NodeIDSet{}
+		subnetValidators := set.Set[ids.NodeID]{}
 		for _, v := range vs {
 			subnetValidators.Add(v.NodeID)
 		}
@@ -677,7 +678,7 @@ func (ln *localNetwork) waitSubnetValidators(
 			if err != nil {
 				return err
 			}
-			subnetValidators := ids.NodeIDSet{}
+			subnetValidators := set.Set[ids.NodeID]{}
 			for _, v := range vs {
 				subnetValidators.Add(v.NodeID)
 			}
