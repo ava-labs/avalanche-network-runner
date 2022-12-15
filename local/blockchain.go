@@ -90,7 +90,9 @@ func (ln *localNetwork) CreateBlockchains(
 		return err
 	}
 
-	ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs)
+	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -100,29 +102,25 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 	chainSpecs []network.BlockchainSpec,
-) {
+) error {
 	fmt.Println()
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("Registring blockchain aliases...")))
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases")))
 	for i, chainSpec := range chainSpecs {
-		if chainSpec.BlockchainAlias != nil {
-			blockchainAlias := *chainSpec.BlockchainAlias
+		if chainSpec.BlockchainAlias != "" {
+			blockchainAlias := chainSpec.BlockchainAlias
 			chainId := chainInfos[i].blockchainID.String()
+			ln.log.Info("registering blockchain alias",
+				zap.String("alias", blockchainAlias),
+				zap.String("chain-id", chainId))
 			for nodeName, node := range ln.nodes {
-				ln.log.Info("Registring blockchain alias",
-					zap.String("alias", blockchainAlias),
-					zap.String("chain-id", chainId),
-					zap.String("node-name", nodeName))
 				err := node.client.AdminAPI().AliasChain(ctx, chainId, blockchainAlias)
 				if err != nil {
-					ln.log.Error("Error while registring blockchain alias",
-						zap.String("alias", blockchainAlias),
-						zap.String("chain-id", chainId),
-						zap.String("node-name", nodeName),
-						zap.Error(err))
+					return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 				}
 			}
 		}
 	}
+	return nil
 }
 
 func (ln *localNetwork) CreateSubnets(
