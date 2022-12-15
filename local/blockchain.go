@@ -114,8 +114,7 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 				zap.String("alias", blockchainAlias),
 				zap.String("chain-id", chainId))
 			for nodeName, node := range ln.nodes {
-				err := node.client.AdminAPI().AliasChain(ctx, chainId, blockchainAlias)
-				if err != nil {
+				if err := node.client.AdminAPI().AliasChain(ctx, chainId, blockchainAlias); err != nil {
 					return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 				}
 			}
