@@ -20,6 +20,7 @@ type BlockchainSpec struct {
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
 	SubnetConfig       []byte
+	BlockchainAlias    string
 	PerNodeChainConfig map[string][]byte
 }
 

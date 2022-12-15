@@ -485,6 +485,7 @@ func getNetworkBlockchainSpec(
 		NetworkUpgrade:     networkUpgradeBytes,
 		SubnetConfig:       subnetConfigBytes,
 		SubnetId:           spec.SubnetId,
+		BlockchainAlias:    spec.BlockchainAlias,
 		PerNodeChainConfig: perNodeChainConfig,
 	}, nil
 }

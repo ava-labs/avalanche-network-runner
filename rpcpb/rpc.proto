@@ -264,8 +264,9 @@ message BlockchainSpec {
   string chain_config = 4;
   string network_upgrade = 5;
   string subnet_config = 6;
+  string blockchain_alias = 7;
   // Per node chain config file path
-  string per_node_chain_config = 7;
+  string per_node_chain_config = 8;
 }
 
 message CreateBlockchainsRequest {
