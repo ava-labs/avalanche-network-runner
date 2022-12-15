@@ -332,11 +332,11 @@ Chain config can also be defined on a per node basis. For that, a per node chain
 
 ```json
 {
-    "node1": {"subnet": "a", "rpc-tx-fee-cap": 101},
-    "node2": {"subnet": "b", "rpc-tx-fee-cap": 102},
-    "node3": {"subnet": "c", "rpc-tx-fee-cap": 103},
-    "node4": {"subnet": "d", "rpc-tx-fee-cap": 104},
-    "node5": {"subnet": "e", "rpc-tx-fee-cap": 105}
+    "node1": {"rpc-tx-fee-cap": 101},
+    "node2": {"rpc-tx-fee-cap": 102},
+    "node3": {"rpc-tx-fee-cap": 103},
+    "node4": {"rpc-tx-fee-cap": 104},
+    "node5": {"rpc-tx-fee-cap": 105}
 }
 ```
 
