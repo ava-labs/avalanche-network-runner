@@ -328,25 +328,20 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
-Chain config can also be defined on a per node basis. For that, a per node chain config file is needed, which is a JSON that specifies the chain config per node. For example, given the following as the contents of the file with path `$PER_NODE_CHAIN_CONFIG`:
+Chain config can also be defined on a per node basis. For that, custom node configs needs to be defined under a know
+alias. For example, given the following files under `$PER_NODE_CHAIN_CONFIG_DIR`, where the desired blockchain
+alias is `$ALIAS`:
 
-```json
-{
-    "node1": {"rpc-tx-fee-cap": 101},
-    "node2": {"rpc-tx-fee-cap": 102},
-    "node3": {"rpc-tx-fee-cap": 103},
-    "node4": {"rpc-tx-fee-cap": 104},
-    "node5": {"rpc-tx-fee-cap": 105}
-}
-```
+- `$NODE1_DIR` = `$PER_NODE_CHAIN_CONFIG_DIR/node1/$ALIAS/config.json`: `{"rpc-tx-fee-cap": 101}`
+- `$NODE2_DIR` = `$PER_NODE_CHAIN_CONFIG_DIR/node2/$ALIAS/config.json`: `{"rpc-tx-fee-cap": 102}`
+- `$NODE3_DIR` = `$PER_NODE_CHAIN_CONFIG_DIR/node3/$ALIAS/config.json`: `{"rpc-tx-fee-cap": 103}`
+- `$NODE4_DIR` = `$PER_NODE_CHAIN_CONFIG_DIR/node4/$ALIAS/config.json`: `{"rpc-tx-fee-cap": 104}`
+- `$NODE5_DIR` = `$PER_NODE_CHAIN_CONFIG_DIR/node5/$ALIAS/config.json`: `{"rpc-tx-fee-cap": 105}`
 
 Then a blockchain with different chain configs per node can be created with this command:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]}'
-
-# or
-avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
+avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "blockchain_alias": "'$ALIAS'"}]' --plugin-dir $PLUGIN_DIR --custom-node-configs '{"node1":"{\"chain-config-dir\":\"'$NODE1_DIR'\"}", "node2":"{\"chain-config-dir\":\"'$NODE2_DIR'\"}", "node3":"{\"chain-config-dir\":\"'$NODE3_DIR'\"}", "node4":"{\"chain-config-dir\":\"'$NODE4_DIR'\"}", "node5":"{\"chain-config-dir\":\"'$NODE5_DIR'\"}"}'
 ```
 
 To remove (stop) a node:
