@@ -67,7 +67,14 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 		}
 	}
 	// chain configs dir
-	if _, ok := nodeConfig.Flags[config.ChainConfigDirKey]; !ok {
+	customUserChainConfigs := false
+	if _, ok := nodeConfig.Flags[config.ChainConfigDirKey]; ok {
+		customUserChainConfigs = true
+	}
+	if _, ok := nodeConfig.Flags[config.ChainConfigContentKey]; ok {
+		customUserChainConfigs = true
+	}
+	if !customUserChainConfigs {
 		chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
 		if err := os.MkdirAll(chainConfigDir, 0o750); err != nil {
 			return nil, err
