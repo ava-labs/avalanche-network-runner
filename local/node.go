@@ -231,7 +231,8 @@ func (node *localNode) GetBuildDir() string {
 }
 
 // See node.Node
-func (node *localNode) GetDbDir() string {
+// TODO rename method so linter doesn't complain.
+func (node *localNode) GetDbDir() string { //nolint
 	return node.dbDir
 }
 

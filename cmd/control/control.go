@@ -197,7 +197,7 @@ func newStartCommand() *cobra.Command {
 	return cmd
 }
 
-func startFunc(cmd *cobra.Command, args []string) error {
+func startFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func startFunc(cmd *cobra.Command, args []string) error {
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
-			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+			return fmt.Errorf("failed to validate JSON for provided config file: %w", err)
 		}
 		opts = append(opts, client.WithGlobalNodeConfig(globalNodeConfig))
 	}
@@ -286,7 +286,7 @@ func newCreateBlockchainsCommand() *cobra.Command {
 	return cmd
 }
 
-func createBlockchainsFunc(cmd *cobra.Command, args []string) error {
+func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -330,7 +330,7 @@ func newCreateSubnetsCommand() *cobra.Command {
 	return cmd
 }
 
-func createSubnetsFunc(cmd *cobra.Command, args []string) error {
+func createSubnetsFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -365,7 +365,7 @@ func newHealthCommand() *cobra.Command {
 	return cmd
 }
 
-func healthFunc(cmd *cobra.Command, args []string) error {
+func healthFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -393,7 +393,7 @@ func newURIsCommand() *cobra.Command {
 	return cmd
 }
 
-func urisFunc(cmd *cobra.Command, args []string) error {
+func urisFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -421,7 +421,7 @@ func newStatusCommand() *cobra.Command {
 	return cmd
 }
 
-func statusFunc(cmd *cobra.Command, args []string) error {
+func statusFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -457,7 +457,7 @@ func newStreamStatusCommand() *cobra.Command {
 	return cmd
 }
 
-func streamStatusFunc(cmd *cobra.Command, args []string) error {
+func streamStatusFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ func newRemoveNodeCommand() *cobra.Command {
 	return cmd
 }
 
-func removeNodeFunc(cmd *cobra.Command, args []string) error {
+func removeNodeFunc(_ *cobra.Command, args []string) error {
 	// no validation for empty string required, as covered by `cobra.ExactArgs`
 	nodeName := args[0]
 	cli, err := newClient()
@@ -562,7 +562,7 @@ func newAddNodeCommand() *cobra.Command {
 	return cmd
 }
 
-func addNodeFunc(cmd *cobra.Command, args []string) error {
+func addNodeFunc(_ *cobra.Command, args []string) error {
 	// no validation for empty string required, as covered by `cobra.ExactArgs`
 	nodeName := args[0]
 	cli, err := newClient()
@@ -578,7 +578,7 @@ func addNodeFunc(cmd *cobra.Command, args []string) error {
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(addNodeConfig), &js); err != nil {
-			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+			return fmt.Errorf("failed to validate JSON for provided config file: %w", err)
 		}
 		opts = append(opts, client.WithGlobalNodeConfig(addNodeConfig))
 	}
@@ -661,7 +661,7 @@ func newRestartNodeCommand() *cobra.Command {
 	return cmd
 }
 
-func restartNodeFunc(cmd *cobra.Command, args []string) error {
+func restartNodeFunc(_ *cobra.Command, args []string) error {
 	// no validation for empty string required, as covered by `cobra.ExactArgs`
 	nodeName := args[0]
 	cli, err := newClient()
@@ -722,7 +722,7 @@ func newAttachPeerCommand() *cobra.Command {
 	return cmd
 }
 
-func attachPeerFunc(cmd *cobra.Command, args []string) error {
+func attachPeerFunc(_ *cobra.Command, args []string) error {
 	// no validation for empty string required, as covered by `cobra.ExactArgs`
 	nodeName := args[0]
 	cli, err := newClient()
@@ -786,7 +786,7 @@ func newSendOutboundMessageCommand() *cobra.Command {
 	return cmd
 }
 
-func sendOutboundMessageFunc(cmd *cobra.Command, args []string) error {
+func sendOutboundMessageFunc(_ *cobra.Command, args []string) error {
 	// no validation for empty string required, as covered by `cobra.ExactArgs`
 	nodeName := args[0]
 	cli, err := newClient()
@@ -821,7 +821,7 @@ func newStopCommand() *cobra.Command {
 	return cmd
 }
 
-func stopFunc(cmd *cobra.Command, args []string) error {
+func stopFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -849,7 +849,7 @@ func newSaveSnapshotCommand() *cobra.Command {
 	return cmd
 }
 
-func saveSnapshotFunc(cmd *cobra.Command, args []string) error {
+func saveSnapshotFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -925,7 +925,7 @@ func newLoadSnapshotCommand() *cobra.Command {
 	return cmd
 }
 
-func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
+func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -967,7 +967,7 @@ func loadSnapshotFunc(cmd *cobra.Command, args []string) error {
 		// validate it's valid JSON
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(globalNodeConfig), &js); err != nil {
-			return fmt.Errorf("failed to validate JSON for provided config file: %s", err)
+			return fmt.Errorf("failed to validate JSON for provided config file: %w", err)
 		}
 		opts = append(opts, client.WithGlobalNodeConfig(globalNodeConfig))
 	}
@@ -993,7 +993,7 @@ func newRemoveSnapshotCommand() *cobra.Command {
 	return cmd
 }
 
-func removeSnapshotFunc(cmd *cobra.Command, args []string) error {
+func removeSnapshotFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -1020,7 +1020,7 @@ func newGetSnapshotNamesCommand() *cobra.Command {
 	}
 }
 
-func getSnapshotNamesFunc(cmd *cobra.Command, args []string) error {
+func getSnapshotNamesFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err

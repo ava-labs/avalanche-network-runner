@@ -81,7 +81,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
-	nodesDbDir := map[string]string{}
+	nodesDBDir := map[string]string{}
 	for nodeName, node := range ln.nodes {
 		nodeConfig := node.config
 		// depending on how the user generated the config, different nodes config flags
@@ -92,7 +92,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		}
 		nodeConfig.Flags = nodeConfigFlags
 		nodesConfig[nodeName] = nodeConfig
-		nodesDbDir[nodeName] = node.GetDbDir()
+		nodesDBDir[nodeName] = node.GetDbDir()
 	}
 	// we change nodeConfig.Flags so as to preserve in snapshot the current node ports
 	for nodeName, nodeConfig := range nodesConfig {
@@ -122,20 +122,22 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		return "", err
 	}
 	// create main snapshot dirs
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
+	// TODO for CLI team -- what is the line below supposed to do?
+	// The linter is complaining about it.
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDBSubdir))
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
 		return "", err
 	}
 	// save db
 	for _, nodeConfig := range nodesConfig {
-		sourceDbDir, ok := nodesDbDir[nodeConfig.Name]
+		sourceDBDir, ok := nodesDBDir[nodeConfig.Name]
 		if !ok {
 			return "", fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
-		sourceDbDir = filepath.Join(sourceDbDir, constants.NetworkName(ln.networkID))
-		targetDbDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
-		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
+		sourceDBDir = filepath.Join(sourceDBDir, constants.NetworkName(ln.networkID))
+		targetDBDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
+		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
 			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
 		}
 	}
@@ -178,8 +180,10 @@ func (ln *localNetwork) loadSnapshot(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+	// TODO for CLI team -- what are the lines below supposed to do?
+	// The linter is complaining about them.
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDbSubdir))
+	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDBSubdir))
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -206,12 +210,12 @@ func (ln *localNetwork) loadSnapshot(
 	}
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDbDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
-		targetDbDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDbSubdir)
-		if err := dircopy.Copy(sourceDbDir, targetDbDir); err != nil {
+		sourceDBDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
+		targetDBDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDBSubdir)
+		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
 		}
-		nodeConfig.Flags[config.DBPathKey] = targetDbDir
+		nodeConfig.Flags[config.DBPathKey] = targetDBDir
 	}
 	// replace binary path
 	if binaryPath != "" {

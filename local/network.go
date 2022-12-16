@@ -45,7 +45,7 @@ const (
 	DefaultNumNodes           = 5
 	snapshotPrefix            = "anr-snapshot-"
 	rootDirPrefix             = "network-runner-root-data"
-	defaultDbSubdir           = "db"
+	defaultDBSubdir           = "db"
 	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
@@ -371,13 +371,13 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	if int(numNodes) > len(netConfig.NodeConfigs) {
 		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
 		refNodeConfig := netConfig.NodeConfigs[len(netConfig.NodeConfigs)-1]
-		refApiPortIntf, ok := refNodeConfig.Flags[config.HTTPPortKey]
+		refAPIPortIntf, ok := refNodeConfig.Flags[config.HTTPPortKey]
 		if !ok {
 			return netConfig, fmt.Errorf("could not get last standard api port from config")
 		}
-		refApiPort, ok := refApiPortIntf.(float64)
+		refAPIPort, ok := refAPIPortIntf.(float64)
 		if !ok {
-			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refApiPortIntf)
+			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refAPIPortIntf)
 		}
 		refStakingPortIntf, ok := refNodeConfig.Flags[config.StakingPortKey]
 		if !ok {
@@ -397,7 +397,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 			nodeConfig.StakingCert = string(stakingCert)
 			// replace ports
 			nodeConfig.Flags = map[string]interface{}{
-				config.HTTPPortKey:    int(refApiPort) + (i+1)*2,
+				config.HTTPPortKey:    int(refAPIPort) + (i+1)*2,
 				config.StakingPortKey: int(refStakingPort) + (i+1)*2,
 			}
 			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
@@ -458,7 +458,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 				// Clean up nodes already created
 				ln.log.Debug("error stopping network", zap.Error(err))
 			}
-			return fmt.Errorf("error adding node %s: %s", nodeConfig.Name, err)
+			return fmt.Errorf("error adding node %s: %w", nodeConfig.Name, err)
 		}
 	}
 
@@ -925,7 +925,7 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDbSubdir))
+	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDBSubdir))
 	if err != nil {
 		return buildFlagsReturn{}, err
 	}

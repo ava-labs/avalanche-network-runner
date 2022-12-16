@@ -54,14 +54,14 @@ type nodeProcessCreator struct {
 // the output will be redirected and colored
 func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string) (NodeProcess, error) {
 	// Start the AvalancheGo node and pass it the flags defined above
-	cmd := exec.Command(config.BinaryPath, args...)
+	cmd := exec.Command(config.BinaryPath, args...) //nolint
 	// assign a new color to this process (might not be used if the config isn't set for it)
 	color := npc.colorPicker.NextColor()
 	// Optionally redirect stdout and stderr
 	if config.RedirectStdout {
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			return nil, fmt.Errorf("couldn't create stdout pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stdout pipe: %w", err)
 		}
 		// redirect stdout and assign a color to the text
 		utils.ColorAndPrepend(stdout, npc.stdout, config.Name, color)
@@ -69,7 +69,7 @@ func (npc *nodeProcessCreator) NewNodeProcess(config node.Config, args ...string
 	if config.RedirectStderr {
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
-			return nil, fmt.Errorf("couldn't create stderr pipe: %s", err)
+			return nil, fmt.Errorf("couldn't create stderr pipe: %w", err)
 		}
 		// redirect stderr and assign a color to the text
 		utils.ColorAndPrepend(stderr, npc.stderr, config.Name, color)
