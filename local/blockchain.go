@@ -207,7 +207,7 @@ func (ln *localNetwork) installCustomChains(
 			customUserChainConfigs = true
 		}
 		if _, ok := customNodeConfig[config.ChainConfigContentKey]; ok {
-			customUserChainConfigs = tru
+			customUserChainConfigs = true
 		}
 	}
 
