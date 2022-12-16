@@ -460,33 +460,14 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
-	perNodeChainConfig := map[string][]byte{}
-	if spec.PerNodeChainConfig != "" {
-		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
-		perNodeChainConfigMap := map[string]interface{}{}
-		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
-			return network.BlockchainSpec{}, err
-		}
-		for nodeName, cfg := range perNodeChainConfigMap {
-			cfgBytes, err := json.Marshal(cfg)
-			if err != nil {
-				return network.BlockchainSpec{}, err
-			}
-			perNodeChainConfig[nodeName] = cfgBytes
-		}
-	}
 	return network.BlockchainSpec{
-		VmName:             vmName,
-		Genesis:            genesisBytes,
-		ChainConfig:        chainConfigBytes,
-		NetworkUpgrade:     networkUpgradeBytes,
-		SubnetConfig:       subnetConfigBytes,
-		SubnetId:           spec.SubnetId,
-		BlockchainAlias:    spec.BlockchainAlias,
-		PerNodeChainConfig: perNodeChainConfig,
+		VmName:          vmName,
+		Genesis:         genesisBytes,
+		ChainConfig:     chainConfigBytes,
+		NetworkUpgrade:  networkUpgradeBytes,
+		SubnetConfig:    subnetConfigBytes,
+		SubnetId:        spec.SubnetId,
+		BlockchainAlias: spec.BlockchainAlias,
 	}, nil
 }
 

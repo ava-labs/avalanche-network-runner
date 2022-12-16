@@ -847,7 +847,7 @@ func askedToCreateBlockchainConfigFiles(
 ) bool {
 	askedToCreate := false
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
+		if chainSpec.ChainConfig != nil {
 			askedToCreate = true
 		}
 		if chainSpec.NetworkUpgrade != nil {
@@ -875,14 +875,10 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 			blockchainID = chainSpec.BlockchainAlias
 		}
 		// update config info. set defaults and node specifics
-		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
+		if chainSpec.ChainConfig != nil {
 			ln.chainConfigFiles[blockchainID] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
-				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
-					ln.nodes[nodeName].config.ChainConfigFiles[blockchainID] = string(cfg)
-				} else {
-					delete(ln.nodes[nodeName].config.ChainConfigFiles, blockchainID)
-				}
+				delete(ln.nodes[nodeName].config.ChainConfigFiles, blockchainID)
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
