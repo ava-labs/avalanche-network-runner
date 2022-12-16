@@ -195,9 +195,25 @@ func (ln *localNetwork) installCustomChains(
 		return err
 	}
 
+	customUserChainConfigs := false
+	for nodeName := range ln.nodes {
+		var customNodeConfig map[string]interface{}
+		if customNodeConfigs != nil && customNodeConfigs[nodeName] != "" {
+			if err := json.Unmarshal([]byte(customNodeConfigs[nodeName]), &customNodeConfig); err != nil {
+				return err
+			}
+		}
+		if _, ok := customNodeConfig[config.ChainConfigDirKey]; ok {
+			customUserChainConfigs = true
+		}
+		if _, ok := customNodeConfig[config.ChainConfigContentKey]; ok {
+			customUserChainConfigs = tru
+		}
+	}
+
 	createConfigFiles := askedToCreateBlockchainConfigFiles(chainSpecs)
 
-	doNetworkRestart := numSubnetsToCreate > 0 || createConfigFiles
+	doNetworkRestart := numSubnetsToCreate > 0 || createConfigFiles || customUserChainConfigs
 
 	// on network restart, will set aliases using avago flags
 	aliasesSetWithAvagoFlags := doNetworkRestart
