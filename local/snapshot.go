@@ -122,9 +122,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		return "", err
 	}
 	// create main snapshot dirs
-	// TODO for CLI team -- what is the line below supposed to do?
-	// The linter is complaining about it.
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDBSubdir))
+	snapshotDbDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
 	if err != nil {
 		return "", err
@@ -180,10 +178,8 @@ func (ln *localNetwork) loadSnapshot(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
-	// TODO for CLI team -- what are the lines below supposed to do?
-	// The linter is complaining about them.
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDbDir := filepath.Join(filepath.Join(snapshotDir, defaultDBSubdir))
+	snapshotDbDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
