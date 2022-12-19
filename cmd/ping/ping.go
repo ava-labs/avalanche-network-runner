@@ -36,7 +36,7 @@ func NewCommand() *cobra.Command {
 	return cmd
 }
 
-func pingFunc(cmd *cobra.Command, args []string) error {
+func pingFunc(*cobra.Command, []string) error {
 	lvl, err := logging.ToLevel(logLevel)
 	if err != nil {
 		return err

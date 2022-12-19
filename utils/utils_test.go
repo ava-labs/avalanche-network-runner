@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var genesis = []byte(
@@ -46,18 +46,19 @@ var genesis = []byte(
 // extracts the NetworkID from the genesis file
 func TestExtractNetworkID(t *testing.T) {
 	netID, err := NetworkIDFromGenesis(genesis)
-	assert.NoError(t, err)
-	assert.EqualValues(t, netID, 1337)
+	require.NoError(t, err)
+	require.EqualValues(t, netID, 1337)
 }
 
 func TestCheckExecPath(t *testing.T) {
 	execF, err := os.CreateTemp(os.TempDir(), "test-check-exec")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	execPath := execF.Name()
-	assert.NoError(t, execF.Close())
+	require.NoError(t, execF.Close())
 
 	t.Cleanup(func() {
-		os.RemoveAll(execPath)
+		err = os.RemoveAll(execPath)
+		require.NoError(t, err)
 	})
 
 	tt := []struct {
@@ -79,24 +80,26 @@ func TestCheckExecPath(t *testing.T) {
 	}
 	for i, tv := range tt {
 		err := CheckExecPath(tv.execPath)
-		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
+		require.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
 	}
 }
 
 func TestCheckPluginPaths(t *testing.T) {
 	pluginF, err := os.CreateTemp(os.TempDir(), "test-check-exec-plugin")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pluginPath := pluginF.Name()
-	assert.NoError(t, pluginF.Close())
+	require.NoError(t, pluginF.Close())
 
 	genesisF, err := os.CreateTemp(os.TempDir(), "test-check-genesis-plugin")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	genesisPath := genesisF.Name()
-	assert.NoError(t, genesisF.Close())
+	require.NoError(t, genesisF.Close())
 
 	t.Cleanup(func() {
-		os.RemoveAll(pluginPath)
-		os.RemoveAll(genesisPath)
+		err = os.RemoveAll(pluginPath)
+		require.NoError(t, err)
+		err = os.RemoveAll(genesisPath)
+		require.NoError(t, err)
 	})
 
 	tt := []struct {
@@ -122,6 +125,6 @@ func TestCheckPluginPaths(t *testing.T) {
 	}
 	for i, tv := range tt {
 		err := CheckPluginPaths(tv.pluginPath, tv.genesisPath)
-		assert.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
+		require.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
 	}
 }

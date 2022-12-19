@@ -497,7 +497,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("overrides num-nodes", func() {
-			ux.Print(log, logging.Green.Wrap("checking that given num-nodes %d have been overriden by custom configs: %d"), numNodes, len(customNodeConfigs))
+			ux.Print(log, logging.Green.Wrap("checking that given num-nodes %d have been overridden by custom configs: %d"), numNodes, len(customNodeConfigs))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			uris, err := cli.URIs(ctx)
 			cancel()
@@ -710,7 +710,6 @@ func waitForCustomChainsHealthy() string {
 			gomega.Ω(err).Should(gomega.BeNil())
 			created = status.ClusterInfo.CustomChainsHealthy
 			if created {
-				continueLoop = false
 				existingSubnetID := status.ClusterInfo.GetSubnets()[0]
 				gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
 				cancel()

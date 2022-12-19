@@ -13,7 +13,7 @@ import (
 )
 
 // Issues API calls to a node
-// TODO: byzantine api. check if appropiate. improve implementation.
+// TODO: byzantine api. check if appropriate. improve implementation.
 type Client interface {
 	PChainAPI() platformvm.Client
 	XChainAPI() avm.Client
