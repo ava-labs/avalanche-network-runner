@@ -122,8 +122,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		return "", err
 	}
 	// create main snapshot dirs
-	snapshotDbDir := filepath.Join(snapshotDir, defaultDBSubdir)
-	err = os.MkdirAll(snapshotDbDir, os.ModePerm)
+	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
+	err = os.MkdirAll(snapshotDBDir, os.ModePerm)
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +134,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 			return "", fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
 		}
 		sourceDBDir = filepath.Join(sourceDBDir, constants.NetworkName(ln.networkID))
-		targetDBDir := filepath.Join(filepath.Join(snapshotDbDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
+		targetDBDir := filepath.Join(filepath.Join(snapshotDBDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
 		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
 			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
 		}
@@ -179,7 +179,7 @@ func (ln *localNetwork) loadSnapshot(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDbDir := filepath.Join(snapshotDir, defaultDBSubdir)
+	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -206,7 +206,7 @@ func (ln *localNetwork) loadSnapshot(
 	}
 	// load db
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDBDir := filepath.Join(snapshotDbDir, nodeConfig.Name)
+		sourceDBDir := filepath.Join(snapshotDBDir, nodeConfig.Name)
 		targetDBDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDBSubdir)
 		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
