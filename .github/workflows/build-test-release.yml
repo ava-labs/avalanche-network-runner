@@ -20,13 +20,17 @@ jobs:
         env:
           GITHUB_ACCESS_TOKEN: ${{ secrets.SNOWBOT_PAT }}
         run: git config --global url."https://${GITHUB_ACCESS_TOKEN}@github.com/ava-labs/avalanchego-operator".insteadOf "https://github.com/ava-labs/avalanchego-operator"
-      - uses: actions/checkout@v2
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
         with:
-          version: "v1.49.0"
-          working-directory: .
-          args: --timeout 3m
+          go-version: '1.18'
+          check-latest: true
+      - name: Run static analysis tests
+        shell: bash
+        run: scripts/lint.sh
+
   unit_test:
     name: Unit tests
     runs-on: ubuntu-latest
