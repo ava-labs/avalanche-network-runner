@@ -6,7 +6,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfigMarshalJSON(t *testing.T) {
@@ -56,6 +56,5 @@ func TestConfigMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert := assert.New(t)
-	assert.EqualValues(control, netcfg)
+	require.EqualValues(t, control, netcfg)
 }

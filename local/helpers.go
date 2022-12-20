@@ -134,19 +134,20 @@ func getPort(
 	reassignIfUsed bool,
 ) (port uint16, err error) {
 	if portIntf, ok := flags[portKey]; ok {
-		if portFromFlags, ok := portIntf.(int); ok {
-			port = uint16(portFromFlags)
-		} else if portFromFlags, ok := portIntf.(float64); ok {
-			port = uint16(portFromFlags)
-		} else {
+		switch gotPort := portIntf.(type) {
+		case int:
+			port = uint16(gotPort)
+		case float64:
+			port = uint16(gotPort)
+		default:
 			return 0, fmt.Errorf("expected flag %q to be int/float64 but got %T", portKey, portIntf)
 		}
 	} else if portIntf, ok := configFile[portKey]; ok {
-		if portFromConfigFile, ok := portIntf.(float64); ok {
-			port = uint16(portFromConfigFile)
-		} else {
+		portFromConfigFile, ok := portIntf.(float64)
+		if !ok {
 			return 0, fmt.Errorf("expected flag %q to be float64 but got %T", portKey, portIntf)
 		}
+		port = uint16(portFromConfigFile)
 	} else {
 		// Use a random free port.
 		// Note: it is possible but unlikely for getFreePort to return the same port multiple times.
@@ -178,11 +179,10 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	// TODO should we do this for other directories? Profiles?
 	nodeRootDir := getNodeDir(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
-		} else {
+		if !os.IsExist(err) {
 			return "", fmt.Errorf("error creating temp dir %w", err)
 		}
+		log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
 	}
 	return nodeRootDir, nil
 }

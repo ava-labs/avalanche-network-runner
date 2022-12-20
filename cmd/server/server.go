@@ -53,7 +53,7 @@ func NewCommand() *cobra.Command {
 	return cmd
 }
 
-func serverFunc(cmd *cobra.Command, args []string) (err error) {
+func serverFunc(*cobra.Command, []string) (err error) {
 	if logDir == "" {
 		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-server-logs-%d", time.Now().Unix()))
 		if err != nil {

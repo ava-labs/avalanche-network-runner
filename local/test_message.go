@@ -18,7 +18,18 @@ func NewTestMsg(op message.Op, bytes []byte, bypassThrottling bool) *TestMsg {
 	}
 }
 
-func (m *TestMsg) BypassThrottling() bool   { return m.bypassThrottling }
-func (m *TestMsg) Op() message.Op           { return m.op }
-func (m *TestMsg) Bytes() []byte            { return m.bytes }
-func (*TestMsg) BytesSavedCompression() int { return 0 }
+func (m *TestMsg) BypassThrottling() bool {
+	return m.bypassThrottling
+}
+
+func (m *TestMsg) Op() message.Op {
+	return m.op
+}
+
+func (m *TestMsg) Bytes() []byte {
+	return m.bytes
+}
+
+func (*TestMsg) BytesSavedCompression() int {
+	return 0
+}

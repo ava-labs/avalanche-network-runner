@@ -70,7 +70,7 @@ func (ln *localNetwork) getSomeNode() node.Node {
 }
 
 // get node client URI for an arbitrary node in the network
-func (ln *localNetwork) getClientURI() (string, error) {
+func (ln *localNetwork) getClientURI() (string, error) { //nolint
 	node := ln.getSomeNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	return clientURI, nil
@@ -109,12 +109,12 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	for i, chainSpec := range chainSpecs {
 		if chainSpec.BlockchainAlias != "" {
 			blockchainAlias := chainSpec.BlockchainAlias
-			chainId := chainInfos[i].blockchainID.String()
+			chainID := chainInfos[i].blockchainID.String()
 			ln.log.Info("registering blockchain alias",
 				zap.String("alias", blockchainAlias),
-				zap.String("chain-id", chainId))
+				zap.String("chain-id", chainID))
 			for nodeName, node := range ln.nodes {
-				if err := node.client.AdminAPI().AliasChain(ctx, chainId, blockchainAlias); err != nil {
+				if err := node.client.AdminAPI().AliasChain(ctx, chainID, blockchainAlias); err != nil {
 					return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 				}
 			}
@@ -157,8 +157,8 @@ func (ln *localNetwork) installCustomChains(
 		// tx info to the wallet so blockchain creation does not fail
 		// if subnet id is not specified, a new subnet will later be created by using the wallet,
 		// and the wallet will obtain the tx info at that moment
-		if chainSpec.SubnetId != nil {
-			subnetID, err := ids.FromString(*chainSpec.SubnetId)
+		if chainSpec.SubnetID != nil {
+			subnetID, err := ids.FromString(*chainSpec.SubnetID)
 			if err != nil {
 				return nil, err
 			}
@@ -180,7 +180,7 @@ func (ln *localNetwork) installCustomChains(
 	// that number of subnets will be created and later assigned to those blockchain requests
 	var numSubnetsToCreate uint32
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetId == nil {
+		if chainSpec.SubnetID == nil {
 			numSubnetsToCreate++
 		}
 	}
@@ -192,9 +192,9 @@ func (ln *localNetwork) installCustomChains(
 	// assign created subnets to blockchain requests with undefined subnet id
 	j := 0
 	for i := range chainSpecs {
-		if chainSpecs[i].SubnetId == nil {
+		if chainSpecs[i].SubnetID == nil {
 			subnetIDStr := addedSubnetIDs[j].String()
-			chainSpecs[i].SubnetId = &subnetIDStr
+			chainSpecs[i].SubnetID = &subnetIDStr
 			j++
 		}
 	}
@@ -230,7 +230,7 @@ func (ln *localNetwork) installCustomChains(
 	// get all subnets for add subnet validator request
 	subnetIDs := []ids.ID{}
 	for _, chainSpec := range chainSpecs {
-		subnetID, err := ids.FromString(*chainSpec.SubnetId)
+		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
 			return nil, err
 		}
@@ -243,18 +243,18 @@ func (ln *localNetwork) installCustomChains(
 
 	chainInfos := make([]blockchainInfo, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
-		vmID, err := utils.VMID(chainSpec.VmName)
+		vmID, err := utils.VMID(chainSpec.VMName)
 		if err != nil {
 			return nil, err
 		}
-		subnetID, err := ids.FromString(*chainSpec.SubnetId)
+		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
 			return nil, err
 		}
 		chainInfos[i] = blockchainInfo{
 			// we keep a record of VM name in blockchain name field,
 			// as there is no way to recover VM name from VM ID
-			chainName:    chainSpec.VmName,
+			chainName:    chainSpec.VMName,
 			vmID:         vmID,
 			subnetID:     subnetID,
 			blockchainID: blockchainTxs[i].ID(),
@@ -338,8 +338,8 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("reconnecting the wallet client after restart"))
 	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	allTxs := append(pTXs, subnetIDs...)
-	return primary.NewWalletWithTxs(ctx, clientURI, testKeychain, allTxs...)
+	pTXs = append(pTXs, subnetIDs...)
+	return primary.NewWalletWithTxs(ctx, clientURI, testKeychain, pTXs...)
 }
 
 func (ln *localNetwork) waitForCustomChainsReady(
@@ -716,7 +716,7 @@ func (ln *localNetwork) reloadVMPlugins(
 			return err
 		}
 		if len(failedVMs) > 0 {
-			return fmt.Errorf("%d VMs failed to load: %v\n", len(failedVMs), failedVMs)
+			return fmt.Errorf("%d VMs failed to load: %v", len(failedVMs), failedVMs)
 		}
 	}
 	return nil
@@ -732,7 +732,7 @@ func createBlockchainTxs(
 	log.Info(logging.Green.Wrap("creating tx for each custom chain"))
 	blockchainTxs := make([]*txs.Tx, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
-		vmName := chainSpec.VmName
+		vmName := chainSpec.VMName
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
 			return nil, err
@@ -746,7 +746,7 @@ func createBlockchainTxs(
 		)
 		cctx, cancel := createDefaultCtx(ctx)
 		defer cancel()
-		subnetID, err := ids.FromString(*chainSpec.SubnetId)
+		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
 			return nil, err
 		}
@@ -804,14 +804,14 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 			created = true
 			ln.subnetConfigFiles[*chainSpec.SubnetId] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetId)
+				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetID)
 			}
 		}
 	}
 	return created, nil
 }
 
-func (ln *localNetwork) createBlockchains(
+func (*localNetwork) createBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
@@ -821,7 +821,7 @@ func (ln *localNetwork) createBlockchains(
 	fmt.Println()
 	log.Info(logging.Green.Wrap("creating each custom chain"))
 	for i, chainSpec := range chainSpecs {
-		vmName := chainSpec.VmName
+		vmName := chainSpec.VMName
 		vmID, err := utils.VMID(vmName)
 		if err != nil {
 			return err

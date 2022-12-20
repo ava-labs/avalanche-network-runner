@@ -356,7 +356,7 @@ func (lc *localNetwork) createSubnets(
 }
 
 func (lc *localNetwork) loadSnapshot(
-	ctx context.Context,
+	_ context.Context,
 	snapshotName string,
 ) error {
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))

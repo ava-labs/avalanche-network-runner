@@ -96,7 +96,7 @@ const (
 // grpc encapsulates the non protocol-related, ANR server domain errors,
 // inside grpc.status.Status structs, with status.Code() code.Unknown,
 // and original error msg inside status.Message() string
-// this aux function is to be used by clients, to check for the appropiate
+// this aux function is to be used by clients, to check for the appropriate
 // ANR domain error kind
 func IsServerError(err error, serverError error) bool {
 	status := status.Convert(err)
@@ -125,7 +125,7 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 	}
 	if !cfg.GwDisabled {
 		srv.gwMux = runtime.NewServeMux()
-		srv.gwServer = &http.Server{
+		srv.gwServer = &http.Server{ //nolint // TODO add ReadHeaderTimeout
 			Addr:    cfg.GwPort,
 			Handler: srv.gwMux,
 		}
@@ -224,7 +224,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	return err
 }
 
-func (s *server) Ping(ctx context.Context, req *rpcpb.PingRequest) (*rpcpb.PingResponse, error) {
+func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse, error) {
 	s.log.Debug("received ping request")
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
 }
@@ -528,10 +528,10 @@ func (s *server) CreateBlockchains(
 		subnetsMap[subnet] = struct{}{}
 	}
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetId != nil {
-			_, ok := subnetsMap[*chainSpec.SubnetId]
+		if chainSpec.SubnetID != nil {
+			_, ok := subnetsMap[*chainSpec.SubnetID]
 			if !ok {
-				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetId)
+				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetID)
 			}
 		}
 	}
@@ -542,7 +542,7 @@ func (s *server) CreateBlockchains(
 	// if there will be a restart, network will not be healthy
 	// until finishing
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetId == nil {
+		if chainSpec.SubnetID == nil {
 			s.clusterInfo.Healthy = false
 		}
 	}
@@ -613,7 +613,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
+func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
 	s.log.Debug("health")
 	if info := s.getClusterInfo(); info == nil {
 		return nil, ErrNotBootstrapped
@@ -634,7 +634,7 @@ func (s *server) Health(ctx context.Context, req *rpcpb.HealthRequest) (*rpcpb.H
 	return &rpcpb.HealthResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) URIs(ctx context.Context, req *rpcpb.URIsRequest) (*rpcpb.URIsResponse, error) {
+func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse, error) {
 	s.log.Debug("uris")
 	info := s.getClusterInfo()
 	if info == nil {
@@ -648,7 +648,7 @@ func (s *server) URIs(ctx context.Context, req *rpcpb.URIsRequest) (*rpcpb.URIsR
 	return &rpcpb.URIsResponse{Uris: uris}, nil
 }
 
-func (s *server) Status(ctx context.Context, req *rpcpb.StatusRequest) (*rpcpb.StatusResponse, error) {
+func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusResponse, error) {
 	s.log.Debug("received status request")
 	info := s.getClusterInfo()
 	if info == nil {
@@ -756,7 +756,7 @@ func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error 
 	}
 }
 
-func (s *server) AddNode(ctx context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.AddNodeResponse, error) {
+func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.AddNodeResponse, error) {
 	s.log.Debug("received add node request", zap.String("name", req.Name))
 
 	if info := s.getClusterInfo(); info == nil {
@@ -852,7 +852,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) Stop(ctx context.Context, req *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
+func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
 	s.log.Debug("received stop request")
 
 	s.mu.Lock()
@@ -1055,7 +1055,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
 }
 
-func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
+func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	s.log.Info("received remove snapshot request", zap.String("snapshot-name", req.SnapshotName))
 	info := s.getClusterInfo()
 	if info == nil {
@@ -1069,7 +1069,7 @@ func (s *server) RemoveSnapshot(ctx context.Context, req *rpcpb.RemoveSnapshotRe
 	return &rpcpb.RemoveSnapshotResponse{}, nil
 }
 
-func (s *server) GetSnapshotNames(ctx context.Context, req *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
+func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
 	s.log.Info("get snapshot names")
 	info := s.getClusterInfo()
 	if info == nil {
