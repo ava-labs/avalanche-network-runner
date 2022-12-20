@@ -203,10 +203,8 @@ func (ln *localNetwork) installCustomChains(
 	if err != nil {
 		return nil, err
 	}
-	blockchainFilesCreated, err := ln.createBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
-	if err != nil {
-		return nil, err
-	}
+
+	blockchainFilesCreated := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
@@ -771,73 +769,44 @@ func createBlockchainTxs(
 	return blockchainTxs, nil
 }
 
-func (ln *localNetwork) createBlockchainConfigFiles(
+func (ln *localNetwork) setBlockchainConfigFiles(
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
 	log logging.Logger,
-) (bool, error) {
+) bool {
 	fmt.Println()
 	created := false
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
 	for i, chainSpec := range chainSpecs {
 		chainAlias := blockchainTxs[i].ID().String()
-
-		// create config, network upgrade and subnet config files
-		if chainSpec.ChainConfig != nil {
+		// update config info. set defaults and node specifics
+		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
 			created = true
-			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-				chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
-				if err := createFileAndWrite(chainConfigPath, chainSpec.ChainConfig); err != nil {
-					return false, fmt.Errorf("couldn't write chain config file at %q: %w", chainConfigPath, err)
-				}
-			}
-		}
-		if chainSpec.NetworkUpgrade != nil {
-			created = true
-			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
-				chainUpgradePath := filepath.Join(chainConfigDir, chainAlias, upgradeConfigFileName)
-				if err := createFileAndWrite(chainUpgradePath, chainSpec.NetworkUpgrade); err != nil {
-					return false, fmt.Errorf("couldn't write network upgrade file at %q: %w", chainUpgradePath, err)
-				}
-			}
-		}
-		if chainSpec.SubnetConfig != nil {
-			created = true
-			for nodeName := range ln.nodes {
-				nodeRootDir := getNodeDir(ln.rootDir, nodeName)
-				subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
-				subnetConfigPath := filepath.Join(subnetConfigDir, *chainSpec.SubnetID+".json")
-				if err := createFileAndWrite(subnetConfigPath, chainSpec.SubnetConfig); err != nil {
-					return false, fmt.Errorf("couldn't write chain config file at %q: %w", subnetConfigPath, err)
-				}
-			}
-		}
-		// update config info for snapshopt/restart purposes
-		// put into defaults and reset node specifics
-		if chainSpec.ChainConfig != nil {
 			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
+				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
+					ln.nodes[nodeName].config.ChainConfigFiles[chainAlias] = string(cfg)
+				} else {
+					delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
+				}
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
+			created = true
 			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
 			}
 		}
 		if chainSpec.SubnetConfig != nil {
+			created = true
 			ln.subnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetID)
 			}
 		}
 	}
-	return created, nil
+	return created
 }
 
 func (*localNetwork) createBlockchains(
