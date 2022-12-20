@@ -14,9 +14,9 @@ var (
 )
 
 type BlockchainSpec struct {
-	VmName             string
+	VMName             string
 	Genesis            []byte
-	SubnetId           *string
+	SubnetID           *string
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
 	SubnetConfig       []byte

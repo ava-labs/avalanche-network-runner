@@ -203,10 +203,8 @@ func (ln *localNetwork) installCustomChains(
 	if err != nil {
 		return nil, err
 	}
-	blockchainFilesCreated, err := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
-	if err != nil {
-		return nil, err
-	}
+
+	blockchainFilesCreated := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
@@ -775,7 +773,7 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
 	log logging.Logger,
-) (bool, error) {
+) bool {
 	fmt.Println()
 	created := false
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
@@ -802,13 +800,13 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 		}
 		if chainSpec.SubnetConfig != nil {
 			created = true
-			ln.subnetConfigFiles[*chainSpec.SubnetId] = string(chainSpec.SubnetConfig)
+			ln.subnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetID)
 			}
 		}
 	}
-	return created, nil
+	return created
 }
 
 func (*localNetwork) createBlockchains(
