@@ -14,13 +14,14 @@ var (
 )
 
 type BlockchainSpec struct {
-	VMName          string
-	Genesis         []byte
-	SubnetID        *string
-	ChainConfig     []byte
-	NetworkUpgrade  []byte
-	SubnetConfig    []byte
-	BlockchainAlias string
+	VMName             string
+	Genesis            []byte
+	SubnetID           *string
+	ChainConfig        []byte
+	NetworkUpgrade     []byte
+	SubnetConfig       []byte
+	BlockchainAlias    string
+	PerNodeChainConfig map[string][]byte
 }
 
 // Network is an abstraction of an Avalanche network

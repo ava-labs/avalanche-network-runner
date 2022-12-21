@@ -460,18 +460,40 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+	perNodeChainConfig := map[string][]byte{}
+	if spec.PerNodeChainConfig != "" {
+		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+		perNodeChainConfigMap := map[string]interface{}{}
+		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
+			return network.BlockchainSpec{}, err
+		}
+		for nodeName, cfg := range perNodeChainConfigMap {
+			cfgBytes, err := json.Marshal(cfg)
+			if err != nil {
+				return network.BlockchainSpec{}, err
+			}
+			perNodeChainConfig[nodeName] = cfgBytes
+		}
+	}
 	return network.BlockchainSpec{
-		VMName:          vmName,
-		Genesis:         genesisBytes,
-		ChainConfig:     chainConfigBytes,
-		NetworkUpgrade:  networkUpgradeBytes,
-		SubnetConfig:    subnetConfigBytes,
-		SubnetID:        spec.SubnetId,
-		BlockchainAlias: spec.BlockchainAlias,
+		VMName:             vmName,
+		Genesis:            genesisBytes,
+		ChainConfig:        chainConfigBytes,
+		NetworkUpgrade:     networkUpgradeBytes,
+		SubnetConfig:       subnetConfigBytes,
+		SubnetID:           spec.SubnetId,
+		BlockchainAlias:    spec.BlockchainAlias,
+		PerNodeChainConfig: perNodeChainConfig,
 	}, nil
 }
 
-func (s *server) CreateBlockchains(ctx context.Context, req *rpcpb.CreateBlockchainsRequest) (*rpcpb.CreateBlockchainsResponse, error) {
+func (s *server) CreateBlockchains(
+	ctx context.Context,
+	req *rpcpb.CreateBlockchainsRequest,
+) (*rpcpb.CreateBlockchainsResponse, error) {
 	// if timeout is too small or not set, default to 5-min
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
