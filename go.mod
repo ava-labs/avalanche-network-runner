@@ -6,7 +6,7 @@ require (
 	github.com/ava-labs/avalanchego v1.9.4
 	github.com/ava-labs/coreth v0.11.4
 	github.com/ethereum/go-ethereum v1.10.26
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.14.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/onsi/ginkgo/v2 v2.6.1
 	github.com/onsi/gomega v1.24.2
 	github.com/otiai10/copy v1.9.0
@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
-	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1
+	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37
 	google.golang.org/grpc v1.52.0-dev
 	google.golang.org/protobuf v1.28.1
 )
