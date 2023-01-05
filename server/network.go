@@ -148,9 +148,6 @@ func (lc *localNetwork) createConfig() error {
 	if lc.pluginDir != "" {
 		cfg.Flags[PluginDirKey] = lc.pluginDir
 	}
-	if lc.options.whitelistedSubnets != "" {
-		cfg.Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
-	}
 
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
