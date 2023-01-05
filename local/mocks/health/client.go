@@ -47,7 +47,7 @@ func (_m *Client) AwaitHealthy(ctx context.Context, freq time.Duration, options 
 }
 
 // Health provides a mock function with given fields: _a0, _a1
-func (_m *Client) Health(_a0 context.Context, _a1 ...rpc.Option) (*health.APIHealthReply, error) {
+func (_m *Client) Health(_a0 context.Context, _a1 ...rpc.Option) (*health.APIReply, error) {
 	_va := make([]interface{}, len(_a1))
 	for _i := range _a1 {
 		_va[_i] = _a1[_i]
@@ -57,12 +57,12 @@ func (_m *Client) Health(_a0 context.Context, _a1 ...rpc.Option) (*health.APIHea
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *health.APIHealthReply
-	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIHealthReply); ok {
+	var r0 *health.APIReply
+	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIReply); ok {
 		r0 = rf(_a0, _a1...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*health.APIHealthReply)
+			r0 = ret.Get(0).(*health.APIReply)
 		}
 	}
 
@@ -77,7 +77,7 @@ func (_m *Client) Health(_a0 context.Context, _a1 ...rpc.Option) (*health.APIHea
 }
 
 // Liveness provides a mock function with given fields: _a0, _a1
-func (_m *Client) Liveness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIHealthReply, error) {
+func (_m *Client) Liveness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIReply, error) {
 	_va := make([]interface{}, len(_a1))
 	for _i := range _a1 {
 		_va[_i] = _a1[_i]
@@ -87,12 +87,12 @@ func (_m *Client) Liveness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIH
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *health.APIHealthReply
-	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIHealthReply); ok {
+	var r0 *health.APIReply
+	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIReply); ok {
 		r0 = rf(_a0, _a1...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*health.APIHealthReply)
+			r0 = ret.Get(0).(*health.APIReply)
 		}
 	}
 
@@ -107,7 +107,7 @@ func (_m *Client) Liveness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIH
 }
 
 // Readiness provides a mock function with given fields: _a0, _a1
-func (_m *Client) Readiness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIHealthReply, error) {
+func (_m *Client) Readiness(_a0 context.Context, _a1 ...rpc.Option) (*health.APIReply, error) {
 	_va := make([]interface{}, len(_a1))
 	for _i := range _a1 {
 		_va[_i] = _a1[_i]
@@ -117,12 +117,12 @@ func (_m *Client) Readiness(_a0 context.Context, _a1 ...rpc.Option) (*health.API
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *health.APIHealthReply
-	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIHealthReply); ok {
+	var r0 *health.APIReply
+	if rf, ok := ret.Get(0).(func(context.Context, ...rpc.Option) *health.APIReply); ok {
 		r0 = rf(_a0, _a1...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*health.APIHealthReply)
+			r0 = ret.Get(0).(*health.APIReply)
 		}
 	}
 

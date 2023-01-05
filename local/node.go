@@ -122,10 +122,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 0)
 	tls := tlsCert.PrivateKey.(crypto.Signer)
-	gossipTracker, err := peer.NewGossipTracker(prometheus.NewRegistry(), "anr")
-	if err != nil {
-		return nil, err
-	}
 	config := &peer.Config{
 		Metrics:              metrics,
 		MessageCreator:       mc,
@@ -141,7 +137,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
 		ResourceTracker:      resourceTracker,
-		GossipTracker:        gossipTracker,
 		IPSigner:             peer.NewIPSigner(signerIP, tls),
 	}
 	_, conn, cert, err := clientUpgrader.Upgrade(conn)
