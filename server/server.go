@@ -252,9 +252,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	pluginDir := filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
+	pluginDir := ""
 	if req.GetPluginDir() != "" {
 		pluginDir = req.GetPluginDir()
+	}
+	if pluginDir == "" {
+		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
 	}
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
@@ -328,7 +331,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes:            numNodes,
 		whitelistedSubnets:  whitelistedSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		pluginDir:           req.GetPluginDir(),
+		pluginDir:           pluginDir,
 		globalNodeConfig:    globalNodeConfig,
 		customNodeConfigs:   customNodeConfigs,
 		chainConfigs:        req.ChainConfigs,
