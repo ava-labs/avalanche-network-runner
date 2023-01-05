@@ -26,7 +26,7 @@ func NewNetworkFromSnapshot(
 	rootDir string,
 	snapshotsDir string,
 	binaryPath string,
-	buildDir string,
+	pluginDir string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
 	subnetConfigs map[string]string,
@@ -53,7 +53,7 @@ func NewNetworkFromSnapshot(
 		context.Background(),
 		snapshotName,
 		binaryPath,
-		buildDir,
+		pluginDir,
 		chainConfigs,
 		upgradeConfigs,
 		subnetConfigs,
@@ -170,7 +170,7 @@ func (ln *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
 	binaryPath string,
-	buildDir string,
+	pluginDir string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
 	subnetConfigs map[string]string,
@@ -219,10 +219,10 @@ func (ln *localNetwork) loadSnapshot(
 			networkConfig.NodeConfigs[i].BinaryPath = binaryPath
 		}
 	}
-	// replace build dir
-	if buildDir != "" {
+	// replace plugin dir
+	if pluginDir != "" {
 		for i := range networkConfig.NodeConfigs {
-			networkConfig.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
+			networkConfig.NodeConfigs[i].Flags[PluginDirKey] = pluginDir
 		}
 	}
 	// add chain configs and upgrade configs
