@@ -79,7 +79,7 @@ func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, f
 // TODO have this method return an API Client that has all
 // APIs and methods implemented
 func newMockAPISuccessful(string, uint16) api.Client {
-	healthReply := &health.APIHealthReply{Healthy: true}
+	healthReply := &health.APIReply{Healthy: true}
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
@@ -93,7 +93,7 @@ func newMockAPISuccessful(string, uint16) api.Client {
 
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(string, uint16) api.Client {
-	healthReply := &health.APIHealthReply{Healthy: false}
+	healthReply := &health.APIReply{Healthy: false}
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
@@ -1279,7 +1279,7 @@ func newMockAPIHealthyBlocks(string, uint16) api.Client {
 	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool {
 		return true
 	}), mock.Anything).Return(
-		func(ctx context.Context, _ ...rpc.Option) *health.APIHealthReply {
+		func(ctx context.Context, _ ...rpc.Option) *health.APIReply {
 			<-ctx.Done()
 			return nil
 		},
