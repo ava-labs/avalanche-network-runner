@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"path/filepath"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
