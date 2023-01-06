@@ -767,7 +767,9 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		}
 	}
 
-	nodeFlags[PluginDirKey] = req.GetPluginDir()
+	if req.GetPluginDir() != "" {
+		nodeFlags[PluginDirKey] = req.GetPluginDir()
+	}
 
 	nodeConfig := node.Config{
 		Name:               req.Name,
