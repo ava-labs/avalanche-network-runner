@@ -113,7 +113,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		req.RootDataDir = &ret.rootDataDir
 	}
 	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
+		req.PluginDir = ret.pluginDir
 	}
 	if len(ret.blockchainSpecs) > 0 {
 		req.BlockchainSpecs = ret.blockchainSpecs
@@ -239,7 +239,7 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 	}
 
 	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
+		req.PluginDir = ret.pluginDir
 	}
 
 	c.log.Info("add node", zap.String("name", name))
@@ -260,7 +260,7 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 		req.ExecPath = &ret.execPath
 	}
 	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
+		req.PluginDir = ret.pluginDir
 	}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
@@ -307,7 +307,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 		req.ExecPath = &ret.execPath
 	}
 	if ret.pluginDir != "" {
-		req.PluginDir = &ret.pluginDir
+		req.PluginDir = ret.pluginDir
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
