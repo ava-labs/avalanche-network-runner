@@ -145,6 +145,7 @@ func (lc *localNetwork) createConfig() error {
 	for k, v := range globalConfig {
 		cfg.Flags[k] = v
 	}
+
 	if lc.pluginDir != "" {
 		cfg.Flags[PluginDirKey] = lc.pluginDir
 	}

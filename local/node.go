@@ -224,9 +224,6 @@ func (node *localNode) GetBinaryPath() string {
 
 // See node.Node
 func (node *localNode) GetPluginDir() string {
-	if node.pluginDir == "" {
-		return filepath.Join(filepath.Dir(node.GetBinaryPath()), "plugins")
-	}
 	return node.pluginDir
 }
 
