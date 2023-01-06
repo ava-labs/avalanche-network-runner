@@ -252,13 +252,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
-	pluginDir := ""
-	if req.GetPluginDir() != "" {
-		pluginDir = req.GetPluginDir()
-	}
-	if pluginDir == "" {
-		pluginDir = filepath.Join(filepath.Dir(req.GetExecPath()), "plugins")
-	}
+	pluginDir := req.GetPluginDir()
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		s.log.Info("plugin-dir:", zap.String("plugin-dir", pluginDir))
@@ -773,10 +767,12 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		}
 	}
 
+	nodeFlags[PluginDirKey] = req.GetPluginDir()
+
 	nodeConfig := node.Config{
 		Name:               req.Name,
 		Flags:              nodeFlags,
-		BinaryPath:         req.ExecPath,
+		BinaryPath:         req.GetExecPath(),
 		RedirectStdout:     s.cfg.RedirectNodesOutput,
 		RedirectStderr:     s.cfg.RedirectNodesOutput,
 		ChainConfigFiles:   req.ChainConfigs,
@@ -834,6 +830,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		ctx,
 		req.Name,
 		req.GetExecPath(),
+		req.GetPluginDir(),
 		req.GetWhitelistedSubnets(),
 		req.GetChainConfigs(),
 		req.GetUpgradeConfigs(),

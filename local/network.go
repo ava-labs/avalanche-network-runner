@@ -798,6 +798,7 @@ func (ln *localNetwork) RestartNode(
 	ctx context.Context,
 	nodeName string,
 	binaryPath string,
+	pluginDir string,
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
@@ -806,13 +807,23 @@ func (ln *localNetwork) RestartNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.restartNode(ctx, nodeName, binaryPath, whitelistedSubnets, chainConfigs, upgradeConfigs, subnetConfigs)
+	return ln.restartNode(
+		ctx,
+		nodeName,
+		binaryPath,
+		pluginDir,
+		whitelistedSubnets,
+		chainConfigs,
+		upgradeConfigs,
+		subnetConfigs,
+	)
 }
 
 func (ln *localNetwork) restartNode(
 	ctx context.Context,
 	nodeName string,
 	binaryPath string,
+	pluginDir string,
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
@@ -827,8 +838,9 @@ func (ln *localNetwork) restartNode(
 
 	if binaryPath != "" {
 		nodeConfig.BinaryPath = binaryPath
-		// remove old value if present, to look for vm binaries in new binary path location
-		delete(nodeConfig.Flags, PluginDirKey)
+	}
+	if pluginDir != "" {
+		nodeConfig.Flags[PluginDirKey] = pluginDir
 	}
 
 	if whitelistedSubnets != "" {

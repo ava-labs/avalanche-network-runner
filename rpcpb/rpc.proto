@@ -205,8 +205,7 @@ message StartRequest {
   // Used for both database and log files.
   optional string root_data_dir = 5;
 
-  // Build directory that contains the subdir 'plugins' from which to load all custom VM executables.
-  // If not specified, will be derived from the exec_path (its basedir)
+  // Plugin dir from which to load all custom VM executables.
   optional string plugin_dir = 6;
 
   // The list of:
@@ -348,6 +347,9 @@ message RestartNodeRequest {
   // If specified, will create a file "subnetid.json" under subnets config dir with
   // the contents provided here.
   map<string, string> subnet_configs = 6;
+
+  // Plugin dir from which to load all custom VM executables.
+  optional string plugin_dir = 7;
 }
 
 message RestartNodeResponse {
@@ -381,6 +383,9 @@ message AddNodeRequest {
   // If specified, will create a file "subnetid.json" under subnets config dir with
   // the contents provided here.
   map<string, string> subnet_configs = 6;
+
+  // Plugin dir from which to load all custom VM executables.
+  optional string plugin_dir = 7;
 }
 
 message AddNodeResponse {
