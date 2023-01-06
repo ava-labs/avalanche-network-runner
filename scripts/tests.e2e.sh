@@ -3,15 +3,15 @@ set -e
 
 export RUN_E2E="true"
 # e.g.,
-# ./scripts/tests.e2e.sh 1.9.4 1.9.4 0.4.5
+# ./scripts/tests.e2e.sh 1.9.5 1.9.4 0.4.7
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255
 fi
 
-DEFAULT_VERSION_1=1.9.4
+DEFAULT_VERSION_1=1.9.5
 DEFAULT_VERSION_2=1.9.4
-DEFAULT_SUBNET_EVM_VERSION=0.4.5
+DEFAULT_SUBNET_EVM_VERSION=0.4.7
 
 if [ $# == 0 ]; then
     VERSION_1=$DEFAULT_VERSION_1
