@@ -238,6 +238,10 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 		SubnetConfigs:  ret.subnetConfigs,
 	}
 
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
+	}
+
 	c.log.Info("add node", zap.String("name", name))
 	return c.controlc.AddNode(ctx, req)
 }
@@ -254,6 +258,9 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	req := &rpcpb.RestartNodeRequest{Name: name}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
+	}
+	if ret.pluginDir != "" {
+		req.PluginDir = &ret.pluginDir
 	}
 	if ret.whitelistedSubnets != "" {
 		req.WhitelistedSubnets = &ret.whitelistedSubnets
