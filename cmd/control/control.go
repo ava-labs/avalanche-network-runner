@@ -542,6 +542,12 @@ func newAddNodeCommand() *cobra.Command {
 		"node config as string",
 	)
 	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
 		&chainConfigs,
 		"chain-configs",
 		"",
@@ -571,7 +577,9 @@ func addNodeFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{}
+	opts := []client.OpOption{
+		client.WithPluginDir(pluginDir),
+	}
 
 	if addNodeConfig != "" {
 		ux.Print(log, logging.Yellow.Wrap("WARNING: overriding node configs with custom provided config %s"), addNodeConfig)
@@ -641,6 +649,12 @@ func newRestartNodeCommand() *cobra.Command {
 		"whitelisted subnets (comma-separated)",
 	)
 	cmd.PersistentFlags().StringVar(
+		&pluginDir,
+		"plugin-dir",
+		"",
+		"[optional] plugin directory",
+	)
+	cmd.PersistentFlags().StringVar(
 		&chainConfigs,
 		"chain-configs",
 		"",
@@ -672,6 +686,7 @@ func restartNodeFunc(_ *cobra.Command, args []string) error {
 
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
+		client.WithPluginDir(pluginDir),
 		client.WithWhitelistedSubnets(whitelistedSubnets),
 	}
 

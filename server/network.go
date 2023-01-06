@@ -22,6 +22,11 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
+const (
+	// TODO: replace with config.PluginDirKey when included in avalanchego
+	PluginDirKey = "plugin-dir"
+)
+
 type localNetwork struct {
 	log logging.Logger
 
@@ -141,6 +146,10 @@ func (lc *localNetwork) createConfig() error {
 		cfg.Flags[k] = v
 	}
 
+	if lc.pluginDir != "" {
+		cfg.Flags[PluginDirKey] = lc.pluginDir
+	}
+
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 		nodeName := fmt.Sprintf("node%d", i+1)
@@ -164,12 +173,6 @@ func (lc *localNetwork) createConfig() error {
 			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
 		}
 
-		// avalanchego expects buildDir (parent dir of pluginDir) to be provided at cmdline
-		buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-		if err != nil {
-			return err
-		}
-
 		if lc.options.dynamicPorts {
 			// remove http port defined in local network config, to get dynamic port generation
 			delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
@@ -178,9 +181,7 @@ func (lc *localNetwork) createConfig() error {
 
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
-		if buildDir != "" {
-			cfg.NodeConfigs[i].Flags[config.BuildDirKey] = buildDir
-		}
+
 		if lc.options.whitelistedSubnets != "" {
 			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
 		}
@@ -203,24 +204,6 @@ func (lc *localNetwork) createConfig() error {
 
 	lc.cfg = cfg
 	return nil
-}
-
-// generates buildDir from pluginDir, and if not available, from execPath
-// returns error if pluginDir is non empty and invalid
-func getBuildDir(execPath string, pluginDir string) (string, error) {
-	buildDir := ""
-	if execPath != "" {
-		buildDir = filepath.Dir(execPath)
-	}
-	if pluginDir != "" {
-		pluginDir := filepath.Clean(pluginDir)
-		if filepath.Base(pluginDir) != "plugins" {
-			return "", fmt.Errorf("plugin dir %q is not named plugins", pluginDir)
-		}
-		buildDir = filepath.Dir(pluginDir)
-	}
-
-	return buildDir, nil
 }
 
 func (lc *localNetwork) start() error {
@@ -361,11 +344,6 @@ func (lc *localNetwork) loadSnapshot(
 ) error {
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
 
-	buildDir, err := getBuildDir(lc.execPath, lc.pluginDir)
-	if err != nil {
-		return err
-	}
-
 	var globalNodeConfig map[string]interface{}
 	if lc.options.globalNodeConfig != "" {
 		if err := json.Unmarshal([]byte(lc.options.globalNodeConfig), &globalNodeConfig); err != nil {
@@ -379,7 +357,7 @@ func (lc *localNetwork) loadSnapshot(
 		lc.options.rootDataDir,
 		lc.options.snapshotsDir,
 		lc.execPath,
-		buildDir,
+		lc.pluginDir,
 		lc.options.chainConfigs,
 		lc.options.upgradeConfigs,
 		lc.options.subnetConfigs,
@@ -482,14 +460,9 @@ func (lc *localNetwork) updateNodeInfo() error {
 	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		var pluginDir string
 		whitelistedSubnets, err := node.GetFlag(config.WhitelistedSubnetsKey)
 		if err != nil {
 			return err
-		}
-		buildDir := node.GetBuildDir()
-		if buildDir != "" {
-			pluginDir = filepath.Join(buildDir, "plugins")
 		}
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
@@ -500,7 +473,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 			LogDir:             node.GetLogsDir(),
 			DbDir:              node.GetDbDir(),
 			Config:             []byte(node.GetConfigFile()),
-			PluginDir:          pluginDir,
+			PluginDir:          node.GetPluginDir(),
 			WhitelistedSubnets: whitelistedSubnets,
 		}
 
@@ -509,7 +482,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 			lc.execPath = node.GetBinaryPath()
 		}
 		if lc.pluginDir == "" {
-			lc.pluginDir = pluginDir
+			lc.pluginDir = node.GetPluginDir()
 		}
 	}
 	return nil

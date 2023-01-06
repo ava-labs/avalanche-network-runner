@@ -49,6 +49,8 @@ const (
 	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
+	// TODO: replace with config.PluginDirKey when included in avalanchego
+	PluginDirKey = "plugin-dir"
 )
 
 // interface compliance
@@ -603,7 +605,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		dbDir:         nodeData.dbDir,
 		logsDir:       nodeData.logsDir,
 		config:        nodeConfig,
-		buildDir:      nodeData.buildDir,
+		pluginDir:     nodeData.pluginDir,
 		httpHost:      nodeData.httpHost,
 		attachedPeers: map[string]peer.Peer{},
 	}
@@ -791,11 +793,12 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 }
 
 // Restart [nodeName] using the same config, optionally changing [binaryPath],
-// [buildDir], [whitelistedSubnets]
+// [whitelistedSubnets]
 func (ln *localNetwork) RestartNode(
 	ctx context.Context,
 	nodeName string,
 	binaryPath string,
+	pluginDir string,
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
@@ -804,13 +807,23 @@ func (ln *localNetwork) RestartNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.restartNode(ctx, nodeName, binaryPath, whitelistedSubnets, chainConfigs, upgradeConfigs, subnetConfigs)
+	return ln.restartNode(
+		ctx,
+		nodeName,
+		binaryPath,
+		pluginDir,
+		whitelistedSubnets,
+		chainConfigs,
+		upgradeConfigs,
+		subnetConfigs,
+	)
 }
 
 func (ln *localNetwork) restartNode(
 	ctx context.Context,
 	nodeName string,
 	binaryPath string,
+	pluginDir string,
 	whitelistedSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
@@ -825,7 +838,9 @@ func (ln *localNetwork) restartNode(
 
 	if binaryPath != "" {
 		nodeConfig.BinaryPath = binaryPath
-		nodeConfig.Flags[config.BuildDirKey] = filepath.Dir(binaryPath)
+	}
+	if pluginDir != "" {
+		nodeConfig.Flags[PluginDirKey] = pluginDir
 	}
 
 	if whitelistedSubnets != "" {
@@ -891,13 +906,13 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 }
 
 type buildFlagsReturn struct {
-	flags    []string
-	apiPort  uint16
-	p2pPort  uint16
-	dbDir    string
-	logsDir  string
-	buildDir string
-	httpHost string
+	flags     []string
+	apiPort   uint16
+	p2pPort   uint16
+	dbDir     string
+	logsDir   string
+	pluginDir string
+	httpHost  string
 }
 
 // buildFlags returns the:
@@ -918,8 +933,8 @@ func (ln *localNetwork) buildFlags(
 		return buildFlagsReturn{}, err
 	}
 
-	// buildDir from all configs for node
-	buildDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.BuildDirKey, "")
+	// pluginDir from all configs for node
+	pluginDir, err := getConfigEntry(nodeConfig.Flags, configFile, PluginDirKey, "")
 	if err != nil {
 		return buildFlagsReturn{}, err
 	}
@@ -986,12 +1001,12 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	return buildFlagsReturn{
-		flags:    flags,
-		apiPort:  apiPort,
-		p2pPort:  p2pPort,
-		dbDir:    dbDir,
-		logsDir:  logsDir,
-		buildDir: buildDir,
-		httpHost: httpHost,
+		flags:     flags,
+		apiPort:   apiPort,
+		p2pPort:   p2pPort,
+		dbDir:     dbDir,
+		logsDir:   logsDir,
+		pluginDir: pluginDir,
+		httpHost:  httpHost,
 	}, nil
 }

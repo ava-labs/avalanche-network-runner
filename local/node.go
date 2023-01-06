@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"path/filepath"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -66,8 +65,8 @@ type localNode struct {
 	dbDir string
 	// The logs dir of the node
 	logsDir string
-	// The build dir of the node
-	buildDir string
+	// The plugin dir of the node
+	pluginDir string
 	// The node config
 	config node.Config
 	// The node httpHost
@@ -218,11 +217,8 @@ func (node *localNode) GetBinaryPath() string {
 }
 
 // See node.Node
-func (node *localNode) GetBuildDir() string {
-	if node.buildDir == "" {
-		return filepath.Dir(node.GetBinaryPath())
-	}
-	return node.buildDir
+func (node *localNode) GetPluginDir() string {
+	return node.pluginDir
 }
 
 // See node.Node
