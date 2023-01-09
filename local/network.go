@@ -49,8 +49,6 @@ const (
 	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
-	// TODO: replace with config.PluginDirKey when included in avalanchego
-	PluginDirKey = "plugin-dir"
 )
 
 // interface compliance
@@ -840,7 +838,7 @@ func (ln *localNetwork) restartNode(
 		nodeConfig.BinaryPath = binaryPath
 	}
 	if pluginDir != "" {
-		nodeConfig.Flags[PluginDirKey] = pluginDir
+		nodeConfig.Flags[config.PluginDirKey] = pluginDir
 	}
 
 	if whitelistedSubnets != "" {
@@ -934,7 +932,7 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// pluginDir from all configs for node
-	pluginDir, err := getConfigEntry(nodeConfig.Flags, configFile, PluginDirKey, "")
+	pluginDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.PluginDirKey, "")
 	if err != nil {
 		return buildFlagsReturn{}, err
 	}

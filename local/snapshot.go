@@ -222,7 +222,7 @@ func (ln *localNetwork) loadSnapshot(
 	// replace plugin dir
 	if pluginDir != "" {
 		for i := range networkConfig.NodeConfigs {
-			networkConfig.NodeConfigs[i].Flags[PluginDirKey] = pluginDir
+			networkConfig.NodeConfigs[i].Flags[config.PluginDirKey] = pluginDir
 		}
 	}
 	// add chain configs and upgrade configs

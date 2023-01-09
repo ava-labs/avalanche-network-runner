@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -771,7 +772,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	}
 
 	if req.GetPluginDir() != "" {
-		nodeFlags[PluginDirKey] = req.GetPluginDir()
+		nodeFlags[config.PluginDirKey] = req.GetPluginDir()
 	}
 
 	nodeConfig := node.Config{
