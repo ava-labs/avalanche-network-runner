@@ -124,8 +124,7 @@ then
     mkdir /tmp/subnet-evm-v${SUBNET_EVM_VERSION}
     tar xzvf ${DOWNLOAD_PATH} -C /tmp/subnet-evm-v${SUBNET_EVM_VERSION}
     # NOTE: We are copying the subnet-evm binary here to a plugin hardcoded as srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy which corresponds to the VM name `subnetevm` used as such in the test
-    mkdir -p ~/.avalanchego/plugins/
-    cp /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm ~/.avalanchego/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+    cp /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm /tmp/avalanchego-v${VERSION_1}/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
     find /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
 fi
 ############################
