@@ -423,11 +423,14 @@ func getNetworkBlockchainSpec(
 		log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
 		return network.BlockchainSpec{}, ErrInvalidVMName
 	}
-	if err := utils.CheckPluginPaths(
-		filepath.Join(pluginDir, vmID.String()),
-		spec.Genesis,
-	); err != nil {
-		return network.BlockchainSpec{}, err
+	// there is no default plugindir from the ANR point of view, will not check if not given
+	if pluginDir != "" {
+		if err := utils.CheckPluginPaths(
+			filepath.Join(pluginDir, vmID.String()),
+			spec.Genesis,
+		); err != nil {
+			return network.BlockchainSpec{}, err
+		}
 	}
 	genesisBytes, err := os.ReadFile(spec.Genesis)
 	if err != nil {
