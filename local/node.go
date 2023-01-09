@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"crypto"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -21,10 +20,10 @@ import (
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/math/meter"
 	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -110,10 +109,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	ip := ips.IPPort{
-		IP:   net.IPv6zero,
-		Port: 0,
-	}
 	resourceTracker, err := tracker.NewResourceTracker(
 		prometheus.NewRegistry(),
 		resource.NoUsage,
@@ -124,22 +119,14 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		return nil, err
 	}
 	config := &peer.Config{
-		Metrics:             metrics,
-		MessageCreator:      mc,
-		Log:                 logging.NoLog{},
-		InboundMsgThrottler: throttling.NewNoInboundThrottler(),
-		Network: peer.NewTestNetwork(
-			mc,
-			node.networkID,
-			ip,
-			version.CurrentApp,
-			tlsCert.PrivateKey.(crypto.Signer),
-			ids.Set{},
-			100,
-		),
+		Metrics:              metrics,
+		MessageCreator:       mc,
+		Log:                  logging.NoLog{},
+		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
+		Network:              peer.TestNetwork,
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
-		MySubnets:            ids.Set{},
+		MySubnets:            set.Set[ids.ID]{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
