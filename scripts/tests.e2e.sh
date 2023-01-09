@@ -166,7 +166,11 @@ echo "running e2e tests"
 --grpc-gateway-endpoint="0.0.0.0:8081" \
 --avalanchego-path-1=/tmp/avalanchego-v${VERSION_1}/avalanchego \
 --avalanchego-path-2=/tmp/avalanchego-v${VERSION_2}/avalanchego \
---subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm || (kill ${PID}; exit)
+--subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
+EXIT_CODE=$? # to fail the script if ginkgo failed
 
 kill ${PID}
-echo "ALL SUCCESS!"
+if [[ ${EXIT_CODE} == 0 ]]; then
+  echo "ALL SUCCESS!"
+fi
+exit ${EXIT_CODE}
