@@ -146,7 +146,7 @@ ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 snapshots_dir=/tmp/avalanche-network-runner-snapshots-e2e/
 rm -rf $snapshots_dir
 
-killall network.runner || echo
+killall avalanche-network-runner || true
 
 echo "launch local test cluster in the background"
 bin/avalanche-network-runner \
@@ -167,11 +167,14 @@ echo "running e2e tests"
 --grpc-gateway-endpoint="0.0.0.0:8081" \
 --avalanchego-path-1=/tmp/avalanchego-v${VERSION_1}/avalanchego \
 --avalanchego-path-2=/tmp/avalanchego-v${VERSION_2}/avalanchego \
---subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
-EXIT_CODE=$? # to fail the script if ginkgo failed
+--subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm || EXIT_CODE=$?
 
+echo "shutting down network runner"
 kill ${PID}
+
 if [[ ${EXIT_CODE} == 0 ]]; then
-  echo "ALL SUCCESS!"
+  echo "SUCCESS!"
+else
+  echo "FAILURE!"
 fi
 exit ${EXIT_CODE}
