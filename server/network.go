@@ -22,11 +22,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
-const (
-	// TODO: replace with config.PluginDirKey when included in avalanchego
-	PluginDirKey = "plugin-dir"
-)
-
 type localNetwork struct {
 	log logging.Logger
 
@@ -147,7 +142,7 @@ func (lc *localNetwork) createConfig() error {
 	}
 
 	if lc.pluginDir != "" {
-		cfg.Flags[PluginDirKey] = lc.pluginDir
+		cfg.Flags[config.PluginDirKey] = lc.pluginDir
 	}
 
 	for i := range cfg.NodeConfigs {
