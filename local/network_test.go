@@ -81,7 +81,7 @@ func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, f
 // TODO have this method return an API Client that has all
 // APIs and methods implemented
 func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
-	healthReply := &health.APIHealthReply{Healthy: true}
+	healthReply := &health.APIReply{Healthy: true}
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
@@ -95,7 +95,7 @@ func newMockAPISuccessful(ipAddr string, port uint16) api.Client {
 
 // Returns an API client where the Health API's Health method always returns unhealthy
 func newMockAPIUnhealthy(ipAddr string, port uint16) api.Client {
-	healthReply := &health.APIHealthReply{Healthy: false}
+	healthReply := &health.APIReply{Healthy: false}
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
@@ -1271,14 +1271,14 @@ func TestRemoveBeacon(t *testing.T) {
 }
 
 // Returns an API client where:
-// * The Health API's Health method always returns an error after the
-//   given context is cancelled.
-// * The CChainEthAPI's Close method may be called
-// * Only the above 2 methods may be called
+//   - The Health API's Health method always returns an error after the
+//     given context is cancelled.
+//   - The CChainEthAPI's Close method may be called
+//   - Only the above 2 methods may be called
 func newMockAPIHealthyBlocks(ipAddr string, port uint16) api.Client {
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool { return true }), mock.Anything).Return(
-		func(ctx context.Context, _ ...rpc.Option) *health.APIHealthReply {
+		func(ctx context.Context, _ ...rpc.Option) *health.APIReply {
 			<-ctx.Done()
 			return nil
 		},
