@@ -161,6 +161,7 @@ PID=${!}
 echo "running e2e tests"
 ./tests/e2e/e2e.test \
 --ginkgo.v \
+--ginkgo.fail-fast \
 --log-level debug \
 --grpc-endpoint="0.0.0.0:8080" \
 --grpc-gateway-endpoint="0.0.0.0:8081" \
