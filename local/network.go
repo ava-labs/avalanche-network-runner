@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -964,10 +963,10 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// Use node directory for profiles
-	profileDir := path.Join(nodeDir, "profiles")
+	profileDir := filepath.Join(nodeDir, "profiles")
 
 	// Use node directory for [chainData]
-	chainDataDir := path.Join(nodeDir, "chainData")
+	chainDataDir := filepath.Join(nodeDir, "chainData")
 
 	// Flags for AvalancheGo
 	flags := []string{
