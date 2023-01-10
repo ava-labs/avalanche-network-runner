@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -962,11 +963,19 @@ func (ln *localNetwork) buildFlags(
 		return buildFlagsReturn{}, err
 	}
 
+	// Use node directory for profiles
+	profilesDir := path.Join(nodeDir, "profiles")
+
+	// Use node directory for [chainData]
+	chainDataDir := path.Join(nodeDir, "chainData")
+
 	// Flags for AvalancheGo
 	flags := []string{
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
 		fmt.Sprintf("--%s=%s", config.DBPathKey, dbDir),
+		fmt.Sprintf("--%s=%s", config.ChainDataDirKey, chainDataDir),
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
+		fmt.Sprintf("--%s=%s", config.ProfileDirKey, profilesDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstraps.IPsArg()),
