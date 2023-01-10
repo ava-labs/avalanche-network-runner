@@ -964,7 +964,7 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// Use node directory for profiles
-	profilesDir := path.Join(nodeDir, "profiles")
+	profileDir := path.Join(nodeDir, "profiles")
 
 	// Use node directory for [chainData]
 	chainDataDir := path.Join(nodeDir, "chainData")
@@ -975,7 +975,7 @@ func (ln *localNetwork) buildFlags(
 		fmt.Sprintf("--%s=%s", config.DBPathKey, dbDir),
 		fmt.Sprintf("--%s=%s", config.ChainDataDirKey, chainDataDir),
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
-		fmt.Sprintf("--%s=%s", config.ProfileDirKey, profilesDir),
+		fmt.Sprintf("--%s=%s", config.ProfileDirKey, profileDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstraps.IPsArg()),
