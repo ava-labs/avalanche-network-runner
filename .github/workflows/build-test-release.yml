@@ -40,7 +40,10 @@ jobs:
           CGO_CFLAGS: "-O -D__BLST_PORTABLE__" # Set the CGO flags to use the portable version of BLST
   e2e_test:
     name: e2e tests
-    runs-on: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+        matrix:
+            os: [ubuntu-latest, macos-latest]
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
