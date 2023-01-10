@@ -28,6 +28,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/perms"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -965,9 +966,15 @@ func (ln *localNetwork) buildFlags(
 
 	// Use node directory for profiles
 	profileDir := path.Join(nodeDir, "profiles")
+	if err := os.MkdirAll(profileDir, perms.ReadWriteExecute); err != nil {
+		return buildFlagsReturn{}, err
+	}
 
 	// Use node directory for [chainData]
 	chainDataDir := path.Join(nodeDir, "chainData")
+	if err := os.MkdirAll(chainDataDir, perms.ReadWriteExecute); err != nil {
+		return buildFlagsReturn{}, err
+	}
 
 	// Flags for AvalancheGo
 	flags := []string{
