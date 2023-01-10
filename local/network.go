@@ -910,7 +910,6 @@ type buildFlagsReturn struct {
 	dbDir     string
 	logsDir   string
 	pluginDir string
-	dataDir   string
 	httpHost  string
 }
 
@@ -1010,7 +1009,6 @@ func (ln *localNetwork) buildFlags(
 		flags:     flags,
 		apiPort:   apiPort,
 		p2pPort:   p2pPort,
-		dataDir:   dataDir,
 		dbDir:     dbDir,
 		logsDir:   logsDir,
 		pluginDir: pluginDir,
