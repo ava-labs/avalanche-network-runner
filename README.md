@@ -17,7 +17,7 @@ To download a binary for the latest release, run:
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
-To install a specific version, just append the desired version (must be an existing github tag like v1.3.1)
+To install a specific version, just append the desired version to the command (must be an existing github tag like v1.3.1)
 
 ```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s v1.3.1
