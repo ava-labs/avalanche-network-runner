@@ -931,6 +931,12 @@ func (ln *localNetwork) buildFlags(
 		return buildFlagsReturn{}, err
 	}
 
+	// Tell the node to put all node related data in [nodeDir] unless given in config file
+	dataDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DataDirKey, nodeDir)
+	if err != nil {
+		return buildFlagsReturn{}, err
+	}
+
 	// pluginDir from all configs for node
 	pluginDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.PluginDirKey, "")
 	if err != nil {
@@ -965,6 +971,7 @@ func (ln *localNetwork) buildFlags(
 	// Flags for AvalancheGo
 	flags := []string{
 		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
+		fmt.Sprintf("--%s=%s", config.DataDirKey, dataDir),
 		fmt.Sprintf("--%s=%s", config.DBPathKey, dbDir),
 		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
