@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"go.uber.org/zap"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -49,6 +51,9 @@ const (
 	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
+	// to map flags to corresponding version
+	deprecatedBuildDirVersion           = "v1.9.6"
+	deprecatedWhitelistedSubnetsVersion = "v1.9.6"
 )
 
 // interface compliance
@@ -553,10 +558,18 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	nodeData, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
+	// Get node version
+	nodeSemVer, err := ln.getNodeSemVer(nodeConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	nodeData, err := ln.buildFlags(nodeSemVer, configFile, nodeDir, &nodeConfig)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(nodeData.flags)
+	os.Exit(1)
 
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
@@ -921,6 +934,7 @@ type buildFlagsReturn struct {
 // and directory at [nodeDir].
 // [nodeConfig.Flags] must not be nil
 func (ln *localNetwork) buildFlags(
+	nodeSemVer string,
 	configFile map[string]interface{},
 	nodeDir string,
 	nodeConfig *node.Config,
@@ -979,6 +993,7 @@ func (ln *localNetwork) buildFlags(
 		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstraps.IPsArg()),
 		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstraps.IDsArg()),
 	}
+
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
 	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
@@ -993,9 +1008,12 @@ func (ln *localNetwork) buildFlags(
 		config.StakingPortKey: {},
 	}
 
+	// map input flags to the corresponding avago version
+	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, nodeConfig.Flags)
+
 	// Add flags given in node config.
 	// Note these will overwrite existing flags if the same flag is given twice.
-	for flagName, flagVal := range nodeConfig.Flags {
+	for flagName, flagVal := range flagsForAvagoVersion {
 		if _, ok := warnFlags[flagName]; ok {
 			ln.log.Warn("A provided flag can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flag-name", flagName))
 		}
@@ -1014,4 +1032,76 @@ func (ln *localNetwork) buildFlags(
 		pluginDir: pluginDir,
 		httpHost:  httpHost,
 	}, nil
+}
+
+// Get AvalancheGo version
+func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
+	nodeVersionOutput, err := ln.nodeProcessCreator.GetNodeVersion(nodeConfig)
+	if err != nil {
+		return "", fmt.Errorf(
+			"couldn't get node version with binary %q: %w",
+			nodeConfig.BinaryPath, err,
+		)
+	}
+	nodeVersionWords := strings.Fields(nodeVersionOutput)
+	if len(nodeVersionWords) < 1 {
+		return "", fmt.Errorf(
+			"invalid version output %q for binary %q: not enough words in string",
+			nodeVersionOutput, nodeConfig.BinaryPath,
+		)
+	}
+	nodeNameVersion := strings.Split(nodeVersionWords[0], "/")
+	if len(nodeNameVersion) != 2 {
+		return "", fmt.Errorf(
+			"invalid version output %q for binary %q: format of %q should be avalanche/version",
+			nodeVersionOutput, nodeConfig.BinaryPath, nodeVersionWords[0],
+		)
+	}
+	if nodeNameVersion[0] != "avalanche" {
+		return "", fmt.Errorf(
+			"invalid version output %q for binary %q: format of %q should be avalanche/version",
+			nodeVersionOutput, nodeConfig.BinaryPath, nodeVersionWords[0],
+		)
+	}
+	nodeSemVer := "v" + nodeNameVersion[1]
+	if !semver.IsValid(nodeSemVer) {
+		return "", fmt.Errorf(
+			"invalid version output %q for binary %q: invalid semver %q",
+			nodeVersionOutput, nodeConfig.BinaryPath, nodeSemVer,
+		)
+	}
+	return nodeSemVer, nil
+}
+
+// assumes given flags are for latest avago version
+func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interface{}) map[string]interface{} {
+	flags := map[string]interface{}{}
+	for k := range givenFlags {
+		flags[k] = givenFlags[k]
+	}
+	if semver.Compare(avagoVersion, deprecatedBuildDirVersion) < 0 {
+		if vIntf, ok := flags[config.PluginDirKey]; ok {
+			v, ok := vIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected %q to be of type string but got %T", config.PluginDirKey, vIntf)
+			}
+			if v != "" {
+				flags[deprecatedBuildDirKey] = filepath.Dir(strings.TrimSuffix(v, "/"))
+			}
+			delete(flags, config.PluginDirKey)
+		}
+	}
+	if semver.Compare(avagoVersion, deprecatedWhitelistedSubnetsVersion) < 0 {
+		if vIntf, ok := flags[config.TrackSubnetsKey]; ok {
+			v, ok := vIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected %q to be of type string but got %T", config.TrackSubnetsKey, vIntf)
+			}
+			if v != "" {
+				flags[deprecatedWhitelistedSubnetsKey] = v
+			}
+			delete(flags, config.TrackSubnetsKey)
+		}
+	}
+	return flags
 }
