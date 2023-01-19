@@ -330,7 +330,7 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 ) (primary.Wallet, error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
-	if err := ln.restartNodesWithWhitelistedSubnets(ctx, subnetIDs); err != nil {
+	if err := ln.restartNodesWithTrackSubnets(ctx, subnetIDs); err != nil {
 		return nil, err
 	}
 	fmt.Println()
@@ -423,41 +423,41 @@ func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error)
 }
 
 // TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
-func (ln *localNetwork) restartNodesWithWhitelistedSubnets(
+func (ln *localNetwork) restartNodesWithTrackSubnets(
 	ctx context.Context,
 	subnetIDs []ids.ID,
 ) (err error) {
 	fmt.Println()
-	ln.log.Info(logging.Green.Wrap("restarting each node"), zap.String("whitelisted-subnets", config.WhitelistedSubnetsKey))
-	whitelistedSubnetIDsMap := map[string]struct{}{}
+
+	trackSubnetIDsMap := map[string]struct{}{}
 	currentSubnets, err := ln.getCurrentSubnets(ctx)
 	if err != nil {
 		return err
 	}
 	for _, subnet := range currentSubnets {
-		whitelistedSubnetIDsMap[subnet.String()] = struct{}{}
+		trackSubnetIDsMap[subnet.String()] = struct{}{}
 	}
 	for _, subnetID := range subnetIDs {
-		whitelistedSubnetIDsMap[subnetID.String()] = struct{}{}
+		trackSubnetIDsMap[subnetID.String()] = struct{}{}
 	}
-	whitelistedSubnetIDs := []string{}
-	for subnetID := range whitelistedSubnetIDsMap {
-		whitelistedSubnetIDs = append(whitelistedSubnetIDs, subnetID)
+	trackSubnetIDs := []string{}
+	for subnetID := range trackSubnetIDsMap {
+		trackSubnetIDs = append(trackSubnetIDs, subnetID)
 	}
-	sort.Strings(whitelistedSubnetIDs)
-	whitelistedSubnets := strings.Join(whitelistedSubnetIDs, ",")
+	sort.Strings(trackSubnetIDs)
+	trackSubnets := strings.Join(trackSubnetIDs, ",")
 
-	ln.log.Info("restarting all nodes to whitelist subnets", zap.Strings("whitelisted-subnet-IDs", whitelistedSubnetIDs))
+	ln.log.Info("restarting all nodes to track subnets", zap.Strings("track-subnet-IDs", trackSubnetIDs))
 
 	// change default setting
-	ln.flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	ln.flags[config.TrackSubnetsKey] = trackSubnets
 
 	for nodeName, node := range ln.nodes {
 		// delete node specific flag so as to use default one
 		nodeConfig := node.GetConfig()
-		delete(nodeConfig.Flags, config.WhitelistedSubnetsKey)
+		delete(nodeConfig.Flags, config.TrackSubnetsKey)
 
-		ln.log.Info("removing and adding back the node for whitelisted subnets", zap.String("node-name", nodeName))
+		ln.log.Info("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
 		}

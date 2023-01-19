@@ -6,7 +6,7 @@ package utils
 import "encoding/json"
 
 // Set k=v in JSON string
-// e.g., "whitelisted-subnets" is the key and value is "a,b,c".
+// e.g., "track-subnets" is the key and value is "a,b,c".
 func SetJSONKey(jsonBody string, k string, v string) (string, error) {
 	var config map[string]interface{}
 

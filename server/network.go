@@ -63,7 +63,7 @@ type localNetworkOptions struct {
 	execPath            string
 	rootDataDir         string
 	numNodes            uint32
-	whitelistedSubnets  string
+	trackSubnets        string
 	redirectNodesOutput bool
 	globalNodeConfig    string
 
@@ -177,8 +177,8 @@ func (lc *localNetwork) createConfig() error {
 		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
 		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
 
-		if lc.options.whitelistedSubnets != "" {
-			cfg.NodeConfigs[i].Flags[config.WhitelistedSubnetsKey] = lc.options.whitelistedSubnets
+		if lc.options.trackSubnets != "" {
+			cfg.NodeConfigs[i].Flags[config.TrackSubnetsKey] = lc.options.trackSubnets
 		}
 
 		cfg.NodeConfigs[i].BinaryPath = lc.execPath
@@ -455,7 +455,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for _, name := range lc.nodeNames {
 		node := nodes[name]
-		whitelistedSubnets, err := node.GetFlag(config.WhitelistedSubnetsKey)
+		trackSubnets, err := node.GetFlag(config.TrackSubnetsKey)
 		if err != nil {
 			return err
 		}
@@ -469,7 +469,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 			DbDir:              node.GetDbDir(),
 			Config:             []byte(node.GetConfigFile()),
 			PluginDir:          node.GetPluginDir(),
-			WhitelistedSubnets: whitelistedSubnets,
+			WhitelistedSubnets: trackSubnets,
 		}
 
 		// update default exec and pluginDir if empty (snapshots started without this params)
