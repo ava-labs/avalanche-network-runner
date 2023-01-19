@@ -19,6 +19,36 @@ import (
 	dircopy "github.com/otiai10/copy"
 )
 
+const (
+	deprecatedBuildDirKey           = "build-dir"
+	deprecatedWhitelistedSubnetsKey = "whitelisted-subnets"
+)
+
+// snapshots generated using older ANR versions may contain deprecated avago flags
+func fixDeprecatedAvagoFlags(flags map[string]interface{}) error {
+	if vIntf, ok := flags[deprecatedWhitelistedSubnetsKey]; ok {
+		v, ok := vIntf.(string)
+		if !ok {
+			return fmt.Errorf("expected %q to be of type string but got %T", deprecatedWhitelistedSubnetsKey, vIntf)
+		}
+		if v != "" {
+			flags[config.TrackSubnetsKey] = v
+		}
+		delete(flags, deprecatedWhitelistedSubnetsKey)
+	}
+	if vIntf, ok := flags[deprecatedBuildDirKey]; ok {
+		v, ok := vIntf.(string)
+		if !ok {
+			return fmt.Errorf("expected %q to be of type string but got %T", deprecatedBuildDirKey, vIntf)
+		}
+		if v != "" {
+			flags[config.PluginDirKey] = filepath.Join(v, "plugins")
+		}
+		delete(flags, deprecatedBuildDirKey)
+	}
+	return nil
+}
+
 // NewNetwork returns a new network from the given snapshot
 func NewNetworkFromSnapshot(
 	log logging.Logger,
@@ -197,6 +227,15 @@ func (ln *localNetwork) loadSnapshot(
 	err = json.Unmarshal(networkConfigJSON, &networkConfig)
 	if err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
+	}
+	// fix deprecated avago flags
+	if err := fixDeprecatedAvagoFlags(networkConfig.Flags); err != nil {
+		return err
+	}
+	for i := range networkConfig.NodeConfigs {
+		if err := fixDeprecatedAvagoFlags(networkConfig.NodeConfigs[i].Flags); err != nil {
+			return err
+		}
 	}
 	// add flags
 	for i := range networkConfig.NodeConfigs {
