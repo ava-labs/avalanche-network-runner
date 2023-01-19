@@ -14,7 +14,7 @@ import (
 
 // writeFiles writes the files a node needs on startup.
 // It returns flags used to point to those files.
-func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]string, error) {
+func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (map[string]string, error) {
 	type file struct {
 		pathKey   string
 		flagValue string
@@ -59,9 +59,9 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 			contents:  []byte(nodeConfig.ConfigFile),
 		})
 	}
-	flags := []string{}
+	flags := map[string]string{}
 	for _, f := range files {
-		flags = append(flags, fmt.Sprintf("--%s=%s", f.pathKey, f.flagValue))
+		flags[f.pathKey] = f.flagValue
 		if err := createFileAndWrite(f.path, f.contents); err != nil {
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}
@@ -71,13 +71,13 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) ([]
 	if err := os.MkdirAll(chainConfigDir, 0o750); err != nil {
 		return nil, err
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.ChainConfigDirKey, chainConfigDir))
+	flags[config.ChainConfigDirKey] = chainConfigDir
 	// subnet configs dir
 	subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
 	if err := os.MkdirAll(subnetConfigDir, 0o750); err != nil {
 		return nil, err
 	}
-	flags = append(flags, fmt.Sprintf("--%s=%s", config.SubnetConfigDirKey, subnetConfigDir))
+	flags[config.SubnetConfigDirKey] = subnetConfigDir
 	// chain configs
 	for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
 		chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)
