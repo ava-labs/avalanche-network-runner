@@ -1007,7 +1007,10 @@ func (ln *localNetwork) buildFlags(
 	}
 
 	// map input flags to the corresponding avago version
-	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, nodeConfig.Flags)
+	flagsForAvagoVersion, err := getFlagsForAvagoVersion(nodeSemVer, nodeConfig.Flags)
+	if err != nil {
+		return buildFlagsReturn{}, err
+	}
 
 	// Add flags given in node config.
 	// Note these will overwrite existing flags if the same flag is given twice.
@@ -1072,7 +1075,7 @@ func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
 }
 
 // assumes given flags are for latest avago version
-func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interface{}) map[string]interface{} {
+func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interface{}) (map[string]interface{}, error) {
 	flags := map[string]interface{}{}
 	for k := range givenFlags {
 		flags[k] = givenFlags[k]
@@ -1081,7 +1084,7 @@ func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interfac
 		if vIntf, ok := flags[config.PluginDirKey]; ok {
 			v, ok := vIntf.(string)
 			if !ok {
-				return fmt.Errorf("expected %q to be of type string but got %T", config.PluginDirKey, vIntf)
+				return nil, fmt.Errorf("expected %q to be of type string but got %T", config.PluginDirKey, vIntf)
 			}
 			if v != "" {
 				flags[deprecatedBuildDirKey] = filepath.Dir(strings.TrimSuffix(v, "/"))
@@ -1093,7 +1096,7 @@ func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interfac
 		if vIntf, ok := flags[config.TrackSubnetsKey]; ok {
 			v, ok := vIntf.(string)
 			if !ok {
-				return fmt.Errorf("expected %q to be of type string but got %T", config.TrackSubnetsKey, vIntf)
+				return nil, fmt.Errorf("expected %q to be of type string but got %T", config.TrackSubnetsKey, vIntf)
 			}
 			if v != "" {
 				flags[deprecatedWhitelistedSubnetsKey] = v
@@ -1101,5 +1104,5 @@ func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]interfac
 			delete(flags, config.TrackSubnetsKey)
 		}
 	}
-	return flags
+	return flags, nil
 }
