@@ -79,7 +79,10 @@ then
     ############################
     # download avalanchego
     # https://github.com/ava-labs/avalanchego/releases
+    GOARCH=$(go env GOARCH)
+    GOOS=$(go env GOOS)
     DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_2}/avalanchego-linux-${GOARCH}-v${VERSION_2}.tar.gz
+    DOWNLOAD_PATH=/tmp/avalanchego.tar.gz
     if [[ ${GOOS} == "darwin" ]]; then
       DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_2}/avalanchego-macos-v${VERSION_2}.zip
       DOWNLOAD_PATH=/tmp/avalanchego.zip
