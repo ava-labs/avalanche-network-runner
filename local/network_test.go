@@ -32,7 +32,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const defaultHealthyTimeout = 5 * time.Second
+const (
+	defaultHealthyTimeout = 5 * time.Second
+	nodeVersion           = "avalanche/1.9.5 extra"
+)
 
 var (
 	_ NodeProcessCreator    = &localTestSuccessfulNodeProcessCreator{}
@@ -50,16 +53,28 @@ func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config,
 	return newMockProcessSuccessful(config, flags...)
 }
 
+func (*localTestSuccessfulNodeProcessCreator) GetNodeVersion(_ node.Config) (string, error) {
+	return nodeVersion, nil
+}
+
 type localTestFailedStartProcessCreator struct{}
 
 func (*localTestFailedStartProcessCreator) NewNodeProcess(node.Config, ...string) (NodeProcess, error) {
 	return nil, errors.New("error on purpose for test")
 }
 
+func (*localTestFailedStartProcessCreator) GetNodeVersion(_ node.Config) (string, error) {
+	return nodeVersion, nil
+}
+
 type localTestProcessUndefNodeProcessCreator struct{}
 
 func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	return newMockProcessUndef(config, flags...)
+}
+
+func (*localTestProcessUndefNodeProcessCreator) GetNodeVersion(_ node.Config) (string, error) {
+	return nodeVersion, nil
 }
 
 type localTestFlagCheckProcessCreator struct {
@@ -70,6 +85,10 @@ type localTestFlagCheckProcessCreator struct {
 func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
 	lt.require.EqualValues(lt.expectedFlags, config.Flags)
 	return newMockProcessSuccessful(config, flags...)
+}
+
+func (*localTestFlagCheckProcessCreator) GetNodeVersion(_ node.Config) (string, error) {
+	return nodeVersion, nil
 }
 
 // Returns an API client where:
@@ -174,6 +193,10 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...s
 		lt.require.EqualValues(v, gotV)
 	}
 	return lt.successCreator.NewNodeProcess(config, flags...)
+}
+
+func (*localTestOneNodeCreator) GetNodeVersion(_ node.Config) (string, error) {
+	return nodeVersion, nil
 }
 
 // Start a network with one node.
