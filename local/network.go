@@ -568,8 +568,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(nodeData.flags)
-	os.Exit(1)
 
 	// Parse this node's ID
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
