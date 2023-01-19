@@ -153,6 +153,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.Start(ctx, execPath1,
+				client.WithPluginDir(filepath.Join(filepath.Dir(execPath1), "plugins")),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "subnetevm",
