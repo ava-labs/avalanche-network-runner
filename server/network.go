@@ -105,7 +105,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		customChainIDToInfo:  make(map[ids.ID]chainInfo),
+		customChainIDToInfo: make(map[ids.ID]chainInfo),
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
