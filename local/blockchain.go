@@ -457,7 +457,7 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 		nodeConfig := node.GetConfig()
 		delete(nodeConfig.Flags, config.TrackSubnetsKey)
 
-		ln.log.Info("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
+		ln.log.Debug("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
 		}
