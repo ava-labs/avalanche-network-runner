@@ -791,13 +791,13 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 }
 
 // Restart [nodeName] using the same config, optionally changing [binaryPath],
-// [whitelistedSubnets]
+// [pluginDir], [trackSubnets], [chainConfigs], [upgradeConfigs], [subnetConfigs]
 func (ln *localNetwork) RestartNode(
 	ctx context.Context,
 	nodeName string,
 	binaryPath string,
 	pluginDir string,
-	whitelistedSubnets string,
+	trackSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
 	subnetConfigs map[string]string,
@@ -810,7 +810,7 @@ func (ln *localNetwork) RestartNode(
 		nodeName,
 		binaryPath,
 		pluginDir,
-		whitelistedSubnets,
+		trackSubnets,
 		chainConfigs,
 		upgradeConfigs,
 		subnetConfigs,
@@ -822,7 +822,7 @@ func (ln *localNetwork) restartNode(
 	nodeName string,
 	binaryPath string,
 	pluginDir string,
-	whitelistedSubnets string,
+	trackSubnets string,
 	chainConfigs map[string]string,
 	upgradeConfigs map[string]string,
 	subnetConfigs map[string]string,
@@ -841,8 +841,8 @@ func (ln *localNetwork) restartNode(
 		nodeConfig.Flags[config.PluginDirKey] = pluginDir
 	}
 
-	if whitelistedSubnets != "" {
-		nodeConfig.Flags[config.WhitelistedSubnetsKey] = whitelistedSubnets
+	if trackSubnets != "" {
+		nodeConfig.Flags[config.TrackSubnetsKey] = trackSubnets
 	}
 
 	// keep same ports, dbdir in node flags

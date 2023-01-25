@@ -275,14 +275,14 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	var (
-		execPath           = req.GetExecPath()
-		numNodes           = req.GetNumNodes()
-		whitelistedSubnets = req.GetWhitelistedSubnets()
-		rootDataDir        = req.GetRootDataDir()
-		pid                = int32(os.Getpid())
-		globalNodeConfig   = req.GetGlobalNodeConfig()
-		customNodeConfigs  = req.GetCustomNodeConfigs()
-		err                error
+		execPath          = req.GetExecPath()
+		numNodes          = req.GetNumNodes()
+		trackSubnets      = req.GetWhitelistedSubnets()
+		rootDataDir       = req.GetRootDataDir()
+		pid               = int32(os.Getpid())
+		globalNodeConfig  = req.GetGlobalNodeConfig()
+		customNodeConfigs = req.GetCustomNodeConfigs()
+		err               error
 	)
 
 	if len(rootDataDir) == 0 {
@@ -303,7 +303,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	s.log.Info("starting",
 		zap.String("exec-path", execPath),
 		zap.Uint32("num-nodes", numNodes),
-		zap.String("whitelisted-subnets", whitelistedSubnets),
+		zap.String("track-subnets", trackSubnets),
 		zap.Int32("pid", pid),
 		zap.String("root-data-dir", rootDataDir),
 		zap.String("plugin-dir", pluginDir),
@@ -324,7 +324,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		execPath:            execPath,
 		rootDataDir:         rootDataDir,
 		numNodes:            numNodes,
-		whitelistedSubnets:  whitelistedSubnets,
+		trackSubnets:        trackSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
 		pluginDir:           pluginDir,
 		globalNodeConfig:    globalNodeConfig,

@@ -106,8 +106,8 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		UpgradeConfigs: ret.upgradeConfigs,
 		SubnetConfigs:  ret.subnetConfigs,
 	}
-	if ret.whitelistedSubnets != "" {
-		req.WhitelistedSubnets = &ret.whitelistedSubnets
+	if ret.trackSubnets != "" {
+		req.WhitelistedSubnets = &ret.trackSubnets
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
@@ -262,8 +262,8 @@ func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption)
 	if ret.pluginDir != "" {
 		req.PluginDir = ret.pluginDir
 	}
-	if ret.whitelistedSubnets != "" {
-		req.WhitelistedSubnets = &ret.whitelistedSubnets
+	if ret.trackSubnets != "" {
+		req.WhitelistedSubnets = &ret.trackSubnets
 	}
 	req.ChainConfigs = ret.chainConfigs
 	req.UpgradeConfigs = ret.upgradeConfigs
@@ -343,7 +343,7 @@ func (c *client) Close() error {
 type Op struct {
 	numNodes            uint32
 	execPath            string
-	whitelistedSubnets  string
+	trackSubnets        string
 	globalNodeConfig    string
 	rootDataDir         string
 	pluginDir           string
@@ -383,9 +383,15 @@ func WithExecPath(execPath string) OpOption {
 	}
 }
 
-func WithWhitelistedSubnets(whitelistedSubnets string) OpOption {
+func WithWhitelistedSubnets(trackSubnets string) OpOption {
 	return func(op *Op) {
-		op.whitelistedSubnets = whitelistedSubnets
+		op.trackSubnets = trackSubnets
+	}
+}
+
+func WithTrackSubnets(trackSubnets string) OpOption {
+	return func(op *Op) {
+		op.trackSubnets = trackSubnets
 	}
 }
 

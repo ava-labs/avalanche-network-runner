@@ -28,12 +28,12 @@ func init() {
 }
 
 var (
-	logLevel           string
-	whitelistedSubnets string
-	endpoint           string
-	dialTimeout        time.Duration
-	requestTimeout     time.Duration
-	log                logging.Logger
+	logLevel       string
+	trackSubnets   string
+	endpoint       string
+	dialTimeout    time.Duration
+	requestTimeout time.Duration
+	log            logging.Logger
 )
 
 // NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
@@ -156,7 +156,7 @@ func newStartCommand() *cobra.Command {
 		"[optional] custom node configs as JSON string of map, for each node individually. Common entries override `global-node-config`, but can be combined. Invalidates `number-of-nodes` (provide all node configs if used).",
 	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
+		&trackSubnets,
 		"whitelisted-subnets",
 		"",
 		"[optional] whitelisted subnets (comma-separated)",
@@ -207,7 +207,7 @@ func startFunc(*cobra.Command, []string) error {
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
-		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithTrackSubnets(trackSubnets),
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
@@ -643,10 +643,10 @@ func newRestartNodeCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().StringVar(
-		&whitelistedSubnets,
+		&trackSubnets,
 		"whitelisted-subnets",
 		"",
-		"whitelisted subnets (comma-separated)",
+		"[optional] whitelisted subnets (comma-separated)",
 	)
 	cmd.PersistentFlags().StringVar(
 		&pluginDir,
@@ -687,7 +687,7 @@ func restartNodeFunc(_ *cobra.Command, args []string) error {
 	opts := []client.OpOption{
 		client.WithExecPath(avalancheGoBinPath),
 		client.WithPluginDir(pluginDir),
-		client.WithWhitelistedSubnets(whitelistedSubnets),
+		client.WithTrackSubnets(trackSubnets),
 	}
 
 	if chainConfigs != "" {
