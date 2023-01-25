@@ -113,6 +113,7 @@ type ControlServiceClient interface {
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
+	WaitForHealthy(ctx context.Context, in *WaitForHealthyRequest, opts ...grpc.CallOption) (*WaitForHealthyResponse, error)
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	StreamStatus(ctx context.Context, in *StreamStatusRequest, opts ...grpc.CallOption) (ControlService_StreamStatusClient, error)
 	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
@@ -174,6 +175,15 @@ func (c *controlServiceClient) Health(ctx context.Context, in *HealthRequest, op
 func (c *controlServiceClient) URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error) {
 	out := new(URIsResponse)
 	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/URIs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) WaitForHealthy(ctx context.Context, in *WaitForHealthyRequest, opts ...grpc.CallOption) (*WaitForHealthyResponse, error) {
+	out := new(WaitForHealthyResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/WaitForHealthy", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -320,6 +330,7 @@ type ControlServiceServer interface {
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
+	WaitForHealthy(context.Context, *WaitForHealthyRequest) (*WaitForHealthyResponse, error)
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	StreamStatus(*StreamStatusRequest, ControlService_StreamStatusServer) error
 	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
@@ -353,6 +364,9 @@ func (UnimplementedControlServiceServer) Health(context.Context, *HealthRequest)
 }
 func (UnimplementedControlServiceServer) URIs(context.Context, *URIsRequest) (*URIsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method URIs not implemented")
+}
+func (UnimplementedControlServiceServer) WaitForHealthy(context.Context, *WaitForHealthyRequest) (*WaitForHealthyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WaitForHealthy not implemented")
 }
 func (UnimplementedControlServiceServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
@@ -489,6 +503,24 @@ func _ControlService_URIs_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).URIs(ctx, req.(*URIsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_WaitForHealthy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WaitForHealthyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).WaitForHealthy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/WaitForHealthy",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).WaitForHealthy(ctx, req.(*WaitForHealthyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -738,6 +770,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "URIs",
 			Handler:    _ControlService_URIs_Handler,
+		},
+		{
+			MethodName: "WaitForHealthy",
+			Handler:    _ControlService_WaitForHealthy_Handler,
 		},
 		{
 			MethodName: "Status",

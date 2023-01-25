@@ -355,11 +355,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// to decide cluster/subnet readiness
 	go func() {
 		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
-		if len(req.GetBlockchainSpecs()) == 0 {
-			s.log.Info("no custom chain installation request, skipping its readiness check")
-		} else {
-			s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
-		}
+		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
 	}()
 
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
@@ -396,6 +392,31 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		}
 		s.mu.Unlock()
 	}
+}
+
+func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	var err error
+	continueLoop := true
+	for continueLoop {
+		select {
+		case <-ctx.Done():
+			continueLoop = false
+			err = ctx.Err()
+		case <-time.After(5 * time.Second):
+			info := s.getClusterInfo()
+			if info.ErrMsg != "" {
+				continueLoop = false
+				err = fmt.Errorf(info.ErrMsg)
+			}
+			if info.CustomChainsHealthy {
+				continueLoop = false
+				err = nil
+			}
+		}
+	}
+	cancel()
+	return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.getClusterInfo()}, err
 }
 
 func getNetworkBlockchainSpec(

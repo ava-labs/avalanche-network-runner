@@ -251,6 +251,7 @@ func (lc *localNetwork) createBlockchains(
 
 	if len(chainSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
+		close(createBlockchainsReadyCh)
 		return
 	}
 

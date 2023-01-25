@@ -57,6 +57,13 @@ service ControlService {
     };
   }
 
+  rpc WaitForHealthy(WaitForHealthyRequest) returns (WaitForHealthyResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/waitforhealthy"
+      body: "*"
+    };
+  }
+
   rpc Status(StatusRequest) returns (StatusResponse) {
     option (google.api.http) = {
       post: "/v1/control/status"
@@ -310,6 +317,12 @@ message URIsRequest {}
 
 message URIsResponse {
   repeated string uris = 1;
+}
+
+message WaitForHealthyRequest {}
+
+message WaitForHealthyResponse {
+  ClusterInfo cluster_info = 1;
 }
 
 message StatusRequest {}
