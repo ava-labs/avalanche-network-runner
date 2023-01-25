@@ -297,7 +297,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	s.clusterInfo = &rpcpb.ClusterInfo{
 		Pid:         pid,
 		RootDataDir: rootDataDir,
-		Healthy:     false,
 	}
 
 	s.log.Info("starting",
@@ -335,12 +334,14 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	})
 	if err != nil {
 		s.network = nil
+		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
 	if err := s.network.start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
 		s.network = nil
+		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
@@ -378,6 +379,7 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		s.network.stop(stopCtx)
 		stopCtxCancel()
 		s.network = nil
+		s.clusterInfo.ErrMsg = serr.Error()
 		s.mu.Unlock()
 	case <-readyCh:
 		s.mu.Lock()
@@ -641,19 +643,11 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusResponse, error) {
 	s.log.Debug("Status")
 
-	if s.getNetwork() == nil {
-		return nil, ErrNotBootstrapped
-	}
-
 	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
 func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.ControlService_StreamStatusServer) (err error) {
 	s.log.Debug("StreamStatus")
-
-	if s.getNetwork() == nil {
-		return ErrNotBootstrapped
-	}
 
 	interval := time.Duration(req.PushInterval)
 
@@ -977,7 +971,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	s.clusterInfo = &rpcpb.ClusterInfo{
 		Pid:         pid,
 		RootDataDir: rootDataDir,
-		Healthy:     false,
 	}
 
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
@@ -996,6 +989,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	})
 	if err != nil {
 		s.network = nil
+		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
@@ -1003,6 +997,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.network = nil
+		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
