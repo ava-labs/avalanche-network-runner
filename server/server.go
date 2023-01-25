@@ -335,13 +335,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		dynamicPorts:        req.GetDynamicPorts(),
-
-		// to block racey restart
-		// "s.network.start" runs asynchronously
-		// so it would not deadlock with the acquired lock
-		// in this "Start" method
-		restartMu: s.mu,
-
 		snapshotsDir: s.cfg.SnapshotsDir,
 	})
 	if err != nil {
@@ -1001,13 +994,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		globalNodeConfig:    req.GetGlobalNodeConfig(),
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
-
-		// to block racey restart
-		// "s.network.start" runs asynchronously
-		// so it would not deadlock with the acquired lock
-		// in this "Start" method
-		restartMu: s.mu,
-
 		snapshotsDir: s.cfg.SnapshotsDir,
 	})
 	if err != nil {

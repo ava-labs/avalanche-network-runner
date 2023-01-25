@@ -41,8 +41,6 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
-	customChainRestartMu *sync.RWMutex
-
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
 	startErrCh     chan error
@@ -77,9 +75,6 @@ type localNetworkOptions struct {
 	// subnet configs to be added to the network, besides the ones in default config, or saved snapshot
 	subnetConfigs map[string]string
 
-	// to block racey restart while installing custom chains
-	restartMu *sync.RWMutex
-
 	snapshotsDir string
 
 	logLevel logging.Level
@@ -111,7 +106,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		options: opts,
 
 		customChainIDToInfo:  make(map[ids.ID]chainInfo),
-		customChainRestartMu: opts.restartMu,
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
