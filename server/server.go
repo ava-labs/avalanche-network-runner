@@ -379,6 +379,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		s.mu.Unlock()
 	case <-readyCh:
 		s.mu.Lock()
+		s.clusterInfo.ErrMsg = ""
 		s.clusterInfo.Healthy = true
 		s.clusterInfo.NodeNames = s.network.nodeNames
 		s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -395,16 +396,30 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 	}
 }
 
+// wait until some of this conditions is met:
+// - timeout expires
+// - network operation terminates with error message by setting ErrMsg
+// - network operation termiantes successfully by setting CustomChainsHealthy
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
+	s.log.Debug("WaitForHealthy")
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	var err error
 	continueLoop := true
+	info := s.getClusterInfo()
+	if info.ErrMsg != "" {
+		continueLoop = false
+		err = fmt.Errorf(info.ErrMsg)
+	}
+	if info.CustomChainsHealthy {
+		continueLoop = false
+		err = nil
+	}
 	for continueLoop {
 		select {
 		case <-ctx.Done():
 			continueLoop = false
 			err = ctx.Err()
-		case <-time.After(5 * time.Second):
+		case <-time.After(1 * time.Second):
 			info := s.getClusterInfo()
 			if info.ErrMsg != "" {
 				continueLoop = false
@@ -558,6 +573,8 @@ func (s *server) CreateBlockchains(
 		}
 	}
 
+	s.clusterInfo.ErrMsg = ""
+	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
 	// start non-blocking to install custom chains (if applicable)
@@ -606,6 +623,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.clusterInfo.ErrMsg = ""
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 

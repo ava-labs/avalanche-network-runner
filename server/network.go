@@ -250,7 +250,6 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
 		close(createBlockchainsReadyCh)
 		return
 	}
@@ -431,7 +430,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
-		ux.Print(lc.log, logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri)
+		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri))
 	}
 	return nil
 }
