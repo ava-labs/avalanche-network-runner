@@ -167,8 +167,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
-			// ignore subnet ID here
-			_ = waitForCustomChainsHealthy()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("can create a blockchain with a new subnet id", func() {
@@ -186,8 +188,20 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
 		ginkgo.By("get subnet ID", func() {
-			existingSubnetID = waitForCustomChainsHealthy()
+			cctx, ccancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(cctx)
+			ccancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			existingSubnetID = status.ClusterInfo.GetSubnets()[0]
+			gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
 		})
 
 		ginkgo.By("can create a blockchain with an existing subnet id", func() {
@@ -207,8 +221,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
-			// ignore subnet ID here
-			_ = waitForCustomChainsHealthy()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("can save snapshot", func() {
@@ -226,8 +242,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
-			// ignore subnet ID here
-			_ = waitForCustomChainsHealthy()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
@@ -238,6 +256,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
+
 		ginkgo.By("can create a blockchain with an existing subnet id", func() {
 			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -255,8 +274,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
-			// ignore subnet ID here
-			_ = waitForCustomChainsHealthy()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("stop the network", func() {
@@ -553,9 +574,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("wait for network to be healthy", func() {
-			// ignore subnet ID here
-			_ = waitForCustomChainsHealthy()
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("check subnets are 1", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -689,30 +712,3 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 })
-
-func waitForCustomChainsHealthy() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	var created bool
-	continueLoop := true
-	for continueLoop {
-		select {
-		case <-ctx.Done():
-			continueLoop = false
-		case <-time.After(5 * time.Second):
-			cctx, ccancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(cctx)
-			ccancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			created = status.ClusterInfo.CustomChainsHealthy
-			if created {
-				existingSubnetID := status.ClusterInfo.GetSubnets()[0]
-				gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
-				cancel()
-				return existingSubnetID
-			}
-		}
-	}
-	cancel()
-	gomega.Ω(created).Should(gomega.Equal(true))
-	return ""
-}
