@@ -33,6 +33,7 @@ type Client interface {
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
+	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
 	StreamStatus(ctx context.Context, pushInterval time.Duration) (<-chan *rpcpb.ClusterInfo, error)
@@ -157,6 +158,11 @@ func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.Cr
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
 	c.log.Info("health")
 	return c.controlc.Health(ctx, &rpcpb.HealthRequest{})
+}
+
+func (c *client) WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error) {
+	c.log.Info("wait for healthy")
+	return c.controlc.WaitForHealthy(ctx, &rpcpb.WaitForHealthyRequest{})
 }
 
 func (c *client) URIs(ctx context.Context) ([]string, error) {

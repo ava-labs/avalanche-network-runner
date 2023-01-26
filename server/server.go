@@ -354,15 +354,15 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, false)
-		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("local cluster", readyCh, false)
+		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 	}()
 
 	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
-	s.log.Info(waitMsg)
+func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
+	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
 	select {
 	case <-s.closed:
 		return
@@ -370,7 +370,7 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 		return
 	case serr := <-s.getNetwork().startErrCh:
 		s.mu.Lock()
-		s.log.Warn("async call failed to complete", zap.String("async-call", waitMsg), zap.Error(serr))
+		s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(serr))
 		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
 		s.network.stop(stopCtx)
 		stopCtxCancel()
@@ -390,6 +390,7 @@ func (s *server) waitChAndUpdateClusterInfo(waitMsg string, readyCh chan struct{
 			}
 			s.clusterInfo.Subnets = s.network.subnets
 		}
+		s.log.Info(fmt.Sprintf("%s ready", msg))
 		s.mu.Unlock()
 	}
 }
@@ -568,7 +569,7 @@ func (s *server) CreateBlockchains(
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 	}()
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -617,7 +618,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for custom chains readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -1031,7 +1032,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		s.waitChAndUpdateClusterInfo("waiting for local cluster readiness", readyCh, true)
+		s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
 	}()
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.clusterInfo}, nil
