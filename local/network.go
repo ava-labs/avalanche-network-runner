@@ -51,9 +51,6 @@ const (
 	defaultLogsSubdir         = "logs"
 	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta = 2836800
-	// to map flags to corresponding version
-	deprecatedBuildDirVersion           = "v1.9.6"
-	deprecatedWhitelistedSubnetsVersion = "v1.9.6"
 )
 
 // interface compliance
