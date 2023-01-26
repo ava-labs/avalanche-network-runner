@@ -115,9 +115,19 @@ type localNetwork struct {
 	reassignPortsIfUsed bool
 }
 
+type deprecatedFlagEsp struct {
+	Version  string `json:"version"`
+	OldName  string `json:"old_name"`
+	NewName  string `json:"new_name"`
+	ValueMap string `json:"value_map"`
+}
+
 var (
 	//go:embed default
 	embeddedDefaultNetworkConfigDir embed.FS
+	//go:embed deprecatedFlagsSupport.json
+	deprecatedFlagsSupportBytes []byte
+	deprecatedFlagsSupport      []deprecatedFlagEsp
 	// Pre-defined network configuration.
 	// [defaultNetworkConfig] should not be modified.
 	// TODO add method Copy() to network.Config to prevent
@@ -132,6 +142,10 @@ func init() {
 	// load genesis, updating validation start time
 	genesisMap, err := network.LoadLocalGenesis()
 	if err != nil {
+		panic(err)
+	}
+	// load deprecated avago flags support information
+	if err = json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
 		panic(err)
 	}
 
@@ -1020,7 +1034,8 @@ func (ln *localNetwork) buildArgs(
 		flags[flagName] = fmt.Sprintf("%v", flagVal)
 	}
 
-	// map input flags to the corresponding avago version
+	// map input flags to the corresponding avago version, making sure that latest flags don't break
+	// old avago versions
 	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, flags)
 
 	// create args
@@ -1079,26 +1094,25 @@ func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
 	return nodeSemVer, nil
 }
 
-// assumes given flags are for latest avago version
+// based on avago version, adapt the given flags to the flag naming and content expected by the version
+// assumes that the given flags are suitable for the latest avago version
+// flags map especification obtained from json embedded into deprecatedFlagsSupport
 func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) map[string]string {
 	flags := map[string]string{}
 	for k := range givenFlags {
 		flags[k] = givenFlags[k]
 	}
-	if semver.Compare(avagoVersion, deprecatedBuildDirVersion) < 0 {
-		if v, ok := flags[config.PluginDirKey]; ok {
-			if v != "" {
-				flags[deprecatedBuildDirKey] = filepath.Dir(strings.TrimSuffix(v, "/"))
+	for _, deprecatedFlagInfo := range deprecatedFlagsSupport {
+		if semver.Compare(avagoVersion, deprecatedFlagInfo.Version) < 0 {
+			if v, ok := flags[deprecatedFlagInfo.NewName]; ok {
+				if v != "" {
+					if deprecatedFlagInfo.ValueMap == "parent-dir" {
+						v = filepath.Dir(strings.TrimSuffix(v, "/"))
+					}
+					flags[deprecatedFlagInfo.OldName] = v
+				}
+				delete(flags, deprecatedFlagInfo.NewName)
 			}
-			delete(flags, config.PluginDirKey)
-		}
-	}
-	if semver.Compare(avagoVersion, deprecatedWhitelistedSubnetsVersion) < 0 {
-		if v, ok := flags[config.TrackSubnetsKey]; ok {
-			if v != "" {
-				flags[deprecatedWhitelistedSubnetsKey] = v
-			}
-			delete(flags, config.TrackSubnetsKey)
 		}
 	}
 	return flags
