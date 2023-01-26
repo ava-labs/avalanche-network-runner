@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -1061,33 +1062,15 @@ func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
 			nodeConfig.BinaryPath, err,
 		)
 	}
-	nodeVersionWords := strings.Fields(nodeVersionOutput)
-	if len(nodeVersionWords) < 1 {
+	re := regexp.MustCompile(`\/([^ ]+)`)
+	matchs := re.FindStringSubmatch(nodeVersionOutput)
+	if len(matchs) != 2 {
 		return "", fmt.Errorf(
-			"invalid version output %q for binary %q: not enough words in string",
+			"invalid version output %q for binary %q: version pattern not found",
 			nodeVersionOutput, nodeConfig.BinaryPath,
 		)
 	}
-	nodeNameVersion := strings.Split(nodeVersionWords[0], "/")
-	if len(nodeNameVersion) != 2 {
-		return "", fmt.Errorf(
-			"invalid version output %q for binary %q: format of %q should be avalanche/version",
-			nodeVersionOutput, nodeConfig.BinaryPath, nodeVersionWords[0],
-		)
-	}
-	if nodeNameVersion[0] != "avalanche" {
-		return "", fmt.Errorf(
-			"invalid version output %q for binary %q: format of %q should be avalanche/version",
-			nodeVersionOutput, nodeConfig.BinaryPath, nodeVersionWords[0],
-		)
-	}
-	nodeSemVer := "v" + nodeNameVersion[1]
-	if !semver.IsValid(nodeSemVer) {
-		return "", fmt.Errorf(
-			"invalid version output %q for binary %q: invalid semver %q",
-			nodeVersionOutput, nodeConfig.BinaryPath, nodeSemVer,
-		)
-	}
+	nodeSemVer := "v" + matchs[1]
 	return nodeSemVer, nil
 }
 
