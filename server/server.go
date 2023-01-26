@@ -955,7 +955,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 		}
 	}
 
-	return &rpcpb.AttachPeerResponse{ClusterInfo: s.getClusterInfo(), AttachedPeerInfo: peerInfo}, nil
+	return &rpcpb.AttachPeerResponse{ClusterInfo: s.clusterInfo, AttachedPeerInfo: peerInfo}, nil
 }
 
 func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboundMessageRequest) (*rpcpb.SendOutboundMessageResponse, error) {
