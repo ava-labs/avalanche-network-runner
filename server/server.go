@@ -402,6 +402,9 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 // - network operation termiantes successfully by setting CustomChainsHealthy
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
 	s.log.Debug("WaitForHealthy")
+	if s.getNetwork() == nil {
+		return nil, ErrNotBootstrapped
+	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	var err error
 	continueLoop := true
