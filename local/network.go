@@ -1074,9 +1074,7 @@ func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
 	return nodeSemVer, nil
 }
 
-// based on avago version, adapt the given flags to the flag naming and content expected by the version
-// assumes that the given flags are suitable for the latest avago version
-// flags map especification obtained from json embedded into deprecatedFlagsSupport
+// ensure flags are compatible with the running avalanchego version
 func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) map[string]string {
 	flags := map[string]string{}
 	for k := range givenFlags {
