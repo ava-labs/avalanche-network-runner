@@ -399,7 +399,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 // wait until some of this conditions is met:
 // - timeout expires
 // - network operation terminates with error message by setting ErrMsg
-// - network operation termiantes successfully by setting CustomChainsHealthy
+// - network operation terminates successfully by setting CustomChainsHealthy
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
 	s.log.Debug("WaitForHealthy")
 	if s.getNetwork() == nil {
