@@ -1,0 +1,14 @@
+[
+  {
+      "version": "v1.9.6",
+      "old_name": "build-dir",
+      "new_name": "plugin-dir",
+      "value_map": "parent-dir"
+  },
+  {
+      "version": "v1.9.6",
+      "old_name": "whitelisted-subnets",
+      "new_name": "track-subnets",
+      "value_map": ""
+  }
+]

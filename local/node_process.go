@@ -33,6 +33,7 @@ type NodeProcess interface {
 
 // NodeProcessCreator is an interface for new node process creation
 type NodeProcessCreator interface {
+	GetNodeVersion(config node.Config) (string, error)
 	NewNodeProcess(config node.Config, args ...string) (NodeProcess, error)
 }
 
@@ -204,4 +205,14 @@ func killDescendants(pid int32, log logging.Logger) {
 			log.Warn("error killing process", zap.Int32("pid", proc.Pid), zap.Error(err))
 		}
 	}
+}
+
+// GetNodeVersion gets the version of the executable as per --version flag
+func (*nodeProcessCreator) GetNodeVersion(config node.Config) (string, error) {
+	// Start the AvalancheGo node and pass it the --version flag
+	out, err := exec.Command(config.BinaryPath, "--version").Output() //nolint
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }

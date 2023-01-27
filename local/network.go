@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"go.uber.org/zap"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -110,9 +113,19 @@ type localNetwork struct {
 	reassignPortsIfUsed bool
 }
 
+type deprecatedFlagEsp struct {
+	Version  string `json:"version"`
+	OldName  string `json:"old_name"`
+	NewName  string `json:"new_name"`
+	ValueMap string `json:"value_map"`
+}
+
 var (
 	//go:embed default
 	embeddedDefaultNetworkConfigDir embed.FS
+	//go:embed deprecatedFlagsSupport.json
+	deprecatedFlagsSupportBytes []byte
+	deprecatedFlagsSupport      []deprecatedFlagEsp
 	// Pre-defined network configuration.
 	// [defaultNetworkConfig] should not be modified.
 	// TODO add method Copy() to network.Config to prevent
@@ -127,6 +140,10 @@ func init() {
 	// load genesis, updating validation start time
 	genesisMap, err := network.LoadLocalGenesis()
 	if err != nil {
+		panic(err)
+	}
+	// load deprecated avago flags support information
+	if err = json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
 		panic(err)
 	}
 
@@ -553,7 +570,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 	}
 
-	nodeData, err := ln.buildFlags(configFile, nodeDir, &nodeConfig)
+	// Get node version
+	nodeSemVer, err := ln.getNodeSemVer(nodeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeData, err := ln.buildArgs(nodeSemVer, configFile, nodeDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -565,11 +588,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
-	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.flags...)
+	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.args...)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"couldn't create new node process with binary %q and flags %v: %w",
-			nodeConfig.BinaryPath, nodeData.flags, err,
+			"couldn't create new node process with binary %q and args %v: %w",
+			nodeConfig.BinaryPath, nodeData.args, err,
 		)
 	}
 
@@ -587,7 +610,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		"starting node",
 		zap.String("name", nodeConfig.Name),
 		zap.String("binaryPath", nodeConfig.BinaryPath),
-		zap.Strings("flags", nodeData.flags),
+		zap.Strings("args", nodeData.args),
 	)
 
 	// Create a wrapper for this node so we can reference it later
@@ -903,8 +926,8 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 	return nil
 }
 
-type buildFlagsReturn struct {
-	flags     []string
+type buildArgsReturn struct {
+	args      []string
 	apiPort   uint16
 	p2pPort   uint16
 	dbDir     string
@@ -913,79 +936,83 @@ type buildFlagsReturn struct {
 	httpHost  string
 }
 
-// buildFlags returns the:
-// 1) Flags
+// buildArgs returns the:
+// 1) Args for avago execution
 // 2) API port
 // 3) P2P port
 // of the node being added with config [nodeConfig], config file [configFile],
 // and directory at [nodeDir].
 // [nodeConfig.Flags] must not be nil
-func (ln *localNetwork) buildFlags(
+func (ln *localNetwork) buildArgs(
+	nodeSemVer string,
 	configFile map[string]interface{},
 	nodeDir string,
 	nodeConfig *node.Config,
-) (buildFlagsReturn, error) {
+) (buildArgsReturn, error) {
 	// httpHost from all configs for node
 	httpHost, err := getConfigEntry(nodeConfig.Flags, configFile, config.HTTPHostKey, "")
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Tell the node to put all node related data in [nodeDir] unless given in config file
 	dataDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DataDirKey, nodeDir)
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// pluginDir from all configs for node
 	pluginDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.PluginDirKey, "")
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Tell the node to put the database in [nodeDir] unless given in config file
 	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDBSubdir))
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Tell the node to put the log directory in [nodeDir/logs] unless given in config file
 	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, defaultLogsSubdir))
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Use random free API port unless given in config file
 	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey, ln.reassignPortsIfUsed)
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
 	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey, ln.reassignPortsIfUsed)
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
 
 	// Flags for AvalancheGo
-	flags := []string{
-		fmt.Sprintf("--%s=%d", config.NetworkNameKey, ln.networkID),
-		fmt.Sprintf("--%s=%s", config.DataDirKey, dataDir),
-		fmt.Sprintf("--%s=%s", config.DBPathKey, dbDir),
-		fmt.Sprintf("--%s=%s", config.LogsDirKey, logsDir),
-		fmt.Sprintf("--%s=%d", config.HTTPPortKey, apiPort),
-		fmt.Sprintf("--%s=%d", config.StakingPortKey, p2pPort),
-		fmt.Sprintf("--%s=%s", config.BootstrapIPsKey, ln.bootstraps.IPsArg()),
-		fmt.Sprintf("--%s=%s", config.BootstrapIDsKey, ln.bootstraps.IDsArg()),
+	flags := map[string]string{
+		config.NetworkNameKey:  fmt.Sprintf("%d", ln.networkID),
+		config.DataDirKey:      dataDir,
+		config.DBPathKey:       dbDir,
+		config.LogsDirKey:      logsDir,
+		config.HTTPPortKey:     fmt.Sprintf("%d", apiPort),
+		config.StakingPortKey:  fmt.Sprintf("%d", p2pPort),
+		config.BootstrapIPsKey: ln.bootstraps.IPsArg(),
+		config.BootstrapIDsKey: ln.bootstraps.IDsArg(),
 	}
+
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
 	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
 	if err != nil {
-		return buildFlagsReturn{}, err
+		return buildArgsReturn{}, err
 	}
-	flags = append(flags, fileFlags...)
+	for k := range fileFlags {
+		flags[k] = fileFlags[k]
+	}
 
 	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
 	portFlags := map[string]struct{}{
@@ -1002,11 +1029,21 @@ func (ln *localNetwork) buildFlags(
 		if _, ok := portFlags[flagName]; ok {
 			continue
 		}
-		flags = append(flags, fmt.Sprintf("--%s=%v", flagName, flagVal))
+		flags[flagName] = fmt.Sprintf("%v", flagVal)
 	}
 
-	return buildFlagsReturn{
-		flags:     flags,
+	// map input flags to the corresponding avago version, making sure that latest flags don't break
+	// old avago versions
+	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, flags)
+
+	// create args
+	args := []string{}
+	for k, v := range flagsForAvagoVersion {
+		args = append(args, fmt.Sprintf("--%s=%s", k, v))
+	}
+
+	return buildArgsReturn{
+		args:      args,
 		apiPort:   apiPort,
 		p2pPort:   p2pPort,
 		dbDir:     dbDir,
@@ -1014,4 +1051,47 @@ func (ln *localNetwork) buildFlags(
 		pluginDir: pluginDir,
 		httpHost:  httpHost,
 	}, nil
+}
+
+// Get AvalancheGo version
+func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
+	nodeVersionOutput, err := ln.nodeProcessCreator.GetNodeVersion(nodeConfig)
+	if err != nil {
+		return "", fmt.Errorf(
+			"couldn't get node version with binary %q: %w",
+			nodeConfig.BinaryPath, err,
+		)
+	}
+	re := regexp.MustCompile(`\/([^ ]+)`)
+	matchs := re.FindStringSubmatch(nodeVersionOutput)
+	if len(matchs) != 2 {
+		return "", fmt.Errorf(
+			"invalid version output %q for binary %q: version pattern not found",
+			nodeVersionOutput, nodeConfig.BinaryPath,
+		)
+	}
+	nodeSemVer := "v" + matchs[1]
+	return nodeSemVer, nil
+}
+
+// ensure flags are compatible with the running avalanchego version
+func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) map[string]string {
+	flags := map[string]string{}
+	for k := range givenFlags {
+		flags[k] = givenFlags[k]
+	}
+	for _, deprecatedFlagInfo := range deprecatedFlagsSupport {
+		if semver.Compare(avagoVersion, deprecatedFlagInfo.Version) < 0 {
+			if v, ok := flags[deprecatedFlagInfo.NewName]; ok {
+				if v != "" {
+					if deprecatedFlagInfo.ValueMap == "parent-dir" {
+						v = filepath.Dir(strings.TrimSuffix(v, "/"))
+					}
+					flags[deprecatedFlagInfo.OldName] = v
+				}
+				delete(flags, deprecatedFlagInfo.NewName)
+			}
+		}
+	}
+	return flags
 }
