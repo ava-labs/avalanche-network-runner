@@ -68,6 +68,7 @@ type server struct {
 	mu          *sync.RWMutex
 	clusterInfo *rpcpb.ClusterInfo
 	network     *localNetwork
+	asyncErrCh  chan error
 
 	rpcpb.UnimplementedPingServiceServer
 	rpcpb.UnimplementedControlServiceServer
@@ -122,7 +123,8 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 		ln:         ln,
 		gRPCServer: grpc.NewServer(),
 
-		mu: new(sync.RWMutex),
+		mu:         new(sync.RWMutex),
+		asyncErrCh: make(chan error, 1),
 	}
 	if !cfg.GwDisabled {
 		srv.gwMux = runtime.NewServeMux()
@@ -376,6 +378,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		stopCtxCancel()
 		s.network = nil
 		s.clusterInfo.ErrMsg = serr.Error()
+		s.asyncErrCh <- serr
 		s.mu.Unlock()
 	case <-readyCh:
 		s.mu.Lock()
@@ -390,6 +393,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 				s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 			}
 			s.clusterInfo.Subnets = s.network.subnets
+			s.asyncErrCh <- nil
 		}
 		s.log.Info(fmt.Sprintf("%s ready", msg))
 		s.mu.Unlock()
@@ -409,15 +413,9 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	var err error
 	continueLoop := true
 	for continueLoop {
-		info := s.getClusterInfo()
-		if info.ErrMsg != "" {
-			err = fmt.Errorf(info.ErrMsg)
-			break
-		}
-		if info.CustomChainsHealthy {
-			break
-		}
 		select {
+		case err := <-s.asyncErrCh:
+			continueLoop = false
 		case <-ctx.Done():
 			continueLoop = false
 			err = ctx.Err()
