@@ -336,14 +336,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	})
 	if err != nil {
 		s.network = nil
-		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
 	if err := s.network.start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
 		s.network = nil
-		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
@@ -380,12 +378,10 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		s.network.stop(stopCtx)
 		stopCtxCancel()
 		s.network = nil
-		s.clusterInfo.ErrMsg = serr.Error()
 		s.asyncErrCh <- serr
 		s.mu.Unlock()
 	case <-readyCh:
 		s.mu.Lock()
-		s.clusterInfo.ErrMsg = ""
 		s.clusterInfo.Healthy = true
 		s.clusterInfo.NodeNames = s.network.nodeNames
 		s.clusterInfo.NodeInfos = s.network.nodeInfos
@@ -404,7 +400,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 
 // wait until some of this conditions is met:
 // - timeout expires
-// - network operation terminates with error message by setting ErrMsg
+// - network operation terminates with error
 // - network operation terminates successfully by setting CustomChainsHealthy
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
 	s.log.Debug("WaitForHealthy")
@@ -569,7 +565,6 @@ func (s *server) CreateBlockchains(
 		}
 	}
 
-	s.clusterInfo.ErrMsg = ""
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
@@ -619,7 +614,6 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.clusterInfo.ErrMsg = ""
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
@@ -1025,7 +1019,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	})
 	if err != nil {
 		s.network = nil
-		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
@@ -1033,7 +1026,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.network = nil
-		s.clusterInfo.ErrMsg = err.Error()
 		return nil, err
 	}
 
