@@ -408,30 +408,23 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	var err error
 	continueLoop := true
-	info := s.getClusterInfo()
-	if info.ErrMsg != "" {
-		continueLoop = false
-		err = fmt.Errorf(info.ErrMsg)
-	}
-	if info.CustomChainsHealthy {
-		continueLoop = false
-		err = nil
-	}
 	for continueLoop {
+		info := s.getClusterInfo()
+		if info.ErrMsg != "" {
+			continueLoop = false
+			err = fmt.Errorf(info.ErrMsg)
+		}
+		if info.CustomChainsHealthy {
+			continueLoop = false
+		}
+		if !continueLoop {
+			break
+		}
 		select {
 		case <-ctx.Done():
 			continueLoop = false
 			err = ctx.Err()
 		case <-time.After(1 * time.Second):
-			info := s.getClusterInfo()
-			if info.ErrMsg != "" {
-				continueLoop = false
-				err = fmt.Errorf(info.ErrMsg)
-			}
-			if info.CustomChainsHealthy {
-				continueLoop = false
-				err = nil
-			}
 		}
 	}
 	cancel()
