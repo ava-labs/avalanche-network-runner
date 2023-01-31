@@ -402,8 +402,8 @@ func waitForHealthy(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
 	resp, err := cli.WaitForHealthy(ctx)
-	cancel()
 	if err != nil {
 		return err
 	}

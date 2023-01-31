@@ -408,6 +408,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 		return nil, ErrNotBootstrapped
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	var err error
 	continueLoop := true
 	for continueLoop {
@@ -423,7 +424,6 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 		case <-time.After(1 * time.Second):
 		}
 	}
-	cancel()
 	return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.getClusterInfo()}, err
 }
 
