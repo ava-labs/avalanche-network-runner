@@ -54,6 +54,7 @@ func NewCommand() *cobra.Command {
 		newCreateBlockchainsCommand(),
 		newCreateSubnetsCommand(),
 		newHealthCommand(),
+		newWaitForHealthyCommand(),
 		newURIsCommand(),
 		newStatusCommand(),
 		newStreamStatusCommand(),
@@ -380,6 +381,34 @@ func healthFunc(*cobra.Command, []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("health response: %+v"), resp)
+	return nil
+}
+
+func newWaitForHealthyCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "wait-for-healthy [options]",
+		Short: "Wait until local cluster + custom vms are ready.",
+		RunE:  waitForHealthy,
+		Args:  cobra.ExactArgs(0),
+	}
+	return cmd
+}
+
+func waitForHealthy(*cobra.Command, []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+	resp, err := cli.WaitForHealthy(ctx)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("wait for healthy response: %+v"), resp)
 	return nil
 }
 

@@ -41,8 +41,6 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
-	customChainRestartMu *sync.RWMutex
-
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
 	startErrCh     chan error
@@ -77,9 +75,6 @@ type localNetworkOptions struct {
 	// subnet configs to be added to the network, besides the ones in default config, or saved snapshot
 	subnetConfigs map[string]string
 
-	// to block racey restart while installing custom chains
-	restartMu *sync.RWMutex
-
 	snapshotsDir string
 
 	logLevel logging.Level
@@ -110,8 +105,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 
 		options: opts,
 
-		customChainIDToInfo:  make(map[ids.ID]chainInfo),
-		customChainRestartMu: opts.restartMu,
+		customChainIDToInfo: make(map[ids.ID]chainInfo),
 
 		stopCh:      make(chan struct{}),
 		startDoneCh: make(chan struct{}),
@@ -256,7 +250,7 @@ func (lc *localNetwork) createBlockchains(
 	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
 
 	if len(chainSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("custom chain not specified, skipping installation and its health checks")))
+		close(createBlockchainsReadyCh)
 		return
 	}
 
@@ -421,7 +415,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	for _, nodeName := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
-			ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\"")), chainInfo.info.VmId, nodeInfo.GetUri(), chainID)
+			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
 		}
 	}
 	return nil
@@ -436,7 +430,7 @@ func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
 
 	for _, name := range lc.nodeNames {
 		nodeInfo := lc.nodeInfos[name]
-		ux.Print(lc.log, logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri)
+		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri))
 	}
 	return nil
 }
