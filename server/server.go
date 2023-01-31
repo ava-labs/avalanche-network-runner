@@ -414,7 +414,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	continueLoop := true
 	for continueLoop {
 		select {
-		case err := <-s.asyncErrCh:
+		case err = <-s.asyncErrCh:
 			continueLoop = false
 		case <-ctx.Done():
 			continueLoop = false
