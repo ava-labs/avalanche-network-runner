@@ -364,6 +364,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 }
 
 func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
+	if s.getNetwork() == nil {
+		return
+	}
 	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
 	select {
 	case <-s.closed:
@@ -393,7 +396,6 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 				s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 			}
 			s.clusterInfo.Subnets = s.network.subnets
-			s.asyncErrCh <- nil
 		}
 		s.log.Info(fmt.Sprintf("%s ready", msg))
 		s.mu.Unlock()
@@ -413,6 +415,9 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	var err error
 	continueLoop := true
 	for continueLoop {
+		if s.clusterInfo.CustomChainsHealthy {
+			break
+		}
 		select {
 		case err = <-s.asyncErrCh:
 			continueLoop = false
