@@ -411,13 +411,10 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	for continueLoop {
 		info := s.getClusterInfo()
 		if info.ErrMsg != "" {
-			continueLoop = false
 			err = fmt.Errorf(info.ErrMsg)
+			break
 		}
 		if info.CustomChainsHealthy {
-			continueLoop = false
-		}
-		if !continueLoop {
 			break
 		}
 		select {
