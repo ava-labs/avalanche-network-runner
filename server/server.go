@@ -75,16 +75,17 @@ type server struct {
 }
 
 var (
-	ErrInvalidVMName          = errors.New("invalid VM name")
-	ErrInvalidPort            = errors.New("invalid port")
-	ErrClosed                 = errors.New("server closed")
-	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
-	ErrAlreadyBootstrapped    = errors.New("already bootstrapped")
-	ErrNotBootstrapped        = errors.New("not bootstrapped")
-	ErrNodeNotFound           = errors.New("node not found")
-	ErrPeerNotFound           = errors.New("peer not found")
-	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
-	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
+	ErrInvalidVMName            = errors.New("invalid VM name")
+	ErrInvalidPort              = errors.New("invalid port")
+	ErrClosed                   = errors.New("server closed")
+	ErrNotEnoughNodesForStart   = errors.New("not enough nodes specified for start")
+	ErrAlreadyBootstrapped      = errors.New("already bootstrapped")
+	ErrNotBootstrapped          = errors.New("not bootstrapped")
+	ErrNodeNotFound             = errors.New("node not found")
+	ErrPeerNotFound             = errors.New("peer not found")
+	ErrStatusCanceled           = errors.New("gRPC stream status canceled")
+	ErrNoBlockchainSpec         = errors.New("no blockchain spec was provided")
+	ErrUnexpectedNilClusterInfo = errors.New("unexpected nil cluster info")
 )
 
 const (
@@ -365,6 +366,10 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 	if net == nil {
 		return
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return
+	}
 	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
 	select {
 	case <-s.closed:
@@ -379,7 +384,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		s.setNetwork(nil)
 		s.asyncErrCh <- serr
 	case <-readyCh:
-		clusterInfo := *s.getClusterInfo()
+		clusterInfo := *clusterInfoPtr //nolint
 		clusterInfo.Healthy = true
 		clusterInfo.NodeNames = net.nodeNames
 		clusterInfo.NodeInfos = net.nodeInfos
@@ -405,12 +410,16 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	if s.getNetwork() == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	var err error
 	continueLoop := true
 	for continueLoop {
-		if s.getClusterInfo().CustomChainsHealthy {
+		if clusterInfoPtr.CustomChainsHealthy {
 			break
 		}
 		select {
@@ -525,6 +534,10 @@ func (s *server) CreateBlockchains(
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	if len(req.GetBlockchainSpecs()) == 0 {
 		return nil, ErrNoBlockchainSpec
@@ -541,7 +554,7 @@ func (s *server) CreateBlockchains(
 
 	// check that defined subnets exist
 	subnetsMap := map[string]struct{}{}
-	for _, subnet := range s.getClusterInfo().Subnets {
+	for _, subnet := range clusterInfoPtr.Subnets {
 		subnetsMap[subnet] = struct{}{}
 	}
 	for _, chainSpec := range chainSpecs {
@@ -553,7 +566,7 @@ func (s *server) CreateBlockchains(
 		}
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.Healthy = false
 	clusterInfo.CustomChainsHealthy = false
 	s.setClusterInfo(&clusterInfo)
@@ -590,6 +603,10 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	// default behaviour without args is to create one subnet
 	numSubnets := req.GetNumSubnets()
@@ -602,7 +619,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 		return nil, err
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.Healthy = false
 	clusterInfo.CustomChainsHealthy = false
 	s.setClusterInfo(&clusterInfo)
@@ -629,13 +646,17 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	s.log.Info("waiting for local cluster readiness")
 	if err := net.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.NodeNames = net.nodeNames
 	clusterInfo.NodeInfos = net.nodeInfos
 	clusterInfo.Healthy = true
@@ -650,10 +671,13 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 	if s.getNetwork() == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
-	info := s.getClusterInfo()
-	uris := make([]string, 0, len(info.NodeInfos))
-	for _, i := range info.NodeInfos {
+	uris := make([]string, 0, len(clusterInfoPtr.NodeInfos))
+	for _, i := range clusterInfoPtr.NodeInfos {
 		uris = append(uris, i.Uri)
 	}
 	sort.Strings(uris)
@@ -769,6 +793,10 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	nodeFlags := map[string]interface{}{}
 	if req.GetNodeConfig() != "" {
@@ -800,7 +828,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		return nil, err
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.NodeNames = net.nodeNames
 	clusterInfo.NodeInfos = net.nodeInfos
 	s.setClusterInfo(&clusterInfo)
@@ -815,6 +843,10 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	if err := net.nw.RemoveNode(ctx, req.Name); err != nil {
 		return nil, err
@@ -824,7 +856,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, err
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.NodeNames = net.nodeNames
 	clusterInfo.NodeInfos = net.nodeInfos
 	s.setClusterInfo(&clusterInfo)
@@ -838,6 +870,10 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	net := s.getNetwork()
 	if net == nil {
 		return nil, ErrNotBootstrapped
+	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
 	}
 
 	if err := net.nw.RestartNode(
@@ -857,7 +893,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 	clusterInfo.NodeNames = net.nodeNames
 	clusterInfo.NodeInfos = net.nodeInfos
 	s.setClusterInfo(&clusterInfo)
@@ -872,11 +908,15 @@ func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopRes
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	net.stop(ctx)
 	s.setNetwork(nil)
 
-	info := *s.getClusterInfo()
+	info := *clusterInfoPtr //nolint
 	info.Healthy = false
 	s.setClusterInfo(&info)
 
@@ -901,6 +941,10 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
+	}
 
 	node, err := net.nw.GetNode(req.NodeName)
 	if err != nil {
@@ -917,7 +961,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 
 	s.log.Debug("new peer is attached to", zap.String("peer-ID", newPeerID), zap.String("node-name", node.GetName()))
 
-	clusterInfo := *s.getClusterInfo()
+	clusterInfo := *clusterInfoPtr //nolint
 
 	if clusterInfo.AttachedPeerInfos == nil {
 		clusterInfo.AttachedPeerInfos = make(map[string]*rpcpb.ListOfAttachedPeerInfo)
