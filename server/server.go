@@ -410,15 +410,15 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	if s.getNetwork() == nil {
 		return nil, ErrNotBootstrapped
 	}
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return nil, ErrUnexpectedNilClusterInfo
-	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	var err error
 	continueLoop := true
 	for continueLoop {
+        clusterInfoPtr := s.getClusterInfo()
+        if clusterInfoPtr == nil {
+            return nil, ErrUnexpectedNilClusterInfo
+        }
 		if clusterInfoPtr.CustomChainsHealthy {
 			break
 		}
