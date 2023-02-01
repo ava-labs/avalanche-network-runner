@@ -980,9 +980,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		return nil, ErrAlreadyBootstrapped
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var (
 		pid = int32(os.Getpid())
 		err error
@@ -998,14 +995,14 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		return nil, err
 	}
 
-	s.clusterInfo = &rpcpb.ClusterInfo{
+	s.setClusterInfo(&rpcpb.ClusterInfo{
 		Pid:         pid,
 		RootDataDir: rootDataDir,
-	}
+	})
 
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
 
-	s.network, err = newLocalNetwork(localNetworkOptions{
+	network, err = newLocalNetwork(localNetworkOptions{
 		execPath:            req.GetExecPath(),
 		pluginDir:           req.GetPluginDir(),
 		rootDataDir:         rootDataDir,
@@ -1018,21 +1015,22 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		snapshotsDir:        s.cfg.SnapshotsDir,
 	})
 	if err != nil {
-		s.network = nil
 		return nil, err
 	}
 
+	s.setNetwork(network)
+
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.loadSnapshot(ctx, req.SnapshotName); err != nil {
+	if err := network.loadSnapshot(ctx, req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
-		s.network = nil
+		s.setNetwork(nil)
 		return nil, err
 	}
 
 	// start non-blocking wait to load snapshot results
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go s.network.loadSnapshotWait(ctx, readyCh)
+	go network.loadSnapshotWait(ctx, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
@@ -1041,25 +1039,24 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
 	}()
 
-	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.clusterInfo}, nil
+	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
 func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {
 	s.log.Info("SaveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
-	if s.getNetwork() == nil {
+	network := s.getNetwork()
+	if network == nil {
 		return nil, ErrNotBootstrapped
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
+	snapshotPath, err := network.nw.SaveSnapshot(ctx, req.SnapshotName)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
 	}
-	s.network = nil
+
+	s.setNetwork(nil)
 
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
 }
@@ -1067,11 +1064,12 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequest) (*rpcpb.RemoveSnapshotResponse, error) {
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
-	if s.getNetwork() == nil {
+	network := s.getNetwork()
+	if network == nil {
 		return nil, ErrNotBootstrapped
 	}
 
-	if err := s.getNetwork().nw.RemoveSnapshot(req.SnapshotName); err != nil {
+	if err := network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
@@ -1081,11 +1079,12 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesRequest) (*rpcpb.GetSnapshotNamesResponse, error) {
 	s.log.Info("GetSnapshotNames")
 
-	if s.getNetwork() == nil {
+	network := s.getNetwork()
+	if network == nil {
 		return nil, ErrNotBootstrapped
 	}
 
-	snapshotNames, err := s.getNetwork().nw.GetSnapshotNames()
+	snapshotNames, err := network.nw.GetSnapshotNames()
 	if err != nil {
 		return nil, err
 	}
@@ -1098,10 +1097,22 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 	return s.clusterInfo
 }
 
+func (s *server) setClusterInfo(clusterInfo *rpcpb.ClusterInfo) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.clusterInfo = clusterInfo
+}
+
 func (s *server) getNetwork() *localNetwork {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.network
+}
+
+func (s *server) setNetwork(network *localNetwork) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.network = network
 }
 
 func isClientCanceled(ctxErr error, err error) bool {
