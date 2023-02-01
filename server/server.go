@@ -415,10 +415,10 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	var err error
 	continueLoop := true
 	for continueLoop {
-        clusterInfoPtr := s.getClusterInfo()
-        if clusterInfoPtr == nil {
-            return nil, ErrUnexpectedNilClusterInfo
-        }
+		clusterInfoPtr := s.getClusterInfo()
+		if clusterInfoPtr == nil {
+			return nil, ErrUnexpectedNilClusterInfo
+		}
 		if clusterInfoPtr.CustomChainsHealthy {
 			break
 		}
