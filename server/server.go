@@ -1131,8 +1131,8 @@ func (s *server) getClusterInfo() *rpcpb.ClusterInfo {
 }
 
 func (s *server) setClusterInfo(clusterInfo *rpcpb.ClusterInfo) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.clusterInfo = clusterInfo
 }
 
@@ -1143,8 +1143,8 @@ func (s *server) getNetwork() *localNetwork {
 }
 
 func (s *server) setNetwork(network *localNetwork) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.network = network
 }
 
