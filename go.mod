@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.18
 
 require (
-	github.com/ava-labs/avalanchego v1.9.7
-	github.com/ava-labs/coreth v0.11.6
+	github.com/ava-labs/avalanchego v1.9.8
+	github.com/ava-labs/coreth v0.11.7-rc.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/onsi/ginkgo/v2 v2.7.0
@@ -80,11 +80,12 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
+	github.com/pires/go-proxyproto v0.6.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/rjeczalik/notify v0.9.2 // indirect
+	github.com/rjeczalik/notify v0.9.3 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
