@@ -1040,7 +1040,7 @@ func TestSetNodeName(t *testing.T) {
 
 	// Case: name already present
 	config.Name = "hi"
-	ln.nodes = map[string]*localNode{"hi": nil}
+	ln.nodes = map[string]*localNode{"hi": &localNode{}}
 	err = ln.setNodeName(config)
 	require.Error(err)
 }
