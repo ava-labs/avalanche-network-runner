@@ -870,7 +870,7 @@ func (ln *localNetwork) ResumeNode(
 
 // Assumes [ln.lock] is held.
 func (ln *localNetwork) resumeNode(
-	ctx context.Context,
+	_ context.Context,
 	nodeName string,
 ) error {
 	node, ok := ln.nodes[nodeName]
