@@ -55,6 +55,8 @@ type Node interface {
 	GetConfig() Config
 	// Return this node's flag value
 	GetFlag(string) (string, error)
+	// Return this node's paused status
+	GetPaused() bool
 }
 
 // Config encapsulates an avalanchego configuration

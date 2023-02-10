@@ -278,3 +278,8 @@ func (node *localNode) GetFlag(k string) (string, error) {
 	}
 	return v, nil
 }
+
+// See node.Node
+func (node *localNode) GetPaused() bool {
+	return node.paused
+}
