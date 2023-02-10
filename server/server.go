@@ -875,6 +875,60 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
+func (s *server) PauseNode(ctx context.Context, req *rpcpb.PauseNodeRequest) (*rpcpb.PauseNodeResponse, error) {
+	s.log.Debug("PauseNode", zap.String("name", req.Name))
+
+	if s.getNetwork() == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.network.nw.PauseNode(
+		ctx,
+		req.Name,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := s.network.updateNodeInfo(); err != nil {
+		return nil, err
+	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
+
+	return &rpcpb.PauseNodeResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
+func (s *server) ResumeNode(ctx context.Context, req *rpcpb.ResumeNodeRequest) (*rpcpb.ResumeNodeResponse, error) {
+	s.log.Debug("ResumeNode", zap.String("name", req.Name))
+
+	if s.getNetwork() == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.network.nw.ResumeNode(
+		ctx,
+		req.Name,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := s.network.updateNodeInfo(); err != nil {
+		return nil, err
+	}
+
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
+
+	return &rpcpb.ResumeNodeResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
 func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
 	s.log.Debug("Stop")
 

@@ -99,6 +99,20 @@ service ControlService {
     };
   }
 
+  rpc PauseNode(PauseNodeRequest) returns (PauseNodeResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/pausenode"
+      body: "*"
+    };
+  }
+
+  rpc ResumeNode(ResumeNodeRequest) returns (ResumeNodeResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/resumenode"
+      body: "*"
+    };
+  }
+
   rpc Stop(StopRequest) returns (StopResponse) {
     option (google.api.http) = {
       post: "/v1/control/stop"
@@ -374,6 +388,22 @@ message RemoveNodeRequest {
 }
 
 message RemoveNodeResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message PauseNodeRequest {
+  string name = 1;
+}
+
+message PauseNodeResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message ResumeNodeRequest {
+  string name = 1;
+}
+
+message ResumeNodeResponse {
   ClusterInfo cluster_info = 1;
 }
 

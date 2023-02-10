@@ -38,6 +38,8 @@ type Client interface {
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
 	StreamStatus(ctx context.Context, pushInterval time.Duration) (<-chan *rpcpb.ClusterInfo, error)
 	RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error)
+	PauseNode(ctx context.Context, name string) (*rpcpb.PauseNodeResponse, error)
+	ResumeNode(ctx context.Context, name string) (*rpcpb.ResumeNodeResponse, error)
 	RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error)
 	AddNode(ctx context.Context, name string, execPath string, opts ...OpOption) (*rpcpb.AddNodeResponse, error)
 	Stop(ctx context.Context) (*rpcpb.StopResponse, error)
@@ -255,6 +257,16 @@ func (c *client) AddNode(ctx context.Context, name string, execPath string, opts
 func (c *client) RemoveNode(ctx context.Context, name string) (*rpcpb.RemoveNodeResponse, error) {
 	c.log.Info("remove node", zap.String("name", name))
 	return c.controlc.RemoveNode(ctx, &rpcpb.RemoveNodeRequest{Name: name})
+}
+
+func (c *client) PauseNode(ctx context.Context, name string) (*rpcpb.PauseNodeResponse, error) {
+	c.log.Info("pause node", zap.String("name", name))
+	return c.controlc.PauseNode(ctx, &rpcpb.PauseNodeRequest{Name: name})
+}
+
+func (c *client) ResumeNode(ctx context.Context, name string) (*rpcpb.ResumeNodeResponse, error) {
+	c.log.Info("resume node", zap.String("name", name))
+	return c.controlc.ResumeNode(ctx, &rpcpb.ResumeNodeRequest{Name: name})
 }
 
 func (c *client) RestartNode(ctx context.Context, name string, opts ...OpOption) (*rpcpb.RestartNodeResponse, error) {
