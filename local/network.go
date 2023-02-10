@@ -557,6 +557,8 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, err
 	}
 
+	isPausedNode := ln.isPausedNode(&nodeConfig)
+
 	nodeDir, err := makeNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
 	if err != nil {
 		return nil, err
@@ -635,7 +637,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If this node is a beacon, add its IP/ID to the beacon lists.
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
-	if nodeConfig.IsBeacon {
+	if !isPausedNode && nodeConfig.IsBeacon {
 		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
 			IP:   net.IPv6loopback,
 			Port: nodeData.p2pPort,
@@ -675,6 +677,10 @@ func (ln *localNetwork) healthy(ctx context.Context) error {
 
 	errGr, ctx := errgroup.WithContext(ctx)
 	for _, node := range ln.nodes {
+		if node.paused {
+			// no health check for paused nodes
+			continue
+		}
 		node := node
 		nodeName := node.GetName()
 		errGr.Go(func() error {
@@ -867,7 +873,7 @@ func (ln *localNetwork) resumeNode(
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
-	if node.paused {
+	if !node.paused {
 		return fmt.Errorf("node has not been paused")
 	}
 	nodeConfig := node.GetConfig()
@@ -981,6 +987,13 @@ func (ln *localNetwork) stopCalled() bool {
 	}
 }
 
+func (ln *localNetwork) isPausedNode(nodeConfig *node.Config) bool {
+	if node, ok := ln.nodes[nodeConfig.Name]; ok && node.paused {
+		return true
+	}
+	return false
+}
+
 // Set [nodeConfig].Name if it isn't given and assert it's unique.
 func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 	// If no name was given, use default name pattern
@@ -995,7 +1008,8 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 		}
 	}
 	// Enforce name uniqueness
-	if _, ok := ln.nodes[nodeConfig.Name]; ok {
+	// Only paused nodes are enabled to be started with repeated name
+	if node, ok := ln.nodes[nodeConfig.Name]; ok && !node.paused {
 		return fmt.Errorf("repeated node name %q", nodeConfig.Name)
 	}
 	return nil

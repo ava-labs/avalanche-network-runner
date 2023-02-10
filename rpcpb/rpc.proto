@@ -207,7 +207,8 @@ message NodeInfo {
   string db_dir               = 6;
   string plugin_dir           = 7;
   string whitelisted_subnets  = 8;
-  bytes config                = 9;
+  bytes  config               = 9;
+  bool   paused               = 10;
 }
 
 message AttachedPeerInfo {

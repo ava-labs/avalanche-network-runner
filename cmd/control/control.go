@@ -587,7 +587,7 @@ func newResumeNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resume-node node-name [options]",
 		Short: "Resumes a node.",
-		RunE:  removeNodeFunc,
+		RunE:  resumeNodeFunc,
 		Args:  cobra.ExactArgs(1),
 	}
 	return cmd
