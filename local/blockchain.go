@@ -63,6 +63,9 @@ type blockchainInfo struct {
 func (ln *localNetwork) getSomeNode() node.Node {
 	var node node.Node
 	for _, n := range ln.nodes {
+		if n.paused {
+			continue
+		}
 		node = n
 		break
 	}
@@ -114,6 +117,9 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 				zap.String("alias", blockchainAlias),
 				zap.String("chain-id", chainID))
 			for nodeName, node := range ln.nodes {
+				if node.paused {
+					continue
+				}
 				if err := node.client.AdminAPI().AliasChain(ctx, chainID, blockchainAlias); err != nil {
 					return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 				}
@@ -365,6 +371,9 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	}
 
 	for nodeName, node := range ln.nodes {
+		if node.paused {
+			continue
+		}
 		ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
 		for _, chainInfo := range chainInfos {
 			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
@@ -456,6 +465,10 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 		// delete node specific flag so as to use default one
 		nodeConfig := node.GetConfig()
 		delete(nodeConfig.Flags, config.TrackSubnetsKey)
+
+		if node.paused {
+			continue
+		}
 
 		ln.log.Debug("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
@@ -705,6 +718,9 @@ func (ln *localNetwork) reloadVMPlugins(
 ) error {
 	ln.log.Info(logging.Green.Wrap("reloading plugin binaries"))
 	for _, node := range ln.nodes {
+		if node.paused {
+			continue
+		}
 		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 		adminCli := admin.NewClient(uri)
 		cctx, cancel := createDefaultCtx(ctx)

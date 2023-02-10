@@ -807,15 +807,19 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
 
+	paused := node.paused
+
 	// If the node wasn't a beacon, we don't care
 	_ = ln.bootstraps.RemoveByID(node.nodeID)
-
 	delete(ln.nodes, nodeName)
-	// cchain eth api uses a websocket connection and must be closed before stopping the node,
-	// to avoid errors logs at client
-	node.client.CChainEthAPI().Close()
-	if exitCode := node.process.Stop(ctx); exitCode != 0 {
-		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
+
+	if !paused {
+		// cchain eth api uses a websocket connection and must be closed before stopping the node,
+		// to avoid errors logs at client
+		node.client.CChainEthAPI().Close()
+		if exitCode := node.process.Stop(ctx); exitCode != 0 {
+			return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
+		}
 	}
 	return nil
 }
@@ -966,8 +970,10 @@ func (ln *localNetwork) restartNode(
 		nodeConfig.SubnetConfigFiles[k] = v
 	}
 
-	if err := ln.removeNode(ctx, nodeName); err != nil {
-		return err
+	if !node.paused {
+		if err := ln.removeNode(ctx, nodeName); err != nil {
+			return err
+		}
 	}
 
 	if _, err := ln.addNode(nodeConfig); err != nil {
