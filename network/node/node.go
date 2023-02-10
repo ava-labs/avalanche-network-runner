@@ -41,6 +41,8 @@ type Node interface {
 	Status() status.Status
 	// Return this node's avalanchego binary path
 	GetBinaryPath() string
+	// Return this node's data dir
+	GetDataDir() string
 	// Return this node's db dir
 	GetDbDir() string
 	// Return this node's logs dir

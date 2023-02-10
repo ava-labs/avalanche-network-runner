@@ -599,7 +599,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	ln.log.Info(
 		"adding node",
 		zap.String("node-name", nodeConfig.Name),
-		zap.String("node-dir", nodeDir),
+		zap.String("node-dir", nodeData.dataDir),
 		zap.String("log-dir", nodeData.logsDir),
 		zap.String("db-dir", nodeData.dbDir),
 		zap.Uint16("p2p-port", nodeData.p2pPort),
@@ -623,6 +623,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		apiPort:       nodeData.apiPort,
 		p2pPort:       nodeData.p2pPort,
 		getConnFunc:   defaultGetConnFunc,
+		dataDir:       nodeData.dataDir,
 		dbDir:         nodeData.dbDir,
 		logsDir:       nodeData.logsDir,
 		config:        nodeConfig,
@@ -813,6 +814,76 @@ func (ln *localNetwork) removeNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
+// Sends a SIGTERM to the given node and keeps it in the network with paused state
+func (ln *localNetwork) PauseNode(ctx context.Context, nodeName string) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+	if ln.stopCalled() {
+		return network.ErrStopped
+	}
+	return ln.pauseNode(ctx, nodeName)
+}
+
+// Assumes [ln.lock] is held.
+func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
+	ln.log.Debug("pausing node", zap.String("name", nodeName))
+	node, ok := ln.nodes[nodeName]
+	if !ok {
+		return fmt.Errorf("node %q not found", nodeName)
+	}
+	if node.paused {
+		return fmt.Errorf("node has been paused already")
+	}
+	// cchain eth api uses a websocket connection and must be closed before stopping the node,
+	// to avoid errors logs at client
+	node.client.CChainEthAPI().Close()
+	if exitCode := node.process.Stop(ctx); exitCode != 0 {
+		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
+	}
+	node.paused = true
+	return nil
+}
+
+// Resume previously paused [nodeName] using the same config.
+func (ln *localNetwork) ResumeNode(
+	ctx context.Context,
+	nodeName string,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.resumeNode(
+		ctx,
+		nodeName,
+	)
+}
+
+// Assumes [ln.lock] is held.
+func (ln *localNetwork) resumeNode(
+	ctx context.Context,
+	nodeName string,
+) error {
+	node, ok := ln.nodes[nodeName]
+	if !ok {
+		return fmt.Errorf("node %q not found", nodeName)
+	}
+	if node.paused {
+		return fmt.Errorf("node has not been paused")
+	}
+	nodeConfig := node.GetConfig()
+	nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
+	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
+	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
+	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
+	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+	nodeConfig.Flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
+	nodeConfig.Flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
+	if _, err := ln.addNode(nodeConfig); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Restart [nodeName] using the same config, optionally changing [binaryPath],
 // [pluginDir], [trackSubnets], [chainConfigs], [upgradeConfigs], [subnetConfigs]
 func (ln *localNetwork) RestartNode(
@@ -869,9 +940,13 @@ func (ln *localNetwork) restartNode(
 	}
 
 	// keep same ports, dbdir in node flags
+	nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
 	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
+	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
 	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
 	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+	nodeConfig.Flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
+	nodeConfig.Flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
 	// apply chain configs
 	for k, v := range chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v
@@ -930,6 +1005,7 @@ type buildArgsReturn struct {
 	args      []string
 	apiPort   uint16
 	p2pPort   uint16
+	dataDir   string
 	dbDir     string
 	logsDir   string
 	pluginDir string
@@ -967,14 +1043,14 @@ func (ln *localNetwork) buildArgs(
 		return buildArgsReturn{}, err
 	}
 
-	// Tell the node to put the database in [nodeDir] unless given in config file
-	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(nodeDir, defaultDBSubdir))
+	// Tell the node to put the database in [dataDir/db] unless given in config file
+	dbDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.DBPathKey, filepath.Join(dataDir, defaultDBSubdir))
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
 
-	// Tell the node to put the log directory in [nodeDir/logs] unless given in config file
-	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeDir, defaultLogsSubdir))
+	// Tell the node to put the log directory in [dataDir/logs] unless given in config file
+	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(dataDir, defaultLogsSubdir))
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
@@ -1006,7 +1082,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.genesis, dataDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
@@ -1046,6 +1122,7 @@ func (ln *localNetwork) buildArgs(
 		args:      args,
 		apiPort:   apiPort,
 		p2pPort:   p2pPort,
+		dataDir:   dataDir,
 		dbDir:     dbDir,
 		logsDir:   logsDir,
 		pluginDir: pluginDir,
