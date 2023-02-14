@@ -674,7 +674,7 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 	s.log.Debug("Status")
 
 	if s.getNetwork() == nil {
-		return nil, ErrNotBootstrapped
+		return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, ErrNotBootstrapped
 	}
 
 	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
