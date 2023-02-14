@@ -673,6 +673,10 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusResponse, error) {
 	s.log.Debug("Status")
 
+	if s.getNetwork() == nil {
+		return nil, ErrNotBootstrapped
+	}
+
 	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
