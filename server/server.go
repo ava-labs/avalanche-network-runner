@@ -377,8 +377,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		}
 		// TODO why do we call this twice?
 		// The second call will do all the same work as the first.
-		s.waitChAndUpdateClusterInfo("local cluster", false)
-		s.waitChAndUpdateClusterInfo("custom chains", true)
+		s.updateClusterInfo("local cluster", false)
+		s.updateClusterInfo("custom chains", true)
 	}()
 
 	// TODO why do we return [s.clusterInfo] here?
@@ -387,7 +387,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 }
 
 // Waits for a message on [readyCh] and then updates [s.clusterInfo].
-func (s *server) waitChAndUpdateClusterInfo(msg string, updateCustomVmsInfo bool) {
+func (s *server) updateClusterInfo(msg string, updateCustomVmsInfo bool) {
 	net := s.getNetwork()
 	if net == nil { // TODO when would this be nil?
 		return
@@ -618,7 +618,7 @@ func (s *server) CreateBlockchains(
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("custom chains", true)
+		s.updateClusterInfo("custom chains", true)
 	}()
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -675,7 +675,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("custom chains", true)
+		s.updateClusterInfo("custom chains", true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.getClusterInfo()}, nil
@@ -1144,7 +1144,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("local cluster", true)
+		s.updateClusterInfo("local cluster", true)
 	}()
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.getClusterInfo()}, nil
