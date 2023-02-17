@@ -69,7 +69,6 @@ type server struct {
 	mu          *sync.RWMutex
 	clusterInfo *rpcpb.ClusterInfo
 	network     *localNetwork
-	asyncErrCh  chan error
 
 	rpcpb.UnimplementedPingServiceServer
 	rpcpb.UnimplementedControlServiceServer
@@ -125,7 +124,6 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 		ln:         listener,
 		gRPCServer: grpc.NewServer(),
 		mu:         new(sync.RWMutex),
-		asyncErrCh: make(chan error, 1),
 	}
 	if !cfg.GwDisabled {
 		s.gwMux = runtime.NewServeMux()
@@ -390,20 +388,7 @@ func (s *server) updateClusterInfo(msg string, updateCustomVmsInfo bool) {
 	}
 
 	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
-	// TODO remove
-	// select {
-	// case <-s.closed:
-	// 	return
-	// case <-net.stopCh:
-	// 	return
-	// case err := <-net.startErrCh:
-	// 	s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(err))
-	// 	ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-	// 	net.stop(ctx)
-	// 	cancel()
-	// 	s.setNetwork(nil)
-	// 	s.asyncErrCh <- err
-	// case <-readyCh:
+
 	clusterInfo := s.getClusterInfo() // TODO hold lock here?
 	if clusterInfo == nil {           // TODO when would this be nil?
 		return
@@ -421,7 +406,6 @@ func (s *server) updateClusterInfo(msg string, updateCustomVmsInfo bool) {
 	}
 	s.setClusterInfo(clusterInfo)
 	s.log.Info(fmt.Sprintf("%s ready", msg))
-	// } TODO remove
 }
 
 // wait until some of this conditions is met:
@@ -448,8 +432,6 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 			break
 		}
 		select {
-		case err = <-s.asyncErrCh:
-			done = true
 		case <-ctx.Done():
 			done = true
 			err = ctx.Err()
@@ -731,7 +713,6 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 // func (s *server) cleanupNetwork() {
 // 	s.network = nil
 // 	s.clusterInfo = nil
-// 	// s.asyncErrCh
 // }
 
 // TODO document this
