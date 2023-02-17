@@ -42,9 +42,6 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
-	rootCtx       context.Context    // TODO use and document
-	rootCtxCancel context.CancelFunc // TODO use and document
-
 	stopCh      chan struct{}
 	startDoneCh chan struct{}
 
@@ -99,7 +96,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
-	rootCtx, rootCtxCancel := context.WithCancel(context.Background())
 	return &localNetwork{
 		log:                 logger,
 		execPath:            opts.execPath,
@@ -110,8 +106,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		startDoneCh:         make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
 		nodeNames:           []string{},
-		rootCtx:             rootCtx,
-		rootCtxCancel:       rootCtxCancel,
 	}, nil
 }
 
@@ -518,7 +512,6 @@ func (lc *localNetwork) updateNodeInfo() error {
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopCh)
-		lc.rootCtxCancel() // TODO use or remove
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
 		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
