@@ -377,8 +377,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		}
 		// TODO why do we call this twice?
 		// The second call will do all the same work as the first.
-		s.waitChAndUpdateClusterInfo("local cluster", readyCh, false)
-		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+		s.waitChAndUpdateClusterInfo("local cluster", false)
+		s.waitChAndUpdateClusterInfo("custom chains", true)
 	}()
 
 	// TODO why do we return [s.clusterInfo] here?
@@ -387,19 +387,19 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 }
 
 // Waits for a message on [readyCh] and then updates [s.clusterInfo].
-func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
+func (s *server) waitChAndUpdateClusterInfo(msg string, updateCustomVmsInfo bool) {
 	net := s.getNetwork()
 	if net == nil { // TODO when would this be nil?
 		return
 	}
 
 	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
-	select {
-	case <-s.closed:
-		return
-	case <-net.stopCh:
-		return
 	// TODO remove
+	// select {
+	// case <-s.closed:
+	// 	return
+	// case <-net.stopCh:
+	// 	return
 	// case err := <-net.startErrCh:
 	// 	s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(err))
 	// 	ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
@@ -407,25 +407,25 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 	// 	cancel()
 	// 	s.setNetwork(nil)
 	// 	s.asyncErrCh <- err
-	case <-readyCh:
-		clusterInfo := s.getClusterInfo() // TODO hold lock here?
-		if clusterInfo == nil {           // TODO when would this be nil?
-			return
-		}
-		clusterInfo.Healthy = true
-		clusterInfo.NodeNames = net.nodeNames
-		clusterInfo.NodeInfos = net.nodeInfos
-		if updateCustomVmsInfo {
-			clusterInfo.CustomChainsHealthy = true
-			clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
-			for chainID, chainInfo := range net.customChainIDToInfo {
-				clusterInfo.CustomChains[chainID.String()] = chainInfo.info
-			}
-			clusterInfo.Subnets = net.subnets
-		}
-		s.setClusterInfo(clusterInfo)
-		s.log.Info(fmt.Sprintf("%s ready", msg))
+	// case <-readyCh:
+	clusterInfo := s.getClusterInfo() // TODO hold lock here?
+	if clusterInfo == nil {           // TODO when would this be nil?
+		return
 	}
+	clusterInfo.Healthy = true
+	clusterInfo.NodeNames = net.nodeNames
+	clusterInfo.NodeInfos = net.nodeInfos
+	if updateCustomVmsInfo {
+		clusterInfo.CustomChainsHealthy = true
+		clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
+		for chainID, chainInfo := range net.customChainIDToInfo {
+			clusterInfo.CustomChains[chainID.String()] = chainInfo.info
+		}
+		clusterInfo.Subnets = net.subnets
+	}
+	s.setClusterInfo(clusterInfo)
+	s.log.Info(fmt.Sprintf("%s ready", msg))
+	// } TODO remove
 }
 
 // wait until some of this conditions is met:
@@ -618,7 +618,7 @@ func (s *server) CreateBlockchains(
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+		s.waitChAndUpdateClusterInfo("custom chains", true)
 	}()
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -675,7 +675,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+		s.waitChAndUpdateClusterInfo("custom chains", true)
 	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.getClusterInfo()}, nil
@@ -1144,7 +1144,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			// TODO cleanup server
 			return
 		}
-		s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
+		s.waitChAndUpdateClusterInfo("local cluster", true)
 	}()
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.getClusterInfo()}, nil

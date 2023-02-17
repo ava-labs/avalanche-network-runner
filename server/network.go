@@ -340,6 +340,7 @@ func (lc *localNetwork) createSubnets(
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
+		return err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
