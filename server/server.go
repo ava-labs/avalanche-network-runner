@@ -608,13 +608,18 @@ func (s *server) CreateBlockchains(
 	// start non-blocking to install custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go net.createBlockchains(ctx, chainSpecs, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
-
+	go func() {
+		if err := net.createBlockchains(ctx, chainSpecs, readyCh); err != nil {
+			s.log.Error("failed to create blockchains", zap.Error(err))
+			// TODO cleanup server
+			return
+		}
+		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+	}()
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
@@ -660,12 +665,18 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go net.createSubnets(ctx, numSubnets, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+	go func() {
+		if err := net.createSubnets(ctx, numSubnets, readyCh); err != nil {
+			s.log.Error("failed to create subnets", zap.Error(err))
+			// TODO cleanup server
+			return
+		}
+		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
+	}()
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -1123,12 +1134,18 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// start non-blocking wait to load snapshot results
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go net.loadSnapshotWait(ctx, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
+	go func() {
+		if err := net.loadSnapshotWait(ctx, readyCh); err != nil {
+			s.log.Warn("snapshot load failed to complete", zap.Error(err))
+			// TODO cleanup server
+			return
+		}
+		s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
+	}()
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
