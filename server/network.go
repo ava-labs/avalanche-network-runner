@@ -42,8 +42,7 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
-	stopCh      chan struct{}
-	startDoneCh chan struct{}
+	stopCh chan struct{}
 
 	stopOnce sync.Once
 
@@ -103,7 +102,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		options:             opts,
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
-		startDoneCh:         make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
 		nodeNames:           []string{},
 	}, nil
@@ -229,8 +227,6 @@ func (lc *localNetwork) startWait(
 			// This method is done. Don't leak [ctx].
 		}
 	}(ctx)
-
-	defer close(lc.startDoneCh) // TODO remove
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
 		return err
@@ -378,8 +374,6 @@ func (lc *localNetwork) loadSnapshot(snapshotName string) error {
 // If successful, closes [loadSnapshotReadyCh].
 // Always closes [lc.startDoneCh].
 func (lc *localNetwork) loadSnapshotWait(ctx context.Context) error {
-	defer close(lc.startDoneCh) // TODO remove
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -512,8 +506,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopCh)
-		serr := lc.nw.Stop(ctx)
-		<-lc.startDoneCh
-		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
+		err := lc.nw.Stop(ctx)
+		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), err)
 	})
 }
