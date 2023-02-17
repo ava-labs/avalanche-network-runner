@@ -399,13 +399,14 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		return
 	case <-net.stopCh:
 		return
-	case err := <-net.startErrCh:
-		s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(err))
-		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-		net.stop(ctx)
-		cancel()
-		s.setNetwork(nil)
-		s.asyncErrCh <- err
+	// TODO remove
+	// case err := <-net.startErrCh:
+	// 	s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(err))
+	// 	ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+	// 	net.stop(ctx)
+	// 	cancel()
+	// 	s.setNetwork(nil)
+	// 	s.asyncErrCh <- err
 	case <-readyCh:
 		clusterInfo := s.getClusterInfo() // TODO hold lock here?
 		if clusterInfo == nil {           // TODO when would this be nil?

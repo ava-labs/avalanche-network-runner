@@ -45,10 +45,8 @@ type localNetwork struct {
 	rootCtx       context.Context    // TODO use and document
 	rootCtxCancel context.CancelFunc // TODO use and document
 
-	stopCh         chan struct{}
-	startDoneCh    chan struct{}
-	startErrCh     chan error
-	startCtxCancel context.CancelFunc // allow the Start context to be cancelled
+	stopCh      chan struct{}
+	startDoneCh chan struct{}
 
 	stopOnce sync.Once
 
@@ -110,7 +108,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
 		startDoneCh:         make(chan struct{}),
-		startErrCh:          make(chan error, 1),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
 		nodeNames:           []string{},
 		rootCtx:             rootCtx,
@@ -218,8 +215,7 @@ func (lc *localNetwork) start() error {
 }
 
 // Waits until the network is healthy.
-// If it doesn't become healthy before [ctx] is canceled,
-// sends an error on [lc.startErrCh] and returns.
+// If it doesn't become healthy before [ctx] is canceled, returns an error.
 // If it does, sends a message on [readyCh] and creates the blockchains
 // specified in [chainSpecs].
 // Always closes [lc.startDoneCh] on return.
@@ -244,112 +240,112 @@ func (lc *localNetwork) startWait(
 	defer close(lc.startDoneCh) // TODO remove
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err // TODO remove
 		return err
 	}
 
 	readyCh <- struct{}{} // TODO remove
 
-	lc.createBlockchains(ctx, chainSpecs, readyCh)
-	return nil
+	return lc.createBlockchains(ctx, chainSpecs, readyCh)
 }
 
 // Creates the blockchains specified in [chainSpecs].
 // If successful, closes [createBlockchainsReadyCh].
-// Otherwise sends an error on [lc.startErrCh].
 func (lc *localNetwork) createBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
-) {
-	// createBlockchains triggers a series of different time consuming actions
-	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
-	// We may need to cancel the context, for example if the client hits Ctrl-C
-	// TODO is this necessary?
-	// If this method was called from [startWait], [lc.startCtxCancel] is already set
-	// and will cancel this method when that method is called.
-	// Should [localNetwork] just have a "root" context which all other contexts are derived from?
-	ctx, lc.startCtxCancel = context.WithCancel(ctx)
-
+) error {
 	if len(chainSpecs) == 0 {
-		close(createBlockchainsReadyCh)
-		return
+		close(createBlockchainsReadyCh) // TODO remove
+		return nil
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.updateNodeInfo(); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
-	close(createBlockchainsReadyCh)
+	close(createBlockchainsReadyCh) // TODO remove
+	return nil
 }
 
 // Creates the given number of subnets.
 // If successful, closes [createSubnetsReadyCh].
-// Otherwise sends an error on [lc.startErrCh].
 func (lc *localNetwork) createSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 	createSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
-) {
-	// start triggers a series of different time consuming actions
-	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
-	// We may need to cancel the context, for example if the client hits Ctrl-C
-	ctx, lc.startCtxCancel = context.WithCancel(ctx)
-
+) error {
 	if numSubnets == 0 {
 		// TODO should we close [createSubnetsReadyCh] here?
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
-		return
+		return nil
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.updateNodeInfo(); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
 
-	close(createSubnetsReadyCh)
+	close(createSubnetsReadyCh) // TODO remove
+	return nil
 }
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
@@ -391,20 +387,31 @@ func (lc *localNetwork) loadSnapshot(snapshotName string) error {
 
 // Waits for the network to be healthy and updates the subnet info.
 // If successful, closes [loadSnapshotReadyCh].
-// Otherwise sends an error on [lc.startErrCh].
 // Always closes [lc.startDoneCh].
-func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) {
-	defer close(lc.startDoneCh)
+func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) error {
+	defer close(lc.startDoneCh) // TODO remove
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
 	if err := lc.updateSubnetInfo(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		return err
 	}
-	close(loadSnapshotReadyCh)
+	close(loadSnapshotReadyCh) // TODO remove
+	return nil
 }
 
 // Updates [lc.customChainIDToInfo] with the chain info for all chains in the network
@@ -517,11 +524,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopCh)
-		lc.rootCtxCancel()
-		// cancel possible concurrent still running start
-		if lc.startCtxCancel != nil {
-			lc.startCtxCancel()
-		}
+		lc.rootCtxCancel() // TODO use or remove
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
 		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
