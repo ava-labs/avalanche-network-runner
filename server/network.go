@@ -222,7 +222,6 @@ func (lc *localNetwork) start() error {
 func (lc *localNetwork) startWait(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
 ) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -243,9 +242,7 @@ func (lc *localNetwork) startWait(
 		return err
 	}
 
-	readyCh <- struct{}{} // TODO remove
-
-	return lc.createBlockchains(ctx, chainSpecs, readyCh)
+	return lc.createBlockchains(ctx, chainSpecs)
 }
 
 // Creates the blockchains specified in [chainSpecs].
@@ -253,10 +250,8 @@ func (lc *localNetwork) startWait(
 func (lc *localNetwork) createBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-	createBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
 ) error {
 	if len(chainSpecs) == 0 {
-		close(createBlockchainsReadyCh) // TODO remove
 		return nil
 	}
 
@@ -293,7 +288,6 @@ func (lc *localNetwork) createBlockchains(
 		return err
 	}
 
-	close(createBlockchainsReadyCh) // TODO remove
 	return nil
 }
 
@@ -389,7 +383,7 @@ func (lc *localNetwork) loadSnapshot(snapshotName string) error {
 // Waits for the network to be healthy and updates the subnet info.
 // If successful, closes [loadSnapshotReadyCh].
 // Always closes [lc.startDoneCh].
-func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyCh chan struct{}) error {
+func (lc *localNetwork) loadSnapshotWait(ctx context.Context) error {
 	defer close(lc.startDoneCh) // TODO remove
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -411,7 +405,6 @@ func (lc *localNetwork) loadSnapshotWait(ctx context.Context, loadSnapshotReadyC
 	if err := lc.updateSubnetInfo(ctx); err != nil {
 		return err
 	}
-	close(loadSnapshotReadyCh) // TODO remove
 	return nil
 }
 

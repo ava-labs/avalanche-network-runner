@@ -362,15 +362,11 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
-	// start non-blocking to install local cluster + custom chains (if applicable)
-	// the user is expected to poll cluster status
-	readyCh := make(chan struct{})
-
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if err := s.network.startWait(ctx, chainSpecs, readyCh); err != nil {
+		if err := s.network.startWait(ctx, chainSpecs); err != nil {
 			s.log.Warn("network never became healthy", zap.Error(err))
 			// TODO cleanup the server.
 			return
@@ -605,15 +601,11 @@ func (s *server) CreateBlockchains(
 	clusterInfo.CustomChainsHealthy = false
 	s.setClusterInfo(&clusterInfo)
 
-	// start non-blocking to install custom chains (if applicable)
-	// the user is expected to poll cluster status
-	readyCh := make(chan struct{})
-
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if err := net.createBlockchains(ctx, chainSpecs, readyCh); err != nil {
+		if err := net.createBlockchains(ctx, chainSpecs); err != nil {
 			s.log.Error("failed to create blockchains", zap.Error(err))
 			// TODO cleanup server
 			return
@@ -1131,15 +1123,11 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		return nil, err
 	}
 
-	// start non-blocking wait to load snapshot results
-	// the user is expected to poll cluster status
-	readyCh := make(chan struct{})
-
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if err := net.loadSnapshotWait(ctx, readyCh); err != nil {
+		if err := net.loadSnapshotWait(ctx); err != nil {
 			s.log.Warn("snapshot load failed to complete", zap.Error(err))
 			// TODO cleanup server
 			return
