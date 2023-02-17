@@ -92,7 +92,7 @@ var (
 const (
 	MinNodes            uint32 = 1
 	DefaultNodes        uint32 = 5
-	stopTimeout                = 2 * time.Second
+	stopTimeout                = 5 * time.Second
 	defaultStartTimeout        = 5 * time.Minute
 
 	rootDataDirPrefix = "network-runner-root-data"
@@ -247,8 +247,11 @@ func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse,
 
 // TODO should we have a helper [start] method and wrap it in a sync.Once?
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// If [network] is already populated, the network has already been started.
-	if s.getNetwork() != nil {
+	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
 	}
 
@@ -265,6 +268,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
+		// TODO this leaks a goroutine. Fix this and other similar leaks.
 		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
 		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
 	} else {
@@ -309,10 +313,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 
 	// TODO hold lock here?
-	s.setClusterInfo(&rpcpb.ClusterInfo{
+	s.clusterInfo = &rpcpb.ClusterInfo{
 		Pid:         pid,
 		RootDataDir: rootDataDir,
-	})
+	}
 
 	s.log.Info("starting",
 		zap.String("exec-path", execPath),
@@ -330,7 +334,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		numNodes = uint32(len(customNodeConfigs))
 	}
 
-	net, err := newLocalNetwork(localNetworkOptions{
+	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:            execPath,
 		rootDataDir:         rootDataDir,
 		numNodes:            numNodes,
@@ -351,31 +355,34 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
-	// TODO hold lock here?
-	s.setNetwork(net)
-
-	if err := net.start(); err != nil {
+	if err := s.network.start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
 		// TODO why do we set [s.network] to nil here?
-		s.setNetwork(nil)
+		s.network = nil
 		return nil, err
 	}
 
 	// start non-blocking to install local cluster + custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go net.startWait(ctx, chainSpecs, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		if err := s.network.startWait(ctx, chainSpecs, readyCh); err != nil {
+			s.log.Warn("network never became healthy", zap.Error(err))
+			// TODO cleanup the server.
+			return
+		}
 		// TODO why do we call this twice?
 		// The second call will do all the same work as the first.
 		s.waitChAndUpdateClusterInfo("local cluster", readyCh, false)
 		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 	}()
 
+	// TODO why do we return [s.clusterInfo] here?
+	// There is no expectation that it will have been set.
 	return &rpcpb.StartResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
@@ -397,7 +404,6 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 		net.stop(ctx)
 		cancel()
-		// TODO why do we set [s.network] to nil here?
 		s.setNetwork(nil)
 		s.asyncErrCh <- err
 	case <-readyCh:
@@ -720,6 +726,14 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
+// Assumes [s.mu] is held.
+// TODO finish implementing
+// func (s *server) cleanupNetwork() {
+// 	s.network = nil
+// 	s.clusterInfo = nil
+// 	// s.asyncErrCh
+// }
+
 // TODO document this
 func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.ControlService_StreamStatusServer) (err error) {
 	s.log.Debug("StreamStatus")
@@ -951,7 +965,6 @@ func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopRes
 	}
 
 	net.stop(ctx)
-	// TODO why do we set [s.network] to nil here?
 	s.setNetwork(nil)
 
 	info := *clusterInfoPtr //nolint
@@ -1102,7 +1115,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := net.loadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
-		// TODO why do we set [s.network] to nil here?
 		s.setNetwork(nil)
 		return nil, err
 	}
@@ -1134,7 +1146,6 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, err
 	}
 
-	// TODO why do we set [s.network] to nil here?
 	s.setNetwork(nil)
 
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil

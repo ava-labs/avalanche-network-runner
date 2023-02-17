@@ -42,6 +42,9 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
+	rootCtx       context.Context    // TODO use and document
+	rootCtxCancel context.CancelFunc // TODO use and document
+
 	stopCh         chan struct{}
 	startDoneCh    chan struct{}
 	startErrCh     chan error
@@ -98,6 +101,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		return nil, err
 	}
 
+	rootCtx, rootCtxCancel := context.WithCancel(context.Background())
 	return &localNetwork{
 		log:                 logger,
 		execPath:            opts.execPath,
@@ -109,6 +113,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		startErrCh:          make(chan error, 1),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
 		nodeNames:           []string{},
+		rootCtx:             rootCtx,
+		rootCtxCancel:       rootCtxCancel,
 	}, nil
 }
 
@@ -221,22 +227,31 @@ func (lc *localNetwork) startWait(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 	readyCh chan struct{}, // messaged when initial network is healthy, closed when subnet installations are complete
-) {
-	defer close(lc.startDoneCh)
+) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// start triggers a series of different time consuming actions
-	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
-	// We may need to cancel the context, for example if the client hits Ctrl-C
-	ctx, lc.startCtxCancel = context.WithCancel(ctx)
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	defer close(lc.startDoneCh) // TODO remove
 
 	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		lc.startErrCh <- err
-		return
+		lc.startErrCh <- err // TODO remove
+		return err
 	}
 
-	readyCh <- struct{}{}
+	readyCh <- struct{}{} // TODO remove
 
 	lc.createBlockchains(ctx, chainSpecs, readyCh)
+	return nil
 }
 
 // Creates the blockchains specified in [chainSpecs].
@@ -502,6 +517,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 func (lc *localNetwork) stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
 		close(lc.stopCh)
+		lc.rootCtxCancel()
 		// cancel possible concurrent still running start
 		if lc.startCtxCancel != nil {
 			lc.startCtxCancel()
