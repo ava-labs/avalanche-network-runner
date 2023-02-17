@@ -60,16 +60,19 @@ func serverFunc(*cobra.Command, []string) (err error) {
 			return err
 		}
 	}
-	lvl, err := logging.ToLevel(logLevel)
+
+	logLevel, err := logging.ToLevel(logLevel)
 	if err != nil {
 		return err
 	}
-	lcfg := logging.Config{
-		DisplayLevel: lvl,
-		LogLevel:     lvl,
-	}
-	lcfg.Directory = logDir
-	logFactory := logging.NewFactory(lcfg)
+
+	logFactory := logging.NewFactory(logging.Config{
+		RotatingWriterConfig: logging.RotatingWriterConfig{
+			Directory: logDir,
+		},
+		DisplayLevel: logLevel,
+		LogLevel:     logLevel,
+	})
 	log, err := logFactory.Make(constants.LogNameMain)
 	if err != nil {
 		return err
@@ -82,31 +85,33 @@ func serverFunc(*cobra.Command, []string) (err error) {
 		DialTimeout:         dialTimeout,
 		RedirectNodesOutput: !disableNodesOutput,
 		SnapshotsDir:        snapshotsDir,
-		LogLevel:            lvl,
+		LogLevel:            logLevel,
 	}, log)
 	if err != nil {
 		return err
 	}
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
-	errc := make(chan error)
+	errChan := make(chan error)
 	go func() {
-		errc <- s.Run(rootCtx)
+		errChan <- s.Run(rootCtx)
 	}()
 
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+	// Relay SIGINT and SIGTERM to [sigChan]
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
 	select {
-	case sig := <-sigc:
+	case sig := <-sigChan:
+		// Got a SIGINT or SIGTERM; stop the server and wait for it to finish.
 		log.Warn("signal received: closing server", zap.String("signal", sig.String()))
 		rootCancel()
-		// wait for server stop
-		waitForServerStop := <-errc
+		waitForServerStop := <-errChan
 		log.Warn("closed server", zap.Error(waitForServerStop))
-	case serverClosed := <-errc:
-		// server already stopped here
-		_ = rootCancel
+	case serverClosed := <-errChan:
+		// The server stopped.
+		rootCancel() // Don't leak [rootCtx].
 		log.Warn("server closed", zap.Error(serverClosed))
 	}
-	return err
+	return nil
 }

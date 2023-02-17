@@ -659,7 +659,7 @@ func (ln *localNetwork) healthy(ctx context.Context) error {
 	}
 
 	// Derive a new context that's cancelled when Stop is called,
-	// so that we calls to Healthy() below immediately return.
+	// so that calls to Healthy() below immediately return.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func(ctx context.Context) {

@@ -27,6 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -89,9 +90,10 @@ var (
 )
 
 const (
-	MinNodes     uint32 = 1
-	DefaultNodes uint32 = 5
-	stopTimeout         = 2 * time.Second
+	MinNodes            uint32 = 1
+	DefaultNodes        uint32 = 5
+	stopTimeout                = 2 * time.Second
+	defaultStartTimeout        = 5 * time.Minute
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
@@ -111,51 +113,53 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 		return nil, ErrInvalidPort
 	}
 
-	ln, err := net.Listen("tcp", cfg.Port)
+	listener, err := net.Listen("tcp", cfg.Port)
 	if err != nil {
 		return nil, err
 	}
-	srv := &server{
-		cfg: cfg,
-		log: log,
 
-		closed: make(chan struct{}),
-
-		ln:         ln,
+	s := &server{
+		cfg:        cfg,
+		log:        log,
+		closed:     make(chan struct{}),
+		ln:         listener,
 		gRPCServer: grpc.NewServer(),
-
 		mu:         new(sync.RWMutex),
 		asyncErrCh: make(chan error, 1),
 	}
 	if !cfg.GwDisabled {
-		srv.gwMux = runtime.NewServeMux()
-		srv.gwServer = &http.Server{ //nolint // TODO add ReadHeaderTimeout
+		s.gwMux = runtime.NewServeMux()
+		s.gwServer = &http.Server{ //nolint // TODO add ReadHeaderTimeout
 			Addr:    cfg.GwPort,
-			Handler: srv.gwMux,
+			Handler: s.gwMux,
 		}
 	}
 
-	return srv, nil
+	return s, nil
 }
 
 // Blocking call until server listeners return.
 func (s *server) Run(rootCtx context.Context) (err error) {
 	s.rootCtx = rootCtx
+
+	// TODO why do we need a sync.Once here?
+	// Run is only called by [serverFunc], which is run by a Cobra command.
 	s.gRPCRegisterOnce.Do(func() {
 		rpcpb.RegisterPingServiceServer(s.gRPCServer, s)
 		rpcpb.RegisterControlServiceServer(s.gRPCServer, s)
 	})
 
-	gRPCErrc := make(chan error)
+	gRPCErrChan := make(chan error)
 	go func() {
 		s.log.Info("serving gRPC server", zap.String("port", s.cfg.Port))
-		gRPCErrc <- s.gRPCServer.Serve(s.ln)
+		gRPCErrChan <- s.gRPCServer.Serve(s.ln)
 	}()
 
-	gwErrc := make(chan error)
+	gwErrChan := make(chan error)
 	if s.cfg.GwDisabled {
 		s.log.Info("gRPC gateway server is disabled")
 	} else {
+		// Set up gRPC gateway to allow for HTTP requests to [s.gRPCServer].
 		go func() {
 			s.log.Info("dialing gRPC server for gRPC gateway", zap.String("port", s.cfg.Port))
 			ctx, cancel := context.WithTimeout(rootCtx, s.cfg.DialTimeout)
@@ -167,22 +171,22 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 			)
 			cancel()
 			if err != nil {
-				gwErrc <- err
+				gwErrChan <- err
 				return
 			}
 			defer gwConn.Close()
 
 			if err := rpcpb.RegisterPingServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
-				gwErrc <- err
+				gwErrChan <- err
 				return
 			}
 			if err := rpcpb.RegisterControlServiceHandler(rootCtx, s.gwMux, gwConn); err != nil {
-				gwErrc <- err
+				gwErrChan <- err
 				return
 			}
 
 			s.log.Info("serving gRPC gateway", zap.String("port", s.cfg.GwPort))
-			gwErrc <- s.gwServer.ListenAndServe()
+			gwErrChan <- s.gwServer.ListenAndServe()
 		}()
 	}
 
@@ -192,37 +196,44 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 
 		if !s.cfg.GwDisabled {
 			s.log.Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
-			<-gwErrc
+			<-gwErrChan
 		}
 
 		s.gRPCServer.Stop()
 		s.log.Warn("closed gRPC server")
-		<-gRPCErrc
+		<-gRPCErrChan // Wait for [s.gRPCServer.Serve] to return.
 		s.log.Warn("gRPC terminated")
 
-	case err = <-gRPCErrc:
+	case err = <-gRPCErrChan:
 		s.log.Warn("gRPC server failed", zap.Error(err))
 
+		// [s.grpcServer] is already stopped.
 		if !s.cfg.GwDisabled {
 			s.log.Warn("closed gRPC gateway server", zap.Error(s.gwServer.Close()))
-			<-gwErrc
+			<-gwErrChan
 		}
 
-	case err = <-gwErrc: // if disabled, this will never be selected
+	case err = <-gwErrChan: // if disabled, this will never be selected
+		// [s.gwServer] is already closed.
 		s.log.Warn("gRPC gateway server failed", zap.Error(err))
 		s.gRPCServer.Stop()
 		s.log.Warn("closed gRPC server")
-		<-gRPCErrc
+		<-gRPCErrChan // Wait for [s.gRPCServer.Serve] to return.
 	}
 
-	net := s.network
-	if net != nil {
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
-		defer stopCtxCancel()
-		net.stop(stopCtx)
+	// Grab lock to ensure [s.network] isn't being used.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		s.network.stop(ctx)
 		s.log.Warn("network stopped")
 	}
 
+	// TODO why do we need a sync.Once here?
+	// Run is only called by [serverFunc], which is run by a Cobra command.
 	s.closeOnce.Do(func() {
 		close(s.closed)
 	})
@@ -234,10 +245,23 @@ func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse,
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
 }
 
-const defaultStartTimeout = 5 * time.Minute
-
+// TODO should we have a helper [start] method and wrap it in a sync.Once?
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
-	// if timeout is too small or not set, default to 5-min
+	// If [network] is already populated, the network has already been started.
+	if s.getNetwork() != nil {
+		return nil, ErrAlreadyBootstrapped
+	}
+
+	// Set default values for [req.NumNodes] if not given.
+	if req.NumNodes == nil {
+		n := DefaultNodes
+		req.NumNodes = &n
+	}
+	if *req.NumNodes < MinNodes {
+		return nil, ErrNotEnoughNodesForStart
+	}
+
+	// if timeout is too small or not set, default to [defaultStartTimeout].
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
@@ -247,16 +271,10 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
-	if req.NumNodes == nil {
-		n := DefaultNodes
-		req.NumNodes = &n
-	}
-	if *req.NumNodes < MinNodes {
-		return nil, ErrNotEnoughNodesForStart
-	}
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
 		return nil, err
 	}
+
 	pluginDir := req.GetPluginDir()
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
@@ -268,11 +286,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			}
 			chainSpecs = append(chainSpecs, chainSpec)
 		}
-	}
-
-	// If [network] is already populated, the network has already been started.
-	if s.getNetwork() != nil {
-		return nil, ErrAlreadyBootstrapped
 	}
 
 	var (
@@ -295,6 +308,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
+	// TODO hold lock here?
 	s.setClusterInfo(&rpcpb.ClusterInfo{
 		Pid:         pid,
 		RootDataDir: rootDataDir,
@@ -337,10 +351,12 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		return nil, err
 	}
 
+	// TODO hold lock here?
 	s.setNetwork(net)
 
 	if err := net.start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
+		// TODO why do we set [s.network] to nil here?
 		s.setNetwork(nil)
 		return nil, err
 	}
@@ -354,6 +370,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		// TODO why do we call this twice?
+		// The second call will do all the same work as the first.
 		s.waitChAndUpdateClusterInfo("local cluster", readyCh, false)
 		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 	}()
@@ -361,30 +379,32 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	return &rpcpb.StartResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
+// Waits for a message on [readyCh] and then updates [s.clusterInfo].
 func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, updateCustomVmsInfo bool) {
 	net := s.getNetwork()
-	if net == nil {
+	if net == nil { // TODO when would this be nil?
 		return
 	}
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return
-	}
+
 	s.log.Info(fmt.Sprintf("waiting for %s readiness", msg))
 	select {
 	case <-s.closed:
 		return
 	case <-net.stopCh:
 		return
-	case serr := <-net.startErrCh:
-		s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(serr))
-		stopCtx, stopCtxCancel := context.WithTimeout(context.Background(), stopTimeout)
-		net.stop(stopCtx)
-		stopCtxCancel()
+	case err := <-net.startErrCh:
+		s.log.Warn("async call failed to complete", zap.String("async-call", msg), zap.Error(err))
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		net.stop(ctx)
+		cancel()
+		// TODO why do we set [s.network] to nil here?
 		s.setNetwork(nil)
-		s.asyncErrCh <- serr
+		s.asyncErrCh <- err
 	case <-readyCh:
-		clusterInfo := *clusterInfoPtr //nolint
+		clusterInfo := s.getClusterInfo() // TODO hold lock here?
+		if clusterInfo == nil {           // TODO when would this be nil?
+			return
+		}
 		clusterInfo.Healthy = true
 		clusterInfo.NodeNames = net.nodeNames
 		clusterInfo.NodeInfos = net.nodeInfos
@@ -396,7 +416,7 @@ func (s *server) waitChAndUpdateClusterInfo(msg string, readyCh chan struct{}, u
 			}
 			clusterInfo.Subnets = net.subnets
 		}
-		s.setClusterInfo(&clusterInfo)
+		s.setClusterInfo(clusterInfo)
 		s.log.Info(fmt.Sprintf("%s ready", msg))
 	}
 }
@@ -410,23 +430,25 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	if s.getNetwork() == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
+
 	var err error
-	continueLoop := true
-	for continueLoop {
-		clusterInfoPtr := s.getClusterInfo()
-		if clusterInfoPtr == nil {
+	done := false
+	for !done {
+		clusterInfo := s.getClusterInfo()
+		if clusterInfo == nil {
 			return nil, ErrUnexpectedNilClusterInfo
 		}
-		if clusterInfoPtr.CustomChainsHealthy {
+		if clusterInfo.CustomChainsHealthy {
 			break
 		}
 		select {
 		case err = <-s.asyncErrCh:
-			continueLoop = false
+			done = true
 		case <-ctx.Done():
-			continueLoop = false
+			done = true
 			err = ctx.Err()
 		case <-time.After(1 * time.Second):
 		}
@@ -443,6 +465,7 @@ func getNetworkBlockchainSpec(
 	if isNewEmptyNetwork && spec.SubnetId != nil {
 		return network.BlockchainSpec{}, errors.New("blockchain subnet id must be nil if starting a new empty network")
 	}
+
 	vmName := spec.VmName
 	log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
 	vmID, err := utils.VMID(vmName)
@@ -450,6 +473,7 @@ func getNetworkBlockchainSpec(
 		log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
 		return network.BlockchainSpec{}, ErrInvalidVMName
 	}
+
 	// there is no default plugindir from the ANR point of view, will not check if not given
 	if pluginDir != "" {
 		if err := utils.CheckPluginPaths(
@@ -459,10 +483,12 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+
 	genesisBytes, err := os.ReadFile(spec.Genesis)
 	if err != nil {
 		return network.BlockchainSpec{}, err
 	}
+
 	var chainConfigBytes []byte
 	if spec.ChainConfig != "" {
 		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
@@ -470,6 +496,7 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+
 	var networkUpgradeBytes []byte
 	if spec.NetworkUpgrade != "" {
 		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
@@ -477,6 +504,7 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+
 	var subnetConfigBytes []byte
 	if spec.SubnetConfig != "" {
 		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
@@ -484,16 +512,19 @@ func getNetworkBlockchainSpec(
 			return network.BlockchainSpec{}, err
 		}
 	}
+
 	perNodeChainConfig := map[string][]byte{}
 	if spec.PerNodeChainConfig != "" {
 		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
+
 		perNodeChainConfigMap := map[string]interface{}{}
 		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
 			return network.BlockchainSpec{}, err
 		}
+
 		for nodeName, cfg := range perNodeChainConfigMap {
 			cfgBytes, err := json.Marshal(cfg)
 			if err != nil {
@@ -553,16 +584,12 @@ func (s *server) CreateBlockchains(
 	}
 
 	// check that defined subnets exist
-	subnetsMap := map[string]struct{}{}
-	for _, subnet := range clusterInfoPtr.Subnets {
-		subnetsMap[subnet] = struct{}{}
-	}
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(clusterInfoPtr.Subnets...)
+
 	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetID != nil {
-			_, ok := subnetsMap[*chainSpec.SubnetID]
-			if !ok {
-				return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetID)
-			}
+		if chainSpec.SubnetID != nil && !subnetsSet.Contains(*chainSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetID)
 		}
 	}
 
@@ -579,9 +606,7 @@ func (s *server) CreateBlockchains(
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go func() {
-		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
-	}()
+	go s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -603,6 +628,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
@@ -632,9 +658,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go func() {
-		s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
-	}()
+	go s.waitChAndUpdateClusterInfo("custom chains", readyCh, true)
 
 	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -646,14 +670,15 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return nil, ErrUnexpectedNilClusterInfo
-	}
 
 	s.log.Info("waiting for local cluster readiness")
 	if err := net.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
+	}
+
+	clusterInfoPtr := s.getClusterInfo()
+	if clusterInfoPtr == nil {
+		return nil, ErrUnexpectedNilClusterInfo
 	}
 
 	clusterInfo := *clusterInfoPtr //nolint
@@ -671,14 +696,15 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 	if s.getNetwork() == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
 	}
 
 	uris := make([]string, 0, len(clusterInfoPtr.NodeInfos))
-	for _, i := range clusterInfoPtr.NodeInfos {
-		uris = append(uris, i.Uri)
+	for _, nodeInfo := range clusterInfoPtr.NodeInfos {
+		uris = append(uris, nodeInfo.Uri)
 	}
 	sort.Strings(uris)
 	return &rpcpb.URIsResponse{Uris: uris}, nil
@@ -694,6 +720,7 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
 
+// TODO document this
 func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.ControlService_StreamStatusServer) (err error) {
 	s.log.Debug("StreamStatus")
 
@@ -708,21 +735,21 @@ func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.Contr
 		wg.Done()
 	}()
 
-	errc := make(chan error, 1)
+	errCh := make(chan error, 1)
 	go func() {
-		rerr := s.recvLoop(stream)
-		if rerr != nil {
-			if isClientCanceled(stream.Context().Err(), rerr) {
-				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation", zap.Error(rerr))
+		err := s.recvLoop(stream)
+		if err != nil {
+			if isClientCanceled(stream.Context().Err(), err) {
+				s.log.Warn("failed to receive status request from gRPC stream due to client cancellation", zap.Error(err))
 			} else {
-				s.log.Warn("failed to receive status request from gRPC stream", zap.Error(rerr))
+				s.log.Warn("failed to receive status request from gRPC stream", zap.Error(err))
 			}
 		}
-		errc <- rerr
+		errCh <- err
 	}()
 
 	select {
-	case err = <-errc:
+	case err = <-errCh:
 		if errors.Is(err, context.Canceled) {
 			err = ErrStatusCanceled
 		}
@@ -737,6 +764,7 @@ func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.Contr
 	return err
 }
 
+// TODO document this
 func (s *server) sendLoop(stream rpcpb.ControlService_StreamStatusServer, interval time.Duration) {
 	s.log.Info("start status send loop")
 
@@ -765,6 +793,7 @@ func (s *server) sendLoop(stream rpcpb.ControlService_StreamStatusServer, interv
 	}
 }
 
+// TODO document this
 func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error {
 	s.log.Info("start status receive loop")
 
@@ -797,6 +826,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
@@ -847,6 +877,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
@@ -875,6 +906,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
@@ -912,12 +944,14 @@ func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopRes
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
 	}
 
 	net.stop(ctx)
+	// TODO why do we set [s.network] to nil here?
 	s.setNetwork(nil)
 
 	info := *clusterInfoPtr //nolint
@@ -935,7 +969,11 @@ type loggingInboundHandler struct {
 }
 
 func (lh *loggingInboundHandler) HandleInbound(_ context.Context, m message.InboundMessage) {
-	lh.log.Debug("inbound handler received a message", zap.String("message", m.Op().String()), zap.String("node-name", lh.nodeName))
+	lh.log.Debug(
+		"inbound handler received a message",
+		zap.String("message", m.Op().String()),
+		zap.String("node-name", lh.nodeName),
+	)
 }
 
 func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (*rpcpb.AttachPeerResponse, error) {
@@ -945,6 +983,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	if net == nil {
 		return nil, ErrNotBootstrapped
 	}
+
 	clusterInfoPtr := s.getClusterInfo()
 	if clusterInfoPtr == nil {
 		return nil, ErrUnexpectedNilClusterInfo
@@ -981,7 +1020,10 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 
 	s.setClusterInfo(&clusterInfo)
 
-	return &rpcpb.AttachPeerResponse{ClusterInfo: s.getClusterInfo(), AttachedPeerInfo: peerInfo}, nil
+	return &rpcpb.AttachPeerResponse{
+		ClusterInfo:      s.getClusterInfo(),
+		AttachedPeerInfo: peerInfo,
+	}, nil
 }
 
 func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboundMessageRequest) (*rpcpb.SendOutboundMessageResponse, error) {
@@ -1058,8 +1100,9 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	s.setNetwork(net)
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := net.loadSnapshot(ctx, req.SnapshotName); err != nil {
+	if err := net.loadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
+		// TODO why do we set [s.network] to nil here?
 		s.setNetwork(nil)
 		return nil, err
 	}
@@ -1072,9 +1115,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go func() {
-		s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
-	}()
+	go s.waitChAndUpdateClusterInfo("local cluster", readyCh, true)
 
 	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.getClusterInfo()}, nil
 }
@@ -1093,6 +1134,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, err
 	}
 
+	// TODO why do we set [s.network] to nil here?
 	s.setNetwork(nil)
 
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
