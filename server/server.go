@@ -652,46 +652,39 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 }
 
 func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.log.Debug("Health")
 
-	net := s.getNetwork()
-	if net == nil {
-		return nil, ErrNotBootstrapped
-	}
-
 	s.log.Info("waiting for local cluster readiness")
-	if err := net.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
 		return nil, err
 	}
 
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return nil, ErrUnexpectedNilClusterInfo
-	}
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.Healthy = true
 
-	clusterInfo := *clusterInfoPtr //nolint
-	clusterInfo.NodeNames = net.nodeNames
-	clusterInfo.NodeInfos = net.nodeInfos
-	clusterInfo.Healthy = true
-	s.setClusterInfo(&clusterInfo)
-
-	return &rpcpb.HealthResponse{ClusterInfo: s.getClusterInfo()}, nil
+	return &rpcpb.HealthResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	s.log.Debug("URIs")
 
-	if s.getNetwork() == nil {
+	if s.network == nil {
 		return nil, ErrNotBootstrapped
 	}
 
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
+	if s.clusterInfo == nil {
 		return nil, ErrUnexpectedNilClusterInfo
 	}
 
-	uris := make([]string, 0, len(clusterInfoPtr.NodeInfos))
-	for _, nodeInfo := range clusterInfoPtr.NodeInfos {
+	uris := make([]string, 0, len(s.clusterInfo.NodeInfos))
+	for _, nodeInfo := range s.clusterInfo.NodeInfos {
 		uris = append(uris, nodeInfo.Uri)
 	}
 	sort.Strings(uris)
@@ -699,13 +692,16 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 }
 
 func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	s.log.Debug("Status")
 
 	if s.getNetwork() == nil {
-		return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, ErrNotBootstrapped
+		return &rpcpb.StatusResponse{}, ErrNotBootstrapped
 	}
 
-	return &rpcpb.StatusResponse{ClusterInfo: s.getClusterInfo()}, nil
+	return &rpcpb.StatusResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 // Assumes [s.mu] is held.
@@ -821,17 +817,10 @@ func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error 
 }
 
 func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.AddNodeResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.log.Debug("AddNode", zap.String("name", req.Name))
-
-	net := s.getNetwork()
-	if net == nil {
-		return nil, ErrNotBootstrapped
-	}
-
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return nil, ErrUnexpectedNilClusterInfo
-	}
 
 	nodeFlags := map[string]interface{}{}
 	if req.GetNodeConfig() != "" {
@@ -855,20 +844,18 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		SubnetConfigFiles:  req.SubnetConfigs,
 	}
 
-	if _, err := net.nw.AddNode(nodeConfig); err != nil {
+	if _, err := s.network.nw.AddNode(nodeConfig); err != nil {
 		return nil, err
 	}
 
-	if err := net.updateNodeInfo(); err != nil {
+	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
 
-	clusterInfo := *clusterInfoPtr //nolint
-	clusterInfo.NodeNames = net.nodeNames
-	clusterInfo.NodeInfos = net.nodeInfos
-	s.setClusterInfo(&clusterInfo)
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
-	return &rpcpb.AddNodeResponse{ClusterInfo: s.getClusterInfo()}, nil
+	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (*rpcpb.RemoveNodeResponse, error) {
@@ -939,26 +926,15 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 }
 
 func (s *server) Stop(ctx context.Context, _ *rpcpb.StopRequest) (*rpcpb.StopResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.log.Debug("Stop")
 
-	net := s.getNetwork()
-	if net == nil {
-		return nil, ErrNotBootstrapped
-	}
+	s.cleanupNetwork()
 
-	clusterInfoPtr := s.getClusterInfo()
-	if clusterInfoPtr == nil {
-		return nil, ErrUnexpectedNilClusterInfo
-	}
-
-	net.stop(ctx)
-	s.setNetwork(nil)
-
-	info := *clusterInfoPtr //nolint
-	info.Healthy = false
-	s.setClusterInfo(&info)
-
-	return &rpcpb.StopResponse{ClusterInfo: s.getClusterInfo()}, nil
+	// TODO remove cluster info from StopResponse
+	return &rpcpb.StopResponse{}, nil
 }
 
 var _ router.InboundHandler = &loggingInboundHandler{}
