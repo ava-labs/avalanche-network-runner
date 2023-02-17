@@ -654,15 +654,11 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	clusterInfo.CustomChainsHealthy = false
 	s.setClusterInfo(&clusterInfo)
 
-	// start non-blocking to add subnets
-	// the user is expected to poll cluster status
-	readyCh := make(chan struct{})
-
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		if err := net.createSubnets(ctx, numSubnets, readyCh); err != nil {
+		if err := net.createSubnets(ctx, numSubnets); err != nil {
 			s.log.Error("failed to create subnets", zap.Error(err))
 			// TODO cleanup server
 			return

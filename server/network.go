@@ -42,8 +42,8 @@ type localNetwork struct {
 	// map from blockchain ID to blockchain info
 	customChainIDToInfo map[ids.ID]chainInfo
 
-	stopCh chan struct{}
-
+	// Closed when [stop] is called.
+	stopCh   chan struct{}
 	stopOnce sync.Once
 
 	subnets []string
@@ -286,7 +286,6 @@ func (lc *localNetwork) createBlockchains(
 func (lc *localNetwork) createSubnets(
 	ctx context.Context,
 	numSubnets uint32,
-	createSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
 ) error {
 	if numSubnets == 0 {
 		// TODO should we close [createSubnetsReadyCh] here?
@@ -328,8 +327,6 @@ func (lc *localNetwork) createSubnets(
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
-
-	close(createSubnetsReadyCh) // TODO remove
 	return nil
 }
 
