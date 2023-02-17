@@ -366,7 +366,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	go func() {
 		if err := s.network.startWait(ctx, chainSpecs); err != nil {
 			s.log.Warn("network never became healthy", zap.Error(err))
-			// TODO cleanup the server.
+			s.cleanupNetwork()
 			return
 		}
 		// TODO why do we call this twice?
@@ -589,7 +589,7 @@ func (s *server) CreateBlockchains(
 	go func() {
 		if err := net.createBlockchains(ctx, chainSpecs); err != nil {
 			s.log.Error("failed to create blockchains", zap.Error(err))
-			// TODO cleanup server
+			s.cleanupNetwork()
 			return
 		}
 		s.updateClusterInfo("custom chains", true)
@@ -642,7 +642,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	go func() {
 		if err := net.createSubnets(ctx, numSubnets); err != nil {
 			s.log.Error("failed to create subnets", zap.Error(err))
-			// TODO cleanup server
+			s.cleanupNetwork()
 			return
 		}
 		s.updateClusterInfo("custom chains", true)
@@ -709,11 +709,17 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 }
 
 // Assumes [s.mu] is held.
-// TODO finish implementing
-// func (s *server) cleanupNetwork() {
-// 	s.network = nil
-// 	s.clusterInfo = nil
-// }
+func (s *server) cleanupNetwork() {
+	s.log.Info("removing network")
+
+	if s.network != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		s.network.stop(ctx)
+	}
+	s.network = nil
+	s.clusterInfo = nil
+}
 
 // TODO document this
 func (s *server) StreamStatus(req *rpcpb.StreamStatusRequest, stream rpcpb.ControlService_StreamStatusServer) (err error) {
@@ -1106,7 +1112,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	go func() {
 		if err := net.loadSnapshotWait(ctx); err != nil {
 			s.log.Warn("snapshot load failed to complete", zap.Error(err))
-			// TODO cleanup server
+			s.cleanupNetwork()
 			return
 		}
 		s.updateClusterInfo("local cluster", true)
