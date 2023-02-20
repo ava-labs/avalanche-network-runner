@@ -110,6 +110,7 @@ func serverFunc(*cobra.Command, []string) (err error) {
 	case sig := <-sigChan:
 		// Got a SIGINT or SIGTERM; stop the server and wait for it to finish.
 		log.Warn("signal received: closing server", zap.String("signal", sig.String()))
+		cancel()
 		waitForServerStop := <-errChan
 		log.Warn("closed server", zap.Error(waitForServerStop))
 	case serverClosed := <-errChan:
