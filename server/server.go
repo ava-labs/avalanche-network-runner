@@ -373,8 +373,9 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.log.Error("network never became healthy", zap.Error(err))
 			s.stopAndRemoveNetwork()
 			return
+		} else {
+			s.updateClusterInfo()
 		}
-		s.updateClusterInfo()
 		s.log.Info("network healthy")
 	}()
 
@@ -577,8 +578,9 @@ func (s *server) CreateBlockchains(
 			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
+		} else {
+			s.updateClusterInfo()
 		}
-		s.updateClusterInfo()
 		s.log.Info("custom chains created")
 	}()
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -629,8 +631,9 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
+		} else {
+			s.updateClusterInfo()
 		}
-		s.updateClusterInfo()
 		s.log.Info("subnets created")
 	}()
 
@@ -1068,8 +1071,9 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
+		} else {
+			s.updateClusterInfo()
 		}
-		s.updateClusterInfo()
 		s.log.Info("network healthy")
 	}()
 
