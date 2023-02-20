@@ -522,6 +522,10 @@ func (s *server) CreateBlockchains(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	// Set timeout to default if too small.
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
@@ -584,6 +588,10 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	// Set timeout to default if too small.
 	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
 		var cancel context.CancelFunc
@@ -634,6 +642,10 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	defer s.mu.Unlock()
 
 	s.log.Debug("Health")
+
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
 
 	s.log.Info("waiting for local cluster readiness")
 	if err := s.network.AwaitHealthy(ctx); err != nil {
@@ -867,6 +879,10 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 
 	s.log.Debug("RestartNode", zap.String("name", req.Name))
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	if err := s.network.nw.RestartNode(
 		ctx,
 		req.Name,
@@ -923,6 +939,10 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 
 	s.log.Debug("AttachPeer")
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	node, err := s.network.nw.GetNode(req.NodeName)
 	if err != nil {
 		return nil, err
@@ -960,6 +980,10 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	defer s.mu.Unlock()
 
 	s.log.Debug("SendOutboundMessage")
+
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
 
 	node, err := s.network.nw.GetNode(req.NodeName)
 	if err != nil {
@@ -1058,6 +1082,10 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 
 	s.log.Info("SaveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
@@ -1076,6 +1104,10 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
+
 	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
@@ -1088,6 +1120,10 @@ func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesReques
 	defer s.mu.RUnlock()
 
 	s.log.Info("GetSnapshotNames")
+
+	if s.network == nil {
+		return nil, ErrNetworkNotRunning
+	}
 
 	snapshotNames, err := s.network.nw.GetSnapshotNames()
 	if err != nil {
