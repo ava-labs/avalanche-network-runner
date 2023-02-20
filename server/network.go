@@ -104,7 +104,8 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	}, nil
 }
 
-// TODO document
+// TODO document.
+// Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
 	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
 	if err != nil {
@@ -183,7 +184,9 @@ func (lc *localNetwork) createConfig() error {
 	return nil
 }
 
-func (lc *localNetwork) start() error {
+// Creates a network and sets [lc.nw] to it.
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) Start() error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -208,7 +211,7 @@ func (lc *localNetwork) start() error {
 
 // Creates the blockchains specified in [chainSpecs].
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) createChains(
+func (lc *localNetwork) CreateChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) error {
@@ -249,7 +252,7 @@ func (lc *localNetwork) createChains(
 
 // Creates the given number of subnets.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) createSubnets(ctx context.Context, numSubnets uint32) error {
+func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -290,7 +293,7 @@ func (lc *localNetwork) createSubnets(ctx context.Context, numSubnets uint32) er
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) loadSnapshot(snapshotName string) error {
+func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -381,6 +384,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	return nil
 }
 
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) AwaitHealthy(ctx context.Context) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	return lc.awaitHealthy(ctx)
+}
+
 // Returns nil when [lc.nw] reports healthy.
 // Updates node and subnet info.
 // Assumes [lc.lock] is held.
@@ -407,8 +418,17 @@ func (lc *localNetwork) awaitHealthy(ctx context.Context) error {
 	return nil
 }
 
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) UpdateNodeInfo() error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	return lc.updateNodeInfo()
+}
+
 // Populates [lc.nodeNames] and [lc.nodeInfos] for
 // all nodes in this network.
+// Assumes [lc.lock] is held.
 func (lc *localNetwork) updateNodeInfo() error {
 	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
@@ -447,9 +467,14 @@ func (lc *localNetwork) updateNodeInfo() error {
 	return nil
 }
 
-func (lc *localNetwork) stop(ctx context.Context) {
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) Stop(ctx context.Context) {
 	lc.stopOnce.Do(func() {
-		close(lc.stopCh)
+		close(lc.stopCh) // Stop in-flight method executions
+
+		lc.lock.Lock()
+		defer lc.lock.Unlock()
+
 		err := lc.nw.Stop(ctx)
 		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), err)
 	})

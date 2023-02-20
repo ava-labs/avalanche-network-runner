@@ -231,9 +231,8 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	defer s.mu.Unlock()
 
 	if s.network != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-		defer cancel()
-		s.network.stop(ctx)
+		// Close the network.
+		s.stopAndRemoveNetwork()
 		s.log.Warn("network stopped")
 	}
 
@@ -358,7 +357,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 		zap.String("global-node-config", globalNodeConfig),
 	)
 
-	if err := s.network.start(); err != nil {
+	if err := s.network.Start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork()
 		return nil, err
@@ -368,7 +367,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.createChains(ctx, chainSpecs)
+		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -571,7 +570,7 @@ func (s *server) CreateBlockchains(
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.createChains(ctx, chainSpecs)
+		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -610,7 +609,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	}
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.awaitHealthy(ctx); err != nil {
+	if err := s.network.AwaitHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -621,7 +620,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.createSubnets(ctx, numSubnets)
+		err := s.network.CreateSubnets(ctx, numSubnets)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
@@ -645,7 +644,7 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	s.log.Debug("Health")
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.awaitHealthy(ctx); err != nil {
+	if err := s.network.AwaitHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -699,7 +698,7 @@ func (s *server) stopAndRemoveNetwork() {
 	if s.network != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 		defer cancel()
-		s.network.stop(ctx)
+		s.network.Stop(ctx)
 	}
 	s.network = nil
 	s.clusterInfo = nil
@@ -844,7 +843,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -868,7 +867,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -897,7 +896,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -1038,7 +1037,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.loadSnapshot(req.SnapshotName); err != nil {
+	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork()
 		return nil, err
@@ -1054,7 +1053,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.awaitHealthy(ctx)
+		err := s.network.AwaitHealthy(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
