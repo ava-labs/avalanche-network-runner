@@ -1004,7 +1004,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	pid := int32(os.Getpid())
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
 
-	network, err := newLocalNetwork(localNetworkOptions{
+	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:            req.GetExecPath(),
 		pluginDir:           req.GetPluginDir(),
 		rootDataDir:         rootDataDir,
@@ -1019,18 +1019,16 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	if err != nil {
 		return nil, err
 	}
+	s.clusterInfo = &rpcpb.ClusterInfo{
+		Pid:         pid,
+		RootDataDir: rootDataDir,
+	}
 
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork()
 		return nil, err
-	}
-
-	s.network = network
-	s.clusterInfo = &rpcpb.ClusterInfo{
-		Pid:         pid,
-		RootDataDir: rootDataDir,
 	}
 
 	// update cluster info non-blocking
