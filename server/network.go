@@ -190,6 +190,10 @@ func (lc *localNetwork) Start() error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
+	if lc.nw != nil {
+		return ErrNetworkRunning
+	}
+
 	if err := lc.createConfig(); err != nil {
 		return err
 	}
@@ -217,6 +221,10 @@ func (lc *localNetwork) CreateChains(
 ) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
+
+	if lc.nw == nil {
+		return ErrNetworkNotRunning
+	}
 
 	if len(chainSpecs) == 0 {
 		return nil
@@ -255,6 +263,10 @@ func (lc *localNetwork) CreateChains(
 func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
+
+	if lc.nw == nil {
+		return ErrNetworkNotRunning
+	}
 
 	if numSubnets == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
@@ -295,6 +307,10 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
+
+	if lc.nw != nil {
+		return ErrNetworkRunning
+	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
 
@@ -395,6 +411,10 @@ func (lc *localNetwork) AwaitHealthy(ctx context.Context) error {
 // Updates node and subnet info.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) awaitHealthy(ctx context.Context) error {
+	if lc.nw == nil {
+		return ErrNetworkNotRunning
+	}
+
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
 
 	if err := lc.nw.Healthy(ctx); err != nil {
@@ -429,6 +449,10 @@ func (lc *localNetwork) UpdateNodeInfo() error {
 // all nodes in this network.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateNodeInfo() error {
+	if lc.nw == nil {
+		return ErrNetworkNotRunning
+	}
+
 	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
@@ -474,7 +498,9 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 		lc.lock.Lock()
 		defer lc.lock.Unlock()
 
-		err := lc.nw.Stop(ctx)
-		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), err)
+		if lc.nw != nil {
+			err := lc.nw.Stop(ctx)
+			ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), err)
+		}
 	})
 }
