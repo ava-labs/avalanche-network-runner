@@ -30,6 +30,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -367,7 +368,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.startWait(ctx, chainSpecs)
+		err := s.network.createChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -385,7 +386,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 // Asssumes [s.mu] is held.
 func (s *server) updateClusterInfo(updateCustomVmsInfo bool) {
 	s.clusterInfo.Healthy = true
-	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 	if updateCustomVmsInfo {
 		s.clusterInfo.CustomChainsHealthy = true
@@ -570,7 +571,7 @@ func (s *server) CreateBlockchains(
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.createBlockchains(ctx, chainSpecs)
+		err := s.network.createChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -609,7 +610,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	}
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.awaitHealthy(ctx); err != nil {
 		return nil, err
 	}
 
@@ -644,11 +645,11 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	s.log.Debug("Health")
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.waitForLocalClusterReady(ctx); err != nil {
+	if err := s.network.awaitHealthy(ctx); err != nil {
 		return nil, err
 	}
 
-	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 	s.clusterInfo.Healthy = true
 
@@ -847,7 +848,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		return nil, err
 	}
 
-	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
@@ -871,7 +872,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 		return nil, err
 	}
 
-	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
@@ -900,7 +901,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 		return nil, err
 	}
 
-	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
@@ -1053,7 +1054,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
-		err := s.network.loadSnapshotWait(ctx)
+		err := s.network.awaitHealthy(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {

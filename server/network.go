@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -24,7 +23,8 @@ import (
 )
 
 type localNetwork struct {
-	log logging.Logger
+	lock sync.Mutex
+	log  logging.Logger
 
 	execPath  string
 	pluginDir string
@@ -32,8 +32,6 @@ type localNetwork struct {
 	cfg network.Config
 
 	nw network.Network
-
-	nodeNames []string
 
 	nodeInfos map[string]*rpcpb.NodeInfo
 
@@ -103,10 +101,10 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
-		nodeNames:           []string{},
 	}, nil
 }
 
+// TODO document
 func (lc *localNetwork) createConfig() error {
 	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
 	if err != nil {
@@ -136,7 +134,6 @@ func (lc *localNetwork) createConfig() error {
 		logDir := filepath.Join(lc.options.rootDataDir, nodeName, "log")
 		dbDir := filepath.Join(lc.options.rootDataDir, nodeName, "db-dir")
 
-		lc.nodeNames = append(lc.nodeNames, nodeName)
 		cfg.NodeConfigs[i].Name = nodeName
 
 		for k, v := range lc.options.chainConfigs {
@@ -187,6 +184,9 @@ func (lc *localNetwork) createConfig() error {
 }
 
 func (lc *localNetwork) start() error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
 	if err := lc.createConfig(); err != nil {
 		return err
 	}
@@ -206,41 +206,15 @@ func (lc *localNetwork) start() error {
 	return nil
 }
 
-// Waits until the network is healthy.
-// If it doesn't become healthy before [ctx] is canceled, returns an error.
-// If it does, sends a message on [readyCh] and creates the blockchains
-// specified in [chainSpecs].
-// Always closes [lc.startDoneCh] on return.
-func (lc *localNetwork) startWait(
-	ctx context.Context,
-	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func(ctx context.Context) {
-		select {
-		case <-lc.stopCh:
-			// The network is stopped; return from method calls below.
-			cancel()
-		case <-ctx.Done():
-			// This method is done. Don't leak [ctx].
-		}
-	}(ctx)
-
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		return err
-	}
-
-	return lc.createBlockchains(ctx, chainSpecs)
-}
-
 // Creates the blockchains specified in [chainSpecs].
-// If successful, closes [createBlockchainsReadyCh].
-func (lc *localNetwork) createBlockchains(
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) createChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
 	if len(chainSpecs) == 0 {
 		return nil
 	}
@@ -258,7 +232,7 @@ func (lc *localNetwork) createBlockchains(
 		}
 	}(ctx)
 
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+	if err := lc.awaitHealthy(ctx); err != nil {
 		return err
 	}
 
@@ -266,15 +240,7 @@ func (lc *localNetwork) createBlockchains(
 		return err
 	}
 
-	if err := lc.updateNodeInfo(); err != nil {
-		return err
-	}
-
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		return err
-	}
-
-	if err := lc.updateSubnetInfo(ctx); err != nil {
+	if err := lc.awaitHealthy(ctx); err != nil {
 		return err
 	}
 
@@ -282,11 +248,11 @@ func (lc *localNetwork) createBlockchains(
 }
 
 // Creates the given number of subnets.
-// If successful, closes [createSubnetsReadyCh].
-func (lc *localNetwork) createSubnets(
-	ctx context.Context,
-	numSubnets uint32,
-) error {
+// Assumes [lc.lock] isn't held.
+func (lc *localNetwork) createSubnets(ctx context.Context, numSubnets uint32) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
 	if numSubnets == 0 {
 		// TODO should we close [createSubnetsReadyCh] here?
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
@@ -306,7 +272,7 @@ func (lc *localNetwork) createSubnets(
 		}
 	}(ctx)
 
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+	if err := lc.awaitHealthy(ctx); err != nil {
 		return err
 	}
 
@@ -314,15 +280,7 @@ func (lc *localNetwork) createSubnets(
 		return err
 	}
 
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		return err
-	}
-
-	if err := lc.updateNodeInfo(); err != nil {
-		return err
-	}
-
-	if err := lc.updateSubnetInfo(ctx); err != nil {
+	if err := lc.awaitHealthy(ctx); err != nil {
 		return err
 	}
 
@@ -331,7 +289,11 @@ func (lc *localNetwork) createSubnets(
 }
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
+// Assumes [lc.lock] isn't held.
 func (lc *localNetwork) loadSnapshot(snapshotName string) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
 
 	var globalNodeConfig map[string]interface{}
@@ -359,7 +321,6 @@ func (lc *localNetwork) loadSnapshot(snapshotName string) error {
 	}
 	lc.nw = nw
 
-	// node info is already available
 	if err := lc.updateNodeInfo(); err != nil {
 		return err
 	}
@@ -367,37 +328,14 @@ func (lc *localNetwork) loadSnapshot(snapshotName string) error {
 	return nil
 }
 
-// Waits for the network to be healthy and updates the subnet info.
-// If successful, closes [loadSnapshotReadyCh].
-// Always closes [lc.startDoneCh].
-func (lc *localNetwork) loadSnapshotWait(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func(ctx context.Context) {
-		select {
-		case <-lc.stopCh:
-			// The network is stopped; return from method calls below.
-			cancel()
-		case <-ctx.Done():
-			// This method is done. Don't leak [ctx].
-		}
-	}(ctx)
-
-	if err := lc.waitForLocalClusterReady(ctx); err != nil {
-		return err
-	}
-	if err := lc.updateSubnetInfo(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Updates [lc.customChainIDToInfo] with the chain info for all chains in the network
-// other than the X-Chain and C-Chain.
-// Updates [lc.subnets] to include all subnets in the network.
+// Populates [lc.customChainIDToInfo] for all chains other than those on
+// the Primary Network (P-Chain, X-Chain, C-Chain.)
+// Populates [lc.subnets] with all subnets that exist.
+// Doesn't contain the Primary network.
+// Assumes [lc.lock] is held.
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
-	node, err := lc.nw.GetNode(lc.nodeNames[0])
+	nodeNames := maps.Keys(lc.nodeInfos)
+	node, err := lc.nw.GetNode(nodeNames[0])
 	if err != nil {
 		return err
 	}
@@ -435,8 +373,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	for _, nodeName := range lc.nodeNames {
-		nodeInfo := lc.nodeInfos[nodeName]
+	for _, nodeInfo := range lc.nodeInfos {
 		for chainID, chainInfo := range lc.customChainIDToInfo {
 			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
 		}
@@ -444,30 +381,39 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	return nil
 }
 
-// Returns nil when [lc.nw] reports healthy, or an error if it doesn't
-// before [ctx] is canceled.
-func (lc *localNetwork) waitForLocalClusterReady(ctx context.Context) error {
+// Returns nil when [lc.nw] reports healthy.
+// Updates node and subnet info.
+// Assumes [lc.lock] is held.
+func (lc *localNetwork) awaitHealthy(ctx context.Context) error {
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
 
 	if err := lc.nw.Healthy(ctx); err != nil {
 		return err
 	}
 
-	for _, name := range lc.nodeNames {
-		nodeInfo := lc.nodeInfos[name]
+	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		return err
+	}
+
+	// TODO do we need to log this? Seems verbose
+	for name, nodeInfo := range lc.nodeInfos {
 		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri))
 	}
+
 	return nil
 }
 
+// Populates [lc.nodeNames] and [lc.nodeInfos] for
+// all nodes in this network.
 func (lc *localNetwork) updateNodeInfo() error {
 	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
 	}
-
-	lc.nodeNames = maps.Keys(nodes)
-	sort.Strings(lc.nodeNames)
 
 	lc.nodeInfos = make(map[string]*rpcpb.NodeInfo)
 	for name, node := range nodes {
