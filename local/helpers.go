@@ -252,13 +252,9 @@ func createFileAndWrite(path string, contents []byte) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = file.Close()
-	}()
-	if _, err := file.Write(contents); err != nil {
-		return err
-	}
-	return nil
+	defer file.Close()
+	_, err = file.Write(contents)
+	return err
 }
 
 // addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].

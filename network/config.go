@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
+	"golang.org/x/exp/maps"
 )
 
 var cChainConfig map[string]interface{}
@@ -186,10 +187,7 @@ func NewAvalancheGoGenesis(
 		}
 	}
 	// avoid modifying original cChainConfig
-	localCChainConfig := map[string]interface{}{}
-	for k, v := range cChainConfig {
-		localCChainConfig[k] = v
-	}
+	localCChainConfig := maps.Clone(cChainConfig)
 	localCChainConfig["alloc"] = cChainAllocs
 	cChainConfigBytes, _ := json.Marshal(localCChainConfig)
 	config.CChainGenesis = string(cChainConfigBytes)
