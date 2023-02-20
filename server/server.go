@@ -399,20 +399,18 @@ func (s *server) updateClusterInfo() {
 // - network operation terminates with error
 // - network operation terminates successfully by setting CustomChainsHealthy
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
-	s.mu.Lock()
-
 	s.log.Debug("WaitForHealthy")
-
-	if s.network == nil {
-		s.mu.Unlock()
-		return nil, ErrNetworkNotRunning
-	}
 
 	ctx, cancel := context.WithTimeout(ctx, waitForHealthyTimeout)
 	defer cancel()
 
 	for {
 		s.mu.RLock()
+
+		if s.network == nil {
+			s.mu.RUnlock()
+			return nil, ErrNetworkNotRunning
+		}
 		if s.clusterInfo.CustomChainsHealthy {
 			s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, nil
