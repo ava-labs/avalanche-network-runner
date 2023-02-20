@@ -436,10 +436,12 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 		return err
 	}
 
-	trackSubnetIDs := []string{}
+	trackSubnetIDsSet := set.Set[string]{}
 	for _, subnetID := range append(currentSubnets, subnetIDs...) {
-		trackSubnetIDs = append(trackSubnetIDs, subnetID.String())
+		trackSubnetIDsSet.Add(subnetID.String())
 	}
+
+	trackSubnetIDs := trackSubnetIDsSet.List()
 	sort.Strings(trackSubnetIDs)
 	trackSubnets := strings.Join(trackSubnetIDs, ",")
 
