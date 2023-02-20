@@ -374,7 +374,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 			s.stopAndRemoveNetwork()
 			return
 		}
-		s.updateClusterInfo(true)
+		s.updateClusterInfo()
 		s.log.Info("network healthy")
 	}()
 
@@ -382,18 +382,16 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 }
 
 // Asssumes [s.mu] is held.
-func (s *server) updateClusterInfo(updateCustomVmsInfo bool) {
+func (s *server) updateClusterInfo() {
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
-	if updateCustomVmsInfo {
-		s.clusterInfo.CustomChainsHealthy = true
-		s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
-		for chainID, chainInfo := range s.network.customChainIDToInfo {
-			s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
-		}
-		s.clusterInfo.Subnets = s.network.subnets
+	s.clusterInfo.CustomChainsHealthy = true
+	s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
+	for chainID, chainInfo := range s.network.customChainIDToInfo {
+		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 	}
+	s.clusterInfo.Subnets = s.network.subnets
 }
 
 // wait until some of this conditions is met:
@@ -578,7 +576,7 @@ func (s *server) CreateBlockchains(
 			s.stopAndRemoveNetwork()
 			return
 		}
-		s.updateClusterInfo(true)
+		s.updateClusterInfo()
 		s.log.Info("custom chains created")
 	}()
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
@@ -626,7 +624,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 			s.stopAndRemoveNetwork()
 			return
 		}
-		s.updateClusterInfo(true)
+		s.updateClusterInfo()
 		s.log.Info("subnets created")
 	}()
 
@@ -1051,7 +1049,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 			s.stopAndRemoveNetwork()
 			return
 		}
-		s.updateClusterInfo(true)
+		s.updateClusterInfo()
 		s.log.Info("network healthy")
 	}()
 
