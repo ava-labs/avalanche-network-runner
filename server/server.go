@@ -49,17 +49,15 @@ const (
 )
 
 var (
-	ErrInvalidVMName            = errors.New("invalid VM name")
-	ErrInvalidPort              = errors.New("invalid port")
-	ErrClosed                   = errors.New("server closed")
-	ErrNotEnoughNodesForStart   = errors.New("not enough nodes specified for start")
-	ErrAlreadyBootstrapped      = errors.New("already bootstrapped")
-	ErrNotBootstrapped          = errors.New("not bootstrapped")
-	ErrNodeNotFound             = errors.New("node not found")
-	ErrPeerNotFound             = errors.New("peer not found")
-	ErrStatusCanceled           = errors.New("gRPC stream status canceled")
-	ErrNoBlockchainSpec         = errors.New("no blockchain spec was provided")
-	ErrUnexpectedNilClusterInfo = errors.New("unexpected nil cluster info")
+	ErrInvalidVMName          = errors.New("invalid VM name")
+	ErrInvalidPort            = errors.New("invalid port")
+	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
+	ErrNetworkRunning         = errors.New("network already running")
+	ErrNetworkNotRunning      = errors.New("no network is running")
+	ErrNodeNotFound           = errors.New("node not found")
+	ErrPeerNotFound           = errors.New("peer not found")
+	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
+	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
 )
 
 type Config struct {
@@ -83,9 +81,10 @@ type server struct {
 	cfg Config
 	log logging.Logger
 
-	rootCtx   context.Context
-	closeOnce sync.Once
-	closed    chan struct{}
+	rootCtx    context.Context
+	rootCancel context.CancelFunc
+	closeOnce  sync.Once
+	closed     chan struct{}
 
 	ln               net.Listener
 	gRPCServer       *grpc.Server
@@ -145,7 +144,7 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 
 // Blocking call until server listeners return.
 func (s *server) Run(rootCtx context.Context) (err error) {
-	s.rootCtx = rootCtx
+	s.rootCtx, s.rootCancel = context.WithCancel(rootCtx)
 
 	// TODO why do we need a sync.Once here?
 	// Run is only called by [serverFunc], which is run by a Cobra command.
@@ -239,7 +238,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 	// TODO why do we need a sync.Once here?
 	// Run is only called by [serverFunc], which is run by a Cobra command.
 	s.closeOnce.Do(func() {
-		close(s.closed)
+		s.rootCancel()
 	})
 	return err
 }
@@ -255,7 +254,7 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 
 	// If [network] is already populated, the network has already been started.
 	if s.network != nil {
-		return nil, ErrAlreadyBootstrapped
+		return nil, ErrNetworkRunning
 	}
 
 	// Set default values for [req.NumNodes] if not given.
@@ -408,7 +407,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 
 	if s.network == nil {
 		s.mu.Unlock()
-		return nil, ErrNotBootstrapped
+		return nil, ErrNetworkNotRunning
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, waitForHealthyTimeout)
@@ -609,9 +608,6 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	}
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.AwaitHealthy(ctx); err != nil {
-		return nil, err
-	}
 
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
@@ -662,11 +658,7 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 	s.log.Debug("URIs")
 
 	if s.network == nil {
-		return nil, ErrNotBootstrapped
-	}
-
-	if s.clusterInfo == nil {
-		return nil, ErrUnexpectedNilClusterInfo
+		return nil, ErrNetworkNotRunning
 	}
 
 	uris := make([]string, 0, len(s.clusterInfo.NodeInfos))
@@ -685,7 +677,7 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 	s.log.Debug("Status")
 
 	if s.network == nil {
-		return &rpcpb.StatusResponse{}, ErrNotBootstrapped
+		return &rpcpb.StatusResponse{}, ErrNetworkNotRunning
 	}
 
 	return &rpcpb.StatusResponse{ClusterInfo: s.clusterInfo}, nil
@@ -759,8 +751,6 @@ func (s *server) sendLoop(stream rpcpb.ControlService_StreamStatusServer, interv
 		select {
 		case <-s.rootCtx.Done():
 			return
-		case <-s.closed:
-			return
 		case <-tc.C:
 			tc.Reset(interval)
 		}
@@ -789,8 +779,6 @@ func (s *server) recvLoop(stream rpcpb.ControlService_StreamStatusServer) error 
 		select {
 		case <-s.rootCtx.Done():
 			return s.rootCtx.Err()
-		case <-s.closed:
-			return ErrClosed
 		default:
 		}
 
@@ -814,7 +802,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	s.log.Debug("AddNode", zap.String("name", req.Name))
 
 	if s.network == nil {
-		return nil, ErrNotBootstrapped
+		return nil, ErrNetworkNotRunning
 	}
 
 	nodeFlags := map[string]interface{}{}
@@ -860,7 +848,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	s.log.Debug("RemoveNode", zap.String("name", req.Name))
 
 	if s.network == nil {
-		return nil, ErrNotBootstrapped
+		return nil, ErrNetworkNotRunning
 	}
 
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
@@ -993,7 +981,7 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	s.log.Debug("LoadSnapshot")
 
 	if s.network != nil {
-		return nil, ErrAlreadyBootstrapped
+		return nil, ErrNetworkRunning
 	}
 
 	// Set timeout to default if too small.

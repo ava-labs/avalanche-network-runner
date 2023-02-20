@@ -91,10 +91,15 @@ func serverFunc(*cobra.Command, []string) (err error) {
 		return err
 	}
 
-	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errChan := make(chan error)
 	go func() {
-		errChan <- s.Run(rootCtx)
+		err := s.Run(ctx)
+		if err != nil {
+			log.Error("server Run error", zap.Error(err))
+		}
+		errChan <- err
 	}()
 
 	// Relay SIGINT and SIGTERM to [sigChan]
@@ -105,12 +110,10 @@ func serverFunc(*cobra.Command, []string) (err error) {
 	case sig := <-sigChan:
 		// Got a SIGINT or SIGTERM; stop the server and wait for it to finish.
 		log.Warn("signal received: closing server", zap.String("signal", sig.String()))
-		rootCancel()
 		waitForServerStop := <-errChan
 		log.Warn("closed server", zap.Error(waitForServerStop))
 	case serverClosed := <-errChan:
 		// The server stopped.
-		rootCancel() // Don't leak [rootCtx].
 		log.Warn("server closed", zap.Error(serverClosed))
 	}
 	return nil

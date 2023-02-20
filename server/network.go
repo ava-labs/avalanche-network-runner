@@ -257,7 +257,6 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 	defer lc.lock.Unlock()
 
 	if numSubnets == 0 {
-		// TODO should we close [createSubnetsReadyCh] here?
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
 		return nil
 	}
