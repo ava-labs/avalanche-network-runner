@@ -407,9 +407,7 @@ message AddNodeResponse {
 
 message StopRequest {}
 
-message StopResponse {
-  ClusterInfo cluster_info = 1;
-}
+message StopResponse {}
 
 message AttachPeerRequest {
   string node_name = 1;
