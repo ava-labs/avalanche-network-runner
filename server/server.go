@@ -238,7 +238,7 @@ func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse,
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
 }
 
-func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
+func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -408,7 +408,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 }
 
 func (s *server) CreateBlockchains(
-	ctx context.Context,
+	_ context.Context,
 	req *rpcpb.CreateBlockchainsRequest,
 ) (*rpcpb.CreateBlockchainsResponse, error) {
 	s.mu.Lock()
@@ -467,7 +467,7 @@ func (s *server) CreateBlockchains(
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
-func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
+func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -867,7 +867,7 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	return &rpcpb.SendOutboundMessageResponse{Sent: sent}, err
 }
 
-func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
+func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest) (*rpcpb.LoadSnapshotResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
