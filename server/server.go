@@ -782,7 +782,6 @@ func (s *server) Stop(context.Context, *rpcpb.StopRequest) (*rpcpb.StopResponse,
 
 	s.stopAndRemoveNetwork()
 
-	// TODO remove cluster info from StopResponse
 	return &rpcpb.StopResponse{}, nil
 }
 
