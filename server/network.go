@@ -478,11 +478,9 @@ func (lc *localNetwork) updateNodeInfo() error {
 		}
 
 		// update default exec and pluginDir if empty (snapshots started without these params)
-		// TODO why do we set the entire network's [execPath] based on 1 node?
 		if lc.execPath == "" {
 			lc.execPath = node.GetBinaryPath()
 		}
-		// TODO why do we set the entire network's [pluginDir] based on 1 node?
 		if lc.pluginDir == "" {
 			lc.pluginDir = node.GetPluginDir()
 		}

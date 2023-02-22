@@ -83,12 +83,10 @@ type server struct {
 
 	rootCtx    context.Context
 	rootCancel context.CancelFunc
-	closeOnce  sync.Once
 	closed     chan struct{}
 
-	ln               net.Listener
-	gRPCServer       *grpc.Server
-	gRPCRegisterOnce sync.Once
+	ln         net.Listener
+	gRPCServer *grpc.Server
 
 	gwMux    *runtime.ServeMux
 	gwServer *http.Server
@@ -146,12 +144,8 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 func (s *server) Run(rootCtx context.Context) (err error) {
 	s.rootCtx, s.rootCancel = context.WithCancel(rootCtx)
 
-	// TODO why do we need a sync.Once here?
-	// Run is only called by [serverFunc], which is run by a Cobra command.
-	s.gRPCRegisterOnce.Do(func() {
-		rpcpb.RegisterPingServiceServer(s.gRPCServer, s)
-		rpcpb.RegisterControlServiceServer(s.gRPCServer, s)
-	})
+	rpcpb.RegisterPingServiceServer(s.gRPCServer, s)
+	rpcpb.RegisterControlServiceServer(s.gRPCServer, s)
 
 	gRPCErrChan := make(chan error)
 	go func() {
@@ -235,11 +229,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 		s.log.Warn("network stopped")
 	}
 
-	// TODO why do we need a sync.Once here?
-	// Run is only called by [serverFunc], which is run by a Cobra command.
-	s.closeOnce.Do(func() {
-		s.rootCancel()
-	})
+	s.rootCancel()
 	return err
 }
 
@@ -264,17 +254,6 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	}
 	if *req.NumNodes < MinNodes {
 		return nil, ErrNotEnoughNodesForStart
-	}
-
-	// Set timeout to default if too small.
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
-		// TODO this leaks a goroutine. Fix this and other similar leaks.
-		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
-	} else {
-		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
@@ -426,96 +405,6 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	}
 }
 
-// TODO move helper functions below server methods
-func getNetworkBlockchainSpec(
-	log logging.Logger,
-	spec *rpcpb.BlockchainSpec,
-	isNewEmptyNetwork bool,
-	pluginDir string,
-) (network.BlockchainSpec, error) {
-	if isNewEmptyNetwork && spec.SubnetId != nil {
-		return network.BlockchainSpec{}, errors.New("blockchain subnet id must be nil if starting a new empty network")
-	}
-
-	vmName := spec.VmName
-	log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
-	vmID, err := utils.VMID(vmName)
-	if err != nil {
-		log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
-		return network.BlockchainSpec{}, ErrInvalidVMName
-	}
-
-	// there is no default plugindir from the ANR point of view, will not check if not given
-	if pluginDir != "" {
-		if err := utils.CheckPluginPaths(
-			filepath.Join(pluginDir, vmID.String()),
-			spec.Genesis,
-		); err != nil {
-			return network.BlockchainSpec{}, err
-		}
-	}
-
-	genesisBytes, err := os.ReadFile(spec.Genesis)
-	if err != nil {
-		return network.BlockchainSpec{}, err
-	}
-
-	var chainConfigBytes []byte
-	if spec.ChainConfig != "" {
-		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
-	}
-
-	var networkUpgradeBytes []byte
-	if spec.NetworkUpgrade != "" {
-		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
-	}
-
-	var subnetConfigBytes []byte
-	if spec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
-	}
-
-	perNodeChainConfig := map[string][]byte{}
-	if spec.PerNodeChainConfig != "" {
-		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
-
-		perNodeChainConfigMap := map[string]interface{}{}
-		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
-			return network.BlockchainSpec{}, err
-		}
-
-		for nodeName, cfg := range perNodeChainConfigMap {
-			cfgBytes, err := json.Marshal(cfg)
-			if err != nil {
-				return network.BlockchainSpec{}, err
-			}
-			perNodeChainConfig[nodeName] = cfgBytes
-		}
-	}
-	return network.BlockchainSpec{
-		VMName:             vmName,
-		Genesis:            genesisBytes,
-		ChainConfig:        chainConfigBytes,
-		NetworkUpgrade:     networkUpgradeBytes,
-		SubnetConfig:       subnetConfigBytes,
-		SubnetID:           spec.SubnetId,
-		BlockchainAlias:    spec.BlockchainAlias,
-		PerNodeChainConfig: perNodeChainConfig,
-	}, nil
-}
-
 func (s *server) CreateBlockchains(
 	ctx context.Context,
 	req *rpcpb.CreateBlockchainsRequest,
@@ -525,17 +414,6 @@ func (s *server) CreateBlockchains(
 
 	if s.network == nil {
 		return nil, ErrNetworkNotRunning
-	}
-
-	// Set timeout to default if too small.
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
-		// TODO fix context leak
-		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
-	} else {
-		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	s.log.Debug("CreateBlockchains")
@@ -575,7 +453,6 @@ func (s *server) CreateBlockchains(
 		defer s.mu.Unlock()
 		if err != nil {
 			s.log.Error("failed to create blockchains", zap.Error(err))
-			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
 		} else {
@@ -592,17 +469,6 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 
 	if s.network == nil {
 		return nil, ErrNetworkNotRunning
-	}
-
-	// Set timeout to default if too small.
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
-		// TODO fix goroutine leak
-		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
-	} else {
-		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
 	}
 
 	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
@@ -628,7 +494,6 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 
 		if err != nil {
 			s.log.Error("failed to create subnets", zap.Error(err))
-			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
 		} else {
@@ -1007,16 +872,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		return nil, ErrNetworkRunning
 	}
 
-	// Set timeout to default if too small.
-	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
-		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
-		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
-	} else {
-		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
-	}
-
 	rootDataDir := req.GetRootDataDir()
 	if len(rootDataDir) == 0 {
 		rootDataDir = os.TempDir()
@@ -1068,7 +923,6 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 		if err != nil {
 			s.log.Warn("snapshot load failed to complete. stopping network and cleaning up network", zap.Error(err))
 
-			// TODO do we want to stop the network here?
 			s.stopAndRemoveNetwork()
 			return
 		} else {
@@ -1096,7 +950,6 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, err
 	}
 
-	// TODO do we want to stop the network here?
 	s.stopAndRemoveNetwork()
 
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
@@ -1166,4 +1019,93 @@ func isClientCanceled(ctxErr error, err error) bool {
 		}
 	}
 	return false
+}
+
+func getNetworkBlockchainSpec(
+	log logging.Logger,
+	spec *rpcpb.BlockchainSpec,
+	isNewEmptyNetwork bool,
+	pluginDir string,
+) (network.BlockchainSpec, error) {
+	if isNewEmptyNetwork && spec.SubnetId != nil {
+		return network.BlockchainSpec{}, errors.New("blockchain subnet id must be nil if starting a new empty network")
+	}
+
+	vmName := spec.VmName
+	log.Info("checking custom chain's VM ID before installation", zap.String("id", vmName))
+	vmID, err := utils.VMID(vmName)
+	if err != nil {
+		log.Warn("failed to convert VM name to VM ID", zap.String("vm-name", vmName), zap.Error(err))
+		return network.BlockchainSpec{}, ErrInvalidVMName
+	}
+
+	// there is no default plugindir from the ANR point of view, will not check if not given
+	if pluginDir != "" {
+		if err := utils.CheckPluginPaths(
+			filepath.Join(pluginDir, vmID.String()),
+			spec.Genesis,
+		); err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+
+	genesisBytes, err := os.ReadFile(spec.Genesis)
+	if err != nil {
+		return network.BlockchainSpec{}, err
+	}
+
+	var chainConfigBytes []byte
+	if spec.ChainConfig != "" {
+		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+
+	var networkUpgradeBytes []byte
+	if spec.NetworkUpgrade != "" {
+		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+
+	var subnetConfigBytes []byte
+	if spec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+	}
+
+	perNodeChainConfig := map[string][]byte{}
+	if spec.PerNodeChainConfig != "" {
+		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
+		if err != nil {
+			return network.BlockchainSpec{}, err
+		}
+
+		perNodeChainConfigMap := map[string]interface{}{}
+		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
+			return network.BlockchainSpec{}, err
+		}
+
+		for nodeName, cfg := range perNodeChainConfigMap {
+			cfgBytes, err := json.Marshal(cfg)
+			if err != nil {
+				return network.BlockchainSpec{}, err
+			}
+			perNodeChainConfig[nodeName] = cfgBytes
+		}
+	}
+	return network.BlockchainSpec{
+		VMName:             vmName,
+		Genesis:            genesisBytes,
+		ChainConfig:        chainConfigBytes,
+		NetworkUpgrade:     networkUpgradeBytes,
+		SubnetConfig:       subnetConfigBytes,
+		SubnetID:           spec.SubnetId,
+		BlockchainAlias:    spec.BlockchainAlias,
+		PerNodeChainConfig: perNodeChainConfig,
+	}, nil
 }
