@@ -345,6 +345,8 @@ func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.Sta
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -448,6 +450,8 @@ func (s *server) CreateBlockchains(
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -488,6 +492,8 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
 		err := s.network.CreateSubnets(ctx, numSubnets)
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -916,6 +922,8 @@ func (s *server) LoadSnapshot(ctx context.Context, req *rpcpb.LoadSnapshotReques
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
 		err := s.network.AwaitHealthy(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
