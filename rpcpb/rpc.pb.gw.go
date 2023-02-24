@@ -750,7 +750,7 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RPCVersion", runtime.WithHTTPPathPattern("/v1/control/version"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/RPCVersion", runtime.WithHTTPPathPattern("/v1/control/rpcversion"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1317,7 +1317,7 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RPCVersion", runtime.WithHTTPPathPattern("/v1/control/version"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/RPCVersion", runtime.WithHTTPPathPattern("/v1/control/rpcversion"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1733,7 +1733,7 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_ControlService_RPCVersion_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "version"}, ""))
+	pattern_ControlService_RPCVersion_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "rpcversion"}, ""))
 
 	pattern_ControlService_Start_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "start"}, ""))
 

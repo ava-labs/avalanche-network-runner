@@ -24,7 +24,7 @@ message PingResponse {
 service ControlService {
   rpc RPCVersion(RPCVersionRequest) returns (RPCVersionResponse) {
     option (google.api.http) = {
-      post: "/v1/control/version"
+      post: "/v1/control/rpcversion"
       body: "*"
     };
   }
