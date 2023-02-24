@@ -29,6 +29,7 @@ type Config struct {
 
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
+	Version(ctx context.Context) (*rpcpb.VersionResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
@@ -94,6 +95,11 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 	// ref. https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/adding_annotations/
 	// curl -X POST -k http://localhost:8081/v1/ping -d ''
 	return c.pingc.Ping(ctx, &rpcpb.PingRequest{})
+}
+
+func (c *client) Version(ctx context.Context) (*rpcpb.VersionResponse, error) {
+	c.log.Info("version")
+	return c.controlc.Version(ctx, &rpcpb.VersionRequest{})
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {

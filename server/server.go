@@ -88,6 +88,8 @@ var (
 )
 
 const (
+	// RPCVersion should be bumped anytime changes are made which require
+	// the RPC client to upgrade to latest RPC server to be compatible
 	RPCVersion   string = "1.0.0"
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
