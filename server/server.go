@@ -88,6 +88,7 @@ var (
 )
 
 const (
+	RPCVersion   string = "1.0.0"
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
 	stopTimeout         = 2 * time.Second
@@ -233,6 +234,12 @@ func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse,
 }
 
 const defaultStartTimeout = 5 * time.Minute
+
+func (s *server) Version(context.Context, *rpcpb.VersionRequest) (*rpcpb.VersionResponse, error) {
+	s.log.Debug("Version")
+
+	return &rpcpb.VersionResponse{Version: RPCVersion}, nil
+}
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	// if timeout is too small or not set, default to 5-min

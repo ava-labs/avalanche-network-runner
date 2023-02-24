@@ -108,6 +108,7 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ControlServiceClient interface {
+	Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
@@ -134,6 +135,15 @@ type controlServiceClient struct {
 
 func NewControlServiceClient(cc grpc.ClientConnInterface) ControlServiceClient {
 	return &controlServiceClient{cc}
+}
+
+func (c *controlServiceClient) Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error) {
+	out := new(VersionResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ControlService/Version", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *controlServiceClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error) {
@@ -325,6 +335,7 @@ func (c *controlServiceClient) GetSnapshotNames(ctx context.Context, in *GetSnap
 // All implementations must embed UnimplementedControlServiceServer
 // for forward compatibility
 type ControlServiceServer interface {
+	Version(context.Context, *VersionRequest) (*VersionResponse, error)
 	Start(context.Context, *StartRequest) (*StartResponse, error)
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
@@ -350,6 +361,9 @@ type ControlServiceServer interface {
 type UnimplementedControlServiceServer struct {
 }
 
+func (UnimplementedControlServiceServer) Version(context.Context, *VersionRequest) (*VersionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
+}
 func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (*StartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
 }
@@ -415,6 +429,24 @@ type UnsafeControlServiceServer interface {
 
 func RegisterControlServiceServer(s grpc.ServiceRegistrar, srv ControlServiceServer) {
 	s.RegisterService(&ControlService_ServiceDesc, srv)
+}
+
+func _ControlService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VersionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).Version(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ControlService/Version",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).Version(ctx, req.(*VersionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ControlService_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -751,6 +783,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "rpcpb.ControlService",
 	HandlerType: (*ControlServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Version",
+			Handler:    _ControlService_Version_Handler,
+		},
 		{
 			MethodName: "Start",
 			Handler:    _ControlService_Start_Handler,

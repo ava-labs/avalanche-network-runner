@@ -22,6 +22,13 @@ message PingResponse {
 }
 
 service ControlService {
+  rpc Version(VersionRequest) returns (VersionResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/version"
+      body: "*"
+    };
+  }
+
   rpc Start(StartRequest) returns (StartResponse) {
     option (google.api.http) = {
       post: "/v1/control/start"
@@ -256,6 +263,12 @@ message StartRequest {
   // If specified, will create a file "subnetid.json" under subnets config dir with
   // the contents provided here.
   map<string, string> subnet_configs = 13;
+}
+
+message VersionRequest {}
+
+message VersionResponse {
+  string version = 1;
 }
 
 message StartResponse {
