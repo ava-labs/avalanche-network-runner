@@ -29,7 +29,7 @@ type Config struct {
 
 type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
-	Version(ctx context.Context) (*rpcpb.VersionResponse, error)
+	RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
@@ -97,9 +97,9 @@ func (c *client) Ping(ctx context.Context) (*rpcpb.PingResponse, error) {
 	return c.pingc.Ping(ctx, &rpcpb.PingRequest{})
 }
 
-func (c *client) Version(ctx context.Context) (*rpcpb.VersionResponse, error) {
-	c.log.Info("version")
-	return c.controlc.Version(ctx, &rpcpb.VersionRequest{})
+func (c *client) RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, error) {
+	c.log.Info("rpc version")
+	return c.controlc.RPCVersion(ctx, &rpcpb.RPCVersionRequest{})
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {

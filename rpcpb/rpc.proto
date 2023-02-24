@@ -22,7 +22,7 @@ message PingResponse {
 }
 
 service ControlService {
-  rpc Version(VersionRequest) returns (VersionResponse) {
+  rpc RPCVersion(RPCVersionRequest) returns (RPCVersionResponse) {
     option (google.api.http) = {
       post: "/v1/control/version"
       body: "*"
@@ -265,10 +265,10 @@ message StartRequest {
   map<string, string> subnet_configs = 13;
 }
 
-message VersionRequest {}
+message RPCVersionRequest {}
 
-message VersionResponse {
-  string version = 1;
+message RPCVersionResponse {
+  uint32 version = 1;
 }
 
 message StartResponse {

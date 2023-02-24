@@ -50,7 +50,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
 
 	cmd.AddCommand(
-		newVersionCommand(),
+		newRPCVersionCommand(),
 		newStartCommand(),
 		newCreateBlockchainsCommand(),
 		newCreateSubnetsCommand(),
@@ -108,17 +108,17 @@ var (
 	dynamicPorts        bool
 )
 
-func newVersionCommand() *cobra.Command {
+func newRPCVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "version",
+		Use:   "rpc_version",
 		Short: "Requests RPC server version.",
-		RunE:  versionFunc,
+		RunE:  RPCVersionFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 	return cmd
 }
 
-func versionFunc(*cobra.Command, []string) error {
+func RPCVersionFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func versionFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.Version(ctx)
+	resp, err := cli.RPCVersion(ctx)
 	cancel()
 	if err != nil {
 		return err
