@@ -354,9 +354,8 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 			s.log.Error("network never became healthy", zap.Error(err))
 			s.stopAndRemoveNetwork()
 			return
-		} else {
-			s.updateClusterInfo()
 		}
+		s.updateClusterInfo()
 		s.log.Info("network healthy")
 	}()
 
