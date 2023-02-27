@@ -7,8 +7,8 @@ require (
 	github.com/ava-labs/coreth v0.11.7
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
-	github.com/onsi/ginkgo/v2 v2.7.0
-	github.com/onsi/gomega v1.25.0
+	github.com/onsi/ginkgo/v2 v2.8.1
+	github.com/onsi/gomega v1.27.1
 	github.com/otiai10/copy v1.9.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
