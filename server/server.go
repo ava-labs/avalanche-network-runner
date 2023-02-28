@@ -366,6 +366,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 func (s *server) updateClusterInfo() {
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
+	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 	s.clusterInfo.CustomChainsHealthy = true
 	s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
@@ -393,13 +394,16 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 			return nil, ErrNetworkNotRunning
 		}
 		if s.clusterInfo.CustomChainsHealthy {
-			s.mu.RUnlock()
+			defer s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, nil
 		}
 		s.mu.RUnlock()
 
 		select {
 		case <-ctx.Done():
+			s.mu.RLock()
+			defer s.mu.RUnlock()
+
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, ctx.Err()
 		case <-time.After(1 * time.Second):
 		}
@@ -526,6 +530,7 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	}
 
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
+	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 	s.clusterInfo.Healthy = true
 
@@ -717,6 +722,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	}
 
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
+	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
@@ -741,6 +747,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	}
 
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
+	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
@@ -774,6 +781,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	}
 
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
+	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil

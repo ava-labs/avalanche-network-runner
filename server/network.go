@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -391,7 +392,10 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	for _, nodeInfo := range lc.nodeInfos {
+	sortedNodeNames := maps.Keys(lc.nodeInfos)
+	sort.Strings(sortedNodeNames)
+	for _, nodeName := range sortedNodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
 			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
 		}
@@ -430,8 +434,11 @@ func (lc *localNetwork) awaitHealthy(ctx context.Context) error {
 	}
 
 	// TODO do we need to log this? Seems verbose
-	for name, nodeInfo := range lc.nodeInfos {
-		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), name, nodeInfo.Id, nodeInfo.Uri))
+	sortedNodeNames := maps.Keys(lc.nodeInfos)
+	sort.Strings(sortedNodeNames)
+	for _, nodeName := range sortedNodeNames {
+		nodeInfo := lc.nodeInfos[nodeName]
+		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), nodeName, nodeInfo.Id, nodeInfo.Uri))
 	}
 
 	return nil
