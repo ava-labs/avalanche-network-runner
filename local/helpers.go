@@ -95,12 +95,14 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (ma
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
-		{
+	}
+	if genesis != nil {
+		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, genesisFileName),
 			path:      filepath.Join(nodeRootDir, genesisFileName),
 			pathKey:   config.GenesisConfigFileKey,
 			contents:  genesis,
-		},
+		})
 	}
 	if len(nodeConfig.ConfigFile) != 0 {
 		files = append(files, file{

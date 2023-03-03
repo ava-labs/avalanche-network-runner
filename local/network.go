@@ -26,6 +26,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -438,6 +439,11 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.networkID, err = utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
 	if err != nil {
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
+
+	if ln.networkID == constants.LocalID {
+		// for local ID no genesis change is accepted
+		ln.genesis = nil
 	}
 
 	// save node defaults
