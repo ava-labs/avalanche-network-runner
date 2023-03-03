@@ -26,7 +26,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -439,11 +438,6 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.networkID, err = utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
 	if err != nil {
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
-	}
-
-	if ln.networkID == constants.LocalID {
-		// for local ID no genesis change is accepted
-		ln.genesis = nil
 	}
 
 	// save node defaults
@@ -1012,7 +1006,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.genesis, nodeDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.networkID, ln.genesis, nodeDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
