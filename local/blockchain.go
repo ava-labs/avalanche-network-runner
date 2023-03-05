@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -21,10 +22,12 @@ import (
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
@@ -534,13 +537,36 @@ func (ln *localNetwork) addPrimaryValidators(
 			continue
 		}
 
+		// Prepare node BLS PoP
+		//
+		// It is important to note that this will ONLY register BLS signers for
+		// nodes registered AFTER genesis.
+		blsKeyBytes, err := base64.StdEncoding.DecodeString(node.GetConfig().StakingSigningKey)
+		if err != nil {
+			return err
+		}
+		blsSk, err := bls.SecretKeyFromBytes(blsKeyBytes)
+		if err != nil {
+			return err
+		}
+		proofOfPossession := signer.NewProofOfPossession(blsSk)
+
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := baseWallet.P().IssueAddValidatorTx(
-			&txs.Validator{
-				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
-				End:    uint64(time.Now().Add(validationDuration).Unix()),
-				Wght:   genesis.LocalParams.MinValidatorStake,
+		txID, err := baseWallet.P().IssueAddPermissionlessValidatorTx(
+			&txs.SubnetValidator{
+				Validator: txs.Validator{
+					NodeID: nodeID,
+					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
+					End:    uint64(time.Now().Add(validationDuration).Unix()),
+					Wght:   genesis.LocalParams.MinValidatorStake,
+				},
+				Subnet: ids.Empty,
+			},
+			proofOfPossession,
+			ids.Empty,
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
@@ -548,7 +574,6 @@ func (ln *localNetwork) addPrimaryValidators(
 			},
 			10*10000, // 10% fee percent, times 10000 to make it as shares
 			common.WithContext(cctx),
-			defaultPoll,
 		)
 		cancel()
 		if err != nil {
