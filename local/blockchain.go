@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/units"
@@ -498,7 +499,11 @@ func setupWallet(
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
-	log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
+	addr, err := address.Format("", "custom", testKeyAddr.Bytes())
+	if err != nil {
+		return nil, ids.Empty, ids.ShortEmpty, err
+	}
+	log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", addr))
 
 	fmt.Println()
 	log.Info(logging.Green.Wrap("check if the seed test key has enough balance to create validators and subnets"))
