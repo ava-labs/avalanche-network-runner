@@ -8,8 +8,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -318,7 +316,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs); err != nil {
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetParticipants); err != nil {
 		return nil, err
 	}
 
@@ -362,52 +360,53 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		return err
 	}
 
-	subnetIDs := []ids.ID{}
-	for _, chainInfo := range chainInfos {
-		subnetIDs = append(subnetIDs, chainInfo.subnetID)
-	}
-	clientURI, err := ln.getClientURI()
-	if err != nil {
-		return err
-	}
-	platformCli := platformvm.NewClient(clientURI)
-	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs); err != nil {
-		return err
-	}
+	// Assume all validators added to subnet ahead of time
+	// subnetIDs := []ids.ID{}
+	// for _, chainInfo := range chainInfos {
+	// 	subnetIDs = append(subnetIDs, chainInfo.subnetID)
+	// }
+	// clientURI, err := ln.getClientURI()
+	// if err != nil {
+	// 	return err
+	// }
+	// platformCli := platformvm.NewClient(clientURI)
+	// if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs); err != nil {
+	// 	return err
+	// }
 
-	for nodeName, node := range ln.nodes {
-		ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
-		for _, chainInfo := range chainInfos {
-			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
-			ln.log.Info("checking log",
-				zap.String("vm-ID", chainInfo.vmID.String()),
-				zap.String("subnet-ID", chainInfo.subnetID.String()),
-				zap.String("blockchain-ID", chainInfo.blockchainID.String()),
-				zap.String("path", p),
-			)
-			for {
-				_, err := os.Stat(p)
-				if err == nil {
-					ln.log.Info("found the log", zap.String("path", p))
-					break
-				}
+	// for nodeName, node := range ln.nodes {
+	// 	ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
+	// 	for _, chainInfo := range chainInfos {
+	// 		p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
+	// 		ln.log.Info("checking log",
+	// 			zap.String("vm-ID", chainInfo.vmID.String()),
+	// 			zap.String("subnet-ID", chainInfo.subnetID.String()),
+	// 			zap.String("blockchain-ID", chainInfo.blockchainID.String()),
+	// 			zap.String("path", p),
+	// 		)
+	// 		for {
+	// 			_, err := os.Stat(p)
+	// 			if err == nil {
+	// 				ln.log.Info("found the log", zap.String("path", p))
+	// 				break
+	// 			}
 
-				ln.log.Info("log not found yet, retrying...",
-					zap.String("vm-ID", chainInfo.vmID.String()),
-					zap.String("subnet-ID", chainInfo.subnetID.String()),
-					zap.String("blockchain-ID", chainInfo.blockchainID.String()),
-					zap.Error(err),
-				)
-				select {
-				case <-ln.onStopCh:
-					return errAborted
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(blockchainLogPullFrequency):
-				}
-			}
-		}
-	}
+	// 			ln.log.Info("log not found yet, retrying...",
+	// 				zap.String("vm-ID", chainInfo.vmID.String()),
+	// 				zap.String("subnet-ID", chainInfo.subnetID.String()),
+	// 				zap.String("blockchain-ID", chainInfo.blockchainID.String()),
+	// 				zap.Error(err),
+	// 			)
+	// 			select {
+	// 			case <-ln.onStopCh:
+	// 				return errAborted
+	// 			case <-ctx.Done():
+	// 				return ctx.Err()
+	// 			case <-time.After(blockchainLogPullFrequency):
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("all custom chains are running!!!"))
@@ -712,6 +711,7 @@ func (ln *localNetwork) waitSubnetValidators(
 	ctx context.Context,
 	platformCli platformvm.Client,
 	subnetIDs []ids.ID,
+	subnetParticipants []string,
 ) error {
 	ln.log.Info(logging.Green.Wrap("waiting for the nodes to become subnet validators"))
 	for {
@@ -727,7 +727,15 @@ func (ln *localNetwork) waitSubnetValidators(
 			for _, v := range vs {
 				subnetValidators.Add(v.NodeID)
 			}
-			for _, node := range ln.nodes {
+			participants := map[string]*localNode{}
+			if len(subnetParticipants) > 0 {
+				for _, sp := range subnetParticipants {
+					participants[sp] = ln.nodes[sp]
+				}
+			} else {
+				participants = ln.nodes
+			}
+			for _, node := range participants {
 				nodeID := node.GetNodeID()
 				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
 					ready = false
