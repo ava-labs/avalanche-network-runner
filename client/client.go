@@ -156,6 +156,9 @@ func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.Cr
 	if ret.numSubnets != 0 {
 		req.NumSubnets = &ret.numSubnets
 	}
+	if len(ret.subnetParticipants) != 0 {
+		req.SubnetParticipants = ret.subnetParticipants
+	}
 
 	c.log.Info("create subnets")
 	return c.controlc.CreateSubnets(ctx, req)
@@ -367,6 +370,7 @@ type Op struct {
 	subnetConfigs       map[string]string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
+	subnetParticipants  []string
 }
 
 type OpOption func(*Op)
@@ -457,6 +461,12 @@ func WithCustomNodeConfigs(customNodeConfigs map[string]string) OpOption {
 func WithNumSubnets(numSubnets uint32) OpOption {
 	return func(op *Op) {
 		op.numSubnets = numSubnets
+	}
+}
+
+func WithSubnetParticipants(names []string) OpOption {
+	return func(op *Op) {
+		op.subnetParticipants = names
 	}
 }
 

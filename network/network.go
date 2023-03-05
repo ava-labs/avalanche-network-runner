@@ -64,5 +64,5 @@ type Network interface {
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
-	CreateSubnets(context.Context, uint32) error
+	CreateSubnets(context.Context, uint32, []string) error
 }

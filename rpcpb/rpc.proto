@@ -313,6 +313,7 @@ message CreateBlockchainsResponse {
 
 message CreateSubnetsRequest {
   optional uint32 num_subnets = 1;
+  repeated string subnet_participants = 2;
 }
 
 message CreateSubnetsResponse {
