@@ -27,6 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/wallet/chain/p"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
@@ -198,7 +199,13 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
-	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, baseWallet, ln.log)
+	newPTXs := append(pTXs, addedSubnetIDs...)
+	pWallet, pBackend, err := setupFakeWallet(ctx, clientURI, newPTXs)
+	if err != nil {
+		return nil, err
+	}
+
+	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, pWallet, pBackend, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -469,6 +476,38 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 	return nil
 }
 
+func setupFakeWallet(
+	ctx context.Context,
+	uri string,
+	preloadTXs []ids.ID,
+) (p.Wallet, p.Backend, error) {
+	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
+	pCTX, _, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	if err != nil {
+		return nil, nil, err
+	}
+	pClient := platformvm.NewClient(uri)
+	pTXs := make(map[ids.ID]*txs.Tx)
+	for _, id := range preloadTXs {
+		txBytes, err := pClient.GetTx(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		tx, err := txs.Parse(txs.Codec, txBytes)
+		if err != nil {
+			return nil, nil, err
+		}
+		pTXs[id] = tx
+	}
+	addrs := kc.Addresses()
+	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
+	pBackend := p.NewBackend(pCTX, pUTXOs, pTXs)
+	pBuilder := p.NewBuilder(addrs, pBackend)
+	pSigner := p.NewSigner(kc, pBackend)
+	pWallet := p.NewWallet(pBuilder, pSigner, pClient, pBackend)
+	return pWallet, pBackend, nil
+}
+
 func setupWallet(
 	ctx context.Context,
 	clientURI string,
@@ -722,7 +761,8 @@ func (ln *localNetwork) reloadVMPlugins(
 func createBlockchainTxs(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
-	baseWallet primary.Wallet,
+	pWallet p.Wallet,
+	pBackend p.Backend,
 	log logging.Logger,
 ) ([]*txs.Tx, error) {
 	fmt.Println()
@@ -747,7 +787,7 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, err
 		}
-		utx, err := baseWallet.P().Builder().NewCreateChainTx(
+		utx, err := pWallet.Builder().NewCreateChainTx(
 			subnetID,
 			genesisBytes,
 			vmID,
@@ -757,9 +797,13 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
 		}
-		tx, err := baseWallet.P().Signer().SignUnsigned(cctx, utx)
+		tx, err := pWallet.Signer().SignUnsigned(cctx, utx)
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
+		}
+		err = pBackend.AcceptTx(cctx, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failure accepting create blockchain tx UTXOs: %w", err)
 		}
 
 		blockchainTxs[i] = tx
