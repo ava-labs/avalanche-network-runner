@@ -285,6 +285,7 @@ func (lc *localNetwork) createBlockchains(
 func (lc *localNetwork) createSubnets(
 	argCtx context.Context,
 	numSubnets uint32,
+	subnetParticipants []string,
 	createSubnetsReadyCh chan struct{}, // closed when subnet installations are complete
 ) {
 	// start triggers a series of different time consuming actions
@@ -303,7 +304,7 @@ func (lc *localNetwork) createSubnets(
 		return
 	}
 
-	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
+	if err := lc.nw.CreateSubnets(ctx, numSubnets, subnetParticipants); err != nil {
 		lc.startErrCh <- err
 		return
 	}
