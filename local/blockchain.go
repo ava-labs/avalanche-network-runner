@@ -590,6 +590,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		)
 		cancel()
 		if err != nil {
+			panic(err)
 			return err
 		}
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
