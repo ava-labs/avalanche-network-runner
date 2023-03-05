@@ -306,7 +306,6 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	// TODO: only track subnet if participant
 	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, pTXs, clientURI)
 	if err != nil {
 		return nil, err
@@ -651,29 +650,32 @@ func (ln *localNetwork) addSubnetValidators(
 			primaryValidatorsEndtime[v.NodeID] = time.Unix(int64(v.EndTime), 0)
 		}
 		subnetValidators := set.Set[ids.NodeID]{}
+		desiredValidators := set.Set[ids.NodeID]{}
 		if len(subnetParticipants) > 0 {
 			for _, participant := range subnetParticipants {
 				n, ok := ln.nodes[participant]
 				if !ok {
 					continue
 				}
-				subnetValidators.Add(n.nodeID)
+				desiredValidators.Add(n.nodeID)
 			}
-		} else {
-			cctx, cancel = createDefaultCtx(ctx)
-			vs, err = platformCli.GetCurrentValidators(cctx, subnetID, nil)
-			cancel()
-			if err != nil {
-				return err
-			}
-			for _, v := range vs {
-				subnetValidators.Add(v.NodeID)
-			}
+		}
+		cctx, cancel = createDefaultCtx(ctx)
+		vs, err = platformCli.GetCurrentValidators(cctx, subnetID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		for _, v := range vs {
+			subnetValidators.Add(v.NodeID)
 		}
 		for nodeName, node := range ln.nodes {
 			nodeID := node.GetNodeID()
 			isValidator := subnetValidators.Contains(nodeID)
 			if isValidator {
+				continue
+			}
+			if !desiredValidators.Contains(nodeID) {
 				continue
 			}
 			cctx, cancel := createDefaultCtx(ctx)
