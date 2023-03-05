@@ -211,7 +211,7 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, pTXs, clientURI)
+		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, pTXs, clientURI, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +306,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, pTXs, clientURI)
+	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, pTXs, clientURI, subnetParticipants)
 	if err != nil {
 		return nil, err
 	}
@@ -335,10 +335,11 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 	subnetIDs []ids.ID,
 	pTXs []ids.ID,
 	clientURI string,
+	subnetParticipants []string,
 ) (primary.Wallet, error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
-	if err := ln.restartNodesWithTrackSubnets(ctx, subnetIDs); err != nil {
+	if err := ln.restartNodesWithTrackSubnets(ctx, subnetIDs, subnetParticipants); err != nil {
 		return nil, err
 	}
 	fmt.Println()
@@ -435,6 +436,7 @@ func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error)
 func (ln *localNetwork) restartNodesWithTrackSubnets(
 	ctx context.Context,
 	subnetIDs []ids.ID,
+	subnetParticipants []string,
 ) (err error) {
 	fmt.Println()
 
@@ -446,9 +448,12 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 	for _, subnet := range currentSubnets {
 		trackSubnetIDsMap[subnet.String()] = struct{}{}
 	}
+	thisSubnetIDs := []string{}
 	for _, subnetID := range subnetIDs {
 		trackSubnetIDsMap[subnetID.String()] = struct{}{}
+		thisSubnetIDs = append(thisSubnetIDs, subnetID.String())
 	}
+	sort.Strings(thisSubnetIDs)
 	trackSubnetIDs := []string{}
 	for subnetID := range trackSubnetIDsMap {
 		trackSubnetIDs = append(trackSubnetIDs, subnetID)
@@ -461,10 +466,23 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 	// change default setting
 	ln.flags[config.TrackSubnetsKey] = trackSubnets
 
+	participantSet := map[string]struct{}{}
+	for _, sp := range subnetParticipants {
+		participantSet[sp] = struct{}{}
+	}
+
 	for nodeName, node := range ln.nodes {
-		// delete node specific flag so as to use default one
-		nodeConfig := node.GetConfig()
-		delete(nodeConfig.Flags, config.TrackSubnetsKey)
+		if len(subnetParticipants) > 0 {
+			if _, ok := participantSet[nodeName]; !ok {
+				continue
+			}
+			nodeConfig := node.GetConfig()
+			nodeConfig.Flags[config.TrackSubnetsKey] = strings.Join(thisSubnetIDs, ",")
+		} else {
+			// delete node specific flag so as to use default one
+			nodeConfig := node.GetConfig()
+			delete(nodeConfig.Flags, config.TrackSubnetsKey)
+		}
 
 		ln.log.Debug("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
@@ -678,24 +696,30 @@ func (ln *localNetwork) addSubnetValidators(
 			if !desiredValidators.Contains(nodeID) {
 				continue
 			}
-			cctx, cancel := createDefaultCtx(ctx)
-			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
-				&txs.SubnetValidator{
-					Validator: txs.Validator{
-						NodeID: nodeID,
-						// reasonable delay in most/slow test environments
-						Start: uint64(time.Now().Add(validationStartOffset).Unix()),
-						End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
-						Wght:  subnetValidatorsWeight,
+			var txID ids.ID
+			for {
+				cctx, cancel := createDefaultCtx(ctx)
+				txID, err = baseWallet.P().IssueAddSubnetValidatorTx(
+					&txs.SubnetValidator{
+						Validator: txs.Validator{
+							NodeID: nodeID,
+							// reasonable delay in most/slow test environments
+							Start: uint64(time.Now().Add(validationStartOffset).Unix()),
+							End:   uint64(primaryValidatorsEndtime[nodeID].Unix()),
+							Wght:  subnetValidatorsWeight,
+						},
+						Subnet: subnetID,
 					},
-					Subnet: subnetID,
-				},
-				common.WithContext(cctx),
-				defaultPoll,
-			)
-			cancel()
-			if err != nil {
-				return err
+					common.WithContext(cctx),
+					defaultPoll,
+				)
+				cancel()
+				if err != nil {
+					ln.log.Info("unable to add node as subnet validator", zap.Error(err))
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				break
 			}
 			ln.log.Info("added node as a subnet validator to subnet",
 				zap.String("node-name", nodeName),
