@@ -629,7 +629,7 @@ func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequ
 	// start non-blocking to add subnets
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	go s.network.createSubnets(ctx, numSubnets, readyCh)
+	go s.network.createSubnets(ctx, numSubnets, req.SubnetParticipants, readyCh)
 
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
