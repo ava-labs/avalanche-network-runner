@@ -36,7 +36,7 @@ import (
 
 const (
 	// offset of validation start from current time
-	validationStartOffset = 20 * time.Second
+	validationStartOffset = 45 * time.Second
 	// duration for primary network validators
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
@@ -338,6 +338,9 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	if err != nil {
 		return nil, err
 	}
+
+	// Wait a bit longer for all nodes to recover
+	time.Sleep(10 * time.Second)
 
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs, subnetParticipants); err != nil {
 		return nil, err
