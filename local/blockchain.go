@@ -36,7 +36,7 @@ import (
 
 const (
 	// offset of validation start from current time
-	validationStartOffset = 45 * time.Second
+	validationStartOffset = 15 * time.Second
 	// duration for primary network validators
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
