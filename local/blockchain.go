@@ -339,9 +339,6 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	// Wait a bit longer for all nodes to recover
-	time.Sleep(10 * time.Second)
-
 	if err = ln.addSubnetValidators(ctx, platformCli, baseWallet, subnetIDs, subnetParticipants); err != nil {
 		return nil, err
 	}
@@ -589,6 +586,7 @@ func (ln *localNetwork) addPrimaryValidators(
 	for _, v := range vs {
 		curValidators[v.NodeID] = struct{}{}
 	}
+	addedValidators := []ids.NodeID{}
 	for nodeName, node := range ln.nodes {
 		nodeID := node.GetNodeID()
 
@@ -640,7 +638,32 @@ func (ln *localNetwork) addPrimaryValidators(
 			return err
 		}
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
+		addedValidators = append(addedValidators, nodeID)
 	}
+
+	// Ensure all added nodes are primary validators (else add subnet validator will revert)
+	for {
+		vs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+		if err != nil {
+			return err
+		}
+		curValidators := make(map[ids.NodeID]struct{})
+		for _, v := range vs {
+			curValidators[v.NodeID] = struct{}{}
+		}
+		ready := true
+		for _, nodeID := range addedValidators {
+			if _, ok := curValidators[nodeID]; !ok {
+				ready = false
+			}
+		}
+		if ready {
+			break
+		}
+		time.Sleep(5 * time.Second)
+		ln.log.Info("waiting for all validators to become active")
+	}
+
 	return nil
 }
 
