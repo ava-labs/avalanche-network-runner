@@ -151,7 +151,7 @@ func (ln *localNetwork) installCustomChains(
 	platformCli := platformvm.NewClient(clientURI)
 
 	// wallet needs txs for all previously created subnets
-	var pTXs []ids.ID
+	var preloadTXs []ids.ID
 	for _, chainSpec := range chainSpecs {
 		// if subnet id for the blockchain is specified, we need to add the subnet id
 		// tx info to the wallet so blockchain creation does not fail
@@ -162,11 +162,11 @@ func (ln *localNetwork) installCustomChains(
 			if err != nil {
 				return nil, err
 			}
-			pTXs = append(pTXs, subnetID)
+			preloadTXs = append(preloadTXs, subnetID)
 		}
 	}
 
-	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, preloadTXs, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -199,13 +199,12 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
-	newPTXs := append(pTXs, addedSubnetIDs...)
-	pWallet, pBackend, err := setupFakeWallet(ctx, clientURI, newPTXs)
+	simPWallet, simPBackend, err := setupSimulatedPWallet(ctx, clientURI, append(preloadTXs, addedSubnetIDs...))
 	if err != nil {
 		return nil, err
 	}
 
-	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, pWallet, pBackend, ln.log)
+	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, simPWallet, simPBackend, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +214,7 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, pTXs, clientURI)
+		baseWallet, err = ln.restartNodesAndResetWallet(ctx, addedSubnetIDs, preloadTXs, clientURI)
 		if err != nil {
 			return nil, err
 		}
@@ -289,8 +288,8 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 
-	pTXs := []ids.ID{}
-	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
+	preloadTXs := []ids.ID{}
+	baseWallet, avaxAssetID, testKeyAddr, err := setupWallet(ctx, clientURI, preloadTXs, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +303,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, pTXs, clientURI)
+	baseWallet, err = ln.restartNodesAndResetWallet(ctx, subnetIDs, preloadTXs, clientURI)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +330,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 func (ln *localNetwork) restartNodesAndResetWallet(
 	ctx context.Context,
 	subnetIDs []ids.ID,
-	pTXs []ids.ID,
+	preloadTXs []ids.ID,
 	clientURI string,
 ) (primary.Wallet, error) {
 	fmt.Println()
@@ -342,8 +341,8 @@ func (ln *localNetwork) restartNodesAndResetWallet(
 	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("reconnecting the wallet client after restart"))
 	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pTXs = append(pTXs, subnetIDs...)
-	return primary.NewWalletWithTxs(ctx, clientURI, testKeychain, pTXs...)
+	preloadTXs = append(preloadTXs, subnetIDs...)
+	return primary.NewWalletWithTxs(ctx, clientURI, testKeychain, preloadTXs...)
 }
 
 func (ln *localNetwork) waitForCustomChainsReady(
@@ -476,7 +475,7 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 	return nil
 }
 
-func setupFakeWallet(
+func setupSimulatedPWallet(
 	ctx context.Context,
 	uri string,
 	preloadTXs []ids.ID,
@@ -511,7 +510,7 @@ func setupFakeWallet(
 func setupWallet(
 	ctx context.Context,
 	clientURI string,
-	pTXs []ids.ID,
+	preloadTXs []ids.ID,
 	log logging.Logger,
 ) (baseWallet primary.Wallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
 	// "local/default/genesis.json" pre-funds "ewoq" key
@@ -522,7 +521,7 @@ func setupWallet(
 	fmt.Println()
 	log.Info(logging.Green.Wrap("setting up the base wallet with the seed test key"))
 
-	baseWallet, err = primary.NewWalletWithTxs(ctx, clientURI, testKeychain, pTXs...)
+	baseWallet, err = primary.NewWalletWithTxs(ctx, clientURI, testKeychain, preloadTXs...)
 	if err != nil {
 		return nil, ids.Empty, ids.ShortEmpty, err
 	}
