@@ -17,6 +17,7 @@ type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
 	SubnetID           *string
+	Paricipants        []string
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
 	SubnetConfig       []byte
@@ -65,4 +66,12 @@ type Network interface {
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, uint32) error
+	// CreateSpecificBlockchains deploys one new subnet per blockchain requested
+	// with a specific set of members. If the members are not yet primary network
+	// validators, they will be added. This function blocks until all blockchains
+	// have been created and are healthy. This function returns the chains
+	// created and the participants that are on each chain.
+	//
+	// NOTE: This method is experimental and could change.
+	CreateSpecificBlockchains(context.Context, []BlockchainSpec) (map[string][]string, error)
 }
