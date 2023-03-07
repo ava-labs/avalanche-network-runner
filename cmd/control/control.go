@@ -53,6 +53,7 @@ func NewCommand() *cobra.Command {
 		newRPCVersionCommand(),
 		newStartCommand(),
 		newCreateBlockchainsCommand(),
+		newCreateSpecificBlockchainsCommand(),
 		newCreateSubnetsCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
@@ -341,6 +342,44 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("deploy-blockchains response: %+v"), info)
+	return nil
+}
+
+func newCreateSpecificBlockchainsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-specific-blockchains blockchain-specs [options]",
+		Short: "Create specific blockchains.",
+		RunE:  createSpecificBlockchainsFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func createSpecificBlockchainsFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	blockchainSpecsStr := args[0]
+
+	blockchainSpecs := []*rpcpb.BlockchainSpec{}
+	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.CreateSpecificBlockchains(
+		ctx,
+		blockchainSpecs,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("deploy-specific-blockchains response: %+v"), info)
 	return nil
 }
 
