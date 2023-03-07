@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -21,10 +22,12 @@ import (
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
@@ -538,29 +541,54 @@ func (ln *localNetwork) addPrimaryValidators(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
-	vdrs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
 	}
-	curValidators := set.Set[ids.NodeID]{}
-	for _, v := range vdrs {
-		curValidators.Add(v.NodeID)
+	curValidators := make(map[ids.NodeID]struct{})
+	for _, v := range vs {
+		curValidators[v.NodeID] = struct{}{}
 	}
+	addedValidators := []ids.NodeID{}
 	for nodeName, node := range ln.nodes {
 		nodeID := node.GetNodeID()
 
-		if curValidators.Contains(nodeID) {
+		_, isValidator := curValidators[nodeID]
+		if isValidator {
 			continue
 		}
 
+		// Prepare node BLS PoP
+		//
+		// It is important to note that this will ONLY register BLS signers for
+		// nodes registered AFTER genesis.
+		blsKeyBytes, err := base64.StdEncoding.DecodeString(node.GetConfig().StakingSigningKey)
+		if err != nil {
+			return err
+		}
+		blsSk, err := bls.SecretKeyFromBytes(blsKeyBytes)
+		if err != nil {
+			return err
+		}
+		proofOfPossession := signer.NewProofOfPossession(blsSk)
+
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := baseWallet.P().IssueAddValidatorTx(
-			&txs.Validator{
-				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
-				End:    uint64(time.Now().Add(validationDuration).Unix()),
-				Wght:   genesis.LocalParams.MinValidatorStake,
+		txID, err := baseWallet.P().IssueAddPermissionlessValidatorTx(
+			&txs.SubnetValidator{
+				Validator: txs.Validator{
+					NodeID: nodeID,
+					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
+					End:    uint64(time.Now().Add(validationDuration).Unix()),
+					Wght:   genesis.LocalParams.MinValidatorStake,
+				},
+				Subnet: ids.Empty,
+			},
+			proofOfPossession,
+			baseWallet.P().AVAXAssetID(),
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{testKeyAddr},
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
@@ -568,15 +596,38 @@ func (ln *localNetwork) addPrimaryValidators(
 			},
 			10*10000, // 10% fee percent, times 10000 to make it as shares
 			common.WithContext(cctx),
-			defaultPoll,
 		)
 		cancel()
 		if err != nil {
 			return err
 		}
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
+		addedValidators = append(addedValidators, nodeID)
 	}
-	return nil
+
+	// Ensure all added nodes are primary validators (else add subnet validator will revert)
+	for ctx.Err() == nil {
+		vs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+		if err != nil {
+			return err
+		}
+		curValidators := make(map[ids.NodeID]struct{})
+		for _, v := range vs {
+			curValidators[v.NodeID] = struct{}{}
+		}
+		ready := true
+		for _, nodeID := range addedValidators {
+			if _, ok := curValidators[nodeID]; !ok {
+				ready = false
+			}
+		}
+		if ready {
+			break
+		}
+		time.Sleep(5 * time.Second)
+		ln.log.Info("waiting for all validators to become active")
+	}
+	return ctx.Err()
 }
 
 func createSubnets(
