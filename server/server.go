@@ -640,22 +640,10 @@ func (s *server) CreateSpecificBlockchains(
 		return nil, ErrNoBlockchainSpec
 	}
 
-	// Network will not be healthy until finishing
-	s.clusterInfo.Healthy = false
-	s.clusterInfo.CustomChainsHealthy = false
-
-	// start non-blocking to install custom chains (if applicable)
-	// the user is expected to poll cluster status
-	readyCh := make(chan struct{})
-	var chains []network.BlockchainInfo
-	go func() {
-		chains = s.network.createSpecificBlockchains(ctx, chainSpecs, readyCh)
-	}()
-
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
-	s.waitChAndUpdateClusterInfo("create specific chains", readyCh, true)
+	chains, err := s.network.createSpecificBlockchains(ctx, chainSpecs)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create chains response
 	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))

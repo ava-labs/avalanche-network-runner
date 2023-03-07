@@ -86,12 +86,11 @@ func (w *wallet) createSubnets(
 	ctx context.Context,
 	numSubnets int,
 ) ([]ids.ID, error) {
-	fmt.Println()
 	w.log.Info(logging.Green.Wrap("creating subnets VM"), zap.Int("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	for i := 0; i < numSubnets; i++ {
 		w.log.Info("creating subnet tx")
-		cctx, cancel := createDefaultCtx(ctx)
+		cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 		subnetID, err := w.wallet.IssueCreateSubnetTx(
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
@@ -117,7 +116,7 @@ func (w *wallet) addPrimaryValidators(
 ) error {
 	w.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
-	cctx, cancel := createDefaultCtx(ctx)
+	cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	vs, err := w.client.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
@@ -152,7 +151,7 @@ func (w *wallet) addPrimaryValidators(
 		}
 		proofOfPossession := signer.NewProofOfPossession(blsSk)
 
-		cctx, cancel = createDefaultCtx(ctx)
+		cctx, cancel = context.WithTimeout(ctx, defaultTimeout)
 		txID, err := w.wallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
@@ -213,7 +212,6 @@ func (w *wallet) createBlockchainTxs(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]*txs.Tx, error) {
-	fmt.Println()
 	w.log.Info(logging.Green.Wrap("creating tx for each custom chain"))
 	blockchainTxs := make([]*txs.Tx, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
@@ -229,7 +227,7 @@ func (w *wallet) createBlockchainTxs(
 			zap.String("vm-ID", vmID.String()),
 			zap.Int("bytes length of genesis", len(genesisBytes)),
 		)
-		cctx, cancel := createDefaultCtx(ctx)
+		cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 		defer cancel()
 		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
@@ -255,17 +253,15 @@ func (w *wallet) createBlockchainTxs(
 	return blockchainTxs, nil
 }
 
-func restartNodesWithTrackSubnets(
+func restartNodes(
 	ctx context.Context,
 	ln LocalNetwork,
 	chainSpecs []network.BlockchainSpec,
 ) error {
-	fmt.Println()
-
 	for _, spec := range chainSpecs {
 		trackSubnetID := *spec.SubnetID
 		for _, nodeName := range spec.Participants {
-			ln.Logger().Info("restarting to track subnets", zap.String("nodeName", nodeName), zap.String("track-subnet-ID", trackSubnetID))
+			ln.Logger().Info("restarting validator", zap.String("nodeName", nodeName), zap.String("track-subnets", trackSubnetID))
 			node := ln.GetNodeUnsafe(nodeName)
 			nodeConfig := node.GetConfig()
 			nodeConfig.Flags[config.TrackSubnetsKey] = trackSubnetID
@@ -285,7 +281,6 @@ func (w *wallet) createBlockchains(
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
 ) error {
-	fmt.Println()
 	w.log.Info(logging.Green.Wrap("creating each custom chain"))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.VMName
@@ -298,7 +293,7 @@ func (w *wallet) createBlockchains(
 			zap.String("vm-ID", vmID.String()),
 		)
 
-		cctx, cancel := createDefaultCtx(ctx)
+		cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 		defer cancel()
 
 		blockchainID, err := w.wallet.IssueTx(
@@ -328,7 +323,7 @@ func (w *wallet) addSubnetValidators(
 	chainSpecs []network.BlockchainSpec,
 ) error {
 	w.log.Info(logging.Green.Wrap("adding the nodes as subnet validators"))
-	cctx, cancel := createDefaultCtx(ctx)
+	cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	vs, err := w.client.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
@@ -343,10 +338,12 @@ func (w *wallet) addSubnetValidators(
 		if err != nil {
 			return err
 		}
-		for _, nodeName := range spec.Participants {
+		nodeIDs := make([]ids.NodeID, len(spec.Participants))
+		for i, nodeName := range spec.Participants {
 			node := ln.GetNodeUnsafe(nodeName)
 			nodeID := node.GetNodeID()
-			cctx, cancel := createDefaultCtx(ctx)
+			nodeIDs[i] = nodeID
+			cctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 			txID, err := w.wallet.IssueAddSubnetValidatorTx(
 				&txs.SubnetValidator{
 					Validator: txs.Validator{
@@ -371,6 +368,29 @@ func (w *wallet) addSubnetValidators(
 				zap.String("subnet-ID", subnetID.String()),
 				zap.String("tx-ID", txID.String()),
 			)
+		}
+
+		// Wait for validators to become active
+		for ctx.Err() == nil {
+			vs, err := w.client.GetCurrentValidators(ctx, subnetID, nil)
+			if err != nil {
+				return err
+			}
+			curValidators := make(map[ids.NodeID]struct{})
+			for _, v := range vs {
+				curValidators[v.NodeID] = struct{}{}
+			}
+			ready := true
+			for _, nodeID := range nodeIDs {
+				if _, ok := curValidators[nodeID]; !ok {
+					ready = false
+				}
+			}
+			if ready {
+				break
+			}
+			time.Sleep(5 * time.Second)
+			w.log.Info("waiting for all subnet validators to become active")
 		}
 	}
 	return nil
@@ -411,7 +431,22 @@ func CreateSpecificBlockchains(
 		chainSpecs[i].SubnetID = &subnetIDStr
 	}
 
-	// Create new blockchains
+	// Add subnet validators
+	if err := wallet.addSubnetValidators(ctx, ln, chainSpecs); err != nil {
+		return nil, nil, err
+	}
+
+	// Restart validators
+	if err := restartNodes(ctx, ln, chainSpecs); err != nil {
+		return nil, nil, err
+	}
+	clientURI, err = ln.GetClientURIUnsafe()
+	if err != nil {
+		return nil, nil, err
+	}
+	wallet.reload(clientURI)
+
+	// Create and store chain configs
 	blockchainTxs, err := wallet.createBlockchainTxs(ctx, chainSpecs)
 	if err != nil {
 		return nil, nil, err
@@ -421,7 +456,9 @@ func CreateSpecificBlockchains(
 		chainIDs[i] = tx.ID()
 	}
 	ln.SetBlockchainConfigFilesUnsafe(chainSpecs, blockchainTxs)
-	if err := restartNodesWithTrackSubnets(ctx, ln, chainSpecs); err != nil {
+
+	// Restart validators
+	if err := restartNodes(ctx, ln, chainSpecs); err != nil {
 		return nil, nil, err
 	}
 	clientURI, err = ln.GetClientURIUnsafe()
@@ -429,26 +466,13 @@ func CreateSpecificBlockchains(
 		return nil, nil, err
 	}
 	wallet.reload(clientURI)
+
+	// Reload plugins and create blockchains
 	if err := ln.ReloadVMPluginsUnsafe(ctx); err != nil {
 		return nil, nil, err
 	}
 	if err := wallet.createBlockchains(ctx, chainSpecs, blockchainTxs); err != nil {
 		return nil, nil, err
 	}
-
-	// Add subnet validators
-	//
-	// Normally, you should not add the first validators on a subnet after
-	// creating a blockchain but this allows us to avoid a duplicate restart.
-	if err := wallet.addSubnetValidators(ctx, ln, chainSpecs); err != nil {
-		return nil, nil, err
-	}
 	return chainSpecs, chainIDs, nil
-}
-
-func createDefaultCtx(ctx context.Context) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, defaultTimeout)
 }
