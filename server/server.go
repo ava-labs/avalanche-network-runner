@@ -515,6 +515,7 @@ func getNetworkBlockchainSpec(
 		SubnetID:           spec.SubnetId,
 		BlockchainAlias:    spec.BlockchainAlias,
 		PerNodeChainConfig: perNodeChainConfig,
+		Participants:       spec.Participants,
 	}, nil
 }
 
