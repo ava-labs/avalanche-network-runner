@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/ids"
 )
 
 var (
@@ -23,6 +24,13 @@ type BlockchainSpec struct {
 	BlockchainAlias    string
 	PerNodeChainConfig map[string][]byte
 	Participants       []string
+}
+
+type BlockchainInfo struct {
+	ChainName    string
+	VMID         ids.ID
+	SubnetID     ids.ID
+	BlockchainID ids.ID
 }
 
 // Network is an abstraction of an Avalanche network
@@ -73,5 +81,5 @@ type Network interface {
 	// created and the participants that are on each chain.
 	//
 	// NOTE: This method is experimental and could change.
-	CreateSpecificBlockchains(context.Context, []BlockchainSpec) (map[string][]string, error)
+	CreateSpecificBlockchains(context.Context, []BlockchainSpec) ([]BlockchainInfo, error)
 }

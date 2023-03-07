@@ -494,11 +494,7 @@ message CreateSpecificBlockchainsRequest {
   repeated BlockchainSpec blockchain_specs = 1;
 }
 
-message ListOfNodes {
-  repeated string node_name = 1;
-}
-
 message CreateSpecificBlockchainsResponse {
   ClusterInfo cluster_info = 1;
-  map<string, ListOfNodes> chains = 2;
+  repeated CustomChainInfo chains = 2;
 }

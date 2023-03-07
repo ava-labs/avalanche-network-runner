@@ -646,7 +646,7 @@ func (s *server) CreateSpecificBlockchains(
 	// start non-blocking to install custom chains (if applicable)
 	// the user is expected to poll cluster status
 	readyCh := make(chan struct{})
-	var chains map[string][]string
+	var chains []network.BlockchainInfo
 	go func() {
 		chains = s.network.createSpecificBlockchains(ctx, chainSpecs, readyCh)
 	}()
@@ -659,12 +659,16 @@ func (s *server) CreateSpecificBlockchains(
 	}()
 
 	// Create chains response
-	formattedChains := map[string]*rpcpb.ListOfNodes{}
-	for chain, nodes := range chains {
-		l := &rpcpb.ListOfNodes{NodeName: nodes}
-		formattedChains[chain] = l
+	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))
+	for i, chain := range chains {
+		chainInfo[i] = &rpcpb.CustomChainInfo{
+			ChainName: chain.ChainName,
+			VmId:      chain.VMID.String(),
+			SubnetId:  chain.SubnetID.String(),
+			ChainId:   chain.BlockchainID.String(),
+		}
 	}
-	return &rpcpb.CreateSpecificBlockchainsResponse{ClusterInfo: s.clusterInfo, Chains: formattedChains}, nil
+	return &rpcpb.CreateSpecificBlockchainsResponse{ClusterInfo: s.clusterInfo, Chains: chainInfo}, nil
 }
 
 func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
