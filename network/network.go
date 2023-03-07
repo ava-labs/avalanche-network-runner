@@ -17,12 +17,12 @@ type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
 	SubnetID           *string
-	Paricipants        []string
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
 	SubnetConfig       []byte
 	BlockchainAlias    string
 	PerNodeChainConfig map[string][]byte
+	Paricipants        []string
 }
 
 // Network is an abstraction of an Avalanche network

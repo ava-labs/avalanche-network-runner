@@ -154,6 +154,13 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc CreateSpecificBlockchains(CreateSpecificBlockchainsRequest) returns (CreateSpecificBlockchainsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/createspecificblockchains"
+      body: "*"
+    };
+  }
 }
 
 message ClusterInfo {
@@ -286,6 +293,7 @@ message BlockchainSpec {
   string blockchain_alias = 7;
   // Per node chain config file path
   string per_node_chain_config = 8;
+  repeated string participants = 9;
 }
 
 message CreateBlockchainsRequest {
@@ -480,4 +488,17 @@ message GetSnapshotNamesRequest {
 
 message GetSnapshotNamesResponse {
   repeated string snapshot_names = 1;
+}
+
+message CreateSpecificBlockchainsRequest {
+  repeated BlockchainSpec blockchain_specs = 1;
+}
+
+message ListOfNodes {
+  repeated string node_name = 1;
+}
+
+message CreateSpecificBlockchainsResponse {
+  ClusterInfo cluster_info = 1;
+  map<string, ListOfNodes> chains = 2;
 }
