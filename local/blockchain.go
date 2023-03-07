@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/local/experimental"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -101,29 +102,6 @@ func (ln *localNetwork) CreateBlockchains(
 	return nil
 }
 
-func (ln *localNetwork) CreateSpecificBlockchains(
-	ctx context.Context,
-	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-) (map[string][]string, error) {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-
-	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
-		return nil, err
-	}
-
-	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
-		return nil, err
-	}
-
-	return nil, nil
-}
-
 // if alias is defined in blockchain-specs, registers an alias for the previously created blockchain
 func (ln *localNetwork) RegisterBlockchainAliases(
 	ctx context.Context,
@@ -161,6 +139,16 @@ func (ln *localNetwork) CreateSubnets(
 		return err
 	}
 	return nil
+}
+
+func (ln *localNetwork) CreateSpecificBlockchains(
+	ctx context.Context,
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+) (map[string][]string, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return experimental.CreateSpecificBlockchains(ctx, chainSpecs)
 }
 
 // provisions local cluster and install custom chains if applicable
