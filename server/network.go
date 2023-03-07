@@ -282,6 +282,51 @@ func (lc *localNetwork) createBlockchains(
 	close(createBlockchainsReadyCh)
 }
 
+func (lc *localNetwork) createSpecificBlockchains(
+	argCtx context.Context,
+	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	createSpecificBlockchainsReadyCh chan struct{}, // closed when subnet installations are complete
+) map[string][]string {
+	// createBlockchains triggers a series of different time consuming actions
+	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
+	// We may need to cancel the context, for example if the client hits Ctrl-C
+	var ctx context.Context
+	ctx, lc.startCtxCancel = context.WithCancel(argCtx)
+
+	if len(chainSpecs) == 0 {
+		close(createSpecificBlockchainsReadyCh)
+		return nil
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return nil
+	}
+
+	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
+		lc.startErrCh <- err
+		return nil
+	}
+
+	if err := lc.updateNodeInfo(); err != nil {
+		lc.startErrCh <- err
+		return nil
+	}
+
+	if err := lc.waitForLocalClusterReady(ctx); err != nil {
+		lc.startErrCh <- err
+		return nil
+	}
+
+	if err := lc.updateSubnetInfo(ctx); err != nil {
+		lc.startErrCh <- err
+		return nil
+	}
+
+	close(createSpecificBlockchainsReadyCh)
+	return nil
+}
+
 func (lc *localNetwork) createSubnets(
 	argCtx context.Context,
 	numSubnets uint32,

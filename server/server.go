@@ -85,6 +85,8 @@ var (
 	ErrPeerNotFound           = errors.New("peer not found")
 	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
 	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
+	ErrNoParticipants         = errors.New("no blockchain participants")
+	ErrSubnetNotNil           = errors.New("subnet should not be specified")
 )
 
 const (
@@ -590,6 +592,79 @@ func (s *server) CreateBlockchains(
 	}()
 
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
+func (s *server) CreateSpecificBlockchains(
+	ctx context.Context,
+	req *rpcpb.CreateSpecificBlockchainsRequest,
+) (*rpcpb.CreateSpecificBlockchainsResponse, error) {
+	// if timeout is too small or not set, default to 5-min
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) < defaultStartTimeout {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
+		_ = cancel // don't call since "start" is async, "curl" may not specify timeout
+		s.log.Info("received start request with default timeout", zap.String("timeout", defaultStartTimeout.String()))
+	} else {
+		s.log.Info("received start request with existing timeout", zap.String("timeout", deadline.String()))
+	}
+
+	s.log.Debug("CreateSpecificBlockchains")
+
+	if s.getNetwork() == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	if len(req.GetBlockchainSpecs()) == 0 {
+		return nil, ErrNoBlockchainSpec
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	chainSpecs := []network.BlockchainSpec{}
+	for _, spec := range req.GetBlockchainSpecs() {
+		chainSpec, err := getNetworkBlockchainSpec(s.log, spec, false, s.network.pluginDir)
+		if err != nil {
+			return nil, err
+		}
+		if len(chainSpec.Participants) == 0 {
+			return nil, ErrNoParticipants
+		}
+		if chainSpec.SubnetID != nil {
+			return nil, ErrSubnetNotNil
+		}
+		chainSpecs = append(chainSpecs, chainSpec)
+	}
+	if len(chainSpecs) == 0 {
+		return nil, ErrNoBlockchainSpec
+	}
+
+	// Network will not be healthy until finishing
+	s.clusterInfo.Healthy = false
+	s.clusterInfo.CustomChainsHealthy = false
+
+	// start non-blocking to install custom chains (if applicable)
+	// the user is expected to poll cluster status
+	readyCh := make(chan struct{})
+	var chains map[string][]string
+	go func() {
+		chains = s.network.createSpecificBlockchains(ctx, chainSpecs, readyCh)
+	}()
+
+	// update cluster info non-blocking
+	// the user is expected to poll this latest information
+	// to decide cluster/subnet readiness
+	go func() {
+		s.waitChAndUpdateClusterInfo("specific chains", readyCh, true)
+	}()
+
+	// Create chains response
+	formattedChains := map[string]*rpcpb.ListOfNodes{}
+	for chain, nodes := range chains {
+		l := &rpcpb.ListOfNodes{NodeName: nodes}
+		formattedChains[chain] = l
+	}
+	return &rpcpb.CreateSpecificBlockchainsResponse{ClusterInfo: s.clusterInfo, Chains: formattedChains}, nil
 }
 
 func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
