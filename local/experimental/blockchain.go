@@ -39,18 +39,14 @@ var (
 	defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 )
 
-type localNetwork interface {
-	getClientURI() (string, error)
-	getNode(name string) node.Node
-	logger() logging.Logger
-	setBlockchainConfigFiles(
-		chainSpecs []network.BlockchainSpec,
-		blockchainTxs []*txs.Tx,
-		log logging.Logger,
-	) bool
-	restartNode(ctx context.Context, nodeName string) error
-	healthy(ctx context.Context) error
-	reloadVMPlugins(ctx context.Context) error
+type LocalNetwork interface {
+	GetClientURIUnsafe() (string, error)
+	GetNodeUnsafe(name string) node.Node
+	Logger() logging.Logger
+	SetBlockchainConfigFilesUnsafe(chainSpecs []network.BlockchainSpec, blockchainTxs []*txs.Tx) bool
+	RestartNodeUnsafe(ctx context.Context, nodeName string) error
+	HealthyUnsafe(ctx context.Context) error
+	ReloadVMPluginsUnsafe(ctx context.Context) error
 }
 
 type wallet struct {
@@ -125,7 +121,7 @@ func (w *wallet) createSubnets(
 
 func (w *wallet) addPrimaryValidators(
 	ctx context.Context,
-	ln localNetwork,
+	ln LocalNetwork,
 	names map[string]struct{},
 ) error {
 	w.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
@@ -143,7 +139,7 @@ func (w *wallet) addPrimaryValidators(
 	addedValidators := []ids.NodeID{}
 	for nodeName := range names {
 		// TODO: handle missing name
-		node := ln.getNode(nodeName)
+		node := ln.GetNodeUnsafe(nodeName)
 		nodeID := node.GetNodeID()
 
 		_, isValidator := curValidators[nodeID]
@@ -270,7 +266,7 @@ func (w *wallet) createBlockchainTxs(
 
 func restartNodesWithTrackSubnets(
 	ctx context.Context,
-	ln localNetwork,
+	ln LocalNetwork,
 	chainSpecs []network.BlockchainSpec,
 ) error {
 	fmt.Println()
@@ -278,14 +274,14 @@ func restartNodesWithTrackSubnets(
 	for _, spec := range chainSpecs {
 		trackSubnetID := *spec.SubnetID
 		for _, nodeName := range spec.Participants {
-			ln.logger().Info("restarting to track subnets", zap.String("nodeName", nodeName), zap.String("track-subnet-ID", trackSubnetID))
-			node := ln.getNode(nodeName)
+			ln.Logger().Info("restarting to track subnets", zap.String("nodeName", nodeName), zap.String("track-subnet-ID", trackSubnetID))
+			node := ln.GetNodeUnsafe(nodeName)
 			nodeConfig := node.GetConfig()
 			nodeConfig.Flags[config.TrackSubnetsKey] = trackSubnetID
-			if err := ln.restartNode(ctx, nodeName); err != nil {
+			if err := ln.RestartNodeUnsafe(ctx, nodeName); err != nil {
 				return err
 			}
-			if err := ln.healthy(ctx); err != nil {
+			if err := ln.HealthyUnsafe(ctx); err != nil {
 				return err
 			}
 		}
@@ -337,7 +333,7 @@ func (w *wallet) createBlockchains(
 
 func (w *wallet) addSubnetValidators(
 	ctx context.Context,
-	ln localNetwork,
+	ln LocalNetwork,
 	chainSpecs []network.BlockchainSpec,
 ) error {
 	w.log.Info(logging.Green.Wrap("adding the nodes as subnet validators"))
@@ -357,7 +353,7 @@ func (w *wallet) addSubnetValidators(
 			return err
 		}
 		for _, nodeName := range spec.Participants {
-			node := ln.getNode(nodeName)
+			node := ln.GetNodeUnsafe(nodeName)
 			nodeID := node.GetNodeID()
 			cctx, cancel := createDefaultCtx(ctx)
 			txID, err := w.wallet.IssueAddSubnetValidatorTx(
@@ -391,14 +387,14 @@ func (w *wallet) addSubnetValidators(
 
 func CreateSpecificBlockchains(
 	ctx context.Context,
-	ln localNetwork,
+	ln LocalNetwork,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) ([]network.BlockchainSpec, []ids.ID, error) {
-	clientURI, err := ln.getClientURI()
+	clientURI, err := ln.GetClientURIUnsafe()
 	if err != nil {
 		return nil, nil, err
 	}
-	wallet, err := newWallet(ctx, clientURI, ln.logger())
+	wallet, err := newWallet(ctx, clientURI, ln.Logger())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -433,16 +429,16 @@ func CreateSpecificBlockchains(
 	for i, tx := range blockchainTxs {
 		chainIDs[i] = tx.ID()
 	}
-	ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.logger())
+	ln.SetBlockchainConfigFilesUnsafe(chainSpecs, blockchainTxs)
 	if err := restartNodesWithTrackSubnets(ctx, ln, chainSpecs); err != nil {
 		return nil, nil, err
 	}
-	clientURI, err = ln.getClientURI()
+	clientURI, err = ln.GetClientURIUnsafe()
 	if err != nil {
 		return nil, nil, err
 	}
 	wallet.reload(clientURI)
-	if err := ln.reloadVMPlugins(ctx); err != nil {
+	if err := ln.ReloadVMPluginsUnsafe(ctx); err != nil {
 		return nil, nil, err
 	}
 	if err := wallet.createBlockchains(ctx, chainSpecs, blockchainTxs); err != nil {
