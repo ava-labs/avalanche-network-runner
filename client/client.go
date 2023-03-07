@@ -32,6 +32,7 @@ type Client interface {
 	RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
+	CreateSpecificBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateSpecificBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
@@ -145,6 +146,15 @@ func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb
 
 	c.log.Info("create blockchains")
 	return c.controlc.CreateBlockchains(ctx, req)
+}
+
+func (c *client) CreateSpecificBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateSpecificBlockchainsResponse, error) {
+	req := &rpcpb.CreateSpecificBlockchainsRequest{
+		BlockchainSpecs: blockchainSpecs,
+	}
+
+	c.log.Info("create specific blockchains")
+	return c.controlc.CreateSpecificBlockchains(ctx, req)
 }
 
 func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
