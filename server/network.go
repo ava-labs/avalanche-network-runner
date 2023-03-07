@@ -303,7 +303,8 @@ func (lc *localNetwork) createSpecificBlockchains(
 		return nil
 	}
 
-	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
+	addedNodes, err := lc.nw.CreateSpecificBlockchains(ctx, chainSpecs)
+	if err != nil {
 		lc.startErrCh <- err
 		return nil
 	}
@@ -324,7 +325,7 @@ func (lc *localNetwork) createSpecificBlockchains(
 	}
 
 	close(createSpecificBlockchainsReadyCh)
-	return nil
+	return addedNodes
 }
 
 func (lc *localNetwork) createSubnets(
