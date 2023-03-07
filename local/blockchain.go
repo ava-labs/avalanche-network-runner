@@ -81,6 +81,7 @@ func (ln *localNetwork) CreateBlockchains(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+
 	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
 	if err != nil {
 		return err
@@ -106,16 +107,17 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases")))
 	for i, chainSpec := range chainSpecs {
-		if chainSpec.BlockchainAlias != "" {
-			blockchainAlias := chainSpec.BlockchainAlias
-			chainID := chainInfos[i].blockchainID.String()
-			ln.log.Info("registering blockchain alias",
-				zap.String("alias", blockchainAlias),
-				zap.String("chain-id", chainID))
-			for nodeName, node := range ln.nodes {
-				if err := node.client.AdminAPI().AliasChain(ctx, chainID, blockchainAlias); err != nil {
-					return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
-				}
+		if chainSpec.BlockchainAlias == "" {
+			continue
+		}
+		blockchainAlias := chainSpec.BlockchainAlias
+		chainID := chainInfos[i].blockchainID.String()
+		ln.log.Info("registering blockchain alias",
+			zap.String("alias", blockchainAlias),
+			zap.String("chain-id", chainID))
+		for nodeName, node := range ln.nodes {
+			if err := node.client.AdminAPI().AliasChain(ctx, chainID, blockchainAlias); err != nil {
+				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 			}
 		}
 	}
@@ -128,6 +130,7 @@ func (ln *localNetwork) CreateSubnets(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+
 	if _, err := ln.setupWalletAndInstallSubnets(ctx, numSubnets); err != nil {
 		return err
 	}
@@ -374,8 +377,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 				zap.String("path", p),
 			)
 			for {
-				_, err := os.Stat(p)
-				if err == nil {
+				if _, err := os.Stat(p); err == nil {
 					ln.log.Info("found the log", zap.String("path", p))
 					break
 				}
@@ -407,12 +409,12 @@ func (ln *localNetwork) waitForCustomChainsReady(
 }
 
 func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error) {
-	nonPlatformSubnets := []ids.ID{}
 	node := ln.getSomeNode()
 	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	nonPlatformSubnets := []ids.ID{}
 	for _, subnet := range subnets {
 		if subnet.ID != constants.PlatformChainID {
 			nonPlatformSubnets = append(nonPlatformSubnets, subnet.ID)
@@ -428,21 +430,17 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 ) (err error) {
 	fmt.Println()
 
-	trackSubnetIDsMap := map[string]struct{}{}
 	currentSubnets, err := ln.getCurrentSubnets(ctx)
 	if err != nil {
 		return err
 	}
-	for _, subnet := range currentSubnets {
-		trackSubnetIDsMap[subnet.String()] = struct{}{}
+
+	trackSubnetIDsSet := set.Set[string]{}
+	for _, subnetID := range append(currentSubnets, subnetIDs...) {
+		trackSubnetIDsSet.Add(subnetID.String())
 	}
-	for _, subnetID := range subnetIDs {
-		trackSubnetIDsMap[subnetID.String()] = struct{}{}
-	}
-	trackSubnetIDs := []string{}
-	for subnetID := range trackSubnetIDsMap {
-		trackSubnetIDs = append(trackSubnetIDs, subnetID)
-	}
+
+	trackSubnetIDs := trackSubnetIDsSet.List()
 	sort.Strings(trackSubnetIDs)
 	trackSubnets := strings.Join(trackSubnetIDs, ",")
 
@@ -517,20 +515,19 @@ func (ln *localNetwork) addPrimaryValidators(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
-	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vdrs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
 	}
-	curValidators := make(map[ids.NodeID]struct{})
-	for _, v := range vs {
-		curValidators[v.NodeID] = struct{}{}
+	curValidators := set.Set[ids.NodeID]{}
+	for _, v := range vdrs {
+		curValidators.Add(v.NodeID)
 	}
 	for nodeName, node := range ln.nodes {
 		nodeID := node.GetNodeID()
 
-		_, isValidator := curValidators[nodeID]
-		if isValidator {
+		if curValidators.Contains(nodeID) {
 			continue
 		}
 
@@ -569,8 +566,7 @@ func createSubnets(
 	fmt.Println()
 	log.Info(logging.Green.Wrap("creating subnets VM"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
-	var i uint32
-	for i = 0; i < numSubnets; i++ {
+	for i := uint32(0); i < numSubnets; i++ {
 		log.Info("creating subnet tx")
 		cctx, cancel := createDefaultCtx(ctx)
 		subnetID, err := baseWallet.P().IssueCreateSubnetTx(
@@ -624,8 +620,7 @@ func (ln *localNetwork) addSubnetValidators(
 		}
 		for nodeName, node := range ln.nodes {
 			nodeID := node.GetNodeID()
-			isValidator := subnetValidators.Contains(nodeID)
-			if isValidator {
+			if isValidator := subnetValidators.Contains(nodeID); isValidator {
 				continue
 			}
 			cctx, cancel := createDefaultCtx(ctx)
@@ -684,6 +679,9 @@ func (ln *localNetwork) waitSubnetValidators(
 					ready = false
 				}
 			}
+			if !ready {
+				break
+			}
 		}
 		if ready {
 			return nil
@@ -699,9 +697,7 @@ func (ln *localNetwork) waitSubnetValidators(
 }
 
 // reload VM plugins on all nodes
-func (ln *localNetwork) reloadVMPlugins(
-	ctx context.Context,
-) error {
+func (ln *localNetwork) reloadVMPlugins(ctx context.Context) error {
 	ln.log.Info(logging.Green.Wrap("reloading plugin binaries"))
 	for _, node := range ln.nodes {
 		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
@@ -840,7 +836,7 @@ func (*localNetwork) createBlockchains(
 			return fmt.Errorf("failure issuing create blockchain: %w", err)
 		}
 		if blockchainID != blockchainTxs[i].ID() {
-			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchaindID")
+			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchainID")
 		}
 
 		log.Info("created a new blockchain",
