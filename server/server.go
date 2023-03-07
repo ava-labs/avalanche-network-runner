@@ -655,9 +655,7 @@ func (s *server) CreateSpecificBlockchains(
 	// update cluster info non-blocking
 	// the user is expected to poll this latest information
 	// to decide cluster/subnet readiness
-	go func() {
-		s.waitChAndUpdateClusterInfo("specific chains", readyCh, true)
-	}()
+	s.waitChAndUpdateClusterInfo("create specific chains", readyCh, true)
 
 	// Create chains response
 	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))
