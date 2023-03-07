@@ -88,6 +88,9 @@ var (
 )
 
 const (
+	// RPCVersion should be bumped anytime changes are made which require
+	// the RPC client to upgrade to latest RPC server to be compatible
+	RPCVersion   uint32 = 1
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
 	stopTimeout         = 2 * time.Second
@@ -233,6 +236,12 @@ func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse,
 }
 
 const defaultStartTimeout = 5 * time.Minute
+
+func (s *server) RPCVersion(context.Context, *rpcpb.RPCVersionRequest) (*rpcpb.RPCVersionResponse, error) {
+	s.log.Debug("RPCVersion")
+
+	return &rpcpb.RPCVersionResponse{Version: RPCVersion}, nil
+}
 
 func (s *server) Start(ctx context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
 	// if timeout is too small or not set, default to 5-min

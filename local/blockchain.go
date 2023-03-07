@@ -26,7 +26,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
-	"github.com/ava-labs/avalanchego/vms/platformvm/validator"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
@@ -534,7 +533,7 @@ func (ln *localNetwork) addPrimaryValidators(
 
 		cctx, cancel = createDefaultCtx(ctx)
 		txID, err := baseWallet.P().IssueAddValidatorTx(
-			&validator.Validator{
+			&txs.Validator{
 				NodeID: nodeID,
 				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 				End:    uint64(time.Now().Add(validationDuration).Unix()),
@@ -626,8 +625,8 @@ func (ln *localNetwork) addSubnetValidators(
 			}
 			cctx, cancel := createDefaultCtx(ctx)
 			txID, err := baseWallet.P().IssueAddSubnetValidatorTx(
-				&validator.SubnetValidator{
-					Validator: validator.Validator{
+				&txs.SubnetValidator{
+					Validator: txs.Validator{
 						NodeID: nodeID,
 						// reasonable delay in most/slow test environments
 						Start: uint64(time.Now().Add(validationStartOffset).Unix()),
