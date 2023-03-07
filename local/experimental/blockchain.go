@@ -35,9 +35,7 @@ const (
 	subnetValidatorsWeight = 1000
 )
 
-var (
-	defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
-)
+var defaultPoll = common.WithPollFrequency(100 * time.Millisecond)
 
 type LocalNetwork interface {
 	GetClientURIUnsafe() (string, error)
@@ -71,6 +69,7 @@ func newWallet(ctx context.Context, uri string, logger logging.Logger) (*wallet,
 	var w wallet
 	w.client = platformvm.NewClient(uri)
 	w.addr = genesis.EWOQKey.PublicKey().Address()
+	w.log = logger
 	w.backend = p.NewBackend(pCtx, pUTXOs, map[ids.ID]*txs.Tx{})
 	w.builder = p.NewBuilder(addrs, w.backend)
 	w.signer = p.NewSigner(kc, w.backend)
@@ -81,14 +80,6 @@ func newWallet(ctx context.Context, uri string, logger logging.Logger) (*wallet,
 func (w *wallet) reload(uri string) {
 	w.client = platformvm.NewClient(uri)
 	w.wallet = p.NewWallet(w.builder, w.signer, w.client, w.backend)
-}
-
-func (w *wallet) address() ids.ShortID {
-	return w.addr
-}
-
-func (w *wallet) P() p.Wallet {
-	return w.wallet
 }
 
 func (w *wallet) createSubnets(

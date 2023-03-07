@@ -70,7 +70,7 @@ func (ln *localNetwork) getSomeNode() node.Node {
 }
 
 // get node client URI for an arbitrary node in the network
-func (ln *localNetwork) getClientURI() (string, error) { //nolint
+func (ln *localNetwork) getClientURI() (string, error) {
 	node := ln.getSomeNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	return clientURI, nil
