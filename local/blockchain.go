@@ -31,6 +31,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/wallet/chain/p"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
@@ -187,7 +188,7 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet.P(), testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -305,7 +306,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet.P(), testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -523,7 +524,7 @@ func setupWallet(
 func (ln *localNetwork) addPrimaryValidators(
 	ctx context.Context,
 	platformCli platformvm.Client,
-	baseWallet primary.Wallet,
+	baseWallet p.Wallet,
 	testKeyAddr ids.ShortID,
 ) error {
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
@@ -562,7 +563,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		proofOfPossession := signer.NewProofOfPossession(blsSk)
 
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := baseWallet.P().IssueAddPermissionlessValidatorTx(
+		txID, err := baseWallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
 					NodeID: nodeID,
@@ -573,7 +574,7 @@ func (ln *localNetwork) addPrimaryValidators(
 				Subnet: ids.Empty,
 			},
 			proofOfPossession,
-			baseWallet.P().AVAXAssetID(),
+			baseWallet.AVAXAssetID(),
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
 				Addrs:     []ids.ShortID{testKeyAddr},
