@@ -104,7 +104,7 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	chainInfos []blockchainInfo,
 	chainSpecs []network.BlockchainSpec,
 ) error {
-	fmt.Println() // TODO can we remove all these empty line prints?
+	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases")))
 	for i, chainSpec := range chainSpecs {
 		if chainSpec.BlockchainAlias == "" {
@@ -662,7 +662,6 @@ func (ln *localNetwork) waitSubnetValidators(
 	ln.log.Info(logging.Green.Wrap("waiting for the nodes to become subnet validators"))
 	for {
 		ready := true
-	subnetLoop:
 		for _, subnetID := range subnetIDs {
 			cctx, cancel := createDefaultCtx(ctx)
 			vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
@@ -678,8 +677,10 @@ func (ln *localNetwork) waitSubnetValidators(
 				nodeID := node.GetNodeID()
 				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
 					ready = false
-					break subnetLoop
 				}
+			}
+			if !ready {
+				break
 			}
 		}
 		if ready {
