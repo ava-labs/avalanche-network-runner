@@ -431,11 +431,6 @@ func CreateSpecificBlockchains(
 		chainSpecs[i].SubnetID = &subnetIDStr
 	}
 
-	// Add subnet validators
-	if err := wallet.addSubnetValidators(ctx, ln, chainSpecs); err != nil {
-		return nil, nil, err
-	}
-
 	// Restart validators
 	if err := restartNodes(ctx, ln, chainSpecs); err != nil {
 		return nil, nil, err
@@ -445,6 +440,11 @@ func CreateSpecificBlockchains(
 		return nil, nil, err
 	}
 	wallet.reload(clientURI)
+
+	// Add subnet validators
+	if err := wallet.addSubnetValidators(ctx, ln, chainSpecs); err != nil {
+		return nil, nil, err
+	}
 
 	// Create and store chain configs
 	blockchainTxs, err := wallet.createBlockchainTxs(ctx, chainSpecs)
