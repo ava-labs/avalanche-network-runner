@@ -491,7 +491,8 @@ message GetSnapshotNamesResponse {
 }
 
 message CreateSpecificBlockchainsRequest {
-  repeated BlockchainSpec blockchain_specs = 1;
+  string exec_path                  = 1;
+  repeated BlockchainSpec blockchain_specs = 2;
 }
 
 message CreateSpecificBlockchainsResponse {

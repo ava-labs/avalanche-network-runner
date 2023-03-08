@@ -284,6 +284,7 @@ func (lc *localNetwork) createBlockchains(
 
 func (lc *localNetwork) createSpecificBlockchains(
 	argCtx context.Context,
+	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) ([]network.BlockchainInfo, error) {
 	// createBlockchains triggers a series of different time consuming actions
@@ -300,7 +301,7 @@ func (lc *localNetwork) createSpecificBlockchains(
 		return nil, err
 	}
 
-	addedChains, err := lc.nw.CreateSpecificBlockchains(ctx, chainSpecs)
+	addedChains, err := lc.nw.CreateSpecificBlockchains(ctx, execPath, chainSpecs)
 	if err != nil {
 		return nil, err
 	}

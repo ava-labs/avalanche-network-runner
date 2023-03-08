@@ -640,10 +640,17 @@ func (s *server) CreateSpecificBlockchains(
 		return nil, ErrNoBlockchainSpec
 	}
 
-	chains, err := s.network.createSpecificBlockchains(ctx, chainSpecs)
+	chains, err := s.network.createSpecificBlockchains(ctx, req.ExecPath, chainSpecs)
 	if err != nil {
 		return nil, err
 	}
+
+	// Update node info in case we updated any missing nodes
+	if err := s.network.updateNodeInfo(); err != nil {
+		return nil, err
+	}
+	s.clusterInfo.NodeNames = s.network.nodeNames
+	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
 	// Create chains response
 	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))

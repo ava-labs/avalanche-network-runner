@@ -133,12 +133,13 @@ func (ln *localNetwork) CreateSubnets(
 
 func (ln *localNetwork) CreateSpecificBlockchains(
 	ctx context.Context,
+	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) ([]network.BlockchainInfo, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	chainSpecs, chainIDs, err := experimental.CreateSpecificBlockchains(ctx, ln, chainSpecs)
+	chainSpecs, chainIDs, err := experimental.CreateSpecificBlockchains(ctx, ln, execPath, chainSpecs)
 	if err != nil {
 		return nil, err
 	}

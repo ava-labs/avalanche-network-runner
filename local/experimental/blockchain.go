@@ -45,6 +45,7 @@ type LocalNetwork interface {
 	RestartNodeUnsafe(ctx context.Context, nodeName string) error
 	HealthyUnsafe(ctx context.Context) error
 	ReloadVMPluginsUnsafe(ctx context.Context) error
+	AddNodeUnsafe(nodeConfig node.Config) error
 }
 
 type wallet struct {
@@ -399,6 +400,7 @@ func (w *wallet) addSubnetValidators(
 func CreateSpecificBlockchains(
 	ctx context.Context,
 	ln LocalNetwork,
+	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
 ) ([]network.BlockchainSpec, []ids.ID, error) {
 	clientURI, err := ln.GetClientURIUnsafe()
@@ -407,17 +409,6 @@ func CreateSpecificBlockchains(
 	}
 	wallet, err := newWallet(ctx, clientURI, ln.Logger())
 	if err != nil {
-		return nil, nil, err
-	}
-
-	// Ensure all participants are validators
-	allNames := map[string]struct{}{}
-	for _, spec := range chainSpecs {
-		for _, name := range spec.Participants {
-			allNames[name] = struct{}{}
-		}
-	}
-	if err := wallet.addPrimaryValidators(ctx, ln, allNames); err != nil {
 		return nil, nil, err
 	}
 
@@ -431,15 +422,28 @@ func CreateSpecificBlockchains(
 		chainSpecs[i].SubnetID = &subnetIDStr
 	}
 
-	// Restart validators
-	if err := restartNodes(ctx, ln, chainSpecs); err != nil {
+	// Ensure all participants exist
+	allNames := map[string]struct{}{}
+	for _, spec := range chainSpecs {
+		for _, name := range spec.Participants {
+			if err := ln.AddNodeUnsafe(node.Config{
+				Name:       name,
+				BinaryPath: execPath,
+				Flags: map[string]interface{}{
+					config.TrackSubnetsKey: *spec.SubnetID,
+				},
+			}); err != nil {
+				return nil, nil, err
+			}
+			ln.Logger().Info("added node", zap.String("name", name))
+			allNames[name] = struct{}{}
+		}
+	}
+
+	// Ensure all participants are validators
+	if err := wallet.addPrimaryValidators(ctx, ln, allNames); err != nil {
 		return nil, nil, err
 	}
-	clientURI, err = ln.GetClientURIUnsafe()
-	if err != nil {
-		return nil, nil, err
-	}
-	wallet.reload(clientURI)
 
 	// Add subnet validators
 	if err := wallet.addSubnetValidators(ctx, ln, chainSpecs); err != nil {

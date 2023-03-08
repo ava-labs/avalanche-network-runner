@@ -39,3 +39,8 @@ func (ln *localNetwork) HealthyUnsafe(ctx context.Context) error {
 func (ln *localNetwork) ReloadVMPluginsUnsafe(ctx context.Context) error {
 	return ln.reloadVMPlugins(ctx)
 }
+
+func (ln *localNetwork) AddNodeUnsafe(nodeConfig node.Config) error {
+	_, err := ln.addNode(nodeConfig)
+	return err
+}
