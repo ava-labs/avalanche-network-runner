@@ -405,6 +405,7 @@ func CreateSpecificBlockchains(
 	ln LocalNetwork,
 	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	redirectOutput bool,
 ) ([]network.BlockchainSpec, []ids.ID, error) {
 	clientURI, err := ln.GetClientURIUnsafe()
 	if err != nil {
@@ -432,8 +433,8 @@ func CreateSpecificBlockchains(
 			if err := ln.AddNodeUnsafe(node.Config{
 				Name:           name,
 				BinaryPath:     execPath,
-				RedirectStdout: true,
-				RedirectStderr: true,
+				RedirectStdout: redirectOutput,
+				RedirectStderr: redirectOutput,
 				Flags: map[string]interface{}{
 					config.TrackSubnetsKey: *spec.SubnetID,
 				},

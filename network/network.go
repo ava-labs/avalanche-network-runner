@@ -81,5 +81,5 @@ type Network interface {
 	// created and the participants that are on each chain.
 	//
 	// NOTE: This method is experimental and could change.
-	CreateSpecificBlockchains(context.Context, string, []BlockchainSpec) ([]BlockchainInfo, error)
+	CreateSpecificBlockchains(context.Context, string, []BlockchainSpec, bool) ([]BlockchainInfo, error)
 }

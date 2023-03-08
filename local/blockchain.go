@@ -135,11 +135,12 @@ func (ln *localNetwork) CreateSpecificBlockchains(
 	ctx context.Context,
 	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	redirectOutput bool,
 ) ([]network.BlockchainInfo, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	chainSpecs, chainIDs, err := experimental.CreateSpecificBlockchains(ctx, ln, execPath, chainSpecs)
+	chainSpecs, chainIDs, err := experimental.CreateSpecificBlockchains(ctx, ln, execPath, chainSpecs, redirectOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +163,6 @@ func (ln *localNetwork) CreateSpecificBlockchains(
 			SubnetID:     subnetID,
 			BlockchainID: chainIDs[i],
 		}
-	}
-	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
-		return nil, err
 	}
 	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
 		return nil, err

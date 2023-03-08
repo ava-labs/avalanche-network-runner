@@ -640,7 +640,7 @@ func (s *server) CreateSpecificBlockchains(
 		return nil, ErrNoBlockchainSpec
 	}
 
-	chains, err := s.network.createSpecificBlockchains(ctx, req.ExecPath, chainSpecs)
+	chains, err := s.network.createSpecificBlockchains(ctx, req.ExecPath, chainSpecs, s.cfg.RedirectNodesOutput)
 	if err != nil {
 		return nil, err
 	}

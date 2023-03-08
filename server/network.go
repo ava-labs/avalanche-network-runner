@@ -286,6 +286,7 @@ func (lc *localNetwork) createSpecificBlockchains(
 	argCtx context.Context,
 	execPath string,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
+	redirectOutput bool,
 ) ([]network.BlockchainInfo, error) {
 	// createBlockchains triggers a series of different time consuming actions
 	// (in case of subnets: create a wallet, create subnets, issue txs, etc.)
@@ -301,7 +302,7 @@ func (lc *localNetwork) createSpecificBlockchains(
 		return nil, err
 	}
 
-	addedChains, err := lc.nw.CreateSpecificBlockchains(ctx, execPath, chainSpecs)
+	addedChains, err := lc.nw.CreateSpecificBlockchains(ctx, execPath, chainSpecs, redirectOutput)
 	if err != nil {
 		return nil, err
 	}
