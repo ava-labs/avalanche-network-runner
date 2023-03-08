@@ -525,6 +525,10 @@ func (lc *localNetwork) stop(ctx context.Context) {
 		}
 		serr := lc.nw.Stop(ctx)
 		<-lc.startDoneCh
-		ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), serr)
+		if serr == nil {
+			ux.Print(lc.log, logging.Green.Wrap("terminated network"))
+		} else {
+			ux.Print(lc.log, logging.Red.Wrap("terminated network: %s"), serr)
+		}
 	})
 }

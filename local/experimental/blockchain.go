@@ -28,7 +28,7 @@ import (
 const (
 	defaultTimeout = time.Minute
 	// offset of validation start from current time
-	validationStartOffset = 20 * time.Second
+	validationStartOffset = 10 * time.Second
 	// duration for primary network validators
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
@@ -180,7 +180,7 @@ func (w *wallet) addPrimaryValidators(
 		if err != nil {
 			return err
 		}
-		w.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
+		w.log.Info("added node as primary network validator", zap.String("name", nodeName), zap.String("nodeID", nodeID.String()), zap.String("txID", txID.String()))
 		addedValidators = append(addedValidators, nodeID)
 	}
 
@@ -203,7 +203,7 @@ func (w *wallet) addPrimaryValidators(
 		if ready {
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		w.log.Info("waiting for all validators to become active")
 	}
 	return ctx.Err()
@@ -366,11 +366,11 @@ func (w *wallet) addSubnetValidators(
 			if err != nil {
 				return err
 			}
-			w.log.Info("added node as a subnet validator to subnet",
-				zap.String("node-name", nodeName),
-				zap.String("node-ID", nodeID.String()),
-				zap.String("subnet-ID", subnetID.String()),
-				zap.String("tx-ID", txID.String()),
+			w.log.Info("added node as a subnet validator",
+				zap.String("name", nodeName),
+				zap.String("nodeID", nodeID.String()),
+				zap.String("subnetID", subnetID.String()),
+				zap.String("txID", txID.String()),
 			)
 		}
 
@@ -393,7 +393,7 @@ func (w *wallet) addSubnetValidators(
 			if ready {
 				break
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 			w.log.Info("waiting for all subnet validators to become active")
 		}
 	}
@@ -441,7 +441,7 @@ func CreateSpecificBlockchains(
 			}); err != nil {
 				return nil, nil, err
 			}
-			ln.Logger().Info("added node", zap.String("name", name))
+			ln.Logger().Info("created node", zap.String("name", name))
 			allNames[name] = struct{}{}
 		}
 	}
