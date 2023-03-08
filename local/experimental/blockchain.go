@@ -250,7 +250,9 @@ func (w *wallet) createBlockchainTxs(
 		}
 		// Ensure we can't use the same UTXOs for the next create blockchain
 		// transaction
-		w.backend.AcceptTx(ctx, tx)
+		if err := w.backend.AcceptTx(ctx, tx); err != nil {
+			return nil, fmt.Errorf("could not pre-accept create chain transaction: %w", err)
+		}
 		blockchainTxs[i] = tx
 	}
 
