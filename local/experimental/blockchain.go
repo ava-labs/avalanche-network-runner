@@ -248,6 +248,9 @@ func (w *wallet) createBlockchainTxs(
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
+		// Ensure we can't use the same UTXOs for the next create blockchain
+		// transaction
+		w.backend.AcceptTx(ctx, tx)
 		blockchainTxs[i] = tx
 	}
 
