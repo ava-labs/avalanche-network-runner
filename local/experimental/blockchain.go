@@ -427,8 +427,10 @@ func CreateSpecificBlockchains(
 	for _, spec := range chainSpecs {
 		for _, name := range spec.Participants {
 			if err := ln.AddNodeUnsafe(node.Config{
-				Name:       name,
-				BinaryPath: execPath,
+				Name:           name,
+				BinaryPath:     execPath,
+				RedirectStdout: true,
+				RedirectStderr: true,
 				Flags: map[string]interface{}{
 					config.TrackSubnetsKey: *spec.SubnetID,
 				},
@@ -471,10 +473,10 @@ func CreateSpecificBlockchains(
 	}
 	wallet.reload(clientURI)
 
-	// Reload plugins and create blockchains
-	if err := ln.ReloadVMPluginsUnsafe(ctx); err != nil {
-		return nil, nil, err
-	}
+	// Create blockchains
+	// if err := ln.ReloadVMPluginsUnsafe(ctx); err != nil {
+	// 	return nil, nil, err
+	// }
 	if err := wallet.createBlockchains(ctx, chainSpecs, blockchainTxs); err != nil {
 		return nil, nil, err
 	}
