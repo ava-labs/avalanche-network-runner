@@ -649,8 +649,15 @@ func (s *server) CreateSpecificBlockchains(
 	if err := s.network.updateNodeInfo(); err != nil {
 		return nil, err
 	}
+	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = s.network.nodeNames
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
+	s.clusterInfo.CustomChainsHealthy = true
+	s.clusterInfo.CustomChains = make(map[string]*rpcpb.CustomChainInfo)
+	for chainID, chainInfo := range s.network.customChainIDToInfo {
+		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
+	}
+	s.clusterInfo.Subnets = s.network.subnets
 
 	// Create chains response
 	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))
