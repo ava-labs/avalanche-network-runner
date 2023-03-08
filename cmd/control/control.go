@@ -347,10 +347,10 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 
 func newCreateSpecificBlockchainsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-specific-blockchains blockchain-specs [options]",
+		Use:   "create-specific-blockchains execPath blockchain-specs [options]",
 		Short: "Create specific blockchains.",
 		RunE:  createSpecificBlockchainsFunc,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 	}
 	return cmd
 }
@@ -362,7 +362,8 @@ func createSpecificBlockchainsFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	blockchainSpecsStr := args[0]
+	execPath := args[0]
+	blockchainSpecsStr := args[1]
 
 	blockchainSpecs := []*rpcpb.BlockchainSpec{}
 	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
@@ -373,6 +374,7 @@ func createSpecificBlockchainsFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.CreateSpecificBlockchains(
 		ctx,
+		execPath,
 		blockchainSpecs,
 	)
 	if err != nil {
