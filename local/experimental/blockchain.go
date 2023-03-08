@@ -28,7 +28,7 @@ import (
 const (
 	defaultTimeout = time.Minute
 	// offset of validation start from current time
-	validationStartOffset = 10 * time.Second
+	validationStartOffset = 20 * time.Second
 	// duration for primary network validators
 	validationDuration = 365 * 24 * time.Hour
 	// weight assigned to subnet validators
