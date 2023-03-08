@@ -497,5 +497,5 @@ message CreateSpecificBlockchainsRequest {
 
 message CreateSpecificBlockchainsResponse {
   ClusterInfo cluster_info = 1;
-  repeated CustomChainInfo chains = 2;
+  repeated string chains = 2;
 }

@@ -660,16 +660,11 @@ func (s *server) CreateSpecificBlockchains(
 	s.clusterInfo.Subnets = s.network.subnets
 
 	// Create chains response
-	chainInfo := make([]*rpcpb.CustomChainInfo, len(chains))
+	chainIDs := make([]string, len(chains))
 	for i, chain := range chains {
-		chainInfo[i] = &rpcpb.CustomChainInfo{
-			ChainName: chain.ChainName,
-			VmId:      chain.VMID.String(),
-			SubnetId:  chain.SubnetID.String(),
-			ChainId:   chain.BlockchainID.String(),
-		}
+		chainIDs[i] = chain.BlockchainID.String()
 	}
-	return &rpcpb.CreateSpecificBlockchainsResponse{ClusterInfo: s.clusterInfo, Chains: chainInfo}, nil
+	return &rpcpb.CreateSpecificBlockchainsResponse{ClusterInfo: s.clusterInfo, Chains: chainIDs}, nil
 }
 
 func (s *server) CreateSubnets(ctx context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
