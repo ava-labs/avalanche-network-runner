@@ -140,11 +140,13 @@ func (ln *localNetwork) CreateSpecificBlockchains(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
+	// Create new subnets and blockchains
 	chainSpecs, chainIDs, err := experimental.CreateSpecificBlockchains(ctx, ln, execPath, chainSpecs, redirectOutput)
 	if err != nil {
 		return nil, err
 	}
 
+	// Register blockchain aliases (if provided)
 	chainInfos := make([]network.BlockchainInfo, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
 		vmID, err := utils.VMID(chainSpec.VMName)
@@ -167,6 +169,21 @@ func (ln *localNetwork) CreateSpecificBlockchains(
 	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
 		return nil, err
 	}
+
+	// Update the default value of "track-subnets" to be all existing subnets
+	// deployed on the local network
+	currentSubnets, err := ln.getCurrentSubnets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	trackSubnetIDsSet := set.Set[string]{}
+	for _, subnetID := range currentSubnets {
+		trackSubnetIDsSet.Add(subnetID.String())
+	}
+	trackSubnetIDs := trackSubnetIDsSet.List()
+	sort.Strings(trackSubnetIDs)
+	trackSubnets := strings.Join(trackSubnetIDs, ",")
+	ln.flags[config.TrackSubnetsKey] = trackSubnets
 	return chainInfos, nil
 }
 
