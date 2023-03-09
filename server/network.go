@@ -433,12 +433,11 @@ func (lc *localNetwork) awaitHealthy(ctx context.Context) error {
 		return err
 	}
 
-	// TODO do we need to log this? Seems verbose
 	sortedNodeNames := maps.Keys(lc.nodeInfos)
 	sort.Strings(sortedNodeNames)
 	for _, nodeName := range sortedNodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
-		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), nodeName, nodeInfo.Id, nodeInfo.Uri))
+		lc.log.Debug(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), nodeName, nodeInfo.Id, nodeInfo.Uri))
 	}
 
 	return nil
