@@ -1289,8 +1289,7 @@ func TestRemoveBeacon(t *testing.T) {
 }
 
 // Returns an API client where:
-// * The Health API's Health method always returns an error after the
-//   given context is cancelled.
+// * The Health API's Health method always returns an error after the given context is cancelled.
 // * The CChainEthAPI's Close method may be called
 // * Only the above 2 methods may be called
 func newMockAPIHealthyBlocks(string, uint16) api.Client {
