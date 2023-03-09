@@ -525,7 +525,7 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	}
 
 	s.log.Info("waiting for local cluster readiness")
-	if err := s.network.AwaitHealthy(ctx); err != nil {
+	if err := s.network.AwaitUpdateNetworkInfo(ctx); err != nil {
 		return nil, err
 	}
 
@@ -931,7 +931,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 		defer cancel()
-		err := s.network.AwaitHealthy(ctx)
+		err := s.network.AwaitUpdateNetworkInfo(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
