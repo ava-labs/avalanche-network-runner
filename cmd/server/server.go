@@ -95,11 +95,7 @@ func serverFunc(*cobra.Command, []string) (err error) {
 	defer cancel()
 	errChan := make(chan error)
 	go func() {
-		err := s.Run(ctx)
-		if err != nil {
-			log.Error("server Run error", zap.Error(err))
-		}
-		errChan <- err
+		errChan <- s.Run(ctx)
 	}()
 
 	// Relay SIGINT and SIGTERM to [sigChan]
