@@ -244,7 +244,7 @@ func (lc *localNetwork) CreateChains(
 		}
 	}(ctx)
 
-	if err := lc.awaitUpdateNetworkInfo(ctx); err != nil {
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return err
 	}
 
@@ -252,7 +252,7 @@ func (lc *localNetwork) CreateChains(
 		return err
 	}
 
-	if err := lc.awaitUpdateNetworkInfo(ctx); err != nil {
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return err
 	}
 
@@ -287,7 +287,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 		}
 	}(ctx)
 
-	if err := lc.awaitUpdateNetworkInfo(ctx); err != nil {
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return err
 	}
 
@@ -295,7 +295,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 		return err
 	}
 
-	if err := lc.awaitUpdateNetworkInfo(ctx); err != nil {
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return err
 	}
 
@@ -404,17 +404,17 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 }
 
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) AwaitUpdateNetworkInfo(ctx context.Context) error {
+func (lc *localNetwork) AwaitHealthyAndUpdateNetworkInfo(ctx context.Context) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	return lc.awaitUpdateNetworkInfo(ctx)
+	return lc.awaitHealthyAndUpdateNetworkInfo(ctx)
 }
 
 // Returns nil when [lc.nw] reports healthy.
 // Updates node and subnet info.
 // Assumes [lc.lock] is held.
-func (lc *localNetwork) awaitUpdateNetworkInfo(ctx context.Context) error {
+func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) error {
 	if lc.nw == nil {
 		return ErrNetworkNotRunning
 	}
