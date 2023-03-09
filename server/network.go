@@ -192,7 +192,7 @@ func (lc *localNetwork) Start() error {
 	defer lc.lock.Unlock()
 
 	if lc.nw != nil {
-		return ErrNetworkRunning
+		return ErrAlreadyBootstrapped
 	}
 
 	if err := lc.createConfig(); err != nil {
@@ -224,7 +224,7 @@ func (lc *localNetwork) CreateChains(
 	defer lc.lock.Unlock()
 
 	if lc.nw == nil {
-		return ErrNetworkNotRunning
+		return ErrNotBootstrapped
 	}
 
 	if len(chainSpecs) == 0 {
@@ -266,7 +266,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 	defer lc.lock.Unlock()
 
 	if lc.nw == nil {
-		return ErrNetworkNotRunning
+		return ErrNotBootstrapped
 	}
 
 	if numSubnets == 0 {
@@ -310,7 +310,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 	defer lc.lock.Unlock()
 
 	if lc.nw != nil {
-		return ErrNetworkRunning
+		return ErrAlreadyBootstrapped
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network from snapshot")))
@@ -416,7 +416,7 @@ func (lc *localNetwork) AwaitHealthyAndUpdateNetworkInfo(ctx context.Context) er
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) error {
 	if lc.nw == nil {
-		return ErrNetworkNotRunning
+		return ErrNotBootstrapped
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("waiting for all nodes to report healthy...")))
@@ -456,7 +456,7 @@ func (lc *localNetwork) UpdateNodeInfo() error {
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateNodeInfo() error {
 	if lc.nw == nil {
-		return ErrNetworkNotRunning
+		return ErrNotBootstrapped
 	}
 
 	nodes, err := lc.nw.GetAllNodes()

@@ -55,8 +55,8 @@ var (
 	ErrInvalidVMName          = errors.New("invalid VM name")
 	ErrInvalidPort            = errors.New("invalid port")
 	ErrNotEnoughNodesForStart = errors.New("not enough nodes specified for start")
-	ErrNetworkRunning         = errors.New("network already running")
-	ErrNetworkNotRunning      = errors.New("no network is running")
+    ErrAlreadyBootstrapped    = errors.New("already bootstrapped")
+    ErrNotBootstrapped        = errors.New("not bootstrapped")
 	ErrNodeNotFound           = errors.New("node not found")
 	ErrPeerNotFound           = errors.New("peer not found")
 	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
@@ -253,7 +253,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 
 	// If [network] is already populated, the network has already been started.
 	if s.network != nil {
-		return nil, ErrNetworkRunning
+		return nil, ErrAlreadyBootstrapped
 	}
 
 	// Set default values for [req.NumNodes] if not given.
@@ -400,7 +400,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 
 		if s.network == nil {
 			s.mu.RUnlock()
-			return nil, ErrNetworkNotRunning
+			return nil, ErrNotBootstrapped
 		}
 		if s.clusterInfo.CustomChainsHealthy {
 			defer s.mu.RUnlock()
@@ -427,7 +427,7 @@ func (s *server) CreateBlockchains(
 	defer s.mu.Unlock()
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	s.log.Debug("CreateBlockchains")
@@ -484,7 +484,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 	defer s.mu.Unlock()
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
@@ -530,7 +530,7 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	s.log.Debug("Health")
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	s.log.Info("waiting for local cluster readiness")
@@ -553,7 +553,7 @@ func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse,
 	s.log.Debug("URIs")
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	uris := make([]string, 0, len(s.clusterInfo.NodeInfos))
@@ -572,7 +572,7 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 	s.log.Debug("Status")
 
 	if s.network == nil {
-		return &rpcpb.StatusResponse{}, ErrNetworkNotRunning
+		return &rpcpb.StatusResponse{}, ErrNotBootstrapped
 	}
 
 	return &rpcpb.StatusResponse{ClusterInfo: s.clusterInfo}, nil
@@ -697,7 +697,7 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	s.log.Debug("AddNode", zap.String("name", req.Name))
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	nodeFlags := map[string]interface{}{}
@@ -744,7 +744,7 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	s.log.Debug("RemoveNode", zap.String("name", req.Name))
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	if err := s.network.nw.RemoveNode(ctx, req.Name); err != nil {
@@ -769,7 +769,7 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	s.log.Debug("RestartNode", zap.String("name", req.Name))
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	if err := s.network.nw.RestartNode(
@@ -829,7 +829,7 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 	s.log.Debug("AttachPeer")
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	node, err := s.network.nw.GetNode(req.NodeName)
@@ -871,7 +871,7 @@ func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboun
 	s.log.Debug("SendOutboundMessage")
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	node, err := s.network.nw.GetNode(req.NodeName)
@@ -890,7 +890,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	s.log.Debug("LoadSnapshot")
 
 	if s.network != nil {
-		return nil, ErrNetworkRunning
+		return nil, ErrAlreadyBootstrapped
 	}
 
 	rootDataDir := req.GetRootDataDir()
@@ -964,7 +964,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 	s.log.Info("SaveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
@@ -985,7 +985,7 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
@@ -1002,7 +1002,7 @@ func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesReques
 	s.log.Info("GetSnapshotNames")
 
 	if s.network == nil {
-		return nil, ErrNetworkNotRunning
+		return nil, ErrNotBootstrapped
 	}
 
 	snapshotNames, err := s.network.nw.GetSnapshotNames()
