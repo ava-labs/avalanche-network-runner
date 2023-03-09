@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	dircopy "github.com/otiai10/copy"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -97,6 +98,7 @@ func NewNetworkFromSnapshot(
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+
 	if ln.stopCalled() {
 		return "", network.ErrStopped
 	}
@@ -105,8 +107,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// check if snapshot already exists
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	_, err := os.Stat(snapshotDir)
-	if err == nil {
+	if _, err := os.Stat(snapshotDir); err == nil {
 		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
 	// keep copy of node info that will be removed by stop
@@ -116,11 +117,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		nodeConfig := node.config
 		// depending on how the user generated the config, different nodes config flags
 		// may point to the same map, so we made a copy to avoid always modifying the same value
-		nodeConfigFlags := make(map[string]interface{})
-		for fk, fv := range nodeConfig.Flags {
-			nodeConfigFlags[fk] = fv
-		}
-		nodeConfig.Flags = nodeConfigFlags
+		nodeConfig.Flags = maps.Clone(nodeConfig.Flags)
 		nodesConfig[nodeName] = nodeConfig
 		nodesDBDir[nodeName] = node.GetDbDir()
 	}
@@ -130,14 +127,12 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
 	}
 	// make copy of network flags
-	networkConfigFlags := make(map[string]interface{})
-	for fk, fv := range ln.flags {
-		networkConfigFlags[fk] = fv
-	}
+	networkConfigFlags := maps.Clone(ln.flags)
 	// remove all log dir references
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
 		if nodeConfig.ConfigFile != "" {
+			var err error
 			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
 			if err != nil {
 				return "", err
@@ -153,8 +148,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// create main snapshot dirs
 	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
-	err = os.MkdirAll(snapshotDBDir, os.ModePerm)
-	if err != nil {
+	if err := os.MkdirAll(snapshotDBDir, os.ModePerm); err != nil {
 		return "", err
 	}
 	// save db
@@ -180,16 +174,13 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		SubnetConfigFiles:  ln.subnetConfigFiles,
 	}
 
-	for _, nodeConfig := range nodesConfig {
-		// no need to save this, will be generated automatically on snapshot load
-		networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, nodeConfig)
-	}
+	// no need to save this, will be generated automatically on snapshot load
+	networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, maps.Values(nodesConfig)...)
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {
 		return "", err
 	}
-	err = createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON)
-	if err != nil {
+	if err := createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON); err != nil {
 		return "", err
 	}
 	return snapshotDir, nil
@@ -208,6 +199,7 @@ func (ln *localNetwork) loadSnapshot(
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
 	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	_, err := os.Stat(snapshotDir)
@@ -224,8 +216,7 @@ func (ln *localNetwork) loadSnapshot(
 		return fmt.Errorf("failure reading network config file from snapshot: %w", err)
 	}
 	networkConfig := network.Config{}
-	err = json.Unmarshal(networkConfigJSON, &networkConfig)
-	if err != nil {
+	if err := json.Unmarshal(networkConfigJSON, &networkConfig); err != nil {
 		return fmt.Errorf("failure unmarshaling network config from snapshot: %w", err)
 	}
 	// fix deprecated avago flags

@@ -38,6 +38,9 @@ import (
 )
 
 const (
+	// RPCVersion should be bumped anytime changes are made which require
+	// the RPC client to upgrade to latest RPC server to be compatible
+	RPCVersion   uint32 = 1
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
 
@@ -236,6 +239,12 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 func (s *server) Ping(context.Context, *rpcpb.PingRequest) (*rpcpb.PingResponse, error) {
 	s.log.Debug("received ping request")
 	return &rpcpb.PingResponse{Pid: int32(os.Getpid())}, nil
+}
+
+func (s *server) RPCVersion(context.Context, *rpcpb.RPCVersionRequest) (*rpcpb.RPCVersionResponse, error) {
+	s.log.Debug("RPCVersion")
+
+	return &rpcpb.RPCVersionResponse{Version: RPCVersion}, nil
 }
 
 func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.StartResponse, error) {
