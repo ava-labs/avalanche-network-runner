@@ -354,6 +354,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	nodeNames := maps.Keys(lc.nodeInfos)
+	sort.Strings(nodeNames)
 	node, err := lc.nw.GetNode(nodeNames[0])
 	if err != nil {
 		return err
@@ -392,9 +393,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	sortedNodeNames := maps.Keys(lc.nodeInfos)
-	sort.Strings(sortedNodeNames)
-	for _, nodeName := range sortedNodeNames {
+	for _, nodeName := range nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		for chainID, chainInfo := range lc.customChainIDToInfo {
 			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
@@ -433,9 +432,9 @@ func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) er
 		return err
 	}
 
-	sortedNodeNames := maps.Keys(lc.nodeInfos)
-	sort.Strings(sortedNodeNames)
-	for _, nodeName := range sortedNodeNames {
+	nodeNames := maps.Keys(lc.nodeInfos)
+	sort.Strings(nodeNames)
+	for _, nodeName := range nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
 		lc.log.Debug(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), nodeName, nodeInfo.Id, nodeInfo.Uri))
 	}
