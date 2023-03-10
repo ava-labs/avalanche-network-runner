@@ -600,6 +600,10 @@ func (s *server) stopAndRemoveNetwork(err error) {
 		defer cancel()
 		s.network.Stop(ctx)
 	}
+	if s.clusterInfo != nil {
+		s.clusterInfo.Healthy = false
+		s.clusterInfo.CustomChainsHealthy = false
+	}
 	s.network = nil
 }
 
