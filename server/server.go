@@ -588,7 +588,6 @@ func (s *server) stopAndRemoveNetwork() {
 		s.network.Stop(ctx)
 	}
 	s.network = nil
-	s.clusterInfo = nil
 }
 
 // TODO document this
@@ -804,7 +803,7 @@ func (s *server) Stop(context.Context, *rpcpb.StopRequest) (*rpcpb.StopResponse,
 
 	s.stopAndRemoveNetwork()
 
-	return &rpcpb.StopResponse{}, nil
+	return &rpcpb.StopResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 var _ router.InboundHandler = &loggingInboundHandler{}
