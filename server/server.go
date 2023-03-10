@@ -230,7 +230,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 
 	if s.network != nil {
 		// Close the network.
-		s.stopAndRemoveNetwork()
+		s.stopAndRemoveNetwork(nil)
 		s.log.Warn("network stopped")
 	}
 
@@ -348,7 +348,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 
 	if err := s.network.Start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
-		s.stopAndRemoveNetwork()
+		s.stopAndRemoveNetwork(err)
 		return nil, err
 	}
 
@@ -361,10 +361,9 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("network never became healthy", zap.Error(err))
-			s.stopAndRemoveNetwork()
+			s.stopAndRemoveNetwork(err)
 			return
 		}
 		s.updateClusterInfo()
@@ -474,10 +473,9 @@ func (s *server) CreateBlockchains(
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("failed to create blockchains", zap.Error(err))
-			s.stopAndRemoveNetwork()
+			s.stopAndRemoveNetwork(err)
 			return
 		} else {
 			s.updateClusterInfo()
@@ -517,10 +515,9 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		err := s.network.CreateSubnets(ctx, numSubnets)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("failed to create subnets", zap.Error(err))
-			s.stopAndRemoveNetwork()
+			s.stopAndRemoveNetwork(err)
 			return
 		} else {
 			s.updateClusterInfo()
@@ -587,9 +584,17 @@ func (s *server) Status(context.Context, *rpcpb.StatusRequest) (*rpcpb.StatusRes
 }
 
 // Assumes [s.mu] is held.
-func (s *server) stopAndRemoveNetwork() {
+func (s *server) stopAndRemoveNetwork(err error) {
 	s.log.Info("removing network")
-
+	select {
+	// cleanup of possible previous unchecked async err
+	case err := <-s.asyncErrCh:
+		s.log.Debug(fmt.Sprintf("async err %w not returned to user", err))
+	default:
+	}
+	if err != nil {
+		s.asyncErrCh <- err
+	}
 	if s.network != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 		defer cancel()
@@ -809,7 +814,7 @@ func (s *server) Stop(context.Context, *rpcpb.StopRequest) (*rpcpb.StopResponse,
 
 	s.log.Debug("Stop")
 
-	s.stopAndRemoveNetwork()
+	s.stopAndRemoveNetwork(nil)
 
 	return &rpcpb.StopResponse{ClusterInfo: s.clusterInfo}, nil
 }
@@ -937,7 +942,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
-		s.stopAndRemoveNetwork()
+		s.stopAndRemoveNetwork(err)
 		return nil, err
 	}
 
@@ -950,11 +955,9 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		err := s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Warn("snapshot load failed to complete. stopping network and cleaning up network", zap.Error(err))
-
-			s.stopAndRemoveNetwork()
+			s.stopAndRemoveNetwork(err)
 			return
 		} else {
 			s.updateClusterInfo()
@@ -981,7 +984,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, err
 	}
 
-	s.stopAndRemoveNetwork()
+	s.stopAndRemoveNetwork(nil)
 
 	return &rpcpb.SaveSnapshotResponse{SnapshotPath: snapshotPath}, nil
 }
