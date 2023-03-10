@@ -97,8 +97,9 @@ type server struct {
 	clusterInfo *rpcpb.ClusterInfo
 	// Controls running nodes.
 	// Invariant: If [network] is non-nil, then [clusterInfo] is non-nil.
-	// If [network] is nil, then [clusterInfo] is nil.
-	network *localNetwork
+
+	network    *localNetwork
+	asyncErrCh chan error
 
 	rpcpb.UnimplementedPingServiceServer
 	rpcpb.UnimplementedControlServiceServer
@@ -131,6 +132,7 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 		ln:         listener,
 		gRPCServer: grpc.NewServer(),
 		mu:         new(sync.RWMutex),
+		asyncErrCh: make(chan error, 1),
 	}
 	if !cfg.GwDisabled {
 		s.gwMux = runtime.NewServeMux()
@@ -359,6 +361,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("network never became healthy", zap.Error(err))
 			s.stopAndRemoveNetwork()
@@ -409,10 +412,13 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 		s.mu.RUnlock()
 
 		select {
+		case err := <-s.asyncErrCh:
+			s.mu.RLock()
+			defer s.mu.RUnlock()
+			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, err
 		case <-ctx.Done():
 			s.mu.RLock()
 			defer s.mu.RUnlock()
-
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, ctx.Err()
 		case <-time.After(1 * time.Second):
 		}
@@ -467,6 +473,7 @@ func (s *server) CreateBlockchains(
 		err := s.network.CreateChains(ctx, chainSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("failed to create blockchains", zap.Error(err))
 			s.stopAndRemoveNetwork()
@@ -509,7 +516,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		err := s.network.CreateSubnets(ctx, numSubnets)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-
+		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Error("failed to create subnets", zap.Error(err))
 			s.stopAndRemoveNetwork()
@@ -942,6 +949,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		err := s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		s.asyncErrCh <- err
 		if err != nil {
 			s.log.Warn("snapshot load failed to complete. stopping network and cleaning up network", zap.Error(err))
 
