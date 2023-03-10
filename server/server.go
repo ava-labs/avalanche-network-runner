@@ -348,7 +348,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 
 	if err := s.network.Start(); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
-		s.stopAndRemoveNetwork(err)
+		s.stopAndRemoveNetwork(nil)
 		return nil, err
 	}
 
@@ -946,7 +946,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	// blocking load snapshot to soon get not found snapshot errors
 	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
-		s.stopAndRemoveNetwork(err)
+		s.stopAndRemoveNetwork(nil)
 		return nil, err
 	}
 
