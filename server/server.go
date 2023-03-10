@@ -400,28 +400,25 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 
 	for {
 		s.mu.RLock()
-
-		if s.network == nil {
-			s.mu.RUnlock()
-			return nil, ErrNotBootstrapped
-		}
 		if s.clusterInfo.CustomChainsHealthy {
 			defer s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, nil
 		}
-		s.mu.RUnlock()
-
 		select {
 		case err := <-s.asyncErrCh:
-			s.mu.RLock()
 			defer s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, err
 		case <-ctx.Done():
-			s.mu.RLock()
 			defer s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, ctx.Err()
-		case <-time.After(1 * time.Second):
+		default:
 		}
+		if s.network == nil {
+			defer s.mu.RUnlock()
+			return nil, ErrNotBootstrapped
+		}
+		s.mu.RUnlock()
+		time.Sleep(1 * time.Second)
 	}
 }
 
