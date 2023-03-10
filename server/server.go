@@ -589,7 +589,7 @@ func (s *server) stopAndRemoveNetwork(err error) {
 	select {
 	// cleanup of possible previous unchecked async err
 	case err := <-s.asyncErrCh:
-		s.log.Debug(fmt.Sprintf("async err %w not returned to user", err))
+		s.log.Debug(fmt.Sprintf("async err %s not returned to user", err))
 	default:
 	}
 	if err != nil {
