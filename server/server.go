@@ -375,6 +375,10 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 
 // Asssumes [s.mu] is held.
 func (s *server) updateClusterInfo() {
+	if s.network == nil {
+		// stop may have been called
+		return
+	}
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	sort.Strings(s.clusterInfo.NodeNames)
