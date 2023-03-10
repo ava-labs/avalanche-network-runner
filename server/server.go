@@ -400,6 +400,10 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 
 	for {
 		s.mu.RLock()
+		if s.clusterInfo == nil {
+			defer s.mu.RUnlock()
+			return nil, ErrNotBootstrapped
+		}
 		if s.clusterInfo.CustomChainsHealthy {
 			defer s.mu.RUnlock()
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, nil
