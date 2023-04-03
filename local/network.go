@@ -29,8 +29,10 @@ import (
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 )
@@ -350,22 +352,6 @@ func NewDefaultNetwork(
 	return NewNetwork(log, config, "", "", reassignPortsIfUsed)
 }
 
-func copyMapStringInterface(flags map[string]interface{}) map[string]interface{} {
-	outFlags := map[string]interface{}{}
-	for k, v := range flags {
-		outFlags[k] = v
-	}
-	return outFlags
-}
-
-func copyMapStringString(flags map[string]string) map[string]string {
-	outFlags := map[string]string{}
-	for k, v := range flags {
-		outFlags[k] = v
-	}
-	return outFlags
-}
-
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
@@ -374,10 +360,10 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
 	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
 	// copy maps
-	config.ChainConfigFiles = copyMapStringString(config.ChainConfigFiles)
-	config.Flags = copyMapStringInterface(config.Flags)
+	config.ChainConfigFiles = maps.Clone(config.ChainConfigFiles)
+	config.Flags = maps.Clone(config.Flags)
 	for i := range config.NodeConfigs {
-		config.NodeConfigs[i].Flags = copyMapStringInterface(config.NodeConfigs[i].Flags)
+		config.NodeConfigs[i].Flags = maps.Clone(config.NodeConfigs[i].Flags)
 	}
 	return config
 }
@@ -650,6 +636,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 func (ln *localNetwork) Healthy(ctx context.Context) error {
 	ln.lock.RLock()
 	defer ln.lock.RUnlock()
+
 	return ln.healthy(ctx)
 }
 
@@ -662,7 +649,7 @@ func (ln *localNetwork) healthy(ctx context.Context) error {
 	}
 
 	// Derive a new context that's cancelled when Stop is called,
-	// so that we calls to Healthy() below immediately return.
+	// so that calls to Healthy() below immediately return.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func(ctx context.Context) {
@@ -734,13 +721,7 @@ func (ln *localNetwork) GetNodeNames() ([]string, error) {
 		return nil, network.ErrStopped
 	}
 
-	names := make([]string, len(ln.nodes))
-	i := 0
-	for name := range ln.nodes {
-		names[i] = name
-		i++
-	}
-	return names, nil
+	return maps.Keys(ln.nodes), nil
 }
 
 // See network.Network
@@ -793,6 +774,7 @@ func (ln *localNetwork) stop(ctx context.Context) error {
 func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
+
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
@@ -1111,7 +1093,7 @@ func (ln *localNetwork) buildArgs(
 	}
 
 	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
-	portFlags := map[string]struct{}{
+	portFlags := set.Set[string]{
 		config.HTTPPortKey:    {},
 		config.StakingPortKey: {},
 	}
@@ -1122,7 +1104,7 @@ func (ln *localNetwork) buildArgs(
 		if _, ok := warnFlags[flagName]; ok {
 			ln.log.Warn("A provided flag can create conflicts with the runner. The suggestion is to remove this flag", zap.String("flag-name", flagName))
 		}
-		if _, ok := portFlags[flagName]; ok {
+		if portFlags.Contains(flagName) {
 			continue
 		}
 		flags[flagName] = fmt.Sprintf("%v", flagVal)
@@ -1173,10 +1155,7 @@ func (ln *localNetwork) getNodeSemVer(nodeConfig node.Config) (string, error) {
 
 // ensure flags are compatible with the running avalanchego version
 func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) map[string]string {
-	flags := map[string]string{}
-	for k := range givenFlags {
-		flags[k] = givenFlags[k]
-	}
+	flags := maps.Clone(givenFlags)
 	for _, deprecatedFlagInfo := range deprecatedFlagsSupport {
 		if semver.Compare(avagoVersion, deprecatedFlagInfo.Version) < 0 {
 			if v, ok := flags[deprecatedFlagInfo.NewName]; ok {
