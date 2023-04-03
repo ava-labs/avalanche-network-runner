@@ -121,6 +121,8 @@ const (
 	ControlService_RemoveNode_FullMethodName          = "/rpcpb.ControlService/RemoveNode"
 	ControlService_AddNode_FullMethodName             = "/rpcpb.ControlService/AddNode"
 	ControlService_RestartNode_FullMethodName         = "/rpcpb.ControlService/RestartNode"
+	ControlService_PauseNode_FullMethodName           = "/rpcpb.ControlService/PauseNode"
+	ControlService_ResumeNode_FullMethodName          = "/rpcpb.ControlService/ResumeNode"
 	ControlService_Stop_FullMethodName                = "/rpcpb.ControlService/Stop"
 	ControlService_AttachPeer_FullMethodName          = "/rpcpb.ControlService/AttachPeer"
 	ControlService_SendOutboundMessage_FullMethodName = "/rpcpb.ControlService/SendOutboundMessage"
@@ -146,6 +148,8 @@ type ControlServiceClient interface {
 	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
 	AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*AddNodeResponse, error)
 	RestartNode(ctx context.Context, in *RestartNodeRequest, opts ...grpc.CallOption) (*RestartNodeResponse, error)
+	PauseNode(ctx context.Context, in *PauseNodeRequest, opts ...grpc.CallOption) (*PauseNodeResponse, error)
+	ResumeNode(ctx context.Context, in *ResumeNodeRequest, opts ...grpc.CallOption) (*ResumeNodeResponse, error)
 	Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error)
 	AttachPeer(ctx context.Context, in *AttachPeerRequest, opts ...grpc.CallOption) (*AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, in *SendOutboundMessageRequest, opts ...grpc.CallOption) (*SendOutboundMessageResponse, error)
@@ -294,6 +298,24 @@ func (c *controlServiceClient) RestartNode(ctx context.Context, in *RestartNodeR
 	return out, nil
 }
 
+func (c *controlServiceClient) PauseNode(ctx context.Context, in *PauseNodeRequest, opts ...grpc.CallOption) (*PauseNodeResponse, error) {
+	out := new(PauseNodeResponse)
+	err := c.cc.Invoke(ctx, ControlService_PauseNode_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) ResumeNode(ctx context.Context, in *ResumeNodeRequest, opts ...grpc.CallOption) (*ResumeNodeResponse, error) {
+	out := new(ResumeNodeResponse)
+	err := c.cc.Invoke(ctx, ControlService_ResumeNode_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *controlServiceClient) Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error) {
 	out := new(StopResponse)
 	err := c.cc.Invoke(ctx, ControlService_Stop_FullMethodName, in, out, opts...)
@@ -373,6 +395,8 @@ type ControlServiceServer interface {
 	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
 	AddNode(context.Context, *AddNodeRequest) (*AddNodeResponse, error)
 	RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error)
+	PauseNode(context.Context, *PauseNodeRequest) (*PauseNodeResponse, error)
+	ResumeNode(context.Context, *ResumeNodeRequest) (*ResumeNodeResponse, error)
 	Stop(context.Context, *StopRequest) (*StopResponse, error)
 	AttachPeer(context.Context, *AttachPeerRequest) (*AttachPeerResponse, error)
 	SendOutboundMessage(context.Context, *SendOutboundMessageRequest) (*SendOutboundMessageResponse, error)
@@ -422,6 +446,12 @@ func (UnimplementedControlServiceServer) AddNode(context.Context, *AddNodeReques
 }
 func (UnimplementedControlServiceServer) RestartNode(context.Context, *RestartNodeRequest) (*RestartNodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RestartNode not implemented")
+}
+func (UnimplementedControlServiceServer) PauseNode(context.Context, *PauseNodeRequest) (*PauseNodeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PauseNode not implemented")
+}
+func (UnimplementedControlServiceServer) ResumeNode(context.Context, *ResumeNodeRequest) (*ResumeNodeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResumeNode not implemented")
 }
 func (UnimplementedControlServiceServer) Stop(context.Context, *StopRequest) (*StopResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
@@ -676,6 +706,42 @@ func _ControlService_RestartNode_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlService_PauseNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PauseNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).PauseNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_PauseNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).PauseNode(ctx, req.(*PauseNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_ResumeNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResumeNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).ResumeNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_ResumeNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).ResumeNode(ctx, req.(*ResumeNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ControlService_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StopRequest)
 	if err := dec(in); err != nil {
@@ -852,6 +918,14 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RestartNode",
 			Handler:    _ControlService_RestartNode_Handler,
+		},
+		{
+			MethodName: "PauseNode",
+			Handler:    _ControlService_PauseNode_Handler,
+		},
+		{
+			MethodName: "ResumeNode",
+			Handler:    _ControlService_ResumeNode_Handler,
 		},
 		{
 			MethodName: "Stop",

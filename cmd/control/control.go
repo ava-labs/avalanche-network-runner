@@ -61,6 +61,8 @@ func NewCommand() *cobra.Command {
 		newStreamStatusCommand(),
 		newAddNodeCommand(),
 		newRemoveNodeCommand(),
+		newPauseNodeCommand(),
+		newResumeNodeCommand(),
 		newRestartNodeCommand(),
 		newAttachPeerCommand(),
 		newSendOutboundMessageCommand(),
@@ -577,6 +579,66 @@ func removeNodeFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("remove node response: %+v"), info)
+	return nil
+}
+
+func newPauseNodeCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pause-node node-name [options]",
+		Short: "Pauses a node.",
+		RunE:  pauseNodeFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func pauseNodeFunc(_ *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	info, err := cli.PauseNode(ctx, nodeName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("pause node response: %+v"), info)
+	return nil
+}
+
+func newResumeNodeCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resume-node node-name [options]",
+		Short: "Resumes a node.",
+		RunE:  resumeNodeFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func resumeNodeFunc(_ *cobra.Command, args []string) error {
+	// no validation for empty string required, as covered by `cobra.ExactArgs`
+	nodeName := args[0]
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	info, err := cli.ResumeNode(ctx, nodeName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("resume node response: %+v"), info)
 	return nil
 }
 
