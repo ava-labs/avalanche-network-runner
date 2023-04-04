@@ -8,13 +8,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -176,7 +177,7 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr, map[string]struct{}{}); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -294,7 +295,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr, map[string]struct{}{}); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
 		return nil, err
 	}
 
@@ -514,7 +515,6 @@ func (ln *localNetwork) addPrimaryValidators(
 	platformCli platformvm.Client,
 	baseWallet primary.Wallet,
 	testKeyAddr ids.ShortID,
-	nodeNames map[string]struct{},
 ) error {
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
@@ -563,21 +563,7 @@ func (ln *localNetwork) addPrimaryValidators(
 			baseWallet.P().AVAXAssetID(),
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
-				Addrs:     []ids.ShortID{baseWallet.addr},
-			},
-			&secp256k1fx.OutputOwners{
-				Threshold: 1,
-				Addrs:     []ids.ShortID{w.addr},
-			},
-			10*10000, // 10% fee percent, times 10000 to make it as shares
-			common.WithContext(cctx),
-		)
-		txID, err := baseWallet.P().IssueAddValidatorTx(
-			&txs.Validator{
-				NodeID: nodeID,
-				Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
-				End:    uint64(time.Now().Add(validationDuration).Unix()),
-				Wght:   genesis.LocalParams.MinValidatorStake,
+				Addrs:     []ids.ShortID{testKeyAddr},
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
@@ -585,7 +571,6 @@ func (ln *localNetwork) addPrimaryValidators(
 			},
 			10*10000, // 10% fee percent, times 10000 to make it as shares
 			common.WithContext(cctx),
-			defaultPoll,
 		)
 		cancel()
 		if err != nil {
