@@ -629,7 +629,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: nodeData.p2pPort,
 		}))
 	}
-	//add node as a primary validator
+	// add node as a primary validator
 	//clientURI, err := ln.getClientURI()
 	//if err != nil {
 	//	return nil, err
