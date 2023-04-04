@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"io/fs"
 	"net"
 	"os"
@@ -632,21 +630,21 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}))
 	}
 	//add node as a primary validator
-	clientURI, err := ln.getClientURI()
-	if err != nil {
-		return nil, err
-	}
-	platformCli := platformvm.NewClient(clientURI)
-	pTXs := []ids.ID{}
-	ctx, cancel := createDefaultCtx(context.Background())
-	defer cancel()
-	baseWallet, _, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
-	if err != nil {
-		return nil, err
-	}
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
-		return nil, err
-	}
+	//clientURI, err := ln.getClientURI()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//platformCli := platformvm.NewClient(clientURI)
+	//pTXs := []ids.ID{}
+	//ctx, cancel := createDefaultCtx(context.Background())
+	//defer cancel()
+	//baseWallet, _, testKeyAddr, err := setupWallet(ctx, clientURI, pTXs, ln.log)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
+	//	return nil, err
+	//}
 
 	return node, err
 }

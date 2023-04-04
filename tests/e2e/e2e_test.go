@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -571,6 +572,25 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.CreateSubnets(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("verify that validators have BLS Keys", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			for _, v := range vdrs {
+				gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+			}
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
