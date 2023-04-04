@@ -379,6 +379,9 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 
 	for _, nodeName := range nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
+		if nodeInfo.Paused {
+			continue
+		}
 		for chainID, chainInfo := range lc.customChainIDToInfo {
 			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
 		}
@@ -416,6 +419,9 @@ func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) er
 	sort.Strings(nodeNames)
 	for _, nodeName := range nodeNames {
 		nodeInfo := lc.nodeInfos[nodeName]
+		if nodeInfo.Paused {
+			continue
+		}
 		lc.log.Debug(fmt.Sprintf(logging.Cyan.Wrap("node-info: node-name %s, node-ID: %s, URI: %s"), nodeName, nodeInfo.Id, nodeInfo.Uri))
 	}
 
@@ -456,6 +462,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 			Config:             []byte(node.GetConfigFile()),
 			PluginDir:          node.GetPluginDir(),
 			WhitelistedSubnets: trackSubnets,
+			Paused:             node.GetPaused(),
 		}
 
 		// update default exec and pluginDir if empty (snapshots started without these params)
