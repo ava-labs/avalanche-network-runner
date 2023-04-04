@@ -486,7 +486,11 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 
 		if lc.nw != nil {
 			err := lc.nw.Stop(ctx)
-			ux.Print(lc.log, logging.Red.Wrap("terminated network %s"), err)
+			msg := "terminated network"
+			if err != nil {
+				msg += fmt.Sprintf(" (error %v)", err)
+			}
+			ux.Print(lc.log, logging.Red.Wrap(msg))
 		}
 	})
 }
