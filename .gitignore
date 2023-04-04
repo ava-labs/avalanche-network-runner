@@ -19,3 +19,6 @@ dist/
 *.lock
 
 bin/
+
+# ignore GoLand metafiles directory
+.idea/

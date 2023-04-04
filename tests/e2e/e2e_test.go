@@ -60,6 +60,9 @@ var (
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
 	}
+	intialStakersNodeID = []string{"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg", "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
+		"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN", "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu", "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5"}
+
 	numNodes = uint32(5)
 )
 
@@ -575,22 +578,33 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("verify that validators have BLS Keys", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			clientURIs, err := cli.URIs(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var clientURI string
-			for _, uri := range clientURIs {
-				clientURI = uri
-				break
-			}
-			platformCli := platformvm.NewClient(clientURI)
-			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			for _, v := range vdrs {
-				gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
-			}
+		})
+		ginkgo.By("check subnets are 1", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+		})
+	})
+	ginkgo.It("newly added validator has BLS key", func() {
+		ginkgo.By("check subnets are 0", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(0))
+		})
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -608,8 +622,56 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			numSubnets := len(status.ClusterInfo.Subnets)
 			gomega.Ω(numSubnets).Should(gomega.Equal(1))
 		})
+		ginkgo.By("calling AddNode", func() {
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, newNodeName, execPath1)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
+		})
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("verify that new validator has BLS Keys", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			for _, v := range vdrs {
+				isInitialStaker := false
+				for _, initialStakerID := range intialStakersNodeID {
+					if v.NodeID.String() == initialStakerID {
+						isInitialStaker = true
+						break
+					}
+				}
+				if isInitialStaker {
+					continue
+				}
+				gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+			}
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
 	})
-
 	ginkgo.It("snapshots + blockchain creation", func() {
 		var originalUris []string
 		var originalSubnets []string
