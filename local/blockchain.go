@@ -5,8 +5,11 @@ package local
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"os"
 	"path/filepath"
 	"sort"
@@ -173,7 +176,7 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr, map[string]struct{}{}); err != nil {
 		return nil, err
 	}
 
@@ -291,7 +294,7 @@ func (ln *localNetwork) setupWalletAndInstallSubnets(
 		return nil, err
 	}
 
-	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr); err != nil {
+	if err := ln.addPrimaryValidators(ctx, platformCli, baseWallet, testKeyAddr, map[string]struct{}{}); err != nil {
 		return nil, err
 	}
 
@@ -511,6 +514,7 @@ func (ln *localNetwork) addPrimaryValidators(
 	platformCli platformvm.Client,
 	baseWallet primary.Wallet,
 	testKeyAddr ids.ShortID,
+	nodeNames map[string]struct{},
 ) error {
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
@@ -531,7 +535,43 @@ func (ln *localNetwork) addPrimaryValidators(
 			continue
 		}
 
+		// Prepare node BLS PoP
+		// It is important to note that this will ONLY register BLS signers for
+		// nodes registered AFTER genesis.
+		blsKeyBytes, err := base64.StdEncoding.DecodeString(node.GetConfig().StakingSigningKey)
+		if err != nil {
+			return err
+		}
+		blsSk, err := bls.SecretKeyFromBytes(blsKeyBytes)
+		if err != nil {
+			return err
+		}
+		proofOfPossession := signer.NewProofOfPossession(blsSk)
+
 		cctx, cancel = createDefaultCtx(ctx)
+		txID, err := baseWallet.P().IssueAddPermissionlessValidatorTx(
+			&txs.SubnetValidator{
+				Validator: txs.Validator{
+					NodeID: nodeID,
+					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
+					End:    uint64(time.Now().Add(validationDuration).Unix()),
+					Wght:   genesis.LocalParams.MinValidatorStake,
+				},
+				Subnet: ids.Empty,
+			},
+			proofOfPossession,
+			baseWallet.P().AVAXAssetID(),
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{baseWallet.addr},
+			},
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     []ids.ShortID{w.addr},
+			},
+			10*10000, // 10% fee percent, times 10000 to make it as shares
+			common.WithContext(cctx),
+		)
 		txID, err := baseWallet.P().IssueAddValidatorTx(
 			&txs.Validator{
 				NodeID: nodeID,
