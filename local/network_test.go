@@ -1231,7 +1231,7 @@ func TestWriteFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			flags, err := writeFiles(tt.genesis, tmpDir, &tt.nodeConfig)
+			flags, err := writeFiles(0, tt.genesis, tmpDir, &tt.nodeConfig)
 			if tt.shouldErr {
 				require.Error(err)
 				return
