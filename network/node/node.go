@@ -41,6 +41,8 @@ type Node interface {
 	Status() status.Status
 	// Return this node's avalanchego binary path
 	GetBinaryPath() string
+	// Return this node's data dir
+	GetDataDir() string
 	// Return this node's db dir
 	GetDbDir() string
 	// Return this node's logs dir
@@ -53,6 +55,8 @@ type Node interface {
 	GetConfig() Config
 	// Return this node's flag value
 	GetFlag(string) (string, error)
+	// Return this node's paused status
+	GetPaused() bool
 }
 
 // Config encapsulates an avalanchego configuration

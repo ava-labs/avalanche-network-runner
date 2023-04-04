@@ -61,6 +61,8 @@ type localNode struct {
 	p2pPort uint16
 	// Returns a connection to this node
 	getConnFunc getConnFunc
+	// The data dir of the node
+	dataDir string
 	// The db dir of the node
 	dbDir string
 	// The logs dir of the node
@@ -73,6 +75,9 @@ type localNode struct {
 	httpHost string
 	// maps from peer ID to peer object
 	attachedPeers map[string]peer.Peer
+	// signals that the process is stopped but the information is valid
+	// and can be resumed
+	paused bool
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -222,6 +227,11 @@ func (node *localNode) GetPluginDir() string {
 }
 
 // See node.Node
+func (node *localNode) GetDataDir() string {
+	return node.dataDir
+}
+
+// See node.Node
 // TODO rename method so linter doesn't complain.
 func (node *localNode) GetDbDir() string { //nolint
 	return node.dbDir
@@ -267,4 +277,9 @@ func (node *localNode) GetFlag(k string) (string, error) {
 		}
 	}
 	return v, nil
+}
+
+// See node.Node
+func (node *localNode) GetPaused() bool {
+	return node.paused
 }

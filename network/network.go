@@ -39,6 +39,12 @@ type Network interface {
 	// Stop the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	RemoveNode(ctx context.Context, name string) error
+	// Pause the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	PauseNode(ctx context.Context, name string) error
+	// Resume the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	ResumeNode(ctx context.Context, name string) error
 	// Return the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNode(name string) (node.Node, error)
