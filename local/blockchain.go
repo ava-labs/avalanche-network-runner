@@ -23,7 +23,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
-	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
@@ -138,7 +137,7 @@ func (ln *localNetwork) CreateSubnets(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if _, err := ln.setupWalletAndInstallSubnets(ctx, numSubnets); err != nil {
+	if _, err := ln.installSubnets(ctx, numSubnets); err != nil {
 		return err
 	}
 	return nil
@@ -271,7 +270,7 @@ func (ln *localNetwork) installCustomChains(
 	return chainInfos, nil
 }
 
-func (ln *localNetwork) setupWalletAndInstallSubnets(
+func (ln *localNetwork) installSubnets(
 	ctx context.Context,
 	numSubnets uint32,
 ) ([]ids.ID, error) {
@@ -504,42 +503,6 @@ func newWallet(
 func (w *wallet) updatePClient(uri string) {
 	pClient := platformvm.NewClient(uri)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
-}
-
-func setupWallet(
-	ctx context.Context,
-	clientURI string,
-	preloadTXs []ids.ID,
-	log logging.Logger,
-) (baseWallet primary.Wallet, avaxAssetID ids.ID, testKeyAddr ids.ShortID, err error) {
-	// "local/default/genesis.json" pre-funds "ewoq" key
-	testKey := genesis.EWOQKey
-	testKeyAddr = testKey.PublicKey().Address()
-	testKeychain := secp256k1fx.NewKeychain(genesis.EWOQKey)
-
-	fmt.Println()
-	log.Info(logging.Green.Wrap("setting up the base wallet with the seed test key"))
-
-	baseWallet, err = primary.NewWalletWithTxs(ctx, clientURI, testKeychain, preloadTXs...)
-	if err != nil {
-		return nil, ids.Empty, ids.ShortEmpty, err
-	}
-	log.Info("set up base wallet with pre-funded test key address", zap.String("endpoint", clientURI), zap.String("address", testKeyAddr.String()))
-
-	fmt.Println()
-	log.Info(logging.Green.Wrap("check if the seed test key has enough balance to create validators and subnets"))
-	avaxAssetID = baseWallet.P().AVAXAssetID()
-	balances, err := baseWallet.P().Builder().GetBalance()
-	if err != nil {
-		return nil, ids.Empty, ids.ShortEmpty, err
-	}
-	bal, ok := balances[avaxAssetID]
-	if bal <= 1*units.Avax || !ok {
-		return nil, ids.Empty, ids.ShortEmpty, fmt.Errorf("not enough AVAX balance %v in the address %q", bal, testKeyAddr)
-	}
-	log.Info("fetched base wallet", zap.String("api", clientURI), zap.Uint64("balance", bal), zap.String("address", testKeyAddr.String()))
-
-	return baseWallet, avaxAssetID, testKeyAddr, nil
 }
 
 // add the nodes in [nodeInfos] as validators of the primary network, in case they are not
