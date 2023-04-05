@@ -548,9 +548,8 @@ func (ln *localNetwork) addPrimaryValidators(
 			return err
 		}
 		proofOfPossession := signer.NewProofOfPossession(blsSk)
-
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := baseWallet.P().IssueAddPermissionlessValidatorTx(
+		txID, err := w.pWallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
 					NodeID: nodeID,
@@ -561,10 +560,10 @@ func (ln *localNetwork) addPrimaryValidators(
 				Subnet: ids.Empty,
 			},
 			proofOfPossession,
-			baseWallet.P().AVAXAssetID(),
+			w.pWallet.AVAXAssetID(),
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
-				Addrs:     []ids.ShortID{testKeyAddr},
+				Addrs:     []ids.ShortID{genesis.EWOQKey.PublicKey().Address()},
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
