@@ -615,50 +615,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	//ginkgo.It("added primary validator with BLS Keys", func() {
-	//	ginkgo.By("add 1 subnet", func() {
-	//		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	//		_, err := cli.CreateSubnets(ctx)
-	//		cancel()
-	//		gomega.Ω(err).Should(gomega.BeNil())
-	//	})
-	//	ginkgo.By("wait for custom chains healthy", func() {
-	//		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	//		_, err := cli.WaitForHealthy(ctx)
-	//		cancel()
-	//		gomega.Ω(err).Should(gomega.BeNil())
-	//	})
-	//	ginkgo.By("verify that new validator has BLS Keys", func() {
-	//		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	//		clientURIs, err := cli.URIs(ctx)
-	//		gomega.Ω(err).Should(gomega.BeNil())
-	//		var clientURI string
-	//		for _, uri := range clientURIs {
-	//			clientURI = uri
-	//			break
-	//		}
-	//		platformCli := platformvm.NewClient(clientURI)
-	//		vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
-	//		cancel()
-	//		gomega.Ω(err).Should(gomega.BeNil())
-	//		for _, v := range vdrs {
-	//			isInitialStaker := false
-	//			for _, initialStakerID := range intialStakersNodeID {
-	//				if v.NodeID.String() == initialStakerID {
-	//					isInitialStaker = true
-	//					break
-	//				}
-	//			}
-	//			if isInitialStaker {
-	//				continue
-	//			}
-	//			gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
-	//		}
-	//		cancel()
-	//		gomega.Ω(err).Should(gomega.BeNil())
-	//	})
-	//})
-
 	ginkgo.It("subnet creation", func() {
 		ginkgo.By("check subnet number is 1", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -707,7 +663,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+			gomega.Ω(numSubnets).Should(gomega.Equal(2))
 			originalSubnets = status.ClusterInfo.Subnets
 		})
 		ginkgo.By("check there are no snapshots", func() {
