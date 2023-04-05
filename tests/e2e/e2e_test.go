@@ -60,6 +60,9 @@ var (
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
 	}
+	intialStakersNodeID = []string{"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg", "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
+		"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN", "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu", "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5"}
+
 	numNodes = uint32(5)
 )
 
