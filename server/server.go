@@ -413,15 +413,27 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 		}
 		if s.clusterInfo.CustomChainsHealthy {
 			defer s.mu.RUnlock()
-			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, nil
+			clusterInfo, err := deepCopy(s.clusterInfo)
+			if err != nil {
+				return nil, err
+			}
+			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, nil
 		}
 		select {
 		case err := <-s.asyncErrCh:
 			defer s.mu.RUnlock()
-			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, err
+			clusterInfo, err := deepCopy(s.clusterInfo)
+			if err != nil {
+				return nil, err
+			}
+			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, nil
 		case <-ctx.Done():
 			defer s.mu.RUnlock()
-			return &rpcpb.WaitForHealthyResponse{ClusterInfo: s.clusterInfo}, ctx.Err()
+			clusterInfo, err := deepCopy(s.clusterInfo)
+			if err != nil {
+				return nil, err
+			}
+			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, ctx.Err()
 		default:
 		}
 		if s.network == nil {
@@ -490,7 +502,11 @@ func (s *server) CreateBlockchains(
 		}
 		s.log.Info("custom chains created")
 	}()
-	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
@@ -533,7 +549,11 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		s.log.Info("subnets created")
 	}()
 
-	return &rpcpb.CreateSubnetsResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.CreateSubnetsResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {
@@ -556,7 +576,11 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 	s.clusterInfo.Healthy = true
 
-	return &rpcpb.HealthResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.HealthResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse, error) {
@@ -758,7 +782,11 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
-	return &rpcpb.AddNodeResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AddNodeResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (*rpcpb.RemoveNodeResponse, error) {
@@ -783,7 +811,11 @@ func (s *server) RemoveNode(ctx context.Context, req *rpcpb.RemoveNodeRequest) (
 	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
-	return &rpcpb.RemoveNodeResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.RemoveNodeResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest) (*rpcpb.RestartNodeResponse, error) {
@@ -817,7 +849,11 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	sort.Strings(s.clusterInfo.NodeNames)
 	s.clusterInfo.NodeInfos = s.network.nodeInfos
 
-	return &rpcpb.RestartNodeResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.RestartNodeResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) PauseNode(ctx context.Context, req *rpcpb.PauseNodeRequest) (*rpcpb.PauseNodeResponse, error) {
@@ -938,10 +974,11 @@ func (s *server) AttachPeer(ctx context.Context, req *rpcpb.AttachPeerRequest) (
 		}
 	}
 
-	return &rpcpb.AttachPeerResponse{
-		ClusterInfo:      s.clusterInfo,
-		AttachedPeerInfo: peerInfo,
-	}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AttachPeerResponse{ClusterInfo: clusterInfo, AttachedPeerInfo: peerInfo}, nil
 }
 
 func (s *server) SendOutboundMessage(ctx context.Context, req *rpcpb.SendOutboundMessageRequest) (*rpcpb.SendOutboundMessageResponse, error) {
@@ -1033,7 +1070,11 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		s.log.Info("network healthy")
 	}()
 
-	return &rpcpb.LoadSnapshotResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.LoadSnapshotResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotRequest) (*rpcpb.SaveSnapshotResponse, error) {
