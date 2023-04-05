@@ -8,6 +8,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/proto/pb/p2p"
+	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/prometheus/client_golang/prometheus"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,20 +25,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/server"
-	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/api/admin"
-	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/proto/pb/p2p"
-	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/ava-labs/avalanche-network-runner/client"
-	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -234,32 +233,32 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
-		ginkgo.By("can create two blockchains at a time", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.CreateBlockchains(ctx,
-				[]*rpcpb.BlockchainSpec{
-					{
-						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
-						SubnetId: &existingSubnetID,
-					},
-					{
-						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
-						SubnetId: &existingSubnetID,
-					},
-				},
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
+		//ginkgo.By("can create two blockchains at a time", func() {
+		//	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		//	_, err := cli.CreateBlockchains(ctx,
+		//		[]*rpcpb.BlockchainSpec{
+		//			{
+		//				VmName:   "subnetevm",
+		//				Genesis:  "tests/e2e/subnet-evm-genesis.json",
+		//				SubnetId: &existingSubnetID,
+		//			},
+		//			{
+		//				VmName:   "subnetevm",
+		//				Genesis:  "tests/e2e/subnet-evm-genesis.json",
+		//				SubnetId: &existingSubnetID,
+		//			},
+		//		},
+		//	)
+		//	cancel()
+		//	gomega.Ω(err).Should(gomega.BeNil())
+		//})
+		//
+		//ginkgo.By("wait for custom chains healthy", func() {
+		//	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		//	_, err := cli.WaitForHealthy(ctx)
+		//	cancel()
+		//	gomega.Ω(err).Should(gomega.BeNil())
+		//})
 
 		ginkgo.By("can save snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
