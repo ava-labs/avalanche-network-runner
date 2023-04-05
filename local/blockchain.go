@@ -563,7 +563,7 @@ func (ln *localNetwork) addPrimaryValidators(
 			w.pWallet.AVAXAssetID(),
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
-				Addrs:     []ids.ShortID{genesis.EWOQKey.PublicKey().Address()},
+				Addrs:     []ids.ShortID{w.addr},
 			},
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
