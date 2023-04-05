@@ -208,12 +208,12 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
-	simPWallet, simPBackend, err := setupSimulatedPWallet(ctx, clientURI, append(preloadTXs, addedSubnetIDs...))
+	w, err := newWallet(ctx, clientURI, append(preloadTXs, addedSubnetIDs...))
 	if err != nil {
 		return nil, err
 	}
 
-	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, simPWallet, simPBackend, ln.log)
+	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, w, ln.log)
 	if err != nil {
 		return nil, err
 	}
@@ -486,36 +486,49 @@ func (ln *localNetwork) restartNodesWithTrackSubnets(
 	return nil
 }
 
-func setupSimulatedPWallet(
+type wallet struct {
+	pWallet  p.Wallet
+	pBackend p.Backend
+	pBuilder p.Builder
+	pSigner  p.Signer
+}
+
+func newWallet(
 	ctx context.Context,
 	uri string,
 	preloadTXs []ids.ID,
-) (p.Wallet, p.Backend, error) {
+) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
 	pCTX, _, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+	var w wallet
 	pClient := platformvm.NewClient(uri)
 	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, id := range preloadTXs {
 		txBytes, err := pClient.GetTx(ctx, id)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		tx, err := txs.Parse(txs.Codec, txBytes)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		pTXs[id] = tx
 	}
 	addrs := kc.Addresses()
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
-	pBackend := p.NewBackend(pCTX, pUTXOs, pTXs)
-	pBuilder := p.NewBuilder(addrs, pBackend)
-	pSigner := p.NewSigner(kc, pBackend)
-	pWallet := p.NewWallet(pBuilder, pSigner, pClient, pBackend)
-	return pWallet, pBackend, nil
+	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
+	w.pBuilder = p.NewBuilder(addrs, w.pBackend)
+	w.pSigner = p.NewSigner(kc, w.pBackend)
+	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+	return &w, nil
+}
+
+func (w *wallet) updatePClient(uri string) {
+	pClient := platformvm.NewClient(uri)
+	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 }
 
 func setupWallet(
@@ -772,8 +785,7 @@ func (ln *localNetwork) reloadVMPlugins(ctx context.Context) error {
 func createBlockchainTxs(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
-	pWallet p.Wallet,
-	pBackend p.Backend,
+	w *wallet,
 	log logging.Logger,
 ) ([]*txs.Tx, error) {
 	fmt.Println()
@@ -798,7 +810,7 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, err
 		}
-		utx, err := pWallet.Builder().NewCreateChainTx(
+		utx, err := w.pBuilder.NewCreateChainTx(
 			subnetID,
 			genesisBytes,
 			vmID,
@@ -808,11 +820,11 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
 		}
-		tx, err := pWallet.Signer().SignUnsigned(cctx, utx)
+		tx, err := w.pSigner.SignUnsigned(cctx, utx)
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
-		err = pBackend.AcceptTx(cctx, tx)
+		err = w.pBackend.AcceptTx(cctx, tx)
 		if err != nil {
 			return nil, fmt.Errorf("failure accepting create blockchain tx UTXOs: %w", err)
 		}
