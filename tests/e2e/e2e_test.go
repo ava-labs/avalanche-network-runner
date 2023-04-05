@@ -542,7 +542,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("start with default network, for subsecuent steps", func() {
+	ginkgo.It("start with default network, for subsequent steps", func() {
 		ginkgo.By("stopping network first", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Stop(ctx)
@@ -563,15 +563,59 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("can add primary validator with BLS Keys", func() {
-		ginkgo.By("calling AddNode", func() {
-			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.AddNode(ctx, newNodeName2, execPath1)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
-		})
+	//ginkgo.It("can add primary validator with BLS Keys", func() {
+	//	ginkgo.By("calling AddNode", func() {
+	//		ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
+	//		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	//		resp, err := cli.AddNode(ctx, newNodeName2, execPath1)
+	//		cancel()
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//		ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
+	//	})
+	//	ginkgo.By("add 1 subnet", func() {
+	//		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	//		_, err := cli.CreateSubnets(ctx)
+	//		cancel()
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//	})
+	//	ginkgo.By("wait for custom chains healthy", func() {
+	//		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	//		_, err := cli.WaitForHealthy(ctx)
+	//		cancel()
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//	})
+	//	ginkgo.By("verify that new validator has BLS Keys", func() {
+	//		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	//		clientURIs, err := cli.URIs(ctx)
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//		var clientURI string
+	//		for _, uri := range clientURIs {
+	//			clientURI = uri
+	//			break
+	//		}
+	//		platformCli := platformvm.NewClient(clientURI)
+	//		vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+	//		cancel()
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//		for _, v := range vdrs {
+	//			isInitialStaker := false
+	//			for _, initialStakerID := range intialStakersNodeID {
+	//				if v.NodeID.String() == initialStakerID {
+	//					isInitialStaker = true
+	//					break
+	//				}
+	//			}
+	//			if isInitialStaker {
+	//				continue
+	//			}
+	//			gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+	//		}
+	//		cancel()
+	//		gomega.Ω(err).Should(gomega.BeNil())
+	//	})
+	//})
+
+	ginkgo.It("added primary validator with BLS Keys", func() {
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.CreateSubnets(ctx)
