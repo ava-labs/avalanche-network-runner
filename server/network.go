@@ -253,11 +253,11 @@ func (lc *localNetwork) CreateChains(
 
 // Creates the given number of subnets.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) error {
+func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network.SubnetSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	if numSubnets == 0 {
+	if len(subnetSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
 		return nil
 	}
@@ -279,7 +279,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 		return err
 	}
 
-	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
+	if err := lc.nw.CreateSubnets(ctx, subnetSpecs); err != nil {
 		return err
 	}
 

@@ -497,7 +497,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		return nil, ErrNotBootstrapped
 	}
 
-	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
+	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", uint32(len(req.GetSubnetSpecs()))))
 
 	// default behaviour without args is to create one subnet
 	numSubnets := req.GetNumSubnets()
