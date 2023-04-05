@@ -132,12 +132,12 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 
 func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
-	numSubnets uint32,
+	subnetSpecs []network.SubnetSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if _, err := ln.installSubnets(ctx, numSubnets); err != nil {
+	if _, err := ln.installSubnets(ctx, subnetSpecs); err != nil {
 		return err
 	}
 	return nil
@@ -272,7 +272,7 @@ func (ln *localNetwork) installCustomChains(
 
 func (ln *localNetwork) installSubnets(
 	ctx context.Context,
-	numSubnets uint32,
+	subnetSpecs []network.SubnetSpec,
 ) ([]ids.ID, error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create subnets")))
@@ -293,7 +293,7 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	subnetIDs, err := createSubnets(ctx, numSubnets, w, ln.log)
+	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
 		return nil, err
 	}
