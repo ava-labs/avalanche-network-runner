@@ -370,7 +370,11 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		s.log.Info("network healthy")
 	}()
 
-	return &rpcpb.StartResponse{ClusterInfo: s.clusterInfo}, nil
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.StartResponse{ClusterInfo: clusterInfo}, nil
 }
 
 // Asssumes [s.mu] is held.
