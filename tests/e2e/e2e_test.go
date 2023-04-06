@@ -597,7 +597,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.CreateSubnets(ctx)
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})

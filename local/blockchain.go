@@ -316,11 +316,15 @@ func (ln *localNetwork) installSubnets(
 			_, ok := ln.nodes[nodeName]
 			if !ok {
 				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
-				ln.addNode(node.Config{Name: nodeName})
+				if _, err := ln.addNode(node.Config{Name: nodeName}); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
-	ln.healthy(ctx)
+	if err := ln.healthy(ctx); err != nil {
+		return nil, err
+	}
 
 	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
