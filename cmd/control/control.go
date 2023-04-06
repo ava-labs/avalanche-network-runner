@@ -102,7 +102,6 @@ var (
 	blockchainSpecsStr  string
 	customNodeConfigs   string
 	rootDataDir         string
-	numSubnets          uint32
 	chainConfigs        string
 	upgradeConfigs      string
 	subnetConfigs       string
