@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/multierr"
 	"io"
 	"net"
 	"net/http"
@@ -424,7 +425,8 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 			defer s.mu.RUnlock()
 			clusterInfo, deepCopyErr := deepCopy(s.clusterInfo)
 			if deepCopyErr != nil {
-				return nil, fmt.Errorf("%s, %s", err.Error(), deepCopyErr.Error())
+				err = multierr.Append(err, deepCopyErr)
+				return nil, err
 			}
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, err
 		case <-ctx.Done():
