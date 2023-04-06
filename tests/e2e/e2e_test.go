@@ -234,32 +234,32 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
-		//ginkgo.By("can create two blockchains at a time", func() {
-		//	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		//	_, err := cli.CreateBlockchains(ctx,
-		//		[]*rpcpb.BlockchainSpec{
-		//			{
-		//				VmName:   "subnetevm",
-		//				Genesis:  "tests/e2e/subnet-evm-genesis.json",
-		//				SubnetId: &existingSubnetID,
-		//			},
-		//			{
-		//				VmName:   "subnetevm",
-		//				Genesis:  "tests/e2e/subnet-evm-genesis.json",
-		//				SubnetId: &existingSubnetID,
-		//			},
-		//		},
-		//	)
-		//	cancel()
-		//	gomega.Ω(err).Should(gomega.BeNil())
-		//})
-		//
-		//ginkgo.By("wait for custom chains healthy", func() {
-		//	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		//	_, err := cli.WaitForHealthy(ctx)
-		//	cancel()
-		//	gomega.Ω(err).Should(gomega.BeNil())
-		//})
+		ginkgo.By("can create two blockchains at a time", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+				},
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
 
 		ginkgo.By("can save snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
