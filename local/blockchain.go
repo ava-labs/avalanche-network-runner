@@ -409,7 +409,11 @@ func (ln *localNetwork) restartNodes(
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 
-	for nodeName, node := range ln.nodes {
+	nodeNames := maps.Keys(ln.nodes)
+	sort.Strings(nodeNames)
+
+	for _, nodeName := range nodeNames {
+		node := ln.nodes[nodeName]
 
 		// delete node specific flag so as to use default one
 		nodeConfig := node.GetConfig()
