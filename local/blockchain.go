@@ -468,7 +468,7 @@ func (ln *localNetwork) restartNodes(
 			continue
 		}
 
-		ln.log.Info(logging.Green.Wrap(fmt.Sprinf("restarting node %s to track subnets %s", nodeName, tracked)))
+		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to track subnets %s", nodeName, tracked)))
 
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
