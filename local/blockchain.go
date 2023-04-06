@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -295,6 +297,13 @@ func (ln *localNetwork) installSubnets(
 	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
 		return nil, err
+	}
+
+	// if no participants are given, assume all nodes should be participants
+	for i := range subnetSpecs {
+		if len(subnetSpecs[i].Participants) == 0 {
+			subnetSpecs[i].Participants = maps.Keys(ln.nodes)
+		}
 	}
 
 	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
