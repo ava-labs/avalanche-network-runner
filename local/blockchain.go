@@ -293,11 +293,6 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	// just ensure all nodes are primary validators (so can be subnet validators)
-	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
-		return nil, err
-	}
-
 	// if no participants are given, assume all nodes should be participants
 	allNodeNames := maps.Keys(ln.nodes)
 	sort.Strings(allNodeNames)
@@ -305,6 +300,23 @@ func (ln *localNetwork) installSubnets(
 		if len(subnetSpecs[i].Participants) == 0 {
 			subnetSpecs[i].Participants = allNodeNames
 		}
+	}
+
+	// create new nodes
+	for _, subnetSpec := range subnetSpecs {
+		for _, nodeName := range subnetSpec.Participants {
+			_, ok := ln.nodes[nodeName]
+			if !ok {
+				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
+				ln.addNode(node.Config{Name: nodeName})
+			}
+		}
+	}
+	ln.healthy(ctx)
+
+	// just ensure all nodes are primary validators (so can be subnet validators)
+	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
+		return nil, err
 	}
 
 	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
@@ -456,7 +468,7 @@ func (ln *localNetwork) restartNodes(
 			continue
 		}
 
-		ln.log.Info(logging.Green.Wrap("restarting node to track subnets"), zap.String("node-name", nodeName), zap.String("subnetIDs", tracked))
+		ln.log.Info(logging.Green.Wrap(fmt.Sprinf("restarting node %s to track subnets %s", nodeName, tracked)))
 
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
@@ -569,7 +581,7 @@ func createSubnets(
 	log logging.Logger,
 ) ([]ids.ID, error) {
 	fmt.Println()
-	log.Info(logging.Green.Wrap("creating subnets VM"), zap.Uint32("num-subnets", numSubnets))
+	log.Info(logging.Green.Wrap("creating subnets"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	for i := uint32(0); i < numSubnets; i++ {
 		log.Info("creating subnet tx")
