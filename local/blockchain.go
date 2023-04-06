@@ -185,13 +185,19 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
+	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+
 	// get number of subnets to create
 	// for the list of requested blockchains, we count those that have undefined subnet id
 	// that number of subnets will be created and later assigned to those blockchain requests
 	var numSubnetsToCreate uint32
+	subnetSpecs := []network.SubnetSpec{}
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.SubnetID == nil {
 			numSubnetsToCreate++
+			subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 		}
 	}
 	// create missing subnets
@@ -219,7 +225,7 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, addedSubnetIDs, nil); err != nil {
+		if err := ln.restartNodes(ctx, addedSubnetIDs, subnetSpecs); err != nil {
 			return nil, err
 		}
 	}
@@ -240,15 +246,17 @@ func (ln *localNetwork) installCustomChains(
 
 	// get all subnets for add subnet validator request
 	subnetIDs := []ids.ID{}
+	subnetSpecs = []network.SubnetSpec{}
 	for _, chainSpec := range chainSpecs {
 		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
 			return nil, err
 		}
 		subnetIDs = append(subnetIDs, subnetID)
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{})
 	}
 	// add subnet validators
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, nil); err != nil {
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
