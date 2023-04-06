@@ -367,16 +367,22 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		return err
 	}
 
+	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+
+	subnetSpecs := []network.SubnetSpec{}
 	subnetIDs := []ids.ID{}
 	for _, chainInfo := range chainInfos {
 		subnetIDs = append(subnetIDs, chainInfo.subnetID)
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 	}
 	clientURI, err := ln.getClientURI()
 	if err != nil {
 		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs, nil); err != nil {
+	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return err
 	}
 
