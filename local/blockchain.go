@@ -433,10 +433,12 @@ func (ln *localNetwork) restartNodes(
 				trackSubnetIDsSet.Add(s)
 			}
 		}
+		needsRestart := false
 		for i, subnetID := range subnetIDs {
 			for _, participant := range subnetSpecs[i].Participants {
 				if participant == nodeName {
 					trackSubnetIDsSet.Add(subnetID.String())
+					needsRestart = true
 				}
 			}
 		}
@@ -446,11 +448,15 @@ func (ln *localNetwork) restartNodes(
 		tracked := strings.Join(trackSubnetIDs, ",")
 		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
 
+		if !needsRestart {
+			continue
+		}
+
 		if node.paused {
 			continue
 		}
 
-		ln.log.Info("restarting node to track subnets", zap.String("node-name", nodeName), zap.String("subnetIDs", tracked))
+		ln.log.Info(logging.Green.Wrap("restarting node to track subnets"), zap.String("node-name", nodeName), zap.String("subnetIDs", tracked))
 
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
