@@ -363,7 +363,7 @@ func newTransformSubnetCommand() *cobra.Command {
 	return cmd
 }
 
-func transformSubnetFunc(*cobra.Command, []string) error {
+func transformSubnetFunc(*cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -374,9 +374,9 @@ func transformSubnetFunc(*cobra.Command, []string) error {
 		client.WithNumSubnets(numSubnets),
 	}
 
-	blockchainSpecsStr := args[0]
+	elasticSubnetSpec := args[0]
 
-	blockchainSpecs := []*rpcpb.BlockchainSpec{}
+	blockchainSpecs := []*rpcpb.ElasticSubnetSpec{}
 	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 		return err
 	}
