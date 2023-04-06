@@ -219,7 +219,7 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, addedSubnetIDs); err != nil {
+		if err := ln.restartNodes(ctx, addedSubnetIDs, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -312,7 +312,7 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs); err != nil {
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -401,63 +401,57 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	return nil
 }
 
-func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error) {
-	node := ln.getSomeNode()
-	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	nonPlatformSubnets := []ids.ID{}
-	for _, subnet := range subnets {
-		if subnet.ID != constants.PlatformChainID {
-			nonPlatformSubnets = append(nonPlatformSubnets, subnet.ID)
-		}
-	}
-	return nonPlatformSubnets, nil
-}
-
-// TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
 func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
 ) (err error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 
-	currentSubnets, err := ln.getCurrentSubnets(ctx)
-	if err != nil {
-		return err
-	}
-
-	trackSubnetIDsSet := set.Set[string]{}
-	for _, subnetID := range append(currentSubnets, subnetIDs...) {
-		trackSubnetIDsSet.Add(subnetID.String())
-	}
-
-	trackSubnetIDs := trackSubnetIDsSet.List()
-	sort.Strings(trackSubnetIDs)
-	trackSubnets := strings.Join(trackSubnetIDs, ",")
-
-	ln.log.Info("restarting all nodes to track subnets", zap.Strings("track-subnet-IDs", trackSubnetIDs))
-
-	// change default setting
-	ln.flags[config.TrackSubnetsKey] = trackSubnets
-
 	for nodeName, node := range ln.nodes {
+
 		// delete node specific flag so as to use default one
 		nodeConfig := node.GetConfig()
-		delete(nodeConfig.Flags, config.TrackSubnetsKey)
+
+		previousTrackedSubnets := ""
+		previousTrackedSubnetsIntf, ok := nodeConfig.Flags[config.TrackSubnetsKey]
+		if ok {
+			previousTrackedSubnets, ok = previousTrackedSubnetsIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
+			}
+		}
+
+		trackSubnetIDsSet := set.Set[string]{}
+		if previousTrackedSubnets != "" {
+			for _, s := range strings.Split(previousTrackedSubnets, ",") {
+				trackSubnetIDsSet.Add(s)
+			}
+		}
+		for i, subnetID := range subnetIDs {
+			for _, participant := range subnetSpecs[i].Participants {
+				if participant == nodeName {
+					trackSubnetIDsSet.Add(subnetID.String())
+				}
+			}
+		}
+		trackSubnetIDs := trackSubnetIDsSet.List()
+		sort.Strings(trackSubnetIDs)
+
+		tracked := strings.Join(trackSubnetIDs, ",")
+		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
 
 		if node.paused {
 			continue
 		}
 
-		ln.log.Debug("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
+		ln.log.Info("restarting node to track subnets", zap.String("node-name", nodeName), zap.String("subnetIDs", tracked))
+
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
 		}
 
-		ln.log.Info("waiting for local cluster readiness after restarting node", zap.String("node-name", nodeName))
 		if err := ln.healthy(ctx); err != nil {
 			return err
 		}
