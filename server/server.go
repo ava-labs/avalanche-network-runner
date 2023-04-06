@@ -424,7 +424,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 			defer s.mu.RUnlock()
 			clusterInfo, deepCopyErr := deepCopy(s.clusterInfo)
 			if deepCopyErr != nil {
-				return nil, fmt.Errorf("%v; %v", err, deepCopyErr)
+				return nil, fmt.Errorf("%w; %w", err, deepCopyErr)
 			}
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, err
 		case <-ctx.Done():
