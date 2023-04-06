@@ -222,7 +222,6 @@ func (ln *localNetwork) installCustomChains(
 		if err := ln.restartNodes(ctx, addedSubnetIDs); err != nil {
 			return nil, err
 		}
-		w.updatePClient(clientURI)
 	}
 
 	// refresh vm list
@@ -300,9 +299,11 @@ func (ln *localNetwork) installSubnets(
 	}
 
 	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
 	for i := range subnetSpecs {
 		if len(subnetSpecs[i].Participants) == 0 {
-			subnetSpecs[i].Participants = maps.Keys(ln.nodes)
+			subnetSpecs[i].Participants = allNodeNames
 		}
 	}
 
@@ -314,7 +315,6 @@ func (ln *localNetwork) installSubnets(
 	if err := ln.restartNodes(ctx, subnetIDs); err != nil {
 		return nil, err
 	}
-	w.updatePClient(clientURI)
 
 	// wait for nodes to be primary validators before trying to add them as subnet ones
 	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
@@ -504,11 +504,6 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 	return &w, nil
-}
-
-func (w *wallet) updatePClient(uri string) {
-	pClient := platformvm.NewClient(uri)
-	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 }
 
 // add all nodes as validators of the primary network, in case they are not
