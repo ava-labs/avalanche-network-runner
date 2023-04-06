@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.19
 
 require (
-	github.com/ava-labs/avalanchego v1.9.10
-	github.com/ava-labs/coreth v0.11.8-rc.3
+	github.com/ava-labs/avalanchego v1.9.16
+	github.com/ava-labs/coreth v0.11.9-rc.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/onsi/ginkgo/v2 v2.7.0
@@ -111,7 +111,6 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
-	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
