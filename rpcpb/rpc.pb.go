@@ -1010,6 +1010,14 @@ type TransformSubnetResponse struct {
 	ClusterInfo *ClusterInfo `protobuf:"bytes,1,opt,name=cluster_info,json=clusterInfo,proto3" json:"cluster_info,omitempty"`
 }
 
+type TransformSubnetRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ElasticSubnetSpec []*ElasticSubnetSpec `protobuf:"bytes,1,rep,name=elastic_subnet_specs,json=blockchainSpecs,proto3" json:"blockchain_specs,omitempty"`
+}
+
 type CreateBlockchainsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
