@@ -675,7 +675,7 @@ func transformToElasticSubnets(
 	log.Info("transforming elastic subnet tx")
 	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, maxSupply)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
 	owner := &secp256k1fx.OutputOwners{
@@ -686,12 +686,12 @@ func transformToElasticSubnets(
 	}
 	err = exportToPChain(ctx, w, owner, subnetAssetID, maxSupply)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("exported asset to P-Chain")
 	err = importFromXChain(ctx, w, owner)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("imported asset from X-Chain")
 	transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(elasticSubnetConfig.SubnetID, subnetAssetID,
@@ -702,7 +702,7 @@ func transformToElasticSubnets(
 		common.WithContext(ctx),
 	)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
 	return transformSubnetTxID, err

@@ -71,6 +71,7 @@ func NewCommand() *cobra.Command {
 		newLoadSnapshotCommand(),
 		newRemoveSnapshotCommand(),
 		newGetSnapshotNamesCommand(),
+		newTransformSubnetCommand(),
 	)
 
 	lvl, err := logging.ToLevel(logLevel)
@@ -343,6 +344,59 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("deploy-blockchains response: %+v"), info)
+	return nil
+}
+
+func newTransformSubnetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "transform-subnets [options]",
+		Short: "Transform a subnet into elastic subnet.",
+		RunE:  transformSubnetFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	cmd.PersistentFlags().Uint32Var(
+		&numSubnets,
+		"num-subnets",
+		0,
+		"number of subnets",
+	)
+	return cmd
+}
+
+func transformSubnetFunc(*cobra.Command, []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	opts := []client.OpOption{
+		client.WithNumSubnets(numSubnets),
+	}
+
+	blockchainSpecsStr := args[0]
+
+	blockchainSpecs := []*rpcpb.BlockchainSpec{}
+	if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.CreateBlockchains(
+		ctx,
+		blockchainSpecs,
+	)
+
+	info, err := cli.CreateSubnets(
+		ctx,
+		opts...,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("add-subnets response: %+v"), info)
 	return nil
 }
 

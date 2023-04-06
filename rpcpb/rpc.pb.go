@@ -7,11 +7,13 @@
 package rpcpb
 
 import (
+	"github.com/ava-labs/avalanchego/ids"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+	"time"
 )
 
 const (
@@ -922,6 +924,22 @@ func (x *BlockchainSpec) GetPerNodeChainConfig() string {
 	return ""
 }
 
+type ElasticSubnetSpec struct {
+	SubnetID                 ids.ID
+	AssetID                  ids.ID
+	InitialSupply            uint64
+	MaxSupply                uint64
+	MinConsumptionRate       uint64
+	MaxConsumptionRate       uint64
+	MinValidatorStake        uint64
+	MaxValidatorStake        uint64
+	MinStakeDuration         time.Duration
+	MaxStakeDuration         time.Duration
+	MinDelegationFee         uint32
+	MinDelegatorStake        uint64
+	MaxValidatorWeightFactor byte
+	UptimeRequirement        uint32
+}
 type CreateBlockchainsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -982,6 +1000,14 @@ func (x *CreateBlockchainsRequest) GetBlockchainSpecs() []*BlockchainSpec {
 		return x.BlockchainSpecs
 	}
 	return nil
+}
+
+type TransformSubnetResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClusterInfo *ClusterInfo `protobuf:"bytes,1,opt,name=cluster_info,json=clusterInfo,proto3" json:"cluster_info,omitempty"`
 }
 
 type CreateBlockchainsResponse struct {
