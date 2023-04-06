@@ -253,7 +253,7 @@ func (ln *localNetwork) installCustomChains(
 			return nil, err
 		}
 		subnetIDs = append(subnetIDs, subnetID)
-		subnetSpecs = append(subnetSpecs, network.SubnetSpec{})
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 	}
 	// add subnet validators
 	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
