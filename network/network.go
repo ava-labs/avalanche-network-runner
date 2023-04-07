@@ -22,9 +22,9 @@ type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
 	SubnetID           *string
+	SubnetSpec         *SubnetSpec
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
-	SubnetConfig       []byte
 	BlockchainAlias    string
 	PerNodeChainConfig map[string][]byte
 }

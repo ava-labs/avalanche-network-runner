@@ -333,8 +333,17 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
 	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -343,15 +352,6 @@ func (ln *localNetwork) installSubnets(
 	}
 
 	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
-		return nil, err
-	}
-
-	// wait for nodes to be primary validators before trying to add them as subnet ones
-	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
-		return nil, err
-	}
-
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -908,12 +908,6 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
 				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
-			}
-		}
-		if chainSpec.SubnetConfig != nil {
-			created = true
-			for nodeName := range ln.nodes {
-				ln.nodes[nodeName].config.SubnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			}
 		}
 	}
