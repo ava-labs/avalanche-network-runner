@@ -801,7 +801,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(2))
+			gomega.Ω(numSubnets).Should(gomega.Equal(4))
 			originalSubnets = status.ClusterInfo.Subnets
 		})
 		ginkgo.By("check there are no snapshots", func() {
