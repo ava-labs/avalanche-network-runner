@@ -15,20 +15,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanche-network-runner/utils/constants"
-	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/ava-labs/avalanche-network-runner/client"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestE2e(t *testing.T) {
@@ -49,6 +51,8 @@ var (
 	subnetEvmPath string
 
 	newNodeName       = "test-add-node"
+	newNodeName2      = "test-add-node2"
+	newNode2NodeID    = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -564,7 +568,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("start with default network, for subsecuent steps", func() {
+	ginkgo.It("start with default network, for subsequent steps", func() {
 		ginkgo.By("stopping network first", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_, err := cli.Stop(ctx)
@@ -585,14 +589,19 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("subnet creation", func() {
-		ginkgo.By("check subnets are 0", func() {
+	ginkgo.It("can add primary validator with BLS Keys", func() {
+		ginkgo.By("calling AddNode", func() {
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(ctx)
+			resp, err := cli.AddNode(ctx, newNodeName2, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(0))
+			for nodeName, nodeInfo := range resp.ClusterInfo.NodeInfos {
+				if nodeName == newNodeName2 {
+					newNode2NodeID = nodeInfo.Id
+				}
+			}
+			ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
 		})
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -606,13 +615,57 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("check subnets are 1", func() {
+		ginkgo.By("verify that new validator has BLS Keys", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			for _, v := range vdrs {
+				if v.NodeID.String() == newNode2NodeID {
+					gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+				}
+			}
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+	})
+
+	ginkgo.It("subnet creation", func() {
+		ginkgo.By("check subnet number is 1", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
 			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+		})
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("check subnets number is 2", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(2))
 		})
 	})
 
@@ -625,7 +678,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			originalUris, err = cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(originalUris)).Should(gomega.Equal(5))
+			gomega.Ω(len(originalUris)).Should(gomega.Equal(6))
 		})
 		ginkgo.By("get original subnets", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -633,7 +686,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(1))
+			gomega.Ω(numSubnets).Should(gomega.Equal(2))
 			originalSubnets = status.ClusterInfo.Subnets
 		})
 		ginkgo.By("check there are no snapshots", func() {
