@@ -336,6 +336,10 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
+	if err := ln.setSubnetConfigFiles(subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
 	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
@@ -886,13 +890,32 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 		}
 		if chainSpec.SubnetConfig != nil {
 			created = true
-			ln.subnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetID)
+				ln.nodes[nodeName].config.SubnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			}
 		}
 	}
 	return created
+}
+
+func (ln *localNetwork) setSubnetConfigFiles(
+	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
+) error {
+	for i, subnetID := range subnetIDs {
+		participants := subnetSpecs[i].Participants
+		subnetConfig := subnetSpecs[i].SubnetConfig
+		if subnetConfig != nil {
+			for _, nodeName := range participants {
+				_, b := ln.nodes[nodeName]
+				if !b {
+					return fmt.Errorf("participant node %s is not in network nodes", nodeName)
+				}
+				ln.nodes[nodeName].config.SubnetConfigFiles[subnetID.String()] = string(subnetConfig)
+			}
+		}
+	}
+	return nil
 }
 
 func (*localNetwork) createBlockchains(
