@@ -8,6 +8,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/message"
+	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/prometheus/client_golang/prometheus"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,14 +22,8 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/server"
-	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/message"
-	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
@@ -639,6 +639,18 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	})
 
 	ginkgo.It("subnet creation", func() {
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
 		ginkgo.By("check subnet number is 1", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(ctx)
@@ -685,9 +697,19 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
-			createdSubnetIDString := subnetIDs[2]
+			createdSubnetIDString := subnetIDs[0]
 			createdSubnetID, err := ids.FromString(createdSubnetIDString)
 			gomega.Ω(err).Should(gomega.BeNil())
+			var nodeIdsList []string
+			nodesNameList := []string{"node1", "node2", "node3"}
+			// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
+			for nodeName, nodeInfo := range status.ClusterInfo.NodeInfos {
+				for _, subnetValidatorNodeName := range nodesNameList {
+					if nodeName == subnetValidatorNodeName {
+						nodeIdsList = append(nodeIdsList, nodeInfo.Id)
+					}
+				}
+			}
 			clientURIs, err := cli.URIs(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 			var clientURI string
@@ -698,14 +720,86 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			platformCli := platformvm.NewClient(clientURI)
 			vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
 			gomega.Ω(err).Should(gomega.BeNil())
-			//for _, v := range vdrs {
-			//	if v.NodeID.String() == newNode2NodeID {
-			//		gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
-			//	}
-			//}
-			gomega.Ω(len(vdrs)).Should(gomega.Equal(2))
+			var nodeIsInList bool
+			// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
+			for _, v := range vdrs {
+				nodeIsInList = false
+				for _, subnetValidator := range nodeIdsList {
+					if v.NodeID.String() == subnetValidator {
+						nodeIsInList = true
+						break
+					}
+				}
+				gomega.Ω(nodeIsInList).Should(gomega.Equal(true))
+			}
+			gomega.Ω(len(vdrs)).Should(gomega.Equal(3))
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("add 1 subnet with node not currently added", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: []string{"node1", "node2", "testNode"}}})
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("calling AddNode with existing node name, should fail", func() {
+			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.AddNode(ctx, "testNode", execPath1)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("repeated node name"))
+			gomega.Ω(resp).Should(gomega.BeNil())
+			ux.Print(log, logging.Green.Wrap("'add-node' failed as expected"))
+		})
+		ginkgo.By("verify the newer subnet also has correct participants", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			status, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			subnetIDs := status.ClusterInfo.GetSubnets()
+			createdSubnetIDString := subnetIDs[0]
+			createdSubnetID, err := ids.FromString(createdSubnetIDString)
 			gomega.Ω(err).Should(gomega.BeNil())
 
+			var nodeIdsList []string
+			nodesNameList := []string{"node1", "node2", "testNode"}
+			// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
+			for nodeName, nodeInfo := range status.ClusterInfo.NodeInfos {
+				for _, subnetValidatorNodeName := range nodesNameList {
+					if nodeName == subnetValidatorNodeName {
+						nodeIdsList = append(nodeIdsList, nodeInfo.Id)
+					}
+				}
+			}
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var nodeIsInList bool
+			// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
+			for _, v := range vdrs {
+				nodeIsInList = false
+				for _, subnetValidator := range nodeIdsList {
+					if v.NodeID.String() == subnetValidator {
+						nodeIsInList = true
+						break
+					}
+				}
+				gomega.Ω(nodeIsInList).Should(gomega.Equal(true))
+			}
+			gomega.Ω(len(vdrs)).Should(gomega.Equal(3))
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})
 
