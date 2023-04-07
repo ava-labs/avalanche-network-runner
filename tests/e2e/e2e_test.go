@@ -626,7 +626,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			}
 			platformCli := platformvm.NewClient(clientURI)
 			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
-			cancel()
+
 			gomega.Ω(err).Should(gomega.BeNil())
 			for _, v := range vdrs {
 				if v.NodeID.String() == newNode2NodeID {
@@ -666,6 +666,46 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
 			gomega.Ω(numSubnets).Should(gomega.Equal(2))
+		})
+		ginkgo.By("add 1 subnet with participants", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: []string{"node1", "node2", "node3"}}})
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.WaitForHealthy(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("verify subnet has correct participants", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			status, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			subnetIDs := status.ClusterInfo.GetSubnets()
+			createdSubnetIDString := subnetIDs[2]
+			createdSubnetID, err := ids.FromString(createdSubnetIDString)
+			gomega.Ω(err).Should(gomega.BeNil())
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
+			gomega.Ω(err).Should(gomega.BeNil())
+			//for _, v := range vdrs {
+			//	if v.NodeID.String() == newNode2NodeID {
+			//		gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+			//	}
+			//}
+			gomega.Ω(len(vdrs)).Should(gomega.Equal(2))
+			gomega.Ω(err).Should(gomega.BeNil())
+
 		})
 	})
 
