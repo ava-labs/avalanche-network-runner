@@ -183,35 +183,74 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
+	// get subnet specs for all new subnets to create
+	// for the list of requested blockchains, we take those that have both undefined subnet id
+	// and defined subnet spec
+	// that subnets will be created and later on assigned to the blockchain requests
+	subnetSpecs := []network.SubnetSpec{}
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.SubnetID == nil {
+			if chainSpec.SubnetSpec == nil {
+				return nil, fmt.Errorf("subnet spec must be provided if subnet id is not given")
+			}
+			subnetSpecs = append(subnetSpecs, *chainSpec.SubnetSpec)
+		}
+	}
+
+	// if no participants are given for a new subnet, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+	for i := range subnetSpecs {
+		if len(subnetSpecs[i].Participants) == 0 {
+			subnetSpecs[i].Participants = allNodeNames
+		}
+	}
+
+	// create new nodes
+	for _, subnetSpec := range subnetSpecs {
+		for _, nodeName := range subnetSpec.Participants {
+			_, ok := ln.nodes[nodeName]
+			if !ok {
+				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
+				if _, err := ln.addNode(node.Config{Name: nodeName}); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return nil, err
+	}
+
+	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
 		return nil, err
 	}
 
-	// if no participants are given, assume all nodes should be participants
-	allNodeNames := maps.Keys(ln.nodes)
-	sort.Strings(allNodeNames)
-
-	// get number of subnets to create
-	// for the list of requested blockchains, we count those that have undefined subnet id
-	// that number of subnets will be created and later assigned to those blockchain requests
-	var numSubnetsToCreate uint32
-	subnetSpecs := []network.SubnetSpec{}
-	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetID == nil {
-			numSubnetsToCreate++
-			subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
-		}
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
 	}
+
 	// create missing subnets
-	addedSubnetIDs, err := createSubnets(ctx, numSubnetsToCreate, w, ln.log)
+	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
 		return nil, err
 	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	if err := ln.setSubnetConfigFiles(subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
 	// assign created subnets to blockchain requests with undefined subnet id
 	j := 0
 	for i := range chainSpecs {
 		if chainSpecs[i].SubnetID == nil {
-			subnetIDStr := addedSubnetIDs[j].String()
+			subnetIDStr := subnetIDs[j].String()
 			chainSpecs[i].SubnetID = &subnetIDStr
 			j++
 		}
@@ -224,10 +263,10 @@ func (ln *localNetwork) installCustomChains(
 
 	blockchainFilesCreated := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 
-	if numSubnetsToCreate > 0 || blockchainFilesCreated {
+	if len(subnetSpecs) > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, addedSubnetIDs, subnetSpecs); err != nil {
+		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
 			return nil, err
 		}
 	}
@@ -239,26 +278,6 @@ func (ln *localNetwork) installCustomChains(
 
 	// create blockchain from txs before spending more utxos
 	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, w, ln.log); err != nil {
-		return nil, err
-	}
-
-	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
-		return nil, err
-	}
-
-	// get all subnets for add subnet validator request
-	subnetIDs := []ids.ID{}
-	subnetSpecs = []network.SubnetSpec{}
-	for _, chainSpec := range chainSpecs {
-		subnetID, err := ids.FromString(*chainSpec.SubnetID)
-		if err != nil {
-			return nil, err
-		}
-		subnetIDs = append(subnetIDs, subnetID)
-		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
-	}
-	// add subnet validators
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
