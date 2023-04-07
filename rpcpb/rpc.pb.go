@@ -7,13 +7,11 @@
 package rpcpb
 
 import (
-	"github.com/ava-labs/avalanchego/ids"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
-	"time"
 )
 
 const (
@@ -819,6 +817,251 @@ func (x *StartResponse) GetClusterInfo() *ClusterInfo {
 	return nil
 }
 
+type ElasticSubnetSpec struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	SubnetId                 string `protobuf:"bytes,1,opt,name=subnet_id,json=subnetId,proto3" json:"subnet_id,omitempty"`
+	AssetId                  string `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	InitialSupply            uint64 `protobuf:"varint,3,opt,name=initial_supply,json=initialSupply,proto3" json:"initial_supply,omitempty"`
+	MaxSupply                uint64 `protobuf:"varint,4,opt,name=max_supply,json=maxSupply,proto3" json:"max_supply,omitempty"`
+	MinConsumptionRate       uint64 `protobuf:"varint,5,opt,name=min_consumption_rate,json=minConsumptionRate,proto3" json:"min_consumption_rate,omitempty"`
+	MaxConsumptionRate       uint64 `protobuf:"varint,6,opt,name=max_consumption_rate,json=maxConsumptionRate,proto3" json:"max_consumption_rate,omitempty"`
+	MinValidatorRate         uint64 `protobuf:"varint,7,opt,name=min_validator_rate,json=minValidatorRate,proto3" json:"min_validator_rate,omitempty"`
+	MaxValidatorRate         uint64 `protobuf:"varint,8,opt,name=max_validator_rate,json=maxValidatorRate,proto3" json:"max_validator_rate,omitempty"`
+	MinStakeDuration         uint64 `protobuf:"varint,9,opt,name=min_stake_duration,json=minStakeDuration,proto3" json:"min_stake_duration,omitempty"`
+	MaxStakeDuration         uint64 `protobuf:"varint,10,opt,name=max_stake_duration,json=maxStakeDuration,proto3" json:"max_stake_duration,omitempty"`
+	MinDelegationFee         uint32 `protobuf:"varint,11,opt,name=min_delegation_fee,json=minDelegationFee,proto3" json:"min_delegation_fee,omitempty"`
+	MinDelegatorStake        uint64 `protobuf:"varint,12,opt,name=min_delegator_stake,json=minDelegatorStake,proto3" json:"min_delegator_stake,omitempty"`
+	MaxValidatorWeightFactor uint32 `protobuf:"varint,13,opt,name=max_validator_weight_factor,json=maxValidatorWeightFactor,proto3" json:"max_validator_weight_factor,omitempty"`
+	UptimeRequirement        uint32 `protobuf:"varint,14,opt,name=uptime_requirement,json=uptimeRequirement,proto3" json:"uptime_requirement,omitempty"`
+}
+
+func (x *ElasticSubnetSpec) Reset() {
+	*x = ElasticSubnetSpec{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpcpb_rpc_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ElasticSubnetSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ElasticSubnetSpec) ProtoMessage() {}
+
+func (x *ElasticSubnetSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_rpcpb_rpc_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ElasticSubnetSpec.ProtoReflect.Descriptor instead.
+func (*ElasticSubnetSpec) Descriptor() ([]byte, []int) {
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ElasticSubnetSpec) GetSubnetId() string {
+	if x != nil {
+		return x.SubnetId
+	}
+	return ""
+}
+
+func (x *ElasticSubnetSpec) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *ElasticSubnetSpec) GetInitialSupply() uint64 {
+	if x != nil {
+		return x.InitialSupply
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMaxSupply() uint64 {
+	if x != nil {
+		return x.MaxSupply
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMinConsumptionRate() uint64 {
+	if x != nil {
+		return x.MinConsumptionRate
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMaxConsumptionRate() uint64 {
+	if x != nil {
+		return x.MaxConsumptionRate
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMinValidatorRate() uint64 {
+	if x != nil {
+		return x.MinValidatorRate
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMaxValidatorRate() uint64 {
+	if x != nil {
+		return x.MaxValidatorRate
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMinStakeDuration() uint64 {
+	if x != nil {
+		return x.MinStakeDuration
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMaxStakeDuration() uint64 {
+	if x != nil {
+		return x.MaxStakeDuration
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMinDelegationFee() uint32 {
+	if x != nil {
+		return x.MinDelegationFee
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMinDelegatorStake() uint64 {
+	if x != nil {
+		return x.MinDelegatorStake
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetMaxValidatorWeightFactor() uint32 {
+	if x != nil {
+		return x.MaxValidatorWeightFactor
+	}
+	return 0
+}
+
+func (x *ElasticSubnetSpec) GetUptimeRequirement() uint32 {
+	if x != nil {
+		return x.UptimeRequirement
+	}
+	return 0
+}
+
+type TransformElasticSubnetRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ElasticSubnetSpec *ElasticSubnetSpec `protobuf:"bytes,1,opt,name=elastic_subnet_spec,json=elasticSubnetSpec,proto3" json:"elastic_subnet_spec,omitempty"`
+}
+
+func (x *TransformElasticSubnetRequest) Reset() {
+	*x = TransformElasticSubnetRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpcpb_rpc_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransformElasticSubnetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransformElasticSubnetRequest) ProtoMessage() {}
+
+func (x *TransformElasticSubnetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpcpb_rpc_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransformElasticSubnetRequest.ProtoReflect.Descriptor instead.
+func (*TransformElasticSubnetRequest) Descriptor() ([]byte, []int) {
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TransformElasticSubnetRequest) GetElasticSubnetSpec() *ElasticSubnetSpec {
+	if x != nil {
+		return x.ElasticSubnetSpec
+	}
+	return nil
+}
+
+type TransformElasticSubnetResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClusterInfo *ClusterInfo `protobuf:"bytes,1,opt,name=cluster_info,json=clusterInfo,proto3" json:"cluster_info,omitempty"`
+}
+
+func (x *TransformElasticSubnetResponse) Reset() {
+	*x = TransformElasticSubnetResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpcpb_rpc_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransformElasticSubnetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransformElasticSubnetResponse) ProtoMessage() {}
+
+func (x *TransformElasticSubnetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpcpb_rpc_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransformElasticSubnetResponse.ProtoReflect.Descriptor instead.
+func (*TransformElasticSubnetResponse) Descriptor() ([]byte, []int) {
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TransformElasticSubnetResponse) GetClusterInfo() *ClusterInfo {
+	if x != nil {
+		return x.ClusterInfo
+	}
+	return nil
+}
+
 type BlockchainSpec struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -839,7 +1082,7 @@ type BlockchainSpec struct {
 func (x *BlockchainSpec) Reset() {
 	*x = BlockchainSpec{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[11]
+		mi := &file_rpcpb_rpc_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -852,7 +1095,7 @@ func (x *BlockchainSpec) String() string {
 func (*BlockchainSpec) ProtoMessage() {}
 
 func (x *BlockchainSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[11]
+	mi := &file_rpcpb_rpc_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -865,7 +1108,7 @@ func (x *BlockchainSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockchainSpec.ProtoReflect.Descriptor instead.
 func (*BlockchainSpec) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{11}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BlockchainSpec) GetVmName() string {
@@ -924,22 +1167,6 @@ func (x *BlockchainSpec) GetPerNodeChainConfig() string {
 	return ""
 }
 
-type ElasticSubnetSpec struct {
-	SubnetID                 ids.ID
-	AssetID                  ids.ID
-	InitialSupply            uint64
-	MaxSupply                uint64
-	MinConsumptionRate       uint64
-	MaxConsumptionRate       uint64
-	MinValidatorStake        uint64
-	MaxValidatorStake        uint64
-	MinStakeDuration         time.Duration
-	MaxStakeDuration         time.Duration
-	MinDelegationFee         uint32
-	MinDelegatorStake        uint64
-	MaxValidatorWeightFactor byte
-	UptimeRequirement        uint32
-}
 type CreateBlockchainsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -966,7 +1193,7 @@ type CreateBlockchainsRequest struct {
 func (x *CreateBlockchainsRequest) Reset() {
 	*x = CreateBlockchainsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[12]
+		mi := &file_rpcpb_rpc_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -979,7 +1206,7 @@ func (x *CreateBlockchainsRequest) String() string {
 func (*CreateBlockchainsRequest) ProtoMessage() {}
 
 func (x *CreateBlockchainsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[12]
+	mi := &file_rpcpb_rpc_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -992,7 +1219,7 @@ func (x *CreateBlockchainsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBlockchainsRequest.ProtoReflect.Descriptor instead.
 func (*CreateBlockchainsRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{12}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateBlockchainsRequest) GetBlockchainSpecs() []*BlockchainSpec {
@@ -1013,7 +1240,7 @@ type CreateBlockchainsResponse struct {
 func (x *CreateBlockchainsResponse) Reset() {
 	*x = CreateBlockchainsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[13]
+		mi := &file_rpcpb_rpc_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1026,7 +1253,7 @@ func (x *CreateBlockchainsResponse) String() string {
 func (*CreateBlockchainsResponse) ProtoMessage() {}
 
 func (x *CreateBlockchainsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[13]
+	mi := &file_rpcpb_rpc_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +1266,7 @@ func (x *CreateBlockchainsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBlockchainsResponse.ProtoReflect.Descriptor instead.
 func (*CreateBlockchainsResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{13}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateBlockchainsResponse) GetClusterInfo() *ClusterInfo {
@@ -1060,7 +1287,7 @@ type CreateSubnetsRequest struct {
 func (x *CreateSubnetsRequest) Reset() {
 	*x = CreateSubnetsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[14]
+		mi := &file_rpcpb_rpc_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1073,7 +1300,7 @@ func (x *CreateSubnetsRequest) String() string {
 func (*CreateSubnetsRequest) ProtoMessage() {}
 
 func (x *CreateSubnetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[14]
+	mi := &file_rpcpb_rpc_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +1313,7 @@ func (x *CreateSubnetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSubnetsRequest.ProtoReflect.Descriptor instead.
 func (*CreateSubnetsRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{14}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateSubnetsRequest) GetNumSubnets() uint32 {
@@ -1107,7 +1334,7 @@ type CreateSubnetsResponse struct {
 func (x *CreateSubnetsResponse) Reset() {
 	*x = CreateSubnetsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[15]
+		mi := &file_rpcpb_rpc_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1120,7 +1347,7 @@ func (x *CreateSubnetsResponse) String() string {
 func (*CreateSubnetsResponse) ProtoMessage() {}
 
 func (x *CreateSubnetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[15]
+	mi := &file_rpcpb_rpc_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1133,7 +1360,7 @@ func (x *CreateSubnetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSubnetsResponse.ProtoReflect.Descriptor instead.
 func (*CreateSubnetsResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{15}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateSubnetsResponse) GetClusterInfo() *ClusterInfo {
@@ -1152,7 +1379,7 @@ type HealthRequest struct {
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[16]
+		mi := &file_rpcpb_rpc_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1165,7 +1392,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[16]
+	mi := &file_rpcpb_rpc_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1178,7 +1405,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{16}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{19}
 }
 
 type HealthResponse struct {
@@ -1192,7 +1419,7 @@ type HealthResponse struct {
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[17]
+		mi := &file_rpcpb_rpc_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1205,7 +1432,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[17]
+	mi := &file_rpcpb_rpc_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1218,7 +1445,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{17}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *HealthResponse) GetClusterInfo() *ClusterInfo {
@@ -1237,7 +1464,7 @@ type URIsRequest struct {
 func (x *URIsRequest) Reset() {
 	*x = URIsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[18]
+		mi := &file_rpcpb_rpc_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1250,7 +1477,7 @@ func (x *URIsRequest) String() string {
 func (*URIsRequest) ProtoMessage() {}
 
 func (x *URIsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[18]
+	mi := &file_rpcpb_rpc_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1263,7 +1490,7 @@ func (x *URIsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use URIsRequest.ProtoReflect.Descriptor instead.
 func (*URIsRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{18}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{21}
 }
 
 type URIsResponse struct {
@@ -1277,7 +1504,7 @@ type URIsResponse struct {
 func (x *URIsResponse) Reset() {
 	*x = URIsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[19]
+		mi := &file_rpcpb_rpc_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1290,7 +1517,7 @@ func (x *URIsResponse) String() string {
 func (*URIsResponse) ProtoMessage() {}
 
 func (x *URIsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[19]
+	mi := &file_rpcpb_rpc_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1530,7 @@ func (x *URIsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use URIsResponse.ProtoReflect.Descriptor instead.
 func (*URIsResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{19}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *URIsResponse) GetUris() []string {
@@ -1322,7 +1549,7 @@ type WaitForHealthyRequest struct {
 func (x *WaitForHealthyRequest) Reset() {
 	*x = WaitForHealthyRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[20]
+		mi := &file_rpcpb_rpc_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1335,7 +1562,7 @@ func (x *WaitForHealthyRequest) String() string {
 func (*WaitForHealthyRequest) ProtoMessage() {}
 
 func (x *WaitForHealthyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[20]
+	mi := &file_rpcpb_rpc_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1575,7 @@ func (x *WaitForHealthyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitForHealthyRequest.ProtoReflect.Descriptor instead.
 func (*WaitForHealthyRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{20}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{23}
 }
 
 type WaitForHealthyResponse struct {
@@ -1362,7 +1589,7 @@ type WaitForHealthyResponse struct {
 func (x *WaitForHealthyResponse) Reset() {
 	*x = WaitForHealthyResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[21]
+		mi := &file_rpcpb_rpc_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1375,7 +1602,7 @@ func (x *WaitForHealthyResponse) String() string {
 func (*WaitForHealthyResponse) ProtoMessage() {}
 
 func (x *WaitForHealthyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[21]
+	mi := &file_rpcpb_rpc_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1388,7 +1615,7 @@ func (x *WaitForHealthyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitForHealthyResponse.ProtoReflect.Descriptor instead.
 func (*WaitForHealthyResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{21}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WaitForHealthyResponse) GetClusterInfo() *ClusterInfo {
@@ -1407,7 +1634,7 @@ type StatusRequest struct {
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[22]
+		mi := &file_rpcpb_rpc_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1420,7 +1647,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[22]
+	mi := &file_rpcpb_rpc_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1433,7 +1660,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{22}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{25}
 }
 
 type StatusResponse struct {
@@ -1447,7 +1674,7 @@ type StatusResponse struct {
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[23]
+		mi := &file_rpcpb_rpc_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1460,7 +1687,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[23]
+	mi := &file_rpcpb_rpc_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1473,7 +1700,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{23}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *StatusResponse) GetClusterInfo() *ClusterInfo {
@@ -1494,7 +1721,7 @@ type StreamStatusRequest struct {
 func (x *StreamStatusRequest) Reset() {
 	*x = StreamStatusRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[24]
+		mi := &file_rpcpb_rpc_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1507,7 +1734,7 @@ func (x *StreamStatusRequest) String() string {
 func (*StreamStatusRequest) ProtoMessage() {}
 
 func (x *StreamStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[24]
+	mi := &file_rpcpb_rpc_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1747,7 @@ func (x *StreamStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamStatusRequest.ProtoReflect.Descriptor instead.
 func (*StreamStatusRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{24}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *StreamStatusRequest) GetPushInterval() int64 {
@@ -1541,7 +1768,7 @@ type StreamStatusResponse struct {
 func (x *StreamStatusResponse) Reset() {
 	*x = StreamStatusResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[25]
+		mi := &file_rpcpb_rpc_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1554,7 +1781,7 @@ func (x *StreamStatusResponse) String() string {
 func (*StreamStatusResponse) ProtoMessage() {}
 
 func (x *StreamStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[25]
+	mi := &file_rpcpb_rpc_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1567,7 +1794,7 @@ func (x *StreamStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamStatusResponse.ProtoReflect.Descriptor instead.
 func (*StreamStatusResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{25}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *StreamStatusResponse) GetClusterInfo() *ClusterInfo {
@@ -1606,7 +1833,7 @@ type RestartNodeRequest struct {
 func (x *RestartNodeRequest) Reset() {
 	*x = RestartNodeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[26]
+		mi := &file_rpcpb_rpc_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1619,7 +1846,7 @@ func (x *RestartNodeRequest) String() string {
 func (*RestartNodeRequest) ProtoMessage() {}
 
 func (x *RestartNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[26]
+	mi := &file_rpcpb_rpc_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1632,7 +1859,7 @@ func (x *RestartNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartNodeRequest.ProtoReflect.Descriptor instead.
 func (*RestartNodeRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{26}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RestartNodeRequest) GetName() string {
@@ -1695,7 +1922,7 @@ type RestartNodeResponse struct {
 func (x *RestartNodeResponse) Reset() {
 	*x = RestartNodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[27]
+		mi := &file_rpcpb_rpc_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1708,7 +1935,7 @@ func (x *RestartNodeResponse) String() string {
 func (*RestartNodeResponse) ProtoMessage() {}
 
 func (x *RestartNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[27]
+	mi := &file_rpcpb_rpc_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1721,7 +1948,7 @@ func (x *RestartNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartNodeResponse.ProtoReflect.Descriptor instead.
 func (*RestartNodeResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{27}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RestartNodeResponse) GetClusterInfo() *ClusterInfo {
@@ -1742,7 +1969,7 @@ type RemoveNodeRequest struct {
 func (x *RemoveNodeRequest) Reset() {
 	*x = RemoveNodeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[28]
+		mi := &file_rpcpb_rpc_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1755,7 +1982,7 @@ func (x *RemoveNodeRequest) String() string {
 func (*RemoveNodeRequest) ProtoMessage() {}
 
 func (x *RemoveNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[28]
+	mi := &file_rpcpb_rpc_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1768,7 +1995,7 @@ func (x *RemoveNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveNodeRequest.ProtoReflect.Descriptor instead.
 func (*RemoveNodeRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{28}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RemoveNodeRequest) GetName() string {
@@ -1789,7 +2016,7 @@ type RemoveNodeResponse struct {
 func (x *RemoveNodeResponse) Reset() {
 	*x = RemoveNodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[29]
+		mi := &file_rpcpb_rpc_proto_msgTypes[32]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1802,7 +2029,7 @@ func (x *RemoveNodeResponse) String() string {
 func (*RemoveNodeResponse) ProtoMessage() {}
 
 func (x *RemoveNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[29]
+	mi := &file_rpcpb_rpc_proto_msgTypes[32]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1815,7 +2042,7 @@ func (x *RemoveNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveNodeResponse.ProtoReflect.Descriptor instead.
 func (*RemoveNodeResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{29}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *RemoveNodeResponse) GetClusterInfo() *ClusterInfo {
@@ -1836,7 +2063,7 @@ type PauseNodeRequest struct {
 func (x *PauseNodeRequest) Reset() {
 	*x = PauseNodeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[30]
+		mi := &file_rpcpb_rpc_proto_msgTypes[33]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1849,7 +2076,7 @@ func (x *PauseNodeRequest) String() string {
 func (*PauseNodeRequest) ProtoMessage() {}
 
 func (x *PauseNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[30]
+	mi := &file_rpcpb_rpc_proto_msgTypes[33]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1862,7 +2089,7 @@ func (x *PauseNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseNodeRequest.ProtoReflect.Descriptor instead.
 func (*PauseNodeRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{30}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *PauseNodeRequest) GetName() string {
@@ -1883,7 +2110,7 @@ type PauseNodeResponse struct {
 func (x *PauseNodeResponse) Reset() {
 	*x = PauseNodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[31]
+		mi := &file_rpcpb_rpc_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1896,7 +2123,7 @@ func (x *PauseNodeResponse) String() string {
 func (*PauseNodeResponse) ProtoMessage() {}
 
 func (x *PauseNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[31]
+	mi := &file_rpcpb_rpc_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1909,7 +2136,7 @@ func (x *PauseNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseNodeResponse.ProtoReflect.Descriptor instead.
 func (*PauseNodeResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{31}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *PauseNodeResponse) GetClusterInfo() *ClusterInfo {
@@ -1930,7 +2157,7 @@ type ResumeNodeRequest struct {
 func (x *ResumeNodeRequest) Reset() {
 	*x = ResumeNodeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[32]
+		mi := &file_rpcpb_rpc_proto_msgTypes[35]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1943,7 +2170,7 @@ func (x *ResumeNodeRequest) String() string {
 func (*ResumeNodeRequest) ProtoMessage() {}
 
 func (x *ResumeNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[32]
+	mi := &file_rpcpb_rpc_proto_msgTypes[35]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1956,7 +2183,7 @@ func (x *ResumeNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeNodeRequest.ProtoReflect.Descriptor instead.
 func (*ResumeNodeRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{32}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ResumeNodeRequest) GetName() string {
@@ -1977,7 +2204,7 @@ type ResumeNodeResponse struct {
 func (x *ResumeNodeResponse) Reset() {
 	*x = ResumeNodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[33]
+		mi := &file_rpcpb_rpc_proto_msgTypes[36]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1990,7 +2217,7 @@ func (x *ResumeNodeResponse) String() string {
 func (*ResumeNodeResponse) ProtoMessage() {}
 
 func (x *ResumeNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[33]
+	mi := &file_rpcpb_rpc_proto_msgTypes[36]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2003,7 +2230,7 @@ func (x *ResumeNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeNodeResponse.ProtoReflect.Descriptor instead.
 func (*ResumeNodeResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{33}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ResumeNodeResponse) GetClusterInfo() *ClusterInfo {
@@ -2040,7 +2267,7 @@ type AddNodeRequest struct {
 func (x *AddNodeRequest) Reset() {
 	*x = AddNodeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[34]
+		mi := &file_rpcpb_rpc_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2053,7 +2280,7 @@ func (x *AddNodeRequest) String() string {
 func (*AddNodeRequest) ProtoMessage() {}
 
 func (x *AddNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[34]
+	mi := &file_rpcpb_rpc_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2066,7 +2293,7 @@ func (x *AddNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddNodeRequest.ProtoReflect.Descriptor instead.
 func (*AddNodeRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{34}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *AddNodeRequest) GetName() string {
@@ -2129,7 +2356,7 @@ type AddNodeResponse struct {
 func (x *AddNodeResponse) Reset() {
 	*x = AddNodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[35]
+		mi := &file_rpcpb_rpc_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2142,7 +2369,7 @@ func (x *AddNodeResponse) String() string {
 func (*AddNodeResponse) ProtoMessage() {}
 
 func (x *AddNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[35]
+	mi := &file_rpcpb_rpc_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2155,7 +2382,7 @@ func (x *AddNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddNodeResponse.ProtoReflect.Descriptor instead.
 func (*AddNodeResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{35}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *AddNodeResponse) GetClusterInfo() *ClusterInfo {
@@ -2174,7 +2401,7 @@ type StopRequest struct {
 func (x *StopRequest) Reset() {
 	*x = StopRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[36]
+		mi := &file_rpcpb_rpc_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2187,7 +2414,7 @@ func (x *StopRequest) String() string {
 func (*StopRequest) ProtoMessage() {}
 
 func (x *StopRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[36]
+	mi := &file_rpcpb_rpc_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2200,7 +2427,7 @@ func (x *StopRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRequest.ProtoReflect.Descriptor instead.
 func (*StopRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{36}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{39}
 }
 
 type StopResponse struct {
@@ -2214,7 +2441,7 @@ type StopResponse struct {
 func (x *StopResponse) Reset() {
 	*x = StopResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[37]
+		mi := &file_rpcpb_rpc_proto_msgTypes[40]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2227,7 +2454,7 @@ func (x *StopResponse) String() string {
 func (*StopResponse) ProtoMessage() {}
 
 func (x *StopResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[37]
+	mi := &file_rpcpb_rpc_proto_msgTypes[40]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2240,7 +2467,7 @@ func (x *StopResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopResponse.ProtoReflect.Descriptor instead.
 func (*StopResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{37}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StopResponse) GetClusterInfo() *ClusterInfo {
@@ -2261,7 +2488,7 @@ type AttachPeerRequest struct {
 func (x *AttachPeerRequest) Reset() {
 	*x = AttachPeerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[38]
+		mi := &file_rpcpb_rpc_proto_msgTypes[41]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2274,7 +2501,7 @@ func (x *AttachPeerRequest) String() string {
 func (*AttachPeerRequest) ProtoMessage() {}
 
 func (x *AttachPeerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[38]
+	mi := &file_rpcpb_rpc_proto_msgTypes[41]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2287,7 +2514,7 @@ func (x *AttachPeerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachPeerRequest.ProtoReflect.Descriptor instead.
 func (*AttachPeerRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{38}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *AttachPeerRequest) GetNodeName() string {
@@ -2309,7 +2536,7 @@ type AttachPeerResponse struct {
 func (x *AttachPeerResponse) Reset() {
 	*x = AttachPeerResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[39]
+		mi := &file_rpcpb_rpc_proto_msgTypes[42]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2322,7 +2549,7 @@ func (x *AttachPeerResponse) String() string {
 func (*AttachPeerResponse) ProtoMessage() {}
 
 func (x *AttachPeerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[39]
+	mi := &file_rpcpb_rpc_proto_msgTypes[42]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2335,7 +2562,7 @@ func (x *AttachPeerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachPeerResponse.ProtoReflect.Descriptor instead.
 func (*AttachPeerResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{39}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *AttachPeerResponse) GetClusterInfo() *ClusterInfo {
@@ -2366,7 +2593,7 @@ type SendOutboundMessageRequest struct {
 func (x *SendOutboundMessageRequest) Reset() {
 	*x = SendOutboundMessageRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[40]
+		mi := &file_rpcpb_rpc_proto_msgTypes[43]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2379,7 +2606,7 @@ func (x *SendOutboundMessageRequest) String() string {
 func (*SendOutboundMessageRequest) ProtoMessage() {}
 
 func (x *SendOutboundMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[40]
+	mi := &file_rpcpb_rpc_proto_msgTypes[43]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2392,7 +2619,7 @@ func (x *SendOutboundMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendOutboundMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendOutboundMessageRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{40}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *SendOutboundMessageRequest) GetNodeName() string {
@@ -2434,7 +2661,7 @@ type SendOutboundMessageResponse struct {
 func (x *SendOutboundMessageResponse) Reset() {
 	*x = SendOutboundMessageResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[41]
+		mi := &file_rpcpb_rpc_proto_msgTypes[44]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2447,7 +2674,7 @@ func (x *SendOutboundMessageResponse) String() string {
 func (*SendOutboundMessageResponse) ProtoMessage() {}
 
 func (x *SendOutboundMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[41]
+	mi := &file_rpcpb_rpc_proto_msgTypes[44]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2460,7 +2687,7 @@ func (x *SendOutboundMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendOutboundMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendOutboundMessageResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{41}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *SendOutboundMessageResponse) GetSent() bool {
@@ -2481,7 +2708,7 @@ type SaveSnapshotRequest struct {
 func (x *SaveSnapshotRequest) Reset() {
 	*x = SaveSnapshotRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[42]
+		mi := &file_rpcpb_rpc_proto_msgTypes[45]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2494,7 +2721,7 @@ func (x *SaveSnapshotRequest) String() string {
 func (*SaveSnapshotRequest) ProtoMessage() {}
 
 func (x *SaveSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[42]
+	mi := &file_rpcpb_rpc_proto_msgTypes[45]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2507,7 +2734,7 @@ func (x *SaveSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*SaveSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{42}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SaveSnapshotRequest) GetSnapshotName() string {
@@ -2528,7 +2755,7 @@ type SaveSnapshotResponse struct {
 func (x *SaveSnapshotResponse) Reset() {
 	*x = SaveSnapshotResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[43]
+		mi := &file_rpcpb_rpc_proto_msgTypes[46]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2541,7 +2768,7 @@ func (x *SaveSnapshotResponse) String() string {
 func (*SaveSnapshotResponse) ProtoMessage() {}
 
 func (x *SaveSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[43]
+	mi := &file_rpcpb_rpc_proto_msgTypes[46]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2554,7 +2781,7 @@ func (x *SaveSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*SaveSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{43}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SaveSnapshotResponse) GetSnapshotPath() string {
@@ -2583,7 +2810,7 @@ type LoadSnapshotRequest struct {
 func (x *LoadSnapshotRequest) Reset() {
 	*x = LoadSnapshotRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[44]
+		mi := &file_rpcpb_rpc_proto_msgTypes[47]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2596,7 +2823,7 @@ func (x *LoadSnapshotRequest) String() string {
 func (*LoadSnapshotRequest) ProtoMessage() {}
 
 func (x *LoadSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[44]
+	mi := &file_rpcpb_rpc_proto_msgTypes[47]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2609,7 +2836,7 @@ func (x *LoadSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*LoadSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{44}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *LoadSnapshotRequest) GetSnapshotName() string {
@@ -2686,7 +2913,7 @@ type LoadSnapshotResponse struct {
 func (x *LoadSnapshotResponse) Reset() {
 	*x = LoadSnapshotResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[45]
+		mi := &file_rpcpb_rpc_proto_msgTypes[48]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2699,7 +2926,7 @@ func (x *LoadSnapshotResponse) String() string {
 func (*LoadSnapshotResponse) ProtoMessage() {}
 
 func (x *LoadSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[45]
+	mi := &file_rpcpb_rpc_proto_msgTypes[48]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2712,7 +2939,7 @@ func (x *LoadSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*LoadSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{45}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *LoadSnapshotResponse) GetClusterInfo() *ClusterInfo {
@@ -2733,7 +2960,7 @@ type RemoveSnapshotRequest struct {
 func (x *RemoveSnapshotRequest) Reset() {
 	*x = RemoveSnapshotRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[46]
+		mi := &file_rpcpb_rpc_proto_msgTypes[49]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2746,7 +2973,7 @@ func (x *RemoveSnapshotRequest) String() string {
 func (*RemoveSnapshotRequest) ProtoMessage() {}
 
 func (x *RemoveSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[46]
+	mi := &file_rpcpb_rpc_proto_msgTypes[49]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2759,7 +2986,7 @@ func (x *RemoveSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*RemoveSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{46}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RemoveSnapshotRequest) GetSnapshotName() string {
@@ -2778,7 +3005,7 @@ type RemoveSnapshotResponse struct {
 func (x *RemoveSnapshotResponse) Reset() {
 	*x = RemoveSnapshotResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[47]
+		mi := &file_rpcpb_rpc_proto_msgTypes[50]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2791,7 +3018,7 @@ func (x *RemoveSnapshotResponse) String() string {
 func (*RemoveSnapshotResponse) ProtoMessage() {}
 
 func (x *RemoveSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[47]
+	mi := &file_rpcpb_rpc_proto_msgTypes[50]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2804,7 +3031,7 @@ func (x *RemoveSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*RemoveSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{47}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{50}
 }
 
 type GetSnapshotNamesRequest struct {
@@ -2816,7 +3043,7 @@ type GetSnapshotNamesRequest struct {
 func (x *GetSnapshotNamesRequest) Reset() {
 	*x = GetSnapshotNamesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[48]
+		mi := &file_rpcpb_rpc_proto_msgTypes[51]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2829,7 +3056,7 @@ func (x *GetSnapshotNamesRequest) String() string {
 func (*GetSnapshotNamesRequest) ProtoMessage() {}
 
 func (x *GetSnapshotNamesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[48]
+	mi := &file_rpcpb_rpc_proto_msgTypes[51]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2842,7 +3069,7 @@ func (x *GetSnapshotNamesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSnapshotNamesRequest.ProtoReflect.Descriptor instead.
 func (*GetSnapshotNamesRequest) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{48}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{51}
 }
 
 type GetSnapshotNamesResponse struct {
@@ -2856,7 +3083,7 @@ type GetSnapshotNamesResponse struct {
 func (x *GetSnapshotNamesResponse) Reset() {
 	*x = GetSnapshotNamesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_rpcpb_rpc_proto_msgTypes[49]
+		mi := &file_rpcpb_rpc_proto_msgTypes[52]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2869,7 +3096,7 @@ func (x *GetSnapshotNamesResponse) String() string {
 func (*GetSnapshotNamesResponse) ProtoMessage() {}
 
 func (x *GetSnapshotNamesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpcpb_rpc_proto_msgTypes[49]
+	mi := &file_rpcpb_rpc_proto_msgTypes[52]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2882,7 +3109,7 @@ func (x *GetSnapshotNamesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSnapshotNamesResponse.ProtoReflect.Descriptor instead.
 func (*GetSnapshotNamesResponse) Descriptor() ([]byte, []int) {
-	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{49}
+	return file_rpcpb_rpc_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *GetSnapshotNamesResponse) GetSnapshotNames() []string {
@@ -3054,6 +3281,58 @@ var file_rpcpb_rpc_proto_rawDesc = []byte{
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73,
 	0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69,
 	0x6f, 0x6e, 0x22, 0x46, 0x0a, 0x0d, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x35, 0x0a, 0x0c, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x5f, 0x69,
+	0x6e, 0x66, 0x6f, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x72, 0x70, 0x63, 0x70,
+	0x62, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x0b, 0x63,
+	0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x22, 0xf9, 0x04, 0x0a, 0x11, 0x45,
+	0x6c, 0x61, 0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x53, 0x70, 0x65, 0x63,
+	0x12, 0x1b, 0x0a, 0x09, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x08, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x49, 0x64, 0x12, 0x19, 0x0a,
+	0x08, 0x61, 0x73, 0x73, 0x65, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x07, 0x61, 0x73, 0x73, 0x65, 0x74, 0x49, 0x64, 0x12, 0x25, 0x0a, 0x0e, 0x69, 0x6e, 0x69, 0x74,
+	0x69, 0x61, 0x6c, 0x5f, 0x73, 0x75, 0x70, 0x70, 0x6c, 0x79, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04,
+	0x52, 0x0d, 0x69, 0x6e, 0x69, 0x74, 0x69, 0x61, 0x6c, 0x53, 0x75, 0x70, 0x70, 0x6c, 0x79, 0x12,
+	0x1d, 0x0a, 0x0a, 0x6d, 0x61, 0x78, 0x5f, 0x73, 0x75, 0x70, 0x70, 0x6c, 0x79, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x04, 0x52, 0x09, 0x6d, 0x61, 0x78, 0x53, 0x75, 0x70, 0x70, 0x6c, 0x79, 0x12, 0x30,
+	0x0a, 0x14, 0x6d, 0x69, 0x6e, 0x5f, 0x63, 0x6f, 0x6e, 0x73, 0x75, 0x6d, 0x70, 0x74, 0x69, 0x6f,
+	0x6e, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x04, 0x52, 0x12, 0x6d, 0x69,
+	0x6e, 0x43, 0x6f, 0x6e, 0x73, 0x75, 0x6d, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x61, 0x74, 0x65,
+	0x12, 0x30, 0x0a, 0x14, 0x6d, 0x61, 0x78, 0x5f, 0x63, 0x6f, 0x6e, 0x73, 0x75, 0x6d, 0x70, 0x74,
+	0x69, 0x6f, 0x6e, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x04, 0x52, 0x12,
+	0x6d, 0x61, 0x78, 0x43, 0x6f, 0x6e, 0x73, 0x75, 0x6d, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x61,
+	0x74, 0x65, 0x12, 0x2c, 0x0a, 0x12, 0x6d, 0x69, 0x6e, 0x5f, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x61,
+	0x74, 0x6f, 0x72, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x04, 0x52, 0x10,
+	0x6d, 0x69, 0x6e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x52, 0x61, 0x74, 0x65,
+	0x12, 0x2c, 0x0a, 0x12, 0x6d, 0x61, 0x78, 0x5f, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f,
+	0x72, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x04, 0x52, 0x10, 0x6d, 0x61,
+	0x78, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x52, 0x61, 0x74, 0x65, 0x12, 0x2c,
+	0x0a, 0x12, 0x6d, 0x69, 0x6e, 0x5f, 0x73, 0x74, 0x61, 0x6b, 0x65, 0x5f, 0x64, 0x75, 0x72, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x18, 0x09, 0x20, 0x01, 0x28, 0x04, 0x52, 0x10, 0x6d, 0x69, 0x6e, 0x53,
+	0x74, 0x61, 0x6b, 0x65, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2c, 0x0a, 0x12,
+	0x6d, 0x61, 0x78, 0x5f, 0x73, 0x74, 0x61, 0x6b, 0x65, 0x5f, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x04, 0x52, 0x10, 0x6d, 0x61, 0x78, 0x53, 0x74, 0x61,
+	0x6b, 0x65, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2c, 0x0a, 0x12, 0x6d, 0x69,
+	0x6e, 0x5f, 0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x66, 0x65, 0x65,
+	0x18, 0x0b, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x10, 0x6d, 0x69, 0x6e, 0x44, 0x65, 0x6c, 0x65, 0x67,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x46, 0x65, 0x65, 0x12, 0x2e, 0x0a, 0x13, 0x6d, 0x69, 0x6e, 0x5f,
+	0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x6f, 0x72, 0x5f, 0x73, 0x74, 0x61, 0x6b, 0x65, 0x18,
+	0x0c, 0x20, 0x01, 0x28, 0x04, 0x52, 0x11, 0x6d, 0x69, 0x6e, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61,
+	0x74, 0x6f, 0x72, 0x53, 0x74, 0x61, 0x6b, 0x65, 0x12, 0x3d, 0x0a, 0x1b, 0x6d, 0x61, 0x78, 0x5f,
+	0x76, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x5f, 0x77, 0x65, 0x69, 0x67, 0x68, 0x74,
+	0x5f, 0x66, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x18, 0x0d, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x18, 0x6d,
+	0x61, 0x78, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x57, 0x65, 0x69, 0x67, 0x68,
+	0x74, 0x46, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x12, 0x2d, 0x0a, 0x12, 0x75, 0x70, 0x74, 0x69, 0x6d,
+	0x65, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x69, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x18, 0x0e, 0x20,
+	0x01, 0x28, 0x0d, 0x52, 0x11, 0x75, 0x70, 0x74, 0x69, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x69,
+	0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x22, 0x69, 0x0a, 0x1d, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66,
+	0x6f, 0x72, 0x6d, 0x45, 0x6c, 0x61, 0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x48, 0x0a, 0x13, 0x65, 0x6c, 0x61, 0x73, 0x74,
+	0x69, 0x63, 0x5f, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x5f, 0x73, 0x70, 0x65, 0x63, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x45, 0x6c, 0x61,
+	0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x53, 0x70, 0x65, 0x63, 0x52, 0x11,
+	0x65, 0x6c, 0x61, 0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x53, 0x70, 0x65,
+	0x63, 0x22, 0x57, 0x0a, 0x1e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x45, 0x6c,
+	0x61, 0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
 	0x6e, 0x73, 0x65, 0x12, 0x35, 0x0a, 0x0c, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x5f, 0x69,
 	0x6e, 0x66, 0x6f, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x72, 0x70, 0x63, 0x70,
 	0x62, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x0b, 0x63,
@@ -3346,7 +3625,7 @@ var file_rpcpb_rpc_proto_rawDesc = []byte{
 	0x12, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75,
 	0x65, 0x73, 0x74, 0x1a, 0x13, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x50, 0x69, 0x6e, 0x67,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x13, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x0d,
-	0x3a, 0x01, 0x2a, 0x22, 0x08, 0x2f, 0x76, 0x31, 0x2f, 0x70, 0x69, 0x6e, 0x67, 0x32, 0x9e, 0x11,
+	0x3a, 0x01, 0x2a, 0x22, 0x08, 0x2f, 0x76, 0x31, 0x2f, 0x70, 0x69, 0x6e, 0x67, 0x32, 0xb5, 0x12,
 	0x0a, 0x0e, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
 	0x12, 0x64, 0x0a, 0x0a, 0x52, 0x50, 0x43, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x18,
 	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x50, 0x43, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f,
@@ -3367,128 +3646,138 @@ var file_rpcpb_rpc_proto_rawDesc = []byte{
 	0x6f, 0x63, 0x6b, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
 	0x65, 0x22, 0x28, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x22, 0x3a, 0x01, 0x2a, 0x22, 0x1d, 0x2f, 0x76,
 	0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65,
-	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x12, 0x70, 0x0a, 0x0d, 0x43,
-	0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x12, 0x1b, 0x2e, 0x72,
-	0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x6e, 0x65,
-	0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x72, 0x70, 0x63, 0x70,
-	0x62, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x24, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1e, 0x3a,
-	0x01, 0x2a, 0x22, 0x19, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
-	0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x12, 0x54, 0x0a,
-	0x06, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x12, 0x14, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e,
-	0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e,
-	0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1d, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x17, 0x3a, 0x01, 0x2a, 0x22,
-	0x12, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x68, 0x65, 0x61,
-	0x6c, 0x74, 0x68, 0x12, 0x4c, 0x0a, 0x04, 0x55, 0x52, 0x49, 0x73, 0x12, 0x12, 0x2e, 0x72, 0x70,
-	0x63, 0x70, 0x62, 0x2e, 0x55, 0x52, 0x49, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x13, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x55, 0x52, 0x49, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1b, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x15, 0x3a, 0x01, 0x2a, 0x22,
-	0x10, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x75, 0x72, 0x69,
-	0x73, 0x12, 0x74, 0x0a, 0x0e, 0x57, 0x61, 0x69, 0x74, 0x46, 0x6f, 0x72, 0x48, 0x65, 0x61, 0x6c,
-	0x74, 0x68, 0x79, 0x12, 0x1c, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x57, 0x61, 0x69, 0x74,
-	0x46, 0x6f, 0x72, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1d, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x57, 0x61, 0x69, 0x74, 0x46, 0x6f,
-	0x72, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x12, 0x94, 0x01, 0x0a, 0x16,
+	0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x45, 0x6c, 0x61, 0x73, 0x74, 0x69, 0x63,
+	0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x12, 0x24, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x54,
+	0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x45, 0x6c, 0x61, 0x73, 0x74, 0x69, 0x63, 0x53,
+	0x75, 0x62, 0x6e, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x72,
+	0x70, 0x63, 0x70, 0x62, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x45, 0x6c,
+	0x61, 0x73, 0x74, 0x69, 0x63, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x2d, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x27, 0x3a, 0x01, 0x2a, 0x22, 0x22,
+	0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x74, 0x72, 0x61, 0x6e,
+	0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x6c, 0x61, 0x73, 0x74, 0x69, 0x63, 0x73, 0x75, 0x62, 0x6e,
+	0x65, 0x74, 0x12, 0x70, 0x0a, 0x0d, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x6e,
+	0x65, 0x74, 0x73, 0x12, 0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x72, 0x65, 0x61,
+	0x74, 0x65, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1c, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53,
+	0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x24,
+	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1e, 0x3a, 0x01, 0x2a, 0x22, 0x19, 0x2f, 0x76, 0x31, 0x2f, 0x63,
+	0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x73, 0x75, 0x62,
+	0x6e, 0x65, 0x74, 0x73, 0x12, 0x54, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x12, 0x14,
+	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x48, 0x65, 0x61,
+	0x6c, 0x74, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1d, 0x82, 0xd3, 0xe4,
+	0x93, 0x02, 0x17, 0x3a, 0x01, 0x2a, 0x22, 0x12, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74,
+	0x72, 0x6f, 0x6c, 0x2f, 0x68, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x12, 0x4c, 0x0a, 0x04, 0x55, 0x52,
+	0x49, 0x73, 0x12, 0x12, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x55, 0x52, 0x49, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x13, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x55,
+	0x52, 0x49, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1b, 0x82, 0xd3, 0xe4,
+	0x93, 0x02, 0x15, 0x3a, 0x01, 0x2a, 0x22, 0x10, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74,
+	0x72, 0x6f, 0x6c, 0x2f, 0x75, 0x72, 0x69, 0x73, 0x12, 0x74, 0x0a, 0x0e, 0x57, 0x61, 0x69, 0x74,
+	0x46, 0x6f, 0x72, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x12, 0x1c, 0x2e, 0x72, 0x70, 0x63,
+	0x70, 0x62, 0x2e, 0x57, 0x61, 0x69, 0x74, 0x46, 0x6f, 0x72, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68,
+	0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
+	0x2e, 0x57, 0x61, 0x69, 0x74, 0x46, 0x6f, 0x72, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x25, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1f, 0x3a,
+	0x01, 0x2a, 0x22, 0x1a, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
+	0x77, 0x61, 0x69, 0x74, 0x66, 0x6f, 0x72, 0x68, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x12, 0x54,
+	0x0a, 0x06, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x14, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
+	0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15,
+	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1d, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x17, 0x3a, 0x01, 0x2a,
+	0x22, 0x12, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x12, 0x6e, 0x0a, 0x0c, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x12, 0x1a, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53,
+	0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23, 0x82,
+	0xd3, 0xe4, 0x93, 0x02, 0x1d, 0x3a, 0x01, 0x2a, 0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f,
+	0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x30, 0x01, 0x12, 0x64, 0x0a, 0x0a, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x4e, 0x6f,
+	0x64, 0x65, 0x12, 0x18, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76,
+	0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x72,
+	0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x21, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1b, 0x3a,
+	0x01, 0x2a, 0x22, 0x16, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
+	0x72, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x58, 0x0a, 0x07, 0x41, 0x64,
+	0x64, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x15, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x64,
+	0x64, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x72,
+	0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1e, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x18, 0x3a, 0x01, 0x2a, 0x22,
+	0x13, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x61, 0x64, 0x64,
+	0x6e, 0x6f, 0x64, 0x65, 0x12, 0x68, 0x0a, 0x0b, 0x52, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4e,
+	0x6f, 0x64, 0x65, 0x12, 0x19, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x73, 0x74,
+	0x61, 0x72, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a,
+	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4e, 0x6f,
+	0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x22, 0x82, 0xd3, 0xe4, 0x93,
+	0x02, 0x1c, 0x3a, 0x01, 0x2a, 0x22, 0x17, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72,
+	0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x60,
+	0x0a, 0x09, 0x50, 0x61, 0x75, 0x73, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x17, 0x2e, 0x72, 0x70,
+	0x63, 0x70, 0x62, 0x2e, 0x50, 0x61, 0x75, 0x73, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x50, 0x61, 0x75,
+	0x73, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x20,
+	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1a, 0x3a, 0x01, 0x2a, 0x22, 0x15, 0x2f, 0x76, 0x31, 0x2f, 0x63,
+	0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x70, 0x61, 0x75, 0x73, 0x65, 0x6e, 0x6f, 0x64, 0x65,
+	0x12, 0x64, 0x0a, 0x0a, 0x52, 0x65, 0x73, 0x75, 0x6d, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x18,
+	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6d, 0x65, 0x4e, 0x6f, 0x64,
+	0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
+	0x2e, 0x52, 0x65, 0x73, 0x75, 0x6d, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x21, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1b, 0x3a, 0x01, 0x2a, 0x22, 0x16,
+	0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x73, 0x75,
+	0x6d, 0x65, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x4c, 0x0a, 0x04, 0x53, 0x74, 0x6f, 0x70, 0x12, 0x12,
+	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x13, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x6f, 0x70, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1b, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x15, 0x3a,
+	0x01, 0x2a, 0x22, 0x10, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
+	0x73, 0x74, 0x6f, 0x70, 0x12, 0x64, 0x0a, 0x0a, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x50, 0x65,
+	0x65, 0x72, 0x12, 0x18, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x74, 0x74, 0x61, 0x63,
+	0x68, 0x50, 0x65, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x72,
+	0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x50, 0x65, 0x65, 0x72, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x21, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1b, 0x3a,
+	0x01, 0x2a, 0x22, 0x16, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
+	0x61, 0x74, 0x74, 0x61, 0x63, 0x68, 0x70, 0x65, 0x65, 0x72, 0x12, 0x88, 0x01, 0x0a, 0x13, 0x53,
+	0x65, 0x6e, 0x64, 0x4f, 0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x12, 0x21, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4f,
+	0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x65,
+	0x6e, 0x64, 0x4f, 0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
+	0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x2a, 0x82, 0xd3, 0xe4, 0x93, 0x02,
+	0x24, 0x3a, 0x01, 0x2a, 0x22, 0x1f, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f,
+	0x6c, 0x2f, 0x73, 0x65, 0x6e, 0x64, 0x6f, 0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64, 0x6d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x6c, 0x0a, 0x0c, 0x53, 0x61, 0x76, 0x65, 0x53, 0x6e, 0x61,
+	0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x1a, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x61,
+	0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x61, 0x76, 0x65, 0x53, 0x6e,
+	0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23,
+	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1d, 0x3a, 0x01, 0x2a, 0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63,
+	0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x61, 0x76, 0x65, 0x73, 0x6e, 0x61, 0x70, 0x73,
+	0x68, 0x6f, 0x74, 0x12, 0x6c, 0x0a, 0x0c, 0x4c, 0x6f, 0x61, 0x64, 0x53, 0x6e, 0x61, 0x70, 0x73,
+	0x68, 0x6f, 0x74, 0x12, 0x1a, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x4c, 0x6f, 0x61, 0x64,
+	0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x4c, 0x6f, 0x61, 0x64, 0x53, 0x6e, 0x61, 0x70,
+	0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23, 0x82, 0xd3,
+	0xe4, 0x93, 0x02, 0x1d, 0x3a, 0x01, 0x2a, 0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e,
+	0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x6c, 0x6f, 0x61, 0x64, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f,
+	0x74, 0x12, 0x74, 0x0a, 0x0e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73,
+	0x68, 0x6f, 0x74, 0x12, 0x1c, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f,
+	0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x1d, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65,
+	0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
 	0x22, 0x25, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1f, 0x3a, 0x01, 0x2a, 0x22, 0x1a, 0x2f, 0x76, 0x31,
-	0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x77, 0x61, 0x69, 0x74, 0x66, 0x6f, 0x72,
-	0x68, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x79, 0x12, 0x54, 0x0a, 0x06, 0x53, 0x74, 0x61, 0x74, 0x75,
-	0x73, 0x12, 0x14, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e,
-	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1d,
-	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x17, 0x3a, 0x01, 0x2a, 0x22, 0x12, 0x2f, 0x76, 0x31, 0x2f, 0x63,
-	0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x6e, 0x0a,
-	0x0c, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x1a, 0x2e,
-	0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74, 0x61, 0x74,
-	0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70,
-	0x62, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1d, 0x3a, 0x01,
-	0x2a, 0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73,
-	0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x30, 0x01, 0x12, 0x64, 0x0a,
-	0x0a, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x2e, 0x72, 0x70,
-	0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65,
-	0x6d, 0x6f, 0x76, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x21, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1b, 0x3a, 0x01, 0x2a, 0x22, 0x16, 0x2f, 0x76, 0x31,
-	0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x6e,
-	0x6f, 0x64, 0x65, 0x12, 0x58, 0x0a, 0x07, 0x41, 0x64, 0x64, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x15,
-	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x64,
-	0x64, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1e, 0x82,
-	0xd3, 0xe4, 0x93, 0x02, 0x18, 0x3a, 0x01, 0x2a, 0x22, 0x13, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f,
-	0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x61, 0x64, 0x64, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x68, 0x0a,
-	0x0b, 0x52, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x19, 0x2e, 0x72,
-	0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4e, 0x6f, 0x64, 0x65,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e,
-	0x52, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x22, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1c, 0x3a, 0x01, 0x2a, 0x22, 0x17,
-	0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x73, 0x74,
-	0x61, 0x72, 0x74, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x60, 0x0a, 0x09, 0x50, 0x61, 0x75, 0x73, 0x65,
-	0x4e, 0x6f, 0x64, 0x65, 0x12, 0x17, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x50, 0x61, 0x75,
-	0x73, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e,
-	0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x50, 0x61, 0x75, 0x73, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x20, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1a, 0x3a,
-	0x01, 0x2a, 0x22, 0x15, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
-	0x70, 0x61, 0x75, 0x73, 0x65, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x64, 0x0a, 0x0a, 0x52, 0x65, 0x73,
-	0x75, 0x6d, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e,
-	0x52, 0x65, 0x73, 0x75, 0x6d, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x19, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6d, 0x65,
-	0x4e, 0x6f, 0x64, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x21, 0x82, 0xd3,
-	0xe4, 0x93, 0x02, 0x1b, 0x3a, 0x01, 0x2a, 0x22, 0x16, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e,
-	0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x73, 0x75, 0x6d, 0x65, 0x6e, 0x6f, 0x64, 0x65, 0x12,
-	0x4c, 0x0a, 0x04, 0x53, 0x74, 0x6f, 0x70, 0x12, 0x12, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e,
-	0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x13, 0x2e, 0x72, 0x70,
-	0x63, 0x70, 0x62, 0x2e, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x1b, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x15, 0x3a, 0x01, 0x2a, 0x22, 0x10, 0x2f, 0x76, 0x31,
-	0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x74, 0x6f, 0x70, 0x12, 0x64, 0x0a,
-	0x0a, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x50, 0x65, 0x65, 0x72, 0x12, 0x18, 0x2e, 0x72, 0x70,
-	0x63, 0x70, 0x62, 0x2e, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x50, 0x65, 0x65, 0x72, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x41, 0x74,
-	0x74, 0x61, 0x63, 0x68, 0x50, 0x65, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x21, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1b, 0x3a, 0x01, 0x2a, 0x22, 0x16, 0x2f, 0x76, 0x31,
-	0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x61, 0x74, 0x74, 0x61, 0x63, 0x68, 0x70,
-	0x65, 0x65, 0x72, 0x12, 0x88, 0x01, 0x0a, 0x13, 0x53, 0x65, 0x6e, 0x64, 0x4f, 0x75, 0x74, 0x62,
-	0x6f, 0x75, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x21, 0x2e, 0x72, 0x70,
-	0x63, 0x70, 0x62, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4f, 0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64,
-	0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22,
-	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4f, 0x75, 0x74, 0x62, 0x6f,
-	0x75, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x22, 0x2a, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x24, 0x3a, 0x01, 0x2a, 0x22, 0x1f, 0x2f,
-	0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x73, 0x65, 0x6e, 0x64, 0x6f,
-	0x75, 0x74, 0x62, 0x6f, 0x75, 0x6e, 0x64, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x6c,
-	0x0a, 0x0c, 0x53, 0x61, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x1a,
-	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x61, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73,
-	0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x72, 0x70, 0x63,
-	0x70, 0x62, 0x2e, 0x53, 0x61, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1d, 0x3a,
-	0x01, 0x2a, 0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f,
-	0x73, 0x61, 0x76, 0x65, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x6c, 0x0a, 0x0c,
-	0x4c, 0x6f, 0x61, 0x64, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x1a, 0x2e, 0x72,
-	0x70, 0x63, 0x70, 0x62, 0x2e, 0x4c, 0x6f, 0x61, 0x64, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f,
-	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
-	0x2e, 0x4c, 0x6f, 0x61, 0x64, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x23, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1d, 0x3a, 0x01, 0x2a,
-	0x22, 0x18, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x6c, 0x6f,
-	0x61, 0x64, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x74, 0x0a, 0x0e, 0x52, 0x65,
-	0x6d, 0x6f, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x1c, 0x2e, 0x72,
-	0x70, 0x63, 0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73,
-	0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x72, 0x70, 0x63,
-	0x70, 0x62, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f,
-	0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x25, 0x82, 0xd3, 0xe4, 0x93, 0x02,
-	0x1f, 0x3a, 0x01, 0x2a, 0x22, 0x1a, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f,
-	0x6c, 0x2f, 0x72, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74,
-	0x12, 0x7c, 0x0a, 0x10, 0x47, 0x65, 0x74, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e,
-	0x61, 0x6d, 0x65, 0x73, 0x12, 0x1e, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74,
-	0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74,
-	0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x27, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x21, 0x3a, 0x01, 0x2a,
-	0x22, 0x1c, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x67, 0x65,
-	0x74, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x42, 0x34,
-	0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x61, 0x76, 0x61,
-	0x2d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x61, 0x76, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x68, 0x65, 0x2d,
-	0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2d, 0x72, 0x75, 0x6e, 0x6e, 0x65, 0x72, 0x3b, 0x72,
-	0x70, 0x63, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x72, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x73,
+	0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12, 0x7c, 0x0a, 0x10, 0x47, 0x65, 0x74, 0x53, 0x6e,
+	0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x12, 0x1e, 0x2e, 0x72, 0x70,
+	0x63, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e,
+	0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x72, 0x70,
+	0x63, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x4e,
+	0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x27, 0x82, 0xd3,
+	0xe4, 0x93, 0x02, 0x21, 0x3a, 0x01, 0x2a, 0x22, 0x1c, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x6f, 0x6e,
+	0x74, 0x72, 0x6f, 0x6c, 0x2f, 0x67, 0x65, 0x74, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74,
+	0x6e, 0x61, 0x6d, 0x65, 0x73, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
+	0x63, 0x6f, 0x6d, 0x2f, 0x61, 0x76, 0x61, 0x2d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x61, 0x76, 0x61,
+	0x6c, 0x61, 0x6e, 0x63, 0x68, 0x65, 0x2d, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2d, 0x72,
+	0x75, 0x6e, 0x6e, 0x65, 0x72, 0x3b, 0x72, 0x70, 0x63, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -3503,163 +3792,170 @@ func file_rpcpb_rpc_proto_rawDescGZIP() []byte {
 	return file_rpcpb_rpc_proto_rawDescData
 }
 
-var file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
+var file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 69)
 var file_rpcpb_rpc_proto_goTypes = []interface{}{
-	(*PingRequest)(nil),                 // 0: rpcpb.PingRequest
-	(*PingResponse)(nil),                // 1: rpcpb.PingResponse
-	(*ClusterInfo)(nil),                 // 2: rpcpb.ClusterInfo
-	(*CustomChainInfo)(nil),             // 3: rpcpb.CustomChainInfo
-	(*NodeInfo)(nil),                    // 4: rpcpb.NodeInfo
-	(*AttachedPeerInfo)(nil),            // 5: rpcpb.AttachedPeerInfo
-	(*ListOfAttachedPeerInfo)(nil),      // 6: rpcpb.ListOfAttachedPeerInfo
-	(*StartRequest)(nil),                // 7: rpcpb.StartRequest
-	(*RPCVersionRequest)(nil),           // 8: rpcpb.RPCVersionRequest
-	(*RPCVersionResponse)(nil),          // 9: rpcpb.RPCVersionResponse
-	(*StartResponse)(nil),               // 10: rpcpb.StartResponse
-	(*BlockchainSpec)(nil),              // 11: rpcpb.BlockchainSpec
-	(*CreateBlockchainsRequest)(nil),    // 12: rpcpb.CreateBlockchainsRequest
-	(*CreateBlockchainsResponse)(nil),   // 13: rpcpb.CreateBlockchainsResponse
-	(*CreateSubnetsRequest)(nil),        // 14: rpcpb.CreateSubnetsRequest
-	(*CreateSubnetsResponse)(nil),       // 15: rpcpb.CreateSubnetsResponse
-	(*HealthRequest)(nil),               // 16: rpcpb.HealthRequest
-	(*HealthResponse)(nil),              // 17: rpcpb.HealthResponse
-	(*URIsRequest)(nil),                 // 18: rpcpb.URIsRequest
-	(*URIsResponse)(nil),                // 19: rpcpb.URIsResponse
-	(*WaitForHealthyRequest)(nil),       // 20: rpcpb.WaitForHealthyRequest
-	(*WaitForHealthyResponse)(nil),      // 21: rpcpb.WaitForHealthyResponse
-	(*StatusRequest)(nil),               // 22: rpcpb.StatusRequest
-	(*StatusResponse)(nil),              // 23: rpcpb.StatusResponse
-	(*StreamStatusRequest)(nil),         // 24: rpcpb.StreamStatusRequest
-	(*StreamStatusResponse)(nil),        // 25: rpcpb.StreamStatusResponse
-	(*RestartNodeRequest)(nil),          // 26: rpcpb.RestartNodeRequest
-	(*RestartNodeResponse)(nil),         // 27: rpcpb.RestartNodeResponse
-	(*RemoveNodeRequest)(nil),           // 28: rpcpb.RemoveNodeRequest
-	(*RemoveNodeResponse)(nil),          // 29: rpcpb.RemoveNodeResponse
-	(*PauseNodeRequest)(nil),            // 30: rpcpb.PauseNodeRequest
-	(*PauseNodeResponse)(nil),           // 31: rpcpb.PauseNodeResponse
-	(*ResumeNodeRequest)(nil),           // 32: rpcpb.ResumeNodeRequest
-	(*ResumeNodeResponse)(nil),          // 33: rpcpb.ResumeNodeResponse
-	(*AddNodeRequest)(nil),              // 34: rpcpb.AddNodeRequest
-	(*AddNodeResponse)(nil),             // 35: rpcpb.AddNodeResponse
-	(*StopRequest)(nil),                 // 36: rpcpb.StopRequest
-	(*StopResponse)(nil),                // 37: rpcpb.StopResponse
-	(*AttachPeerRequest)(nil),           // 38: rpcpb.AttachPeerRequest
-	(*AttachPeerResponse)(nil),          // 39: rpcpb.AttachPeerResponse
-	(*SendOutboundMessageRequest)(nil),  // 40: rpcpb.SendOutboundMessageRequest
-	(*SendOutboundMessageResponse)(nil), // 41: rpcpb.SendOutboundMessageResponse
-	(*SaveSnapshotRequest)(nil),         // 42: rpcpb.SaveSnapshotRequest
-	(*SaveSnapshotResponse)(nil),        // 43: rpcpb.SaveSnapshotResponse
-	(*LoadSnapshotRequest)(nil),         // 44: rpcpb.LoadSnapshotRequest
-	(*LoadSnapshotResponse)(nil),        // 45: rpcpb.LoadSnapshotResponse
-	(*RemoveSnapshotRequest)(nil),       // 46: rpcpb.RemoveSnapshotRequest
-	(*RemoveSnapshotResponse)(nil),      // 47: rpcpb.RemoveSnapshotResponse
-	(*GetSnapshotNamesRequest)(nil),     // 48: rpcpb.GetSnapshotNamesRequest
-	(*GetSnapshotNamesResponse)(nil),    // 49: rpcpb.GetSnapshotNamesResponse
-	nil,                                 // 50: rpcpb.ClusterInfo.NodeInfosEntry
-	nil,                                 // 51: rpcpb.ClusterInfo.AttachedPeerInfosEntry
-	nil,                                 // 52: rpcpb.ClusterInfo.CustomChainsEntry
-	nil,                                 // 53: rpcpb.StartRequest.CustomNodeConfigsEntry
-	nil,                                 // 54: rpcpb.StartRequest.ChainConfigsEntry
-	nil,                                 // 55: rpcpb.StartRequest.UpgradeConfigsEntry
-	nil,                                 // 56: rpcpb.StartRequest.SubnetConfigsEntry
-	nil,                                 // 57: rpcpb.RestartNodeRequest.ChainConfigsEntry
-	nil,                                 // 58: rpcpb.RestartNodeRequest.UpgradeConfigsEntry
-	nil,                                 // 59: rpcpb.RestartNodeRequest.SubnetConfigsEntry
-	nil,                                 // 60: rpcpb.AddNodeRequest.ChainConfigsEntry
-	nil,                                 // 61: rpcpb.AddNodeRequest.UpgradeConfigsEntry
-	nil,                                 // 62: rpcpb.AddNodeRequest.SubnetConfigsEntry
-	nil,                                 // 63: rpcpb.LoadSnapshotRequest.ChainConfigsEntry
-	nil,                                 // 64: rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
-	nil,                                 // 65: rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
+	(*PingRequest)(nil),                    // 0: rpcpb.PingRequest
+	(*PingResponse)(nil),                   // 1: rpcpb.PingResponse
+	(*ClusterInfo)(nil),                    // 2: rpcpb.ClusterInfo
+	(*CustomChainInfo)(nil),                // 3: rpcpb.CustomChainInfo
+	(*NodeInfo)(nil),                       // 4: rpcpb.NodeInfo
+	(*AttachedPeerInfo)(nil),               // 5: rpcpb.AttachedPeerInfo
+	(*ListOfAttachedPeerInfo)(nil),         // 6: rpcpb.ListOfAttachedPeerInfo
+	(*StartRequest)(nil),                   // 7: rpcpb.StartRequest
+	(*RPCVersionRequest)(nil),              // 8: rpcpb.RPCVersionRequest
+	(*RPCVersionResponse)(nil),             // 9: rpcpb.RPCVersionResponse
+	(*StartResponse)(nil),                  // 10: rpcpb.StartResponse
+	(*ElasticSubnetSpec)(nil),              // 11: rpcpb.ElasticSubnetSpec
+	(*TransformElasticSubnetRequest)(nil),  // 12: rpcpb.TransformElasticSubnetRequest
+	(*TransformElasticSubnetResponse)(nil), // 13: rpcpb.TransformElasticSubnetResponse
+	(*BlockchainSpec)(nil),                 // 14: rpcpb.BlockchainSpec
+	(*CreateBlockchainsRequest)(nil),       // 15: rpcpb.CreateBlockchainsRequest
+	(*CreateBlockchainsResponse)(nil),      // 16: rpcpb.CreateBlockchainsResponse
+	(*CreateSubnetsRequest)(nil),           // 17: rpcpb.CreateSubnetsRequest
+	(*CreateSubnetsResponse)(nil),          // 18: rpcpb.CreateSubnetsResponse
+	(*HealthRequest)(nil),                  // 19: rpcpb.HealthRequest
+	(*HealthResponse)(nil),                 // 20: rpcpb.HealthResponse
+	(*URIsRequest)(nil),                    // 21: rpcpb.URIsRequest
+	(*URIsResponse)(nil),                   // 22: rpcpb.URIsResponse
+	(*WaitForHealthyRequest)(nil),          // 23: rpcpb.WaitForHealthyRequest
+	(*WaitForHealthyResponse)(nil),         // 24: rpcpb.WaitForHealthyResponse
+	(*StatusRequest)(nil),                  // 25: rpcpb.StatusRequest
+	(*StatusResponse)(nil),                 // 26: rpcpb.StatusResponse
+	(*StreamStatusRequest)(nil),            // 27: rpcpb.StreamStatusRequest
+	(*StreamStatusResponse)(nil),           // 28: rpcpb.StreamStatusResponse
+	(*RestartNodeRequest)(nil),             // 29: rpcpb.RestartNodeRequest
+	(*RestartNodeResponse)(nil),            // 30: rpcpb.RestartNodeResponse
+	(*RemoveNodeRequest)(nil),              // 31: rpcpb.RemoveNodeRequest
+	(*RemoveNodeResponse)(nil),             // 32: rpcpb.RemoveNodeResponse
+	(*PauseNodeRequest)(nil),               // 33: rpcpb.PauseNodeRequest
+	(*PauseNodeResponse)(nil),              // 34: rpcpb.PauseNodeResponse
+	(*ResumeNodeRequest)(nil),              // 35: rpcpb.ResumeNodeRequest
+	(*ResumeNodeResponse)(nil),             // 36: rpcpb.ResumeNodeResponse
+	(*AddNodeRequest)(nil),                 // 37: rpcpb.AddNodeRequest
+	(*AddNodeResponse)(nil),                // 38: rpcpb.AddNodeResponse
+	(*StopRequest)(nil),                    // 39: rpcpb.StopRequest
+	(*StopResponse)(nil),                   // 40: rpcpb.StopResponse
+	(*AttachPeerRequest)(nil),              // 41: rpcpb.AttachPeerRequest
+	(*AttachPeerResponse)(nil),             // 42: rpcpb.AttachPeerResponse
+	(*SendOutboundMessageRequest)(nil),     // 43: rpcpb.SendOutboundMessageRequest
+	(*SendOutboundMessageResponse)(nil),    // 44: rpcpb.SendOutboundMessageResponse
+	(*SaveSnapshotRequest)(nil),            // 45: rpcpb.SaveSnapshotRequest
+	(*SaveSnapshotResponse)(nil),           // 46: rpcpb.SaveSnapshotResponse
+	(*LoadSnapshotRequest)(nil),            // 47: rpcpb.LoadSnapshotRequest
+	(*LoadSnapshotResponse)(nil),           // 48: rpcpb.LoadSnapshotResponse
+	(*RemoveSnapshotRequest)(nil),          // 49: rpcpb.RemoveSnapshotRequest
+	(*RemoveSnapshotResponse)(nil),         // 50: rpcpb.RemoveSnapshotResponse
+	(*GetSnapshotNamesRequest)(nil),        // 51: rpcpb.GetSnapshotNamesRequest
+	(*GetSnapshotNamesResponse)(nil),       // 52: rpcpb.GetSnapshotNamesResponse
+	nil,                                    // 53: rpcpb.ClusterInfo.NodeInfosEntry
+	nil,                                    // 54: rpcpb.ClusterInfo.AttachedPeerInfosEntry
+	nil,                                    // 55: rpcpb.ClusterInfo.CustomChainsEntry
+	nil,                                    // 56: rpcpb.StartRequest.CustomNodeConfigsEntry
+	nil,                                    // 57: rpcpb.StartRequest.ChainConfigsEntry
+	nil,                                    // 58: rpcpb.StartRequest.UpgradeConfigsEntry
+	nil,                                    // 59: rpcpb.StartRequest.SubnetConfigsEntry
+	nil,                                    // 60: rpcpb.RestartNodeRequest.ChainConfigsEntry
+	nil,                                    // 61: rpcpb.RestartNodeRequest.UpgradeConfigsEntry
+	nil,                                    // 62: rpcpb.RestartNodeRequest.SubnetConfigsEntry
+	nil,                                    // 63: rpcpb.AddNodeRequest.ChainConfigsEntry
+	nil,                                    // 64: rpcpb.AddNodeRequest.UpgradeConfigsEntry
+	nil,                                    // 65: rpcpb.AddNodeRequest.SubnetConfigsEntry
+	nil,                                    // 66: rpcpb.LoadSnapshotRequest.ChainConfigsEntry
+	nil,                                    // 67: rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
+	nil,                                    // 68: rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
 }
 var file_rpcpb_rpc_proto_depIdxs = []int32{
-	50, // 0: rpcpb.ClusterInfo.node_infos:type_name -> rpcpb.ClusterInfo.NodeInfosEntry
-	51, // 1: rpcpb.ClusterInfo.attached_peer_infos:type_name -> rpcpb.ClusterInfo.AttachedPeerInfosEntry
-	52, // 2: rpcpb.ClusterInfo.custom_chains:type_name -> rpcpb.ClusterInfo.CustomChainsEntry
+	53, // 0: rpcpb.ClusterInfo.node_infos:type_name -> rpcpb.ClusterInfo.NodeInfosEntry
+	54, // 1: rpcpb.ClusterInfo.attached_peer_infos:type_name -> rpcpb.ClusterInfo.AttachedPeerInfosEntry
+	55, // 2: rpcpb.ClusterInfo.custom_chains:type_name -> rpcpb.ClusterInfo.CustomChainsEntry
 	5,  // 3: rpcpb.ListOfAttachedPeerInfo.peers:type_name -> rpcpb.AttachedPeerInfo
-	11, // 4: rpcpb.StartRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
-	53, // 5: rpcpb.StartRequest.custom_node_configs:type_name -> rpcpb.StartRequest.CustomNodeConfigsEntry
-	54, // 6: rpcpb.StartRequest.chain_configs:type_name -> rpcpb.StartRequest.ChainConfigsEntry
-	55, // 7: rpcpb.StartRequest.upgrade_configs:type_name -> rpcpb.StartRequest.UpgradeConfigsEntry
-	56, // 8: rpcpb.StartRequest.subnet_configs:type_name -> rpcpb.StartRequest.SubnetConfigsEntry
+	14, // 4: rpcpb.StartRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
+	56, // 5: rpcpb.StartRequest.custom_node_configs:type_name -> rpcpb.StartRequest.CustomNodeConfigsEntry
+	57, // 6: rpcpb.StartRequest.chain_configs:type_name -> rpcpb.StartRequest.ChainConfigsEntry
+	58, // 7: rpcpb.StartRequest.upgrade_configs:type_name -> rpcpb.StartRequest.UpgradeConfigsEntry
+	59, // 8: rpcpb.StartRequest.subnet_configs:type_name -> rpcpb.StartRequest.SubnetConfigsEntry
 	2,  // 9: rpcpb.StartResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	11, // 10: rpcpb.CreateBlockchainsRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
-	2,  // 11: rpcpb.CreateBlockchainsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 12: rpcpb.CreateSubnetsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 13: rpcpb.HealthResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 14: rpcpb.WaitForHealthyResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 15: rpcpb.StatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 16: rpcpb.StreamStatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	57, // 17: rpcpb.RestartNodeRequest.chain_configs:type_name -> rpcpb.RestartNodeRequest.ChainConfigsEntry
-	58, // 18: rpcpb.RestartNodeRequest.upgrade_configs:type_name -> rpcpb.RestartNodeRequest.UpgradeConfigsEntry
-	59, // 19: rpcpb.RestartNodeRequest.subnet_configs:type_name -> rpcpb.RestartNodeRequest.SubnetConfigsEntry
-	2,  // 20: rpcpb.RestartNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 21: rpcpb.RemoveNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 22: rpcpb.PauseNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 23: rpcpb.ResumeNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	60, // 24: rpcpb.AddNodeRequest.chain_configs:type_name -> rpcpb.AddNodeRequest.ChainConfigsEntry
-	61, // 25: rpcpb.AddNodeRequest.upgrade_configs:type_name -> rpcpb.AddNodeRequest.UpgradeConfigsEntry
-	62, // 26: rpcpb.AddNodeRequest.subnet_configs:type_name -> rpcpb.AddNodeRequest.SubnetConfigsEntry
-	2,  // 27: rpcpb.AddNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 28: rpcpb.StopResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	2,  // 29: rpcpb.AttachPeerResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	5,  // 30: rpcpb.AttachPeerResponse.attached_peer_info:type_name -> rpcpb.AttachedPeerInfo
-	63, // 31: rpcpb.LoadSnapshotRequest.chain_configs:type_name -> rpcpb.LoadSnapshotRequest.ChainConfigsEntry
-	64, // 32: rpcpb.LoadSnapshotRequest.upgrade_configs:type_name -> rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
-	65, // 33: rpcpb.LoadSnapshotRequest.subnet_configs:type_name -> rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
-	2,  // 34: rpcpb.LoadSnapshotResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	4,  // 35: rpcpb.ClusterInfo.NodeInfosEntry.value:type_name -> rpcpb.NodeInfo
-	6,  // 36: rpcpb.ClusterInfo.AttachedPeerInfosEntry.value:type_name -> rpcpb.ListOfAttachedPeerInfo
-	3,  // 37: rpcpb.ClusterInfo.CustomChainsEntry.value:type_name -> rpcpb.CustomChainInfo
-	0,  // 38: rpcpb.PingService.Ping:input_type -> rpcpb.PingRequest
-	8,  // 39: rpcpb.ControlService.RPCVersion:input_type -> rpcpb.RPCVersionRequest
-	7,  // 40: rpcpb.ControlService.Start:input_type -> rpcpb.StartRequest
-	12, // 41: rpcpb.ControlService.CreateBlockchains:input_type -> rpcpb.CreateBlockchainsRequest
-	14, // 42: rpcpb.ControlService.CreateSubnets:input_type -> rpcpb.CreateSubnetsRequest
-	16, // 43: rpcpb.ControlService.Health:input_type -> rpcpb.HealthRequest
-	18, // 44: rpcpb.ControlService.URIs:input_type -> rpcpb.URIsRequest
-	20, // 45: rpcpb.ControlService.WaitForHealthy:input_type -> rpcpb.WaitForHealthyRequest
-	22, // 46: rpcpb.ControlService.Status:input_type -> rpcpb.StatusRequest
-	24, // 47: rpcpb.ControlService.StreamStatus:input_type -> rpcpb.StreamStatusRequest
-	28, // 48: rpcpb.ControlService.RemoveNode:input_type -> rpcpb.RemoveNodeRequest
-	34, // 49: rpcpb.ControlService.AddNode:input_type -> rpcpb.AddNodeRequest
-	26, // 50: rpcpb.ControlService.RestartNode:input_type -> rpcpb.RestartNodeRequest
-	30, // 51: rpcpb.ControlService.PauseNode:input_type -> rpcpb.PauseNodeRequest
-	32, // 52: rpcpb.ControlService.ResumeNode:input_type -> rpcpb.ResumeNodeRequest
-	36, // 53: rpcpb.ControlService.Stop:input_type -> rpcpb.StopRequest
-	38, // 54: rpcpb.ControlService.AttachPeer:input_type -> rpcpb.AttachPeerRequest
-	40, // 55: rpcpb.ControlService.SendOutboundMessage:input_type -> rpcpb.SendOutboundMessageRequest
-	42, // 56: rpcpb.ControlService.SaveSnapshot:input_type -> rpcpb.SaveSnapshotRequest
-	44, // 57: rpcpb.ControlService.LoadSnapshot:input_type -> rpcpb.LoadSnapshotRequest
-	46, // 58: rpcpb.ControlService.RemoveSnapshot:input_type -> rpcpb.RemoveSnapshotRequest
-	48, // 59: rpcpb.ControlService.GetSnapshotNames:input_type -> rpcpb.GetSnapshotNamesRequest
-	1,  // 60: rpcpb.PingService.Ping:output_type -> rpcpb.PingResponse
-	9,  // 61: rpcpb.ControlService.RPCVersion:output_type -> rpcpb.RPCVersionResponse
-	10, // 62: rpcpb.ControlService.Start:output_type -> rpcpb.StartResponse
-	13, // 63: rpcpb.ControlService.CreateBlockchains:output_type -> rpcpb.CreateBlockchainsResponse
-	15, // 64: rpcpb.ControlService.CreateSubnets:output_type -> rpcpb.CreateSubnetsResponse
-	17, // 65: rpcpb.ControlService.Health:output_type -> rpcpb.HealthResponse
-	19, // 66: rpcpb.ControlService.URIs:output_type -> rpcpb.URIsResponse
-	21, // 67: rpcpb.ControlService.WaitForHealthy:output_type -> rpcpb.WaitForHealthyResponse
-	23, // 68: rpcpb.ControlService.Status:output_type -> rpcpb.StatusResponse
-	25, // 69: rpcpb.ControlService.StreamStatus:output_type -> rpcpb.StreamStatusResponse
-	29, // 70: rpcpb.ControlService.RemoveNode:output_type -> rpcpb.RemoveNodeResponse
-	35, // 71: rpcpb.ControlService.AddNode:output_type -> rpcpb.AddNodeResponse
-	27, // 72: rpcpb.ControlService.RestartNode:output_type -> rpcpb.RestartNodeResponse
-	31, // 73: rpcpb.ControlService.PauseNode:output_type -> rpcpb.PauseNodeResponse
-	33, // 74: rpcpb.ControlService.ResumeNode:output_type -> rpcpb.ResumeNodeResponse
-	37, // 75: rpcpb.ControlService.Stop:output_type -> rpcpb.StopResponse
-	39, // 76: rpcpb.ControlService.AttachPeer:output_type -> rpcpb.AttachPeerResponse
-	41, // 77: rpcpb.ControlService.SendOutboundMessage:output_type -> rpcpb.SendOutboundMessageResponse
-	43, // 78: rpcpb.ControlService.SaveSnapshot:output_type -> rpcpb.SaveSnapshotResponse
-	45, // 79: rpcpb.ControlService.LoadSnapshot:output_type -> rpcpb.LoadSnapshotResponse
-	47, // 80: rpcpb.ControlService.RemoveSnapshot:output_type -> rpcpb.RemoveSnapshotResponse
-	49, // 81: rpcpb.ControlService.GetSnapshotNames:output_type -> rpcpb.GetSnapshotNamesResponse
-	60, // [60:82] is the sub-list for method output_type
-	38, // [38:60] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	11, // 10: rpcpb.TransformElasticSubnetRequest.elastic_subnet_spec:type_name -> rpcpb.ElasticSubnetSpec
+	2,  // 11: rpcpb.TransformElasticSubnetResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	14, // 12: rpcpb.CreateBlockchainsRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
+	2,  // 13: rpcpb.CreateBlockchainsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 14: rpcpb.CreateSubnetsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 15: rpcpb.HealthResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 16: rpcpb.WaitForHealthyResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 17: rpcpb.StatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 18: rpcpb.StreamStatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	60, // 19: rpcpb.RestartNodeRequest.chain_configs:type_name -> rpcpb.RestartNodeRequest.ChainConfigsEntry
+	61, // 20: rpcpb.RestartNodeRequest.upgrade_configs:type_name -> rpcpb.RestartNodeRequest.UpgradeConfigsEntry
+	62, // 21: rpcpb.RestartNodeRequest.subnet_configs:type_name -> rpcpb.RestartNodeRequest.SubnetConfigsEntry
+	2,  // 22: rpcpb.RestartNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 23: rpcpb.RemoveNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 24: rpcpb.PauseNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 25: rpcpb.ResumeNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	63, // 26: rpcpb.AddNodeRequest.chain_configs:type_name -> rpcpb.AddNodeRequest.ChainConfigsEntry
+	64, // 27: rpcpb.AddNodeRequest.upgrade_configs:type_name -> rpcpb.AddNodeRequest.UpgradeConfigsEntry
+	65, // 28: rpcpb.AddNodeRequest.subnet_configs:type_name -> rpcpb.AddNodeRequest.SubnetConfigsEntry
+	2,  // 29: rpcpb.AddNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 30: rpcpb.StopResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	2,  // 31: rpcpb.AttachPeerResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	5,  // 32: rpcpb.AttachPeerResponse.attached_peer_info:type_name -> rpcpb.AttachedPeerInfo
+	66, // 33: rpcpb.LoadSnapshotRequest.chain_configs:type_name -> rpcpb.LoadSnapshotRequest.ChainConfigsEntry
+	67, // 34: rpcpb.LoadSnapshotRequest.upgrade_configs:type_name -> rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
+	68, // 35: rpcpb.LoadSnapshotRequest.subnet_configs:type_name -> rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
+	2,  // 36: rpcpb.LoadSnapshotResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	4,  // 37: rpcpb.ClusterInfo.NodeInfosEntry.value:type_name -> rpcpb.NodeInfo
+	6,  // 38: rpcpb.ClusterInfo.AttachedPeerInfosEntry.value:type_name -> rpcpb.ListOfAttachedPeerInfo
+	3,  // 39: rpcpb.ClusterInfo.CustomChainsEntry.value:type_name -> rpcpb.CustomChainInfo
+	0,  // 40: rpcpb.PingService.Ping:input_type -> rpcpb.PingRequest
+	8,  // 41: rpcpb.ControlService.RPCVersion:input_type -> rpcpb.RPCVersionRequest
+	7,  // 42: rpcpb.ControlService.Start:input_type -> rpcpb.StartRequest
+	15, // 43: rpcpb.ControlService.CreateBlockchains:input_type -> rpcpb.CreateBlockchainsRequest
+	12, // 44: rpcpb.ControlService.TransformElasticSubnet:input_type -> rpcpb.TransformElasticSubnetRequest
+	17, // 45: rpcpb.ControlService.CreateSubnets:input_type -> rpcpb.CreateSubnetsRequest
+	19, // 46: rpcpb.ControlService.Health:input_type -> rpcpb.HealthRequest
+	21, // 47: rpcpb.ControlService.URIs:input_type -> rpcpb.URIsRequest
+	23, // 48: rpcpb.ControlService.WaitForHealthy:input_type -> rpcpb.WaitForHealthyRequest
+	25, // 49: rpcpb.ControlService.Status:input_type -> rpcpb.StatusRequest
+	27, // 50: rpcpb.ControlService.StreamStatus:input_type -> rpcpb.StreamStatusRequest
+	31, // 51: rpcpb.ControlService.RemoveNode:input_type -> rpcpb.RemoveNodeRequest
+	37, // 52: rpcpb.ControlService.AddNode:input_type -> rpcpb.AddNodeRequest
+	29, // 53: rpcpb.ControlService.RestartNode:input_type -> rpcpb.RestartNodeRequest
+	33, // 54: rpcpb.ControlService.PauseNode:input_type -> rpcpb.PauseNodeRequest
+	35, // 55: rpcpb.ControlService.ResumeNode:input_type -> rpcpb.ResumeNodeRequest
+	39, // 56: rpcpb.ControlService.Stop:input_type -> rpcpb.StopRequest
+	41, // 57: rpcpb.ControlService.AttachPeer:input_type -> rpcpb.AttachPeerRequest
+	43, // 58: rpcpb.ControlService.SendOutboundMessage:input_type -> rpcpb.SendOutboundMessageRequest
+	45, // 59: rpcpb.ControlService.SaveSnapshot:input_type -> rpcpb.SaveSnapshotRequest
+	47, // 60: rpcpb.ControlService.LoadSnapshot:input_type -> rpcpb.LoadSnapshotRequest
+	49, // 61: rpcpb.ControlService.RemoveSnapshot:input_type -> rpcpb.RemoveSnapshotRequest
+	51, // 62: rpcpb.ControlService.GetSnapshotNames:input_type -> rpcpb.GetSnapshotNamesRequest
+	1,  // 63: rpcpb.PingService.Ping:output_type -> rpcpb.PingResponse
+	9,  // 64: rpcpb.ControlService.RPCVersion:output_type -> rpcpb.RPCVersionResponse
+	10, // 65: rpcpb.ControlService.Start:output_type -> rpcpb.StartResponse
+	16, // 66: rpcpb.ControlService.CreateBlockchains:output_type -> rpcpb.CreateBlockchainsResponse
+	13, // 67: rpcpb.ControlService.TransformElasticSubnet:output_type -> rpcpb.TransformElasticSubnetResponse
+	18, // 68: rpcpb.ControlService.CreateSubnets:output_type -> rpcpb.CreateSubnetsResponse
+	20, // 69: rpcpb.ControlService.Health:output_type -> rpcpb.HealthResponse
+	22, // 70: rpcpb.ControlService.URIs:output_type -> rpcpb.URIsResponse
+	24, // 71: rpcpb.ControlService.WaitForHealthy:output_type -> rpcpb.WaitForHealthyResponse
+	26, // 72: rpcpb.ControlService.Status:output_type -> rpcpb.StatusResponse
+	28, // 73: rpcpb.ControlService.StreamStatus:output_type -> rpcpb.StreamStatusResponse
+	32, // 74: rpcpb.ControlService.RemoveNode:output_type -> rpcpb.RemoveNodeResponse
+	38, // 75: rpcpb.ControlService.AddNode:output_type -> rpcpb.AddNodeResponse
+	30, // 76: rpcpb.ControlService.RestartNode:output_type -> rpcpb.RestartNodeResponse
+	34, // 77: rpcpb.ControlService.PauseNode:output_type -> rpcpb.PauseNodeResponse
+	36, // 78: rpcpb.ControlService.ResumeNode:output_type -> rpcpb.ResumeNodeResponse
+	40, // 79: rpcpb.ControlService.Stop:output_type -> rpcpb.StopResponse
+	42, // 80: rpcpb.ControlService.AttachPeer:output_type -> rpcpb.AttachPeerResponse
+	44, // 81: rpcpb.ControlService.SendOutboundMessage:output_type -> rpcpb.SendOutboundMessageResponse
+	46, // 82: rpcpb.ControlService.SaveSnapshot:output_type -> rpcpb.SaveSnapshotResponse
+	48, // 83: rpcpb.ControlService.LoadSnapshot:output_type -> rpcpb.LoadSnapshotResponse
+	50, // 84: rpcpb.ControlService.RemoveSnapshot:output_type -> rpcpb.RemoveSnapshotResponse
+	52, // 85: rpcpb.ControlService.GetSnapshotNames:output_type -> rpcpb.GetSnapshotNamesResponse
+	63, // [63:86] is the sub-list for method output_type
+	40, // [40:63] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_rpcpb_rpc_proto_init() }
@@ -3801,7 +4097,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BlockchainSpec); i {
+			switch v := v.(*ElasticSubnetSpec); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3813,7 +4109,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateBlockchainsRequest); i {
+			switch v := v.(*TransformElasticSubnetRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3825,7 +4121,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateBlockchainsResponse); i {
+			switch v := v.(*TransformElasticSubnetResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3837,7 +4133,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateSubnetsRequest); i {
+			switch v := v.(*BlockchainSpec); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3849,7 +4145,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateSubnetsResponse); i {
+			switch v := v.(*CreateBlockchainsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3861,7 +4157,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthRequest); i {
+			switch v := v.(*CreateBlockchainsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3873,7 +4169,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthResponse); i {
+			switch v := v.(*CreateSubnetsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3885,7 +4181,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*URIsRequest); i {
+			switch v := v.(*CreateSubnetsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3897,7 +4193,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*URIsResponse); i {
+			switch v := v.(*HealthRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3909,7 +4205,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WaitForHealthyRequest); i {
+			switch v := v.(*HealthResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3921,7 +4217,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WaitForHealthyResponse); i {
+			switch v := v.(*URIsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3933,7 +4229,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StatusRequest); i {
+			switch v := v.(*URIsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3945,7 +4241,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StatusResponse); i {
+			switch v := v.(*WaitForHealthyRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3957,7 +4253,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StreamStatusRequest); i {
+			switch v := v.(*WaitForHealthyResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3969,7 +4265,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StreamStatusResponse); i {
+			switch v := v.(*StatusRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3981,7 +4277,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RestartNodeRequest); i {
+			switch v := v.(*StatusResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3993,7 +4289,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RestartNodeResponse); i {
+			switch v := v.(*StreamStatusRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4005,7 +4301,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveNodeRequest); i {
+			switch v := v.(*StreamStatusResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4017,7 +4313,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveNodeResponse); i {
+			switch v := v.(*RestartNodeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4029,7 +4325,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PauseNodeRequest); i {
+			switch v := v.(*RestartNodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4041,7 +4337,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PauseNodeResponse); i {
+			switch v := v.(*RemoveNodeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4053,7 +4349,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ResumeNodeRequest); i {
+			switch v := v.(*RemoveNodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4065,7 +4361,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ResumeNodeResponse); i {
+			switch v := v.(*PauseNodeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4077,7 +4373,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddNodeRequest); i {
+			switch v := v.(*PauseNodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4089,7 +4385,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddNodeResponse); i {
+			switch v := v.(*ResumeNodeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4101,7 +4397,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StopRequest); i {
+			switch v := v.(*ResumeNodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4113,7 +4409,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StopResponse); i {
+			switch v := v.(*AddNodeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4125,7 +4421,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AttachPeerRequest); i {
+			switch v := v.(*AddNodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4137,7 +4433,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AttachPeerResponse); i {
+			switch v := v.(*StopRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4149,7 +4445,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SendOutboundMessageRequest); i {
+			switch v := v.(*StopResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4161,7 +4457,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SendOutboundMessageResponse); i {
+			switch v := v.(*AttachPeerRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4173,7 +4469,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SaveSnapshotRequest); i {
+			switch v := v.(*AttachPeerResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4185,7 +4481,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SaveSnapshotResponse); i {
+			switch v := v.(*SendOutboundMessageRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4197,7 +4493,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LoadSnapshotRequest); i {
+			switch v := v.(*SendOutboundMessageResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4209,7 +4505,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[45].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LoadSnapshotResponse); i {
+			switch v := v.(*SaveSnapshotRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4221,7 +4517,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[46].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveSnapshotRequest); i {
+			switch v := v.(*SaveSnapshotResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4233,7 +4529,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[47].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveSnapshotResponse); i {
+			switch v := v.(*LoadSnapshotRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4245,7 +4541,7 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetSnapshotNamesRequest); i {
+			switch v := v.(*LoadSnapshotResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4257,6 +4553,42 @@ func file_rpcpb_rpc_proto_init() {
 			}
 		}
 		file_rpcpb_rpc_proto_msgTypes[49].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RemoveSnapshotRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_rpcpb_rpc_proto_msgTypes[50].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RemoveSnapshotResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_rpcpb_rpc_proto_msgTypes[51].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetSnapshotNamesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_rpcpb_rpc_proto_msgTypes[52].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetSnapshotNamesResponse); i {
 			case 0:
 				return &v.state
@@ -4270,18 +4602,18 @@ func file_rpcpb_rpc_proto_init() {
 		}
 	}
 	file_rpcpb_rpc_proto_msgTypes[7].OneofWrappers = []interface{}{}
-	file_rpcpb_rpc_proto_msgTypes[11].OneofWrappers = []interface{}{}
 	file_rpcpb_rpc_proto_msgTypes[14].OneofWrappers = []interface{}{}
-	file_rpcpb_rpc_proto_msgTypes[26].OneofWrappers = []interface{}{}
-	file_rpcpb_rpc_proto_msgTypes[34].OneofWrappers = []interface{}{}
-	file_rpcpb_rpc_proto_msgTypes[44].OneofWrappers = []interface{}{}
+	file_rpcpb_rpc_proto_msgTypes[17].OneofWrappers = []interface{}{}
+	file_rpcpb_rpc_proto_msgTypes[29].OneofWrappers = []interface{}{}
+	file_rpcpb_rpc_proto_msgTypes[37].OneofWrappers = []interface{}{}
+	file_rpcpb_rpc_proto_msgTypes[47].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_rpcpb_rpc_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   66,
+			NumMessages:   69,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

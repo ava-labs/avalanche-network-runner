@@ -33,7 +33,7 @@ type Client interface {
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
-	TransformSubnet(ctx context.Context, elasticSubnetSpec []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformSubnetResponse, error)
+	TransformSubnet(ctx context.Context, elasticSubnetSpec []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -150,13 +150,13 @@ func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb
 	return c.controlc.CreateBlockchains(ctx, req)
 }
 
-func (c *client) TransformSubnet(ctx context.Context, blockchainSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformSubnetResponse, error) {
-	req := &rpcpb.CreateBlockchainsRequest{
-		ElasticSubnetConfig: blockchainSpecs,
+func (c *client) TransformSubnet(ctx context.Context, elasticSubnetSpec *rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetResponse, error) {
+	req := &rpcpb.TransformElasticSubnetRequest{
+		ElasticSubnetSpec: elasticSubnetSpec,
 	}
 
-	c.log.Info("create blockchains")
-	return c.controlc.CreateBlockchains(ctx, req)
+	c.log.Info("transform subnet into elastic subnet")
+	return c.controlc.TransformElasticSubnet(ctx, req)
 }
 
 func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {

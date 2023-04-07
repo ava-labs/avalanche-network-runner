@@ -135,6 +135,19 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
+func (ln *localNetwork) TransformSubnet(
+	ctx context.Context,
+	numSubnets uint32,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	if _, err := transformToElasticSubnets(ctx, numSubnets); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
 	numSubnets uint32,
@@ -667,13 +680,12 @@ func transformToElasticSubnets(
 	log logging.Logger,
 	tokenName string,
 	tokenSymbol string,
-	maxSupply uint64,
 	elasticSubnetConfig models.ElasticSubnetConfig,
 ) (ids.ID, error) {
 	fmt.Println()
 	log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", elasticSubnetConfig.SubnetID.String()))
 	log.Info("transforming elastic subnet tx")
-	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, maxSupply)
+	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, elasticSubnetConfig.MaxSupply)
 	if err != nil {
 		return ids.ID{}, err
 	}
@@ -684,7 +696,7 @@ func transformToElasticSubnets(
 			genesis.EWOQKey.PublicKey().Address(),
 		},
 	}
-	err = exportToPChain(ctx, w, owner, subnetAssetID, maxSupply)
+	err = exportToPChain(ctx, w, owner, subnetAssetID, elasticSubnetConfig.MaxSupply)
 	if err != nil {
 		return ids.ID{}, err
 	}
