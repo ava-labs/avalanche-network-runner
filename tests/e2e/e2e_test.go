@@ -21,6 +21,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/proto/pb/p2p"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/prometheus/client_golang/prometheus"
@@ -52,6 +53,7 @@ var (
 
 	newNodeName       = "test-add-node"
 	newNodeName2      = "test-add-node2"
+	newNode2NodeID      = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -60,10 +62,6 @@ var (
 		"node5": `{"api-admin-enabled":false}`,
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
-	}
-	intialStakersNodeID = []string{
-		"NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg", "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
-		"NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN", "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu", "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
 	}
 	numNodes = uint32(5)
 )
@@ -484,7 +482,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			}
 			requestID := uint32(42)
 			chainID := avago_constants.PlatformChainID
-			msg, err := mc.Chits(chainID, requestID, []ids.ID{}, containerIDs)
+			msg, err := mc.Chits(chainID, requestID, []ids.ID{}, containerIDs, p2p.EngineType_ENGINE_TYPE_AVALANCHE)
 			gomega.Ω(err).Should(gomega.BeNil())
 
 			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
@@ -599,6 +597,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			resp, err := cli.AddNode(ctx, newNodeName2, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+			for nodeName, nodeInfo := range resp.ClusterInfo.NodeInfos {
+				if nodeName == newNodeName2 {
+					newNode2NodeID = nodeInfo.Id
+				}
+			}
 			ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
 		})
 		ginkgo.By("add 1 subnet", func() {
@@ -627,17 +630,9 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			for _, v := range vdrs {
-				isInitialStaker := false
-				for _, initialStakerID := range intialStakersNodeID {
-					if v.NodeID.String() == initialStakerID {
-						isInitialStaker = true
-						break
-					}
+				if v.NodeID.String() == newNode2NodeID {
+					gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
 				}
-				if isInitialStaker {
-					continue
-				}
-				gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
 			}
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
