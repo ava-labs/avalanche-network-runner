@@ -184,16 +184,17 @@ func (ln *localNetwork) installCustomChains(
 	}
 
 	// get subnet specs for all new subnets to create
-	// for the list of requested blockchains, we take those that have both undefined subnet id
-	// and defined subnet spec
+	// for the list of requested blockchains, we take those that have undefined subnet id
+	// and use the provided subnet spec. if not given, use an empty default subnet spec
 	// that subnets will be created and later on assigned to the blockchain requests
 	subnetSpecs := []network.SubnetSpec{}
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.SubnetID == nil {
 			if chainSpec.SubnetSpec == nil {
-				return nil, fmt.Errorf("subnet spec must be provided if subnet id is not given")
+				subnetSpecs = append(subnetSpecs, network.SubnetSpec{})
+			} else {
+				subnetSpecs = append(subnetSpecs, *chainSpec.SubnetSpec)
 			}
-			subnetSpecs = append(subnetSpecs, *chainSpec.SubnetSpec)
 		}
 	}
 
