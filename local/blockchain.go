@@ -271,6 +271,10 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
 	// refresh vm list
 	if err := ln.reloadVMPlugins(ctx); err != nil {
 		return nil, err
@@ -392,31 +396,37 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		return err
 	}
 
-	// if no participants are given, assume all nodes should be participants
-	allNodeNames := maps.Keys(ln.nodes)
-	sort.Strings(allNodeNames)
-
-	subnetSpecs := []network.SubnetSpec{}
-	subnetIDs := []ids.ID{}
-	for _, chainInfo := range chainInfos {
-		subnetIDs = append(subnetIDs, chainInfo.subnetID)
-		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
-	}
 	clientURI, err := ln.getClientURI()
 	if err != nil {
 		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
-		return err
-	}
 
-	for nodeName, node := range ln.nodes {
-		if node.paused {
-			continue
+	for _, chainInfo := range chainInfos {
+		cctx, cancel := createDefaultCtx(ctx)
+		vs, err := platformCli.GetCurrentValidators(cctx, chainInfo.subnetID, nil)
+		cancel()
+		if err != nil {
+			return err
 		}
-		ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
-		for _, chainInfo := range chainInfos {
+		nodeNames := []string{}
+		for _, v := range vs {
+			for nodeName, node := range ln.nodes {
+				if v.NodeID == node.GetNodeID() {
+					nodeNames = append(nodeNames, nodeName)
+				}
+			}
+		}
+		if len(nodeNames) != len(vs) {
+			return fmt.Errorf("not all validators for subnet %s are present in network", chainInfo.subnetID.String())
+		}
+
+		for _, nodeName := range nodeNames {
+			node := ln.nodes[nodeName]
+			if node.paused {
+				continue
+			}
+			ln.log.Info("inspecting node log directory for custom chain logs", zap.String("log-dir", node.GetLogsDir()), zap.String("node-name", nodeName))
 			p := filepath.Join(node.GetLogsDir(), chainInfo.blockchainID.String()+".log")
 			ln.log.Info("checking log",
 				zap.String("vm-ID", chainInfo.vmID.String()),
@@ -429,12 +439,10 @@ func (ln *localNetwork) waitForCustomChainsReady(
 					ln.log.Info("found the log", zap.String("path", p))
 					break
 				}
-
 				ln.log.Info("log not found yet, retrying...",
 					zap.String("vm-ID", chainInfo.vmID.String()),
 					zap.String("subnet-ID", chainInfo.subnetID.String()),
 					zap.String("blockchain-ID", chainInfo.blockchainID.String()),
-					zap.Error(err),
 				)
 				select {
 				case <-ln.onStopCh:
