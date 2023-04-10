@@ -228,18 +228,9 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	// wait for nodes to be primary validators before trying to add them as subnet ones
-	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
-		return nil, err
-	}
-
 	// create missing subnets
 	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
-		return nil, err
-	}
-
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -272,10 +263,6 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
-		return nil, err
-	}
-
 	// refresh vm list
 	if err := ln.reloadVMPlugins(ctx); err != nil {
 		return nil, err
@@ -283,6 +270,19 @@ func (ln *localNetwork) installCustomChains(
 
 	// create blockchain from txs before spending more utxos
 	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, w, ln.log); err != nil {
+		return nil, err
+	}
+
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -357,17 +357,8 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	// wait for nodes to be primary validators before trying to add them as subnet ones
-	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
-		return nil, err
-	}
-
 	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
-		return nil, err
-	}
-
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -376,6 +367,15 @@ func (ln *localNetwork) installSubnets(
 	}
 
 	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
