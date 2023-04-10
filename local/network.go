@@ -113,6 +113,8 @@ type localNetwork struct {
 	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
+	// maps subnetID to list of participating node names
+	subnetParticipant map[string][]string
 }
 
 type deprecatedFlagEsp struct {

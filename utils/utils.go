@@ -103,22 +103,13 @@ func MkDirWithTimestamp(dirPrefix string) (string, error) {
 
 func VerifySubnetHasCorrectParticipants(
 	ctx context.Context,
-	subnetParticipants []string,
 	clientURI string,
 	createdSubnetID ids.ID,
 	cluster *rpcb.ClusterInfo,
+	subnetID string,
 ) bool {
 	if cluster != nil {
-		var nodeIdsList []string
-		// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
-		for nodeName, nodeInfo := range cluster.NodeInfos {
-			for _, subnetValidatorNodeName := range subnetParticipants {
-				if nodeName == subnetValidatorNodeName {
-					nodeIdsList = append(nodeIdsList, nodeInfo.Id)
-				}
-			}
-		}
-
+		nodeIdsList := cluster.SubnetParticipants[subnetID].GetSubnetParticipants()
 		platformCli := platformvm.NewClient(clientURI)
 		vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
 		if err != nil {
@@ -129,7 +120,7 @@ func VerifySubnetHasCorrectParticipants(
 		for _, v := range vdrs {
 			nodeIsInList = false
 			for _, subnetValidator := range nodeIdsList {
-				if v.NodeID.String() == subnetValidator {
+				if v.NodeID.String() == subnetValidator.Id {
 					nodeIsInList = true
 					break
 				}

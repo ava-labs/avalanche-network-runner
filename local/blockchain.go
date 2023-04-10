@@ -134,6 +134,10 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
+func (ln *localNetwork) GetSubnetParticipants() map[string][]string { //nolint
+	return ln.subnetParticipant
+}
+
 func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
 	subnetSpecs []network.SubnetSpec,
@@ -936,6 +940,7 @@ func (ln *localNetwork) setSubnetConfigFiles(
 				ln.nodes[nodeName].config.SubnetConfigFiles[subnetID.String()] = string(subnetConfig)
 			}
 		}
+		ln.subnetParticipant[subnetID.String()] = participants
 	}
 	return nil
 }

@@ -46,6 +46,8 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
+	// map from subnet ID to participating node info
+	subnetParticipants map[string][]*rpcpb.NodeInfo
 }
 
 type chainInfo struct {
@@ -375,6 +377,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		if subnet.ID != avago_constants.PlatformChainID {
 			lc.subnets = append(lc.subnets, subnet.ID.String())
 		}
+	}
+
+	for subnetID, nodeNames := range lc.nw.GetSubnetParticipants() {
+		var nodeList []*rpcpb.NodeInfo
+		for _, nodeName := range nodeNames {
+			nodeList = append(nodeList, lc.nodeInfos[nodeName])
+		}
+		lc.subnetParticipants[subnetID] = nodeList
 	}
 
 	for _, nodeName := range nodeNames {

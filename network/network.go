@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"errors"
-
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 )
 
@@ -76,4 +75,6 @@ type Network interface {
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) error
+	// Get Subnet Participants Map
+	GetSubnetParticipants() map[string][]string
 }
