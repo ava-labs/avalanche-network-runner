@@ -106,7 +106,8 @@ func VerifySubnetHasCorrectParticipants(
 	subnetParticipants []string,
 	clientURI string,
 	createdSubnetID ids.ID,
-	cluster *rpcb.ClusterInfo) bool {
+	cluster *rpcb.ClusterInfo,
+) bool {
 	if cluster != nil {
 		var nodeIdsList []string
 		// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
