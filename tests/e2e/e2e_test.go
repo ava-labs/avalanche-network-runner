@@ -63,7 +63,9 @@ var (
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
 	}
-	numNodes = uint32(5)
+	numNodes            = uint32(5)
+	subnetParticipants  = []string{"node1", "node2", "node3"}
+	subnetParticipants2 = []string{"node1", "node2", "testNode"}
 )
 
 func init() {
@@ -662,7 +664,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("add 1 subnet with participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: []string{"node1", "node2", "node3"}}})
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -681,16 +683,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdSubnetIDString := subnetIDs[0]
 			createdSubnetID, err := ids.FromString(createdSubnetIDString)
 			gomega.Ω(err).Should(gomega.BeNil())
-			var nodeIdsList []string
-			nodesNameList := []string{"node1", "node2", "node3"}
-			// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
-			for nodeName, nodeInfo := range status.ClusterInfo.NodeInfos {
-				for _, subnetValidatorNodeName := range nodesNameList {
-					if nodeName == subnetValidatorNodeName {
-						nodeIdsList = append(nodeIdsList, nodeInfo.Id)
-					}
-				}
-			}
+
 			clientURIs, err := cli.URIs(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 			var clientURI string
@@ -698,27 +691,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				clientURI = uri
 				break
 			}
-			platformCli := platformvm.NewClient(clientURI)
-			vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var nodeIsInList bool
-			// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
-			for _, v := range vdrs {
-				nodeIsInList = false
-				for _, subnetValidator := range nodeIdsList {
-					if v.NodeID.String() == subnetValidator {
-						nodeIsInList = true
-						break
-					}
-				}
-				gomega.Ω(nodeIsInList).Should(gomega.Equal(true))
-			}
-			gomega.Ω(len(vdrs)).Should(gomega.Equal(3))
-			gomega.Ω(err).Should(gomega.BeNil())
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, subnetParticipants, clientURI,
+				createdSubnetID, status.ClusterInfo)
+			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: []string{"node1", "node2", "testNode"}}})
+			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants2}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -746,17 +725,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdSubnetIDString := subnetIDs[0]
 			createdSubnetID, err := ids.FromString(createdSubnetIDString)
 			gomega.Ω(err).Should(gomega.BeNil())
-
-			var nodeIdsList []string
-			nodesNameList := []string{"node1", "node2", "testNode"}
-			// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
-			for nodeName, nodeInfo := range status.ClusterInfo.NodeInfos {
-				for _, subnetValidatorNodeName := range nodesNameList {
-					if nodeName == subnetValidatorNodeName {
-						nodeIdsList = append(nodeIdsList, nodeInfo.Id)
-					}
-				}
-			}
 			clientURIs, err := cli.URIs(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 			var clientURI string
@@ -764,23 +732,9 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				clientURI = uri
 				break
 			}
-			platformCli := platformvm.NewClient(clientURI)
-			vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var nodeIsInList bool
-			// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
-			for _, v := range vdrs {
-				nodeIsInList = false
-				for _, subnetValidator := range nodeIdsList {
-					if v.NodeID.String() == subnetValidator {
-						nodeIsInList = true
-						break
-					}
-				}
-				gomega.Ω(nodeIsInList).Should(gomega.Equal(true))
-			}
-			gomega.Ω(len(vdrs)).Should(gomega.Equal(3))
-			gomega.Ω(err).Should(gomega.BeNil())
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, subnetParticipants, clientURI,
+				createdSubnetID, status.ClusterInfo)
+			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 	})
 
