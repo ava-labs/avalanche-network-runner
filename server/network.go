@@ -104,6 +104,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
+		subnetParticipants:  make(map[string][]*rpcpb.NodeInfo),
 	}, nil
 }
 

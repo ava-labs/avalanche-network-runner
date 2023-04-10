@@ -110,6 +110,10 @@ func VerifySubnetHasCorrectParticipants(
 ) bool {
 	if cluster != nil {
 		nodeIdsList := cluster.SubnetParticipants[subnetID].GetSubnetParticipants()
+		for _, node := range nodeIdsList {
+			fmt.Printf("In utils.go, nodeIdsList nodeList %s \n", node.Id)
+			fmt.Printf("In utils.go, nodeIdsList nodename %s \n", node.Name)
+		}
 		platformCli := platformvm.NewClient(clientURI)
 		vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
 		if err != nil {

@@ -134,7 +134,7 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
-func (ln *localNetwork) GetSubnetParticipants() map[string][]string { //nolint
+func (ln *localNetwork) GetSubnetParticipants() map[string][]string {
 	return ln.subnetParticipant
 }
 

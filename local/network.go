@@ -467,6 +467,10 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
+	if ln.subnetParticipant == nil {
+		ln.subnetParticipant = map[string][]string{}
+	}
+
 	return nil
 }
 
