@@ -13,6 +13,11 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
+type SubnetSpec struct {
+	Participants []string
+	SubnetConfig []byte
+}
+
 type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
@@ -70,5 +75,5 @@ type Network interface {
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
-	CreateSubnets(context.Context, uint32) error
+	CreateSubnets(context.Context, []SubnetSpec) error
 }

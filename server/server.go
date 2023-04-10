@@ -520,12 +520,15 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		return nil, ErrNotBootstrapped
 	}
 
-	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
+	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", uint32(len(req.GetSubnetSpecs()))))
 
-	// default behaviour without args is to create one subnet
-	numSubnets := req.GetNumSubnets()
-	if numSubnets == 0 {
-		numSubnets = 1
+	subnetSpecs := []network.SubnetSpec{}
+	for _, spec := range req.GetSubnetSpecs() {
+		subnetSpec, err := getNetworkSubnetSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		subnetSpecs = append(subnetSpecs, subnetSpec)
 	}
 
 	s.log.Info("waiting for local cluster readiness")
@@ -539,7 +542,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 		defer cancel()
-		err := s.network.CreateSubnets(ctx, numSubnets)
+		err := s.network.CreateSubnets(ctx, subnetSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -1253,5 +1256,22 @@ func getNetworkBlockchainSpec(
 		SubnetID:           spec.SubnetId,
 		BlockchainAlias:    spec.BlockchainAlias,
 		PerNodeChainConfig: perNodeChainConfig,
+	}, nil
+}
+
+func getNetworkSubnetSpec(
+	spec *rpcpb.SubnetSpec,
+) (network.SubnetSpec, error) {
+	var subnetConfigBytes []byte
+	var err error
+	if spec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+		if err != nil {
+			return network.SubnetSpec{}, err
+		}
+	}
+	return network.SubnetSpec{
+		Participants: spec.Participants,
+		SubnetConfig: subnetConfigBytes,
 	}, nil
 }

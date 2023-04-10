@@ -14,9 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
-
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -25,15 +22,18 @@ import (
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/chain/p"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -136,12 +136,12 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 
 func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
-	numSubnets uint32,
+	subnetSpecs []network.SubnetSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if _, err := ln.installSubnets(ctx, numSubnets); err != nil {
+	if _, err := ln.installSubnets(ctx, subnetSpecs); err != nil {
 		return err
 	}
 	return nil
@@ -187,13 +187,19 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
+	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+
 	// get number of subnets to create
 	// for the list of requested blockchains, we count those that have undefined subnet id
 	// that number of subnets will be created and later assigned to those blockchain requests
 	var numSubnetsToCreate uint32
+	subnetSpecs := []network.SubnetSpec{}
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.SubnetID == nil {
 			numSubnetsToCreate++
+			subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 		}
 	}
 	// create missing subnets
@@ -221,10 +227,9 @@ func (ln *localNetwork) installCustomChains(
 	if numSubnetsToCreate > 0 || blockchainFilesCreated {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, addedSubnetIDs); err != nil {
+		if err := ln.restartNodes(ctx, addedSubnetIDs, subnetSpecs); err != nil {
 			return nil, err
 		}
-		w.updatePClient(clientURI)
 	}
 
 	// refresh vm list
@@ -237,17 +242,23 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
 	// get all subnets for add subnet validator request
 	subnetIDs := []ids.ID{}
+	subnetSpecs = []network.SubnetSpec{}
 	for _, chainSpec := range chainSpecs {
 		subnetID, err := ids.FromString(*chainSpec.SubnetID)
 		if err != nil {
 			return nil, err
 		}
 		subnetIDs = append(subnetIDs, subnetID)
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 	}
 	// add subnet validators
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs); err != nil {
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -276,7 +287,7 @@ func (ln *localNetwork) installCustomChains(
 
 func (ln *localNetwork) installSubnets(
 	ctx context.Context,
-	numSubnets uint32,
+	subnetSpecs []network.SubnetSpec,
 ) ([]ids.ID, error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create subnets")))
@@ -287,48 +298,68 @@ func (ln *localNetwork) installSubnets(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 
-	preloadTXs := []ids.ID{}
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	w, err := newWallet(ctx, clientURI, []ids.ID{})
 	if err != nil {
 		return nil, err
 	}
 
+	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+	for i := range subnetSpecs {
+		if len(subnetSpecs[i].Participants) == 0 {
+			subnetSpecs[i].Participants = allNodeNames
+		}
+	}
+
+	// create new nodes
+	for _, subnetSpec := range subnetSpecs {
+		for _, nodeName := range subnetSpec.Participants {
+			_, ok := ln.nodes[nodeName]
+			if !ok {
+				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
+				if _, err := ln.addNode(node.Config{Name: nodeName}); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return nil, err
+	}
+
+	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
 		return nil, err
 	}
 
-	subnetIDs, err := createSubnets(ctx, numSubnets, w, ln.log)
+	subnetIDs, err := createSubnets(ctx, uint32(len(subnetSpecs)), w, ln.log)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs); err != nil {
-		return nil, err
-	}
-	w.updatePClient(clientURI)
-
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs); err != nil {
+	if err := ln.setSubnetConfigFiles(subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs); err != nil {
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
 	return subnetIDs, nil
-}
-
-func (ln *localNetwork) restartNodes(
-	ctx context.Context,
-	subnetIDs []ids.ID,
-) error {
-	fmt.Println()
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
-	if err := ln.restartNodesWithTrackSubnets(ctx, subnetIDs); err != nil {
-		return err
-	}
-	fmt.Println()
-	return nil
 }
 
 func (ln *localNetwork) waitForCustomChainsReady(
@@ -342,16 +373,22 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		return err
 	}
 
+	// if no participants are given, assume all nodes should be participants
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
+
+	subnetSpecs := []network.SubnetSpec{}
 	subnetIDs := []ids.ID{}
 	for _, chainInfo := range chainInfos {
 		subnetIDs = append(subnetIDs, chainInfo.subnetID)
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: allNodeNames})
 	}
 	clientURI, err := ln.getClientURI()
 	if err != nil {
 		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs); err != nil {
+	if err := ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return err
 	}
 
@@ -400,62 +437,67 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	return nil
 }
 
-func (ln *localNetwork) getCurrentSubnets(ctx context.Context) ([]ids.ID, error) {
-	node := ln.getSomeNode()
-	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	nonPlatformSubnets := []ids.ID{}
-	for _, subnet := range subnets {
-		if subnet.ID != constants.PlatformChainID {
-			nonPlatformSubnets = append(nonPlatformSubnets, subnet.ID)
-		}
-	}
-	return nonPlatformSubnets, nil
-}
-
-// TODO: make this "restart" pattern more generic, so it can be used for "Restart" RPC
-func (ln *localNetwork) restartNodesWithTrackSubnets(
+func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
 ) (err error) {
 	fmt.Println()
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 
-	currentSubnets, err := ln.getCurrentSubnets(ctx)
-	if err != nil {
-		return err
-	}
+	nodeNames := maps.Keys(ln.nodes)
+	sort.Strings(nodeNames)
 
-	trackSubnetIDsSet := set.Set[string]{}
-	for _, subnetID := range append(currentSubnets, subnetIDs...) {
-		trackSubnetIDsSet.Add(subnetID.String())
-	}
+	for _, nodeName := range nodeNames {
+		node := ln.nodes[nodeName]
 
-	trackSubnetIDs := trackSubnetIDsSet.List()
-	sort.Strings(trackSubnetIDs)
-	trackSubnets := strings.Join(trackSubnetIDs, ",")
-
-	ln.log.Info("restarting all nodes to track subnets", zap.Strings("track-subnet-IDs", trackSubnetIDs))
-
-	// change default setting
-	ln.flags[config.TrackSubnetsKey] = trackSubnets
-
-	for nodeName, node := range ln.nodes {
 		// delete node specific flag so as to use default one
 		nodeConfig := node.GetConfig()
-		delete(nodeConfig.Flags, config.TrackSubnetsKey)
+
+		previousTrackedSubnets := ""
+		previousTrackedSubnetsIntf, ok := nodeConfig.Flags[config.TrackSubnetsKey]
+		if ok {
+			previousTrackedSubnets, ok = previousTrackedSubnetsIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
+			}
+		}
+
+		trackSubnetIDsSet := set.Set[string]{}
+		if previousTrackedSubnets != "" {
+			for _, s := range strings.Split(previousTrackedSubnets, ",") {
+				trackSubnetIDsSet.Add(s)
+			}
+		}
+		needsRestart := false
+		for i, subnetID := range subnetIDs {
+			for _, participant := range subnetSpecs[i].Participants {
+				if participant == nodeName {
+					trackSubnetIDsSet.Add(subnetID.String())
+					needsRestart = true
+				}
+			}
+		}
+		trackSubnetIDs := trackSubnetIDsSet.List()
+		sort.Strings(trackSubnetIDs)
+
+		tracked := strings.Join(trackSubnetIDs, ",")
+		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
+
+		if !needsRestart {
+			continue
+		}
 
 		if node.paused {
 			continue
 		}
 
-		ln.log.Debug("removing and adding back the node for track subnets", zap.String("node-name", nodeName))
+		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to track subnets %s", nodeName, tracked)))
+
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
 		}
 
-		ln.log.Info("waiting for local cluster readiness after restarting node", zap.String("node-name", nodeName))
 		if err := ln.healthy(ctx); err != nil {
 			return err
 		}
@@ -504,12 +546,7 @@ func newWallet(
 	return &w, nil
 }
 
-func (w *wallet) updatePClient(uri string) {
-	pClient := platformvm.NewClient(uri)
-	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
-}
-
-// add the nodes in [nodeInfos] as validators of the primary network, in case they are not
+// add all nodes as validators of the primary network, in case they are not
 // the validation starts as soon as possible and its duration is as long as possible, that is,
 // it is set to max accepted duration by avalanchego
 func (ln *localNetwork) addPrimaryValidators(
@@ -588,7 +625,7 @@ func createSubnets(
 	log logging.Logger,
 ) ([]ids.ID, error) {
 	fmt.Println()
-	log.Info(logging.Green.Wrap("creating subnets VM"), zap.Uint32("num-subnets", numSubnets))
+	log.Info(logging.Green.Wrap("creating subnets"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	for i := uint32(0); i < numSubnets; i++ {
 		log.Info("creating subnet tx")
@@ -611,7 +648,7 @@ func createSubnets(
 	return subnetIDs, nil
 }
 
-// add the nodes in [nodeInfos] as validators of the given subnets, in case they are not
+// add the nodes in subnet participant as validators of the given subnets, in case they are not
 // the validation starts as soon as possible and its duration is as long as possible, that is,
 // it ends at the time the primary network validation ends for the node
 func (ln *localNetwork) addSubnetValidators(
@@ -619,9 +656,10 @@ func (ln *localNetwork) addSubnetValidators(
 	platformCli platformvm.Client,
 	w *wallet,
 	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
 ) error {
 	ln.log.Info(logging.Green.Wrap("adding the nodes as subnet validators"))
-	for _, subnetID := range subnetIDs {
+	for i, subnetID := range subnetIDs {
 		cctx, cancel := createDefaultCtx(ctx)
 		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
 		cancel()
@@ -642,7 +680,12 @@ func (ln *localNetwork) addSubnetValidators(
 		for _, v := range vs {
 			subnetValidators.Add(v.NodeID)
 		}
-		for nodeName, node := range ln.nodes {
+		participants := subnetSpecs[i].Participants
+		for _, nodeName := range participants {
+			node, b := ln.nodes[nodeName]
+			if !b {
+				return fmt.Errorf("participant node %s is not in network nodes", nodeName)
+			}
 			nodeID := node.GetNodeID()
 			if isValidator := subnetValidators.Contains(nodeID); isValidator {
 				continue
@@ -677,16 +720,54 @@ func (ln *localNetwork) addSubnetValidators(
 	return nil
 }
 
-// waits until all nodes in [nodeInfos] start validating the given [subnetIDs]
+// waits until all nodes start validating the primary network
+func (ln *localNetwork) waitPrimaryValidators(
+	ctx context.Context,
+	platformCli platformvm.Client,
+) error {
+	ln.log.Info(logging.Green.Wrap("waiting for the nodes to become primary validators"))
+	for {
+		ready := true
+		cctx, cancel := createDefaultCtx(ctx)
+		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		primaryValidators := set.Set[ids.NodeID]{}
+		for _, v := range vs {
+			primaryValidators.Add(v.NodeID)
+		}
+		for _, node := range ln.nodes {
+			nodeID := node.GetNodeID()
+			if isValidator := primaryValidators.Contains(nodeID); !isValidator {
+				ready = false
+			}
+		}
+		if ready {
+			return nil
+		}
+		select {
+		case <-ln.onStopCh:
+			return errAborted
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(waitForValidatorsPullFrequency):
+		}
+	}
+}
+
+// waits until all subnet participants start validating the subnetID, for all given subnets
 func (ln *localNetwork) waitSubnetValidators(
 	ctx context.Context,
 	platformCli platformvm.Client,
 	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
 ) error {
 	ln.log.Info(logging.Green.Wrap("waiting for the nodes to become subnet validators"))
 	for {
 		ready := true
-		for _, subnetID := range subnetIDs {
+		for i, subnetID := range subnetIDs {
 			cctx, cancel := createDefaultCtx(ctx)
 			vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
 			cancel()
@@ -697,7 +778,12 @@ func (ln *localNetwork) waitSubnetValidators(
 			for _, v := range vs {
 				subnetValidators.Add(v.NodeID)
 			}
-			for _, node := range ln.nodes {
+			participants := subnetSpecs[i].Participants
+			for _, nodeName := range participants {
+				node, b := ln.nodes[nodeName]
+				if !b {
+					return fmt.Errorf("participant node %s is not in network nodes", nodeName)
+				}
 				nodeID := node.GetNodeID()
 				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
 					ready = false
@@ -826,13 +912,32 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 		}
 		if chainSpec.SubnetConfig != nil {
 			created = true
-			ln.subnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.SubnetConfigFiles, *chainSpec.SubnetID)
+				ln.nodes[nodeName].config.SubnetConfigFiles[*chainSpec.SubnetID] = string(chainSpec.SubnetConfig)
 			}
 		}
 	}
 	return created
+}
+
+func (ln *localNetwork) setSubnetConfigFiles(
+	subnetIDs []ids.ID,
+	subnetSpecs []network.SubnetSpec,
+) error {
+	for i, subnetID := range subnetIDs {
+		participants := subnetSpecs[i].Participants
+		subnetConfig := subnetSpecs[i].SubnetConfig
+		if subnetConfig != nil {
+			for _, nodeName := range participants {
+				_, b := ln.nodes[nodeName]
+				if !b {
+					return fmt.Errorf("participant node %s is not in network nodes", nodeName)
+				}
+				ln.nodes[nodeName].config.SubnetConfigFiles[subnetID.String()] = string(subnetConfig)
+			}
+		}
+	}
+	return nil
 }
 
 func (*localNetwork) createBlockchains(

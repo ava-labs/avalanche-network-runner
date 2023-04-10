@@ -290,6 +290,12 @@ message StartResponse {
   ClusterInfo cluster_info = 1;
 }
 
+message SubnetSpec {
+  // if empty, assumes all nodes should be participants
+  repeated string participants = 1;
+  string subnet_config = 2;
+}
+
 message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
@@ -327,7 +333,7 @@ message CreateBlockchainsResponse {
 }
 
 message CreateSubnetsRequest {
-  optional uint32 num_subnets = 1;
+  repeated SubnetSpec subnet_specs = 1;
 }
 
 message CreateSubnetsResponse {
