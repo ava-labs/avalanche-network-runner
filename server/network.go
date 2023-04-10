@@ -46,8 +46,8 @@ type localNetwork struct {
 	stopOnce sync.Once
 
 	subnets []string
-	// map from subnet ID to participating node info
-	subnetParticipants map[string][]*rpcpb.NodeInfo
+	// map from subnet ID to list of participating node ids
+	subnetParticipants map[string][]string
 }
 
 type chainInfo struct {
@@ -104,7 +104,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
-		subnetParticipants:  make(map[string][]*rpcpb.NodeInfo),
+		subnetParticipants:  make(map[string][]string),
 	}, nil
 }
 
@@ -380,12 +380,17 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	for subnetID, nodeNames := range lc.nw.GetSubnetParticipants() {
-		var nodeList []*rpcpb.NodeInfo
-		for _, nodeName := range nodeNames {
-			nodeList = append(nodeList, lc.nodeInfos[nodeName])
+	for _, subnetID := range lc.subnets {
+		createdSubnetID, err := ids.FromString(subnetID)
+		if err != nil {
+			return err
 		}
-		lc.subnetParticipants[subnetID] = nodeList
+		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, createdSubnetID, nil)
+		var nodeIdList []string
+		for _, node := range vdrs {
+			nodeIdList = append(nodeIdList, node.NodeID.String())
+		}
+		lc.subnetParticipants[subnetID] = nodeIdList
 	}
 
 	for _, nodeName := range nodeNames {

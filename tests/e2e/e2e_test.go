@@ -680,18 +680,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			createdSubnetID, err := ids.FromString(createdSubnetIDString)
-			gomega.Ω(err).Should(gomega.BeNil())
-
-			clientURIs, err := cli.URIs(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var clientURI string
-			for _, uri := range clientURIs {
-				clientURI = uri
-				break
-			}
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, clientURI,
-				createdSubnetID, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
@@ -722,17 +711,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			createdSubnetID, err := ids.FromString(createdSubnetIDString)
-			gomega.Ω(err).Should(gomega.BeNil())
-			clientURIs, err := cli.URIs(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var clientURI string
-			for _, uri := range clientURIs {
-				clientURI = uri
-				break
-			}
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, clientURI,
-				createdSubnetID, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 	})

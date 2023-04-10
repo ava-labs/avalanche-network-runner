@@ -113,8 +113,6 @@ type localNetwork struct {
 	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
-	// maps subnetID to list of participating node names
-	subnetParticipant map[string][]string
 }
 
 type deprecatedFlagEsp struct {
@@ -465,10 +463,6 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 			}
 			return fmt.Errorf("error adding node %s: %w", nodeConfig.Name, err)
 		}
-	}
-
-	if ln.subnetParticipant == nil {
-		ln.subnetParticipant = map[string][]string{}
 	}
 
 	return nil
