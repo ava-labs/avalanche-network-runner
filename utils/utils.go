@@ -9,9 +9,6 @@ import (
 	"time"
 
 	rpcb "github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"golang.org/x/net/context"
-
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
 )
@@ -102,11 +99,9 @@ func MkDirWithTimestamp(dirPrefix string) (string, error) {
 }
 
 func VerifySubnetHasCorrectParticipants(
-	ctx context.Context,
 	subnetParticipants []string,
-	clientURI string,
-	createdSubnetID ids.ID,
 	cluster *rpcb.ClusterInfo,
+	subnetID string,
 ) bool {
 	if cluster != nil {
 		var nodeIdsList []string
@@ -118,18 +113,13 @@ func VerifySubnetHasCorrectParticipants(
 				}
 			}
 		}
-
-		platformCli := platformvm.NewClient(clientURI)
-		vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
-		if err != nil {
-			return false
-		}
+		participatingNodeIds := cluster.SubnetParticipants[subnetID].GetSubnetParticipants()
 		var nodeIsInList bool
 		// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
-		for _, v := range vdrs {
+		for _, nodeID := range nodeIdsList {
 			nodeIsInList = false
-			for _, subnetValidator := range nodeIdsList {
-				if v.NodeID.String() == subnetValidator {
+			for _, subnetValidator := range participatingNodeIds {
+				if nodeID == subnetValidator {
 					nodeIsInList = true
 					break
 				}

@@ -170,6 +170,10 @@ service ControlService {
   }
 }
 
+message SubnetParticipants {
+  repeated string subnet_participants = 1;
+}
+
 message ClusterInfo {
   repeated string node_names       = 1;
   map<string, NodeInfo> node_infos = 2;
@@ -185,6 +189,7 @@ message ClusterInfo {
   // The map of blockchain IDs in "ids.ID" format to its blockchain information.
   map<string, CustomChainInfo> custom_chains = 8;
   repeated string subnets          = 9;
+  map<string, SubnetParticipants> subnetParticipants = 10;
 }
 
 message CustomChainInfo {
