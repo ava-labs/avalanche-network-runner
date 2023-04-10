@@ -17,6 +17,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
@@ -27,7 +28,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"

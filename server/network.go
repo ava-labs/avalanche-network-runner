@@ -386,11 +386,14 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 			return err
 		}
 		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, createdSubnetID, nil)
-		var nodeIdList []string
-		for _, node := range vdrs {
-			nodeIdList = append(nodeIdList, node.NodeID.String())
+		if err != nil {
+			return err
 		}
-		lc.subnetParticipants[subnetID] = nodeIdList
+		var nodeIDList []string
+		for _, node := range vdrs {
+			nodeIDList = append(nodeIDList, node.NodeID.String())
+		}
+		lc.subnetParticipants[subnetID] = nodeIDList
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
