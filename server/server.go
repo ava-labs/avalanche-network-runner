@@ -1220,8 +1220,8 @@ func getNetworkBlockchainSpec(
 	}
 
 	var subnetConfigBytes []byte
-	if spec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+	if spec.SubnetSpec != nil && spec.SubnetSpec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetSpec.SubnetConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1247,16 +1247,26 @@ func getNetworkBlockchainSpec(
 			perNodeChainConfig[nodeName] = cfgBytes
 		}
 	}
-	return network.BlockchainSpec{
+
+	blockchainSpec := network.BlockchainSpec{
 		VMName:             vmName,
 		Genesis:            genesisBytes,
 		ChainConfig:        chainConfigBytes,
 		NetworkUpgrade:     networkUpgradeBytes,
-		SubnetConfig:       subnetConfigBytes,
 		SubnetID:           spec.SubnetId,
 		BlockchainAlias:    spec.BlockchainAlias,
 		PerNodeChainConfig: perNodeChainConfig,
-	}, nil
+	}
+
+	if spec.SubnetSpec != nil {
+		subnetSpec := network.SubnetSpec{
+			Participants: spec.SubnetSpec.Participants,
+			SubnetConfig: subnetConfigBytes,
+		}
+		blockchainSpec.SubnetSpec = &subnetSpec
+	}
+
+	return blockchainSpec, nil
 }
 
 func getNetworkSubnetSpec(
