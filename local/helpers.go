@@ -13,6 +13,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
 )
@@ -65,7 +66,7 @@ func getFreePort() (uint16, error) {
 
 // writeFiles writes the files a node needs on startup.
 // It returns flags used to point to those files.
-func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (map[string]string, error) {
+func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig *node.Config) (map[string]string, error) {
 	type file struct {
 		pathKey   string
 		flagValue string
@@ -95,12 +96,14 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (ma
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
-		{
+	}
+	if networkID != constants.LocalID {
+		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, genesisFileName),
 			path:      filepath.Join(nodeRootDir, genesisFileName),
 			pathKey:   config.GenesisConfigFileKey,
 			contents:  genesis,
-		},
+		})
 	}
 	if len(nodeConfig.ConfigFile) != 0 {
 		files = append(files, file{
@@ -252,13 +255,9 @@ func createFileAndWrite(path string, contents []byte) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = file.Close()
-	}()
-	if _, err := file.Write(contents); err != nil {
-		return err
-	}
-	return nil
+	defer file.Close()
+	_, err = file.Write(contents)
+	return err
 }
 
 // addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].

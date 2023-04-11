@@ -1040,7 +1040,9 @@ func TestSetNodeName(t *testing.T) {
 
 	// Case: name already present
 	config.Name = "hi"
-	ln.nodes = map[string]*localNode{"hi": nil}
+	ln.nodes = map[string]*localNode{
+		"hi": {},
+	}
 	err = ln.setNodeName(config)
 	require.Error(err)
 }
@@ -1229,7 +1231,7 @@ func TestWriteFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			flags, err := writeFiles(tt.genesis, tmpDir, &tt.nodeConfig)
+			flags, err := writeFiles(0, tt.genesis, tmpDir, &tt.nodeConfig)
 			if tt.shouldErr {
 				require.Error(err)
 				return
@@ -1289,10 +1291,10 @@ func TestRemoveBeacon(t *testing.T) {
 }
 
 // Returns an API client where:
-// * The Health API's Health method always returns an error after the
-//   given context is cancelled.
-// * The CChainEthAPI's Close method may be called
-// * Only the above 2 methods may be called
+//   - The Health API's Health method always returns an error after the
+//     given context is cancelled.
+//   - The CChainEthAPI's Close method may be called
+//   - Only the above 2 methods may be called
 func newMockAPIHealthyBlocks(string, uint16) api.Client {
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool {

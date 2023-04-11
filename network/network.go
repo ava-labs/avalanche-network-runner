@@ -13,13 +13,18 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
+type SubnetSpec struct {
+	Participants []string
+	SubnetConfig []byte
+}
+
 type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
 	SubnetID           *string
+	SubnetSpec         *SubnetSpec
 	ChainConfig        []byte
 	NetworkUpgrade     []byte
-	SubnetConfig       []byte
 	BlockchainAlias    string
 	PerNodeChainConfig map[string][]byte
 }
@@ -39,6 +44,12 @@ type Network interface {
 	// Stop the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	RemoveNode(ctx context.Context, name string) error
+	// Pause the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	PauseNode(ctx context.Context, name string) error
+	// Resume the node with this name.
+	// Returns ErrStopped if Stop() was previously called.
+	ResumeNode(ctx context.Context, name string) error
 	// Return the node with this name.
 	// Returns ErrStopped if Stop() was previously called.
 	GetNode(name string) (node.Node, error)
@@ -64,5 +75,5 @@ type Network interface {
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
-	CreateSubnets(context.Context, uint32) error
+	CreateSubnets(context.Context, []SubnetSpec) error
 }
