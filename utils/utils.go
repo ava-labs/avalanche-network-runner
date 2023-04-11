@@ -142,3 +142,34 @@ func VerifySubnetHasCorrectParticipants(
 	}
 	return false
 }
+
+func VerifyBlockchainIsLinkedToSubnetID(
+	ctx context.Context,
+	clientURI string,
+	cluster *rpcb.ClusterInfo,
+	subnetID ids.ID,
+) bool {
+	if cluster != nil {
+		platformCli := platformvm.NewClient(clientURI)
+		blockchains, err := platformCli.GetBlockchains(ctx)
+		if err != nil {
+			return false
+		}
+		var blockchainLinked bool
+		for _, blockchain := range blockchains {
+			if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+				continue
+			}
+			if blockchain.SubnetID == subnetID {
+				blockchainLinked = true
+				break
+			}
+		}
+		if !blockchainLinked {
+			return false
+		}
+
+		return true
+	}
+	return false
+}
