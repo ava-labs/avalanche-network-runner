@@ -17,6 +17,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
@@ -27,7 +28,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -686,18 +686,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			createdSubnetID, err := ids.FromString(createdSubnetIDString)
-			gomega.Ω(err).Should(gomega.BeNil())
-
-			clientURIs, err := cli.URIs(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var clientURI string
-			for _, uri := range clientURIs {
-				clientURI = uri
-				break
-			}
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, subnetParticipants, clientURI,
-				createdSubnetID, status.ClusterInfo)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
@@ -728,17 +717,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			createdSubnetID, err := ids.FromString(createdSubnetIDString)
-			gomega.Ω(err).Should(gomega.BeNil())
-			clientURIs, err := cli.URIs(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			var clientURI string
-			for _, uri := range clientURIs {
-				clientURI = uri
-				break
-			}
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(ctx, subnetParticipants2, clientURI,
-				createdSubnetID, status.ClusterInfo)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 	})
