@@ -250,6 +250,15 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
+	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
 	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, w, ln.log)
 	if err != nil {
 		return nil, err
@@ -270,21 +279,12 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
 	// create blockchain from txs before spending more utxos
 	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, w, ln.log); err != nil {
-		return nil, err
-	}
-
-	// wait for nodes to be primary validators before trying to add them as subnet ones
-	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
-		return nil, err
-	}
-
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
-		return nil, err
-	}
-
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -368,16 +368,16 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
-		return nil, err
-	}
-
 	// wait for nodes to be primary validators before trying to add them as subnet ones
 	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
 		return nil, err
 	}
 
 	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return nil, err
+	}
+
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -527,10 +527,9 @@ func (ln *localNetwork) restartNodes(
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
 		}
-
-		if err := ln.healthy(ctx); err != nil {
-			return err
-		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
 	}
 	return nil
 }
