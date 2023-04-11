@@ -298,13 +298,42 @@ curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_n
 avalanche-network-runner control remove-snapshot snapshotName
 ```
 
+To create 1 validated subnet, with all existing nodes as participants (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{}]'
+
+# or
+avalanche-network-runner control create-subnets '[{}]'
+```
+
+To create 1 validated subnet, with some of existing nodes as participants (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{"participants": ["node1", "node2"]}]'
+
+# or
+avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2"]}]'
+```
+
+To create 1 validated subnet, with some of existing nodes and another new node as participants (requires network restart):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{"participants": ["node1", "node2", "testNode"]}]'
+
+# or
+avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2", "testNode"]}]'
+
+```
+
 To create N validated subnets (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"num_subnets":5}'
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]'
 
 # or
-avalanche-network-runner control create-subnets 5
+avalanche-network-runner control create-subnets '[{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]'
+
 ```
 
 To create a blockchain without a subnet id (requires network restart):
