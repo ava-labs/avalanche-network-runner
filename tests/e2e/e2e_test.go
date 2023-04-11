@@ -833,7 +833,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("snapshots   + blockchain creation", func() {
+	ginkgo.It("snapshots + blockchain creation", func() {
 		var originalUris []string
 		var originalSubnets []string
 		ginkgo.By("get original URIs", func() {
