@@ -525,26 +525,26 @@ func (s *server) TransformElasticSubnet(
 
 	s.log.Debug("TransformElasticSubnet")
 
-	if len(req.GetBlockchainSpecs()) == 0 {
+	if len(req.GetElasticSubnetSpec()) == 0 {
 		return nil, ErrNoBlockchainSpec
 	}
 
-	chainSpecs := []network.BlockchainSpec{}
-	for _, spec := range req.GetBlockchainSpecs() {
-		chainSpec, err := getNetworkBlockchainSpec(s.log, spec, false, s.network.pluginDir)
+	elasticSubnetSpecList := []network.ElasticSubnetSpec{}
+	for _, spec := range req.GetElasticSubnetSpec() {
+		elasticSubnetSpec, err := getNetworkElasticSubnetSpec(spec)
 		if err != nil {
 			return nil, err
 		}
-		chainSpecs = append(chainSpecs, chainSpec)
+		elasticSubnetSpecList = append(elasticSubnetSpecList, elasticSubnetSpec)
 	}
 
 	// check that the given subnets exist
 	subnetsSet := set.Set[string]{}
 	subnetsSet.Add(s.clusterInfo.Subnets...)
 
-	for _, chainSpec := range chainSpecs {
-		if chainSpec.SubnetID != nil && !subnetsSet.Contains(*chainSpec.SubnetID) {
-			return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetID)
+	for _, elasticSubnetSpec := range elasticSubnetSpecList {
+		if elasticSubnetSpec.SubnetID != nil && !subnetsSet.Contains(*elasticSubnetSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exits", *elasticSubnetSpec.SubnetID)
 		}
 	}
 
@@ -1228,6 +1228,28 @@ func isClientCanceled(ctxErr error, err error) bool {
 		}
 	}
 	return false
+}
+
+func getNetworkElasticSubnetSpec(
+	spec *rpcpb.ElasticSubnetSpec,
+) (network.ElasticSubnetSpec, error) {
+	elasticSubnetSpec := network.ElasticSubnetSpec{
+		SubnetID:                 &spec.SubnetId,
+		AssetName:                spec.AssetName,
+		InitialSupply:            spec.InitialSupply,
+		MaxSupply:                spec.MaxSupply,
+		MinConsumptionRate:       spec.MinConsumptionRate,
+		MaxConsumptionRate:       spec.MaxConsumptionRate,
+		MinValidatorRate:         spec.MinValidatorRate,
+		MaxValidatorRate:         spec.MaxValidatorRate,
+		MinStakeDuration:         spec.MinStakeDuration,
+		MaxStakeDuration:         spec.MaxStakeDuration,
+		MinDelegationFee:         spec.MinDelegationFee,
+		MinDelegatorStake:        spec.MinDelegatorStake,
+		MaxValidatorWeightFactor: spec.MaxValidatorWeightFactor,
+		UptimeRequirement:        spec.UptimeRequirement,
+	}
+	return elasticSubnetSpec, nil
 }
 
 func getNetworkBlockchainSpec(

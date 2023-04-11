@@ -14,32 +14,20 @@ var (
 )
 
 type ElasticSubnetSpec struct {
-	SubnetID *string
-	AssetName string
-	InitialSupply uint64
-	MaxSupply uint64
-	MinConsumptionRate uint64
-	MaxConsumptionRate uint64
-	MinValidatorRate uint64
-	MaxValidatorRate uint64
-	MinStakeDuration uint64
-	MaxStakeDuration uint64
-	MinDelegationFee uint64
-	MinDelegatorStake uint64
-	MaxValidatorRate uint64
-
-	uint64 initial_supply = 3;
-	uint64 max_supply = 4;
-	uint64 min_consumption_rate = 5;
-	uint64 max_consumption_rate = 6;
-	uint64 min_validator_rate = 7;
-	uint64 max_validator_rate = 8;
-	uint64 min_stake_duration = 9;
-	uint64 max_stake_duration = 10;
-	uint32 min_delegation_fee = 11;
-	uint64 min_delegator_stake = 12;
-	uint32 max_validator_weight_factor = 13;
-	uint32 uptime_requirement = 14;
+	SubnetID                 *string
+	AssetName                string
+	InitialSupply            uint64
+	MaxSupply                uint64
+	MinConsumptionRate       uint64
+	MaxConsumptionRate       uint64
+	MinValidatorRate         uint64
+	MaxValidatorRate         uint64
+	MinStakeDuration         uint64
+	MaxStakeDuration         uint64
+	MinDelegationFee         uint32
+	MinDelegatorStake        uint64
+	MaxValidatorWeightFactor uint32
+	UptimeRequirement        uint32
 }
 
 type SubnetSpec struct {
