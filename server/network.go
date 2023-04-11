@@ -389,11 +389,16 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var nodeIDList []string
+		var nodeNameList []string
+
 		for _, node := range vdrs {
-			nodeIDList = append(nodeIDList, node.NodeID.String())
+			for nodeName, nodeInfo := range lc.nodeInfos {
+				if nodeInfo.Id == node.NodeID.String() {
+					nodeNameList = append(nodeNameList, nodeName)
+				}
+			}
 		}
-		lc.subnetParticipants[subnetID] = nodeIDList
+		lc.subnetParticipants[subnetID] = nodeNameList
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
