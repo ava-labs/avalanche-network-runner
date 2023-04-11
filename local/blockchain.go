@@ -8,6 +8,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/avm"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/wallet/chain/x"
 	"os"
 	"path/filepath"
 	"sort"
@@ -547,7 +551,7 @@ func newWallet(
 	preloadTXs []ids.ID,
 ) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pCTX, _, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
@@ -565,12 +569,20 @@ func newWallet(
 		pTXs[id] = tx
 	}
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
+	xChainID := xCTX.BlockchainID()
+	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
 	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+
+	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
+	w.xBuilder = x.NewBuilder(kc.Addresses(), xBackend)
+	w.xSigner = x.NewSigner(kc, xBackend)
+	xClient := avm.NewClient(uri, "X")
+	w.xWallet = x.NewWallet(w.xBuilder, w.xSigner, xClient, w.xBackend)
 	return &w, nil
 }
 
@@ -644,6 +656,110 @@ func (ln *localNetwork) addPrimaryValidators(
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
 	}
 	return nil
+}
+
+func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol string, maxSupply uint64) (ids.ID, error) {
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			genesis.EWOQKey.PublicKey().Address(),
+		},
+	}
+	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
+		tokenName,
+		tokenSymbol,
+		9, // denomination for UI purposes only in explorer
+		map[uint32][]verify.State{
+			0: {
+				&secp256k1fx.TransferOutput{
+					Amt:          maxSupply,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(ctx),
+	)
+	if err != nil {
+		return ids.Empty, err
+	}
+	return subnetAssetID, nil
+}
+
+func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, maxSupply uint64) error {
+	_, err := w.xWallet.IssueExportTx(
+		ids.Empty,
+		[]*avax.TransferableOutput{
+			{
+				Asset: avax.Asset{
+					ID: subnetAssetID,
+				},
+				Out: &secp256k1fx.TransferOutput{
+					Amt:          maxSupply,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(ctx),
+	)
+	return err
+}
+
+func importFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
+	xWallet := w.xWallet
+	pWallet := w.pWallet
+	xChainID := xWallet.BlockchainID()
+	_, err := pWallet.IssueImportTx(
+		xChainID,
+		owner,
+		common.WithContext(ctx),
+	)
+	return err
+}
+func transformToElasticSubnets(
+	ctx context.Context,
+	w *wallet,
+	log logging.Logger,
+	tokenName string,
+	tokenSymbol string,
+	maxSupply uint64,
+	elasticSubnetConfig models.ElasticSubnetConfig,
+) (ids.ID, error) {
+	fmt.Println()
+	log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", elasticSubnetConfig.SubnetID.String()))
+	log.Info("transforming elastic subnet tx")
+	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, maxSupply)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			genesis.EWOQKey.PublicKey().Address(),
+		},
+	}
+	err = exportToPChain(ctx, w, owner, subnetAssetID, maxSupply)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("exported asset to P-Chain")
+	err = importFromXChain(ctx, w, owner)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("imported asset from X-Chain")
+	transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(elasticSubnetConfig.SubnetID, subnetAssetID,
+		elasticSubnetConfig.InitialSupply, elasticSubnetConfig.MaxSupply, elasticSubnetConfig.MinConsumptionRate,
+		elasticSubnetConfig.MaxConsumptionRate, elasticSubnetConfig.MinValidatorStake, elasticSubnetConfig.MaxValidatorStake,
+		elasticSubnetConfig.MinStakeDuration, elasticSubnetConfig.MaxStakeDuration, elasticSubnetConfig.MinDelegationFee,
+		elasticSubnetConfig.MinDelegatorStake, elasticSubnetConfig.MaxValidatorWeightFactor, elasticSubnetConfig.UptimeRequirement,
+		common.WithContext(ctx),
+	)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
+	return transformSubnetTxID, err
 }
 
 func createSubnets(
