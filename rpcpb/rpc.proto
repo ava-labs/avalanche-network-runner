@@ -290,14 +290,22 @@ message StartResponse {
   ClusterInfo cluster_info = 1;
 }
 
+message SubnetSpec {
+  // if empty, assumes all nodes should be participants
+  repeated string participants = 1;
+  string subnet_config = 2;
+}
+
 message BlockchainSpec {
   string vm_name = 1;
   string genesis = 2;
+  // either a subnet_id is given for a previously created subnet,
+  // or a subnet specification is given for a new subnet generation
   optional string subnet_id = 3;
+  optional SubnetSpec subnet_spec = 4;
   // General chain config file path
-  string chain_config = 4;
-  string network_upgrade = 5;
-  string subnet_config = 6;
+  string chain_config = 5;
+  string network_upgrade = 6;
   string blockchain_alias = 7;
   // Per node chain config file path
   string per_node_chain_config = 8;
@@ -327,7 +335,7 @@ message CreateBlockchainsResponse {
 }
 
 message CreateSubnetsRequest {
-  optional uint32 num_subnets = 1;
+  repeated SubnetSpec subnet_specs = 1;
 }
 
 message CreateSubnetsResponse {

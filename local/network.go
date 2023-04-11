@@ -868,8 +868,6 @@ func (ln *localNetwork) resumeNode(
 	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
 	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
 	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
-	nodeConfig.Flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
-	nodeConfig.Flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
 	if _, err := ln.addNode(nodeConfig); err != nil {
 		return err
 	}
@@ -937,8 +935,6 @@ func (ln *localNetwork) restartNode(
 	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
 	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
 	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
-	nodeConfig.Flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
-	nodeConfig.Flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
 	// apply chain configs
 	for k, v := range chainConfigs {
 		nodeConfig.ChainConfigFiles[k] = v

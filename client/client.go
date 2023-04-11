@@ -32,7 +32,7 @@ type Client interface {
 	RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
-	CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error)
+	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -149,14 +149,9 @@ func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb
 	return c.controlc.CreateBlockchains(ctx, req)
 }
 
-func (c *client) CreateSubnets(ctx context.Context, opts ...OpOption) (*rpcpb.CreateSubnetsResponse, error) {
-	ret := &Op{}
-	ret.applyOpts(opts)
-
-	req := &rpcpb.CreateSubnetsRequest{}
-
-	if ret.numSubnets != 0 {
-		req.NumSubnets = &ret.numSubnets
+func (c *client) CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error) {
+	req := &rpcpb.CreateSubnetsRequest{
+		SubnetSpecs: subnetSpecs,
 	}
 
 	c.log.Info("create subnets")
