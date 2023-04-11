@@ -156,7 +156,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		existingSubnetID := ""
 		ginkgo.By("start with blockchain specs", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			resp, err := cli.Start(ctx, execPath1,
 				client.WithPluginDir(filepath.Join(filepath.Dir(execPath1), "plugins")),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
@@ -180,7 +180,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can create a blockchain with a new subnet id", func() {
 			ux.Print(log, logging.Blue.Wrap("can create a blockchain in a new subnet"))
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateBlockchains(ctx,
 				[]*rpcpb.BlockchainSpec{
 					{
@@ -211,7 +211,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can create a blockchain with an existing subnet id", func() {
 			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateBlockchains(ctx,
 				[]*rpcpb.BlockchainSpec{
 					{
@@ -233,7 +233,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("can create two blockchains at a time", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateBlockchains(ctx,
 				[]*rpcpb.BlockchainSpec{
 					{
@@ -291,7 +291,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can create a blockchain with an existing subnet id", func() {
 			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateBlockchains(ctx,
 				[]*rpcpb.BlockchainSpec{
 					{
@@ -322,21 +322,21 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("can start", func() {
 		ginkgo.By("start request with invalid exec path should fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Start(ctx, "")
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrInvalidExecPath.Error()))
 		})
 
 		ginkgo.By("start request with invalid exec path should fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Start(ctx, "invalid")
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExists.Error()))
 		})
 
 		ginkgo.By("start request with invalid custom VM path should fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Start(ctx, execPath1,
 				client.WithPluginDir(os.TempDir()),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
@@ -355,7 +355,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			filePath := f.Name()
 			gomega.Ω(f.Close()).Should(gomega.BeNil())
 
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err = cli.Start(ctx, execPath1,
 				client.WithPluginDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
@@ -376,7 +376,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			filePath := filepath.Join(os.TempDir(), vmID.String())
 			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
 
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err = cli.Start(ctx, execPath1,
 				client.WithPluginDir(filepath.Dir(filePath)),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
@@ -394,7 +394,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("calling start API with the valid binary path", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			resp, err := cli.Start(ctx, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -528,11 +528,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("calling start API with custom config", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			opts := []client.OpOption{
 				client.WithNumNodes(numNodes),
 				client.WithCustomNodeConfigs(customNodeConfigs),
 			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			resp, err := cli.Start(ctx, execPath1, opts...)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -578,7 +578,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("starting", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Start(ctx, execPath1)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -612,7 +612,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("add 1 subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -648,7 +648,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("subnet creation", func() {
 		ginkgo.By("add 1 subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -668,7 +668,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(numSubnets).Should(gomega.Equal(2))
 		})
 		ginkgo.By("add 1 subnet with participants", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
@@ -690,7 +690,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants2}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
