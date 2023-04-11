@@ -512,6 +512,66 @@ func (s *server) CreateBlockchains(
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo}, nil
 }
 
+func (s *server) TransformElasticSubnet(
+	_ context.Context,
+	req *rpcpb.TransformElasticSubnetRequest,
+) (*rpcpb.TransformElasticSubnetResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("TransformElasticSubnet")
+
+	if len(req.GetBlockchainSpecs()) == 0 {
+		return nil, ErrNoBlockchainSpec
+	}
+
+	chainSpecs := []network.BlockchainSpec{}
+	for _, spec := range req.GetBlockchainSpecs() {
+		chainSpec, err := getNetworkBlockchainSpec(s.log, spec, false, s.network.pluginDir)
+		if err != nil {
+			return nil, err
+		}
+		chainSpecs = append(chainSpecs, chainSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(s.clusterInfo.Subnets...)
+
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.SubnetID != nil && !subnetsSet.Contains(*chainSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exits", *chainSpec.SubnetID)
+		}
+	}
+
+	s.clusterInfo.Healthy = false
+	s.clusterInfo.CustomChainsHealthy = false
+
+	// update cluster info non-blocking
+	// the user is expected to poll this latest information
+	// to decide cluster/subnet readiness
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
+		err := s.network.CreateChains(ctx, chainSpecs)
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err != nil {
+			s.log.Error("failed to create blockchains", zap.Error(err))
+			s.stopAndRemoveNetwork(err)
+			return
+		} else {
+			s.updateClusterInfo()
+		}
+		s.log.Info("custom chains created")
+	}()
+	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanche-network-runner/models"
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
@@ -134,6 +135,19 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 			}
 		}
+	}
+	return nil
+}
+
+func (ln *localNetwork) TransformSubnet(
+	ctx context.Context,
+	numSubnets uint32,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	if _, err := transformToElasticSubnets(ctx, numSubnets); err != nil {
+		return err
 	}
 	return nil
 }
@@ -543,6 +557,10 @@ type wallet struct {
 	pBackend p.Backend
 	pBuilder p.Builder
 	pSigner  p.Signer
+	xWallet  x.Wallet
+	xBackend x.Backend
+	xBuilder x.Builder
+	xSigner  x.Signer
 }
 
 func newWallet(
@@ -721,15 +739,14 @@ func transformToElasticSubnets(
 	log logging.Logger,
 	tokenName string,
 	tokenSymbol string,
-	maxSupply uint64,
 	elasticSubnetConfig models.ElasticSubnetConfig,
 ) (ids.ID, error) {
 	fmt.Println()
 	log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", elasticSubnetConfig.SubnetID.String()))
 	log.Info("transforming elastic subnet tx")
-	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, maxSupply)
+	subnetAssetID, err := getAssetID(ctx, w, tokenName, tokenSymbol, elasticSubnetConfig.MaxSupply)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
 	owner := &secp256k1fx.OutputOwners{
@@ -738,14 +755,14 @@ func transformToElasticSubnets(
 			genesis.EWOQKey.PublicKey().Address(),
 		},
 	}
-	err = exportToPChain(ctx, w, owner, subnetAssetID, maxSupply)
+	err = exportToPChain(ctx, w, owner, subnetAssetID, elasticSubnetConfig.MaxSupply)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("exported asset to P-Chain")
 	err = importFromXChain(ctx, w, owner)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("imported asset from X-Chain")
 	transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(elasticSubnetConfig.SubnetID, subnetAssetID,
@@ -756,7 +773,7 @@ func transformToElasticSubnets(
 		common.WithContext(ctx),
 	)
 	if err != nil {
-		return nil, err
+		return ids.ID{}, err
 	}
 	log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
 	return transformSubnetTxID, err
