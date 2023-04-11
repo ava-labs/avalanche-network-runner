@@ -10,6 +10,5 @@ import (
 
 func Print(log logging.Logger, msg string, args ...interface{}) {
 	fmtMsg := fmt.Sprintf(msg, args...)
-	fmt.Println(fmtMsg)
 	log.Info(fmtMsg)
 }

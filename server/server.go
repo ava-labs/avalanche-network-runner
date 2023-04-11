@@ -520,12 +520,15 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 		return nil, ErrNotBootstrapped
 	}
 
-	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", req.GetNumSubnets()))
+	s.log.Debug("CreateSubnets", zap.Uint32("num-subnets", uint32(len(req.GetSubnetSpecs()))))
 
-	// default behaviour without args is to create one subnet
-	numSubnets := req.GetNumSubnets()
-	if numSubnets == 0 {
-		numSubnets = 1
+	subnetSpecs := []network.SubnetSpec{}
+	for _, spec := range req.GetSubnetSpecs() {
+		subnetSpec, err := getNetworkSubnetSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		subnetSpecs = append(subnetSpecs, subnetSpec)
 	}
 
 	s.log.Info("waiting for local cluster readiness")
@@ -539,7 +542,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 		defer cancel()
-		err := s.network.CreateSubnets(ctx, numSubnets)
+		err := s.network.CreateSubnets(ctx, subnetSpecs)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -1217,8 +1220,8 @@ func getNetworkBlockchainSpec(
 	}
 
 	var subnetConfigBytes []byte
-	if spec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+	if spec.SubnetSpec != nil && spec.SubnetSpec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetSpec.SubnetConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1244,14 +1247,41 @@ func getNetworkBlockchainSpec(
 			perNodeChainConfig[nodeName] = cfgBytes
 		}
 	}
-	return network.BlockchainSpec{
+
+	blockchainSpec := network.BlockchainSpec{
 		VMName:             vmName,
 		Genesis:            genesisBytes,
 		ChainConfig:        chainConfigBytes,
 		NetworkUpgrade:     networkUpgradeBytes,
-		SubnetConfig:       subnetConfigBytes,
 		SubnetID:           spec.SubnetId,
 		BlockchainAlias:    spec.BlockchainAlias,
 		PerNodeChainConfig: perNodeChainConfig,
+	}
+
+	if spec.SubnetSpec != nil {
+		subnetSpec := network.SubnetSpec{
+			Participants: spec.SubnetSpec.Participants,
+			SubnetConfig: subnetConfigBytes,
+		}
+		blockchainSpec.SubnetSpec = &subnetSpec
+	}
+
+	return blockchainSpec, nil
+}
+
+func getNetworkSubnetSpec(
+	spec *rpcpb.SubnetSpec,
+) (network.SubnetSpec, error) {
+	var subnetConfigBytes []byte
+	var err error
+	if spec.SubnetConfig != "" {
+		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+		if err != nil {
+			return network.SubnetSpec{}, err
+		}
+	}
+	return network.SubnetSpec{
+		Participants: spec.Participants,
+		SubnetConfig: subnetConfigBytes,
 	}, nil
 }
