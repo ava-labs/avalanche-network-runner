@@ -990,7 +990,7 @@ func (*localNetwork) createBlockchains(
 			defaultPoll,
 		)
 		if err != nil {
-			return fmt.Errorf("P-Wallet Tx Error %s %w, blockchainID %s", "Issue Create Blockchain Tx", err, blockchainTxs[i])
+			return fmt.Errorf("P-Wallet Tx Error %s %w, blockchainID %s", "Issue Create Blockchain Tx", err, blockchainTxs[i].ID().String())
 		}
 		if blockchainID != blockchainTxs[i].ID() {
 			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchainID")
