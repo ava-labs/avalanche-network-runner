@@ -638,7 +638,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		)
 		cancel()
 		if err != nil {
-			return fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s", "IssueAddPermissionlessValidatorTx", err, nodeID)
+			return fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s", "IssueAddPermissionlessValidatorTx", err, nodeID.String())
 		}
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
 	}
@@ -734,7 +734,7 @@ func (ln *localNetwork) addSubnetValidators(
 			)
 			cancel()
 			if err != nil {
-				return fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s, subnetID %s", "IssueAddSubnetValidatorTx", err, nodeID, subnetID)
+				return fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s, subnetID %s", "IssueAddSubnetValidatorTx", err, nodeID.String(), subnetID.String())
 			}
 			ln.log.Info("added node as a subnet validator to subnet",
 				zap.String("node-name", nodeName),
@@ -990,7 +990,7 @@ func (*localNetwork) createBlockchains(
 			defaultPoll,
 		)
 		if err != nil {
-			return fmt.Errorf("P-Wallet Tx Error %s %w, blockchainID %s", "Issue Create Blockchain Tx", err, blockchainTxs[i].ID().String())
+			return fmt.Errorf("P-Wallet Tx Error %s %w, blockchainID %s", "IssueCreateBlockchainTx", err, blockchainTxs[i].ID().String())
 		}
 		if blockchainID != blockchainTxs[i].ID() {
 			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchainID")
