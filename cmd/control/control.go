@@ -102,7 +102,6 @@ var (
 	blockchainSpecsStr  string
 	customNodeConfigs   string
 	rootDataDir         string
-	numSubnets          uint32
 	chainConfigs        string
 	upgradeConfigs      string
 	subnetConfigs       string
@@ -342,7 +341,7 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("deploy-blockchains response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("create-blockchains response: %+v"), info)
 	return nil
 }
 
@@ -351,39 +350,36 @@ func newCreateSubnetsCommand() *cobra.Command {
 		Use:   "create-subnets [options]",
 		Short: "Create subnets.",
 		RunE:  createSubnetsFunc,
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().Uint32Var(
-		&numSubnets,
-		"num-subnets",
-		0,
-		"number of subnets",
-	)
 	return cmd
 }
 
-func createSubnetsFunc(*cobra.Command, []string) error {
+func createSubnetsFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
-	opts := []client.OpOption{
-		client.WithNumSubnets(numSubnets),
+	subnetSpecsStr := args[0]
+
+	subnetSpecs := []*rpcpb.SubnetSpec{}
+	if err := json.Unmarshal([]byte(subnetSpecsStr), &subnetSpecs); err != nil {
+		return err
 	}
 
 	ctx := getAsyncContext()
 
 	info, err := cli.CreateSubnets(
 		ctx,
-		opts...,
+		subnetSpecs,
 	)
 	if err != nil {
 		return err
 	}
 
-	ux.Print(log, logging.Green.Wrap("add-subnets response: %+v"), info)
+	ux.Print(log, logging.Green.Wrap("create-subnets response: %+v"), info)
 	return nil
 }
 

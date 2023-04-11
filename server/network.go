@@ -253,11 +253,11 @@ func (lc *localNetwork) CreateChains(
 
 // Creates the given number of subnets.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) error {
+func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network.SubnetSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	if numSubnets == 0 {
+	if len(subnetSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
 		return nil
 	}
@@ -279,7 +279,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, numSubnets uint32) er
 		return err
 	}
 
-	if err := lc.nw.CreateSubnets(ctx, numSubnets); err != nil {
+	if err := lc.nw.CreateSubnets(ctx, subnetSpecs); err != nil {
 		return err
 	}
 
@@ -337,9 +337,9 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 // Doesn't contain the Primary network.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
-	nodeNames := maps.Keys(lc.nodeInfos)
-	sort.Strings(nodeNames)
-	node, err := lc.nw.GetNode(nodeNames[0])
+	allNodeNames := maps.Keys(lc.nodeInfos)
+	sort.Strings(allNodeNames)
+	node, err := lc.nw.GetNode(allNodeNames[0])
 	if err != nil {
 		return err
 	}
@@ -377,15 +377,33 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	for _, nodeName := range nodeNames {
-		nodeInfo := lc.nodeInfos[nodeName]
-		if nodeInfo.Paused {
-			continue
+	for chainID, chainInfo := range lc.customChainIDToInfo {
+		vs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, chainInfo.subnetID, nil)
+		if err != nil {
+			return err
 		}
-		for chainID, chainInfo := range lc.customChainIDToInfo {
+		nodeNames := []string{}
+		for _, v := range vs {
+			for nodeName, nodeInfo := range lc.nodeInfos {
+				if v.NodeID.String() == nodeInfo.Id {
+					nodeNames = append(nodeNames, nodeName)
+				}
+			}
+		}
+		if len(nodeNames) != len(vs) {
+			return fmt.Errorf("not all subnet validators are in network for subnet %s", chainInfo.subnetID.String())
+		}
+
+		sort.Strings(nodeNames)
+		for _, nodeName := range nodeNames {
+			nodeInfo := lc.nodeInfos[nodeName]
+			if nodeInfo.Paused {
+				continue
+			}
 			lc.log.Info(fmt.Sprintf(logging.LightBlue.Wrap("[blockchain RPC for %q] \"%s/ext/bc/%s\""), chainInfo.info.VmId, nodeInfo.GetUri(), chainID))
 		}
 	}
+
 	return nil
 }
 
