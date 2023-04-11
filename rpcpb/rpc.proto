@@ -305,7 +305,7 @@ message SubnetSpec {
 
 message ElasticSubnetSpec {
   string subnet_id = 1;
-  string asset_id = 2;
+  string asset_name = 2;
   uint64 initial_supply = 3;
   uint64 max_supply = 4;
   uint64 min_consumption_rate = 5;
@@ -321,7 +321,7 @@ message ElasticSubnetSpec {
 }
 
 message TransformElasticSubnetRequest {
-  ElasticSubnetSpec elastic_subnet_spec = 1;
+  repeated ElasticSubnetSpec elastic_subnet_spec = 1;
 }
 
 message TransformElasticSubnetResponse {
