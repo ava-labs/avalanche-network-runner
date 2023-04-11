@@ -137,14 +137,11 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 func (ln *localNetwork) CreateSubnets(
 	ctx context.Context,
 	subnetSpecs []network.SubnetSpec,
-) error {
+) ([]ids.ID, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if _, err := ln.installSubnets(ctx, subnetSpecs); err != nil {
-		return err
-	}
-	return nil
+	return ln.installSubnets(ctx, subnetSpecs)
 }
 
 // provisions local cluster and install custom chains if applicable

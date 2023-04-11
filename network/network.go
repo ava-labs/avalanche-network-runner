@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanchego/ids"
 )
 
 var (
@@ -75,5 +76,5 @@ type Network interface {
 	// Create the specified blockchains
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
-	CreateSubnets(context.Context, []SubnetSpec) error
+	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 }
