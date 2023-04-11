@@ -85,24 +85,29 @@ func (ln *localNetwork) getClientURI() (string, error) { //nolint
 func (ln *localNetwork) CreateBlockchains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-) error {
+) ([]ids.ID, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
 	chainInfos, err := ln.installCustomChains(ctx, chainSpecs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := ln.waitForCustomChainsReady(ctx, chainInfos); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	chainIDs := []ids.ID{}
+	for _, chainInfo := range chainInfos {
+		chainIDs = append(chainIDs, chainInfo.blockchainID)
+	}
+
+	return chainIDs, nil
 }
 
 // if alias is defined in blockchain-specs, registers an alias for the previously created blockchain

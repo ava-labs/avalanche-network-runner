@@ -218,12 +218,12 @@ func (lc *localNetwork) Start() error {
 func (lc *localNetwork) CreateChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-) error {
+) ([]ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
 	if len(chainSpecs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -240,18 +240,19 @@ func (lc *localNetwork) CreateChains(
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
-		return err
+	chainIDs, err := lc.nw.CreateBlockchains(ctx, chainSpecs)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return chainIDs, nil
 }
 
 // Creates the given number of subnets.

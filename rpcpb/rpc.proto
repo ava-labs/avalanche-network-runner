@@ -293,7 +293,7 @@ message RPCVersionResponse {
 
 message StartResponse {
   ClusterInfo cluster_info = 1;
-  repeated string chain_id = 2;
+  repeated string chain_ids = 2;
 }
 
 message SubnetSpec {

@@ -74,7 +74,7 @@ type Network interface {
 	// a map of subnet configs
 	RestartNode(context.Context, string, string, string, string, map[string]string, map[string]string, map[string]string) error
 	// Create the specified blockchains
-	CreateBlockchains(context.Context, []BlockchainSpec) error
+	CreateBlockchains(context.Context, []BlockchainSpec) ([]ids.ID, error)
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 }
