@@ -354,29 +354,27 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		return nil, err
 	}
 
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
-		defer cancel()
-		err := s.network.CreateChains(ctx, chainSpecs)
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err != nil {
-			s.log.Error("network never became healthy", zap.Error(err))
-			s.stopAndRemoveNetwork(err)
-			return
-		}
-		s.updateClusterInfo()
-		s.log.Info("network healthy")
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	chainIDs, err := s.network.CreateChains(ctx, chainSpecs)
+	if err != nil {
+		s.log.Error("network never became healthy", zap.Error(err))
+		s.stopAndRemoveNetwork(err)
+		return nil, err
+	}
+	s.updateClusterInfo()
+	s.log.Info("network healthy")
+
+	strChainIDs := []string{}
+	for _, chainID := range chainIDs {
+		strChainIDs = append(strChainIDs, chainID.String())
+	}
 
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &rpcpb.StartResponse{ClusterInfo: clusterInfo}, nil
+	return &rpcpb.StartResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
 // Asssumes [s.mu] is held.
@@ -491,29 +489,28 @@ func (s *server) CreateBlockchains(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
-		defer cancel()
-		err := s.network.CreateChains(ctx, chainSpecs)
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err != nil {
-			s.log.Error("failed to create blockchains", zap.Error(err))
-			s.stopAndRemoveNetwork(err)
-			return
-		} else {
-			s.updateClusterInfo()
-		}
-		s.log.Info("custom chains created")
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	chainIDs, err := s.network.CreateChains(ctx, chainSpecs)
+	if err != nil {
+		s.log.Error("failed to create blockchains", zap.Error(err))
+		s.stopAndRemoveNetwork(err)
+		return nil, err
+	} else {
+		s.updateClusterInfo()
+	}
+	s.log.Info("custom chains created")
+
+	strChainIDs := []string{}
+	for _, chainID := range chainIDs {
+		strChainIDs = append(strChainIDs, chainID.String())
+	}
+
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo}, nil
+	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
@@ -540,30 +537,28 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
-		defer cancel()
-		err := s.network.CreateSubnets(ctx, subnetSpecs)
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err != nil {
-			s.log.Error("failed to create subnets", zap.Error(err))
-			s.stopAndRemoveNetwork(err)
-			return
-		} else {
-			s.updateClusterInfo()
-		}
-		s.log.Info("subnets created")
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	subnetIDs, err := s.network.CreateSubnets(ctx, subnetSpecs)
+	if err != nil {
+		s.log.Error("failed to create subnets", zap.Error(err))
+		s.stopAndRemoveNetwork(err)
+		return nil, err
+	} else {
+		s.updateClusterInfo()
+	}
+	s.log.Info("subnets created")
+
+	strSubnetIDs := []string{}
+	for _, subnetID := range subnetIDs {
+		strSubnetIDs = append(strSubnetIDs, subnetID.String())
+	}
 
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &rpcpb.CreateSubnetsResponse{ClusterInfo: clusterInfo}, nil
+	return &rpcpb.CreateSubnetsResponse{ClusterInfo: clusterInfo, SubnetIds: strSubnetIDs}, nil
 }
 
 func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.HealthResponse, error) {

@@ -293,6 +293,7 @@ message RPCVersionResponse {
 
 message StartResponse {
   ClusterInfo cluster_info = 1;
+  repeated string chain_ids = 2;
 }
 
 message SubnetSpec {
@@ -337,6 +338,7 @@ message CreateBlockchainsRequest {
 
 message CreateBlockchainsResponse {
   ClusterInfo cluster_info = 1;
+  repeated string chain_ids = 2;
 }
 
 message CreateSubnetsRequest {
@@ -345,6 +347,7 @@ message CreateSubnetsRequest {
 
 message CreateSubnetsResponse {
   ClusterInfo cluster_info = 1;
+  repeated string subnet_ids = 2;
 }
 
 message HealthRequest {}

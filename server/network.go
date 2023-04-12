@@ -218,12 +218,12 @@ func (lc *localNetwork) Start() error {
 func (lc *localNetwork) CreateChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec, // VM name + genesis bytes
-) error {
+) ([]ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
 	if len(chainSpecs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -240,29 +240,30 @@ func (lc *localNetwork) CreateChains(
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := lc.nw.CreateBlockchains(ctx, chainSpecs); err != nil {
-		return err
+	chainIDs, err := lc.nw.CreateBlockchains(ctx, chainSpecs)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return chainIDs, nil
 }
 
 // Creates the given number of subnets.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network.SubnetSpec) error {
+func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network.SubnetSpec) ([]ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
 	if len(subnetSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
-		return nil
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -279,19 +280,20 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := lc.nw.CreateSubnets(ctx, subnetSpecs); err != nil {
-		return err
+	subnetIDs, err := lc.nw.CreateSubnets(ctx, subnetSpecs)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
-	return nil
+	return subnetIDs, nil
 }
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
