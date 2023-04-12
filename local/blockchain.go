@@ -951,14 +951,15 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 			if chainSubnetID == newSubnetID {
 				// subnet is new, use participants from spec
 				participants = subnetSpecs[j].Participants
-			} else {
-				// get participants from network
-				nodeNames, err := ln.getSubnetValidatorsNodenames(ctx, chainSubnetID)
-				if err != nil {
-					return nil, err
-				}
-				participants = nodeNames
 			}
+		}
+		if len(participants) == 0 {
+			// get participants from network
+			nodeNames, err := ln.getSubnetValidatorsNodenames(ctx, chainSubnetID)
+			if err != nil {
+				return nil, err
+			}
+			participants = nodeNames
 		}
 		chainAlias := blockchainTxs[i].ID().String()
 		// update config info. set defaults and node specifics
