@@ -264,12 +264,12 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	blockchainFilesCreated := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
+	nodesToRestartForBlockchainConfigUpdate := ln.setBlockchainConfigFiles(chainSpecs, blockchainTxs, ln.log)
 
-	if len(subnetSpecs) > 0 || blockchainFilesCreated {
+	if len(subnetSpecs) > 0 || len(nodesToRestartForBlockchainConfigUpdate) > 0 {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
+		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nodesToRestartForBlockchainConfigUpdate); err != nil {
 			return nil, err
 		}
 	}
@@ -377,7 +377,7 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs); err != nil {
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil); err != nil {
 		return nil, err
 	}
 
@@ -471,6 +471,7 @@ func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
 	subnetSpecs []network.SubnetSpec,
+	nodesToRestartForBlockchainConfigUpdate set.Set[string],
 ) (err error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
@@ -513,6 +514,10 @@ func (ln *localNetwork) restartNodes(
 
 		tracked := strings.Join(trackSubnetIDs, ",")
 		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
+
+		if nodesToRestartForBlockchainConfigUpdate.Contains(nodeName) {
+			needsRestart = true
+		}
 
 		if !needsRestart {
 			continue
@@ -914,33 +919,31 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 	chainSpecs []network.BlockchainSpec,
 	blockchainTxs []*txs.Tx,
 	log logging.Logger,
-) bool {
+) set.Set[string] {
 	fmt.Println()
-	created := false
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
+	nodesToRestart := set.Set[string]{}
 	for i, chainSpec := range chainSpecs {
 		chainAlias := blockchainTxs[i].ID().String()
 		// update config info. set defaults and node specifics
 		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
-			created = true
-			ln.chainConfigFiles[chainAlias] = string(chainSpec.ChainConfig)
 			for nodeName := range ln.nodes {
+				chainConfig := chainSpec.ChainConfig
 				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
-					ln.nodes[nodeName].config.ChainConfigFiles[chainAlias] = string(cfg)
-				} else {
-					delete(ln.nodes[nodeName].config.ChainConfigFiles, chainAlias)
+					chainConfig = cfg
 				}
+				ln.nodes[nodeName].config.ChainConfigFiles[chainAlias] = string(chainConfig)
+				nodesToRestart.Add(nodeName)
 			}
 		}
 		if chainSpec.NetworkUpgrade != nil {
-			created = true
-			ln.upgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
 			for nodeName := range ln.nodes {
-				delete(ln.nodes[nodeName].config.UpgradeConfigFiles, chainAlias)
+				ln.nodes[nodeName].config.UpgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
+				nodesToRestart.Add(nodeName)
 			}
 		}
 	}
-	return created
+	return nodesToRestart
 }
 
 func (ln *localNetwork) setSubnetConfigFiles(
