@@ -211,6 +211,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ccancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
+			_, ok := customChains[createdBlockchainID]
+			gomega.Ω(ok).Should(gomega.Equal(true))
 			existingSubnetID = customChains[createdBlockchainID].SubnetId
 			gomega.Ω(existingSubnetID).Should(gomega.Not(gomega.BeNil()))
 		})
@@ -285,6 +287,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
 			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
+			//verify that no new nodes is added to cluster
+			gomega.Ω(len(status.ClusterInfo.NodeNames)).Should(gomega.Equal(5))
 		})
 
 		ginkgo.By("can create a blockchain with new subnet id with some of existing participating nodes and a new node", func() {
@@ -301,6 +305,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+			//verify that a new node is added to cluster
+			gomega.Ω(len(resp.ClusterInfo.NodeNames)).Should(gomega.Equal(6))
+			_, ok := resp.ClusterInfo.NodeInfos["testNode"]
+			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 			createdBlockchainID = resp.ChainIds[0]
 		})
@@ -766,6 +774,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			response, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
 		})
 		ginkgo.By("wait for custom chains healthy", func() {
@@ -787,6 +796,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			response, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants2}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
 		})
 		ginkgo.By("wait for custom chains healthy", func() {
