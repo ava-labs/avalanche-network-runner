@@ -287,7 +287,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
 			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
-			//verify that no new nodes is added to cluster
+			// verify that no new nodes is added to cluster
 			gomega.Ω(len(status.ClusterInfo.NodeNames)).Should(gomega.Equal(5))
 		})
 
@@ -305,7 +305,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			//verify that a new node is added to cluster
+			// verify that a new node is added to cluster
 			gomega.Ω(len(resp.ClusterInfo.NodeNames)).Should(gomega.Equal(6))
 			_, ok := resp.ClusterInfo.NodeInfos["testNode"]
 			gomega.Ω(ok).Should(gomega.Equal(true))
