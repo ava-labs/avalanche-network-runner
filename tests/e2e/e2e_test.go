@@ -55,6 +55,7 @@ var (
 	newNodeName2      = "test-add-node2"
 	newNode2NodeID    = ""
 	pausedNodeURI     = ""
+	pausedNodeName    = "node1"
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -505,7 +506,9 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
 		// get paused node URI for pause node test later
-		pausedNodeURI = resp.ClusterInfo.NodeInfos["node1"].Uri
+		_, ok := resp.ClusterInfo.NodeInfos[pausedNodeName]
+		gomega.Ω(ok).Should(gomega.Equal(true))
+		pausedNodeURI = resp.ClusterInfo.NodeInfos[pausedNodeName].Uri
 	})
 
 	ginkgo.It("can poll status", func() {
@@ -678,7 +681,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("calling PauseNode", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'pause-node'"))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.PauseNode(ctx, "node1")
+			resp, err := cli.PauseNode(ctx, pausedNodeName)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			ux.Print(log, logging.Green.Wrap("successfully paused, node-names: %s"), resp.ClusterInfo.NodeNames)
@@ -689,17 +692,33 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.HaveOccurred())
 		})
-		ginkgo.By("calling restart API", func() {
+		ginkgo.By("API Call using paused node URI will fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			cancel()
+
+			platformCli := platformvm.NewClient(pausedNodeURI)
+			_, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+			gomega.Ω(err).Should(gomega.HaveOccurred())
+		})
+		ginkgo.By("calling resumeNode API", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.RestartNode(ctx, "node1", client.WithExecPath(execPath1))
+			resp, err := cli.ResumeNode(ctx, pausedNodeName)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			ux.Print(log, logging.Green.Wrap("successfully restarted, node-names: %s"), resp.ClusterInfo.NodeNames)
+			ux.Print(log, logging.Green.Wrap("successfully resumed %s, cluster node-names: %s"), "node1", resp.ClusterInfo.NodeNames)
 		})
 		ginkgo.By("can wait for health", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Health(ctx)
 			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("API Call using resumed node URI", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			cancel()
+
+			platformCli := platformvm.NewClient(pausedNodeURI)
+			_, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})

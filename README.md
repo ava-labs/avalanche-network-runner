@@ -436,7 +436,6 @@ avalanche-network-runner control add-node \
 ```
 
 To pause a node (in this case, node named `node99`):
-Resume by calling `restart-node`
 ```bash
 # e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
 AVALANCHEGO_EXEC_PATH="avalanchego"
@@ -446,6 +445,22 @@ curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99",
 
 # or
 avalanche-network-runner control pause-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node99 
+```
+
+To resume a paused node (in this case, node named `node99`):
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+
+curl -X POST -k http://localhost:8081/v1/control/resumenode -d '{"name":"node99","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control resume-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
