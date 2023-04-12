@@ -965,6 +965,10 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 		// update config info. set defaults and node specifics
 		if chainSpec.ChainConfig != nil || len(chainSpec.PerNodeChainConfig) != 0 {
 			for _, nodeName := range participants {
+				_, b := ln.nodes[nodeName]
+				if !b {
+					return nil, fmt.Errorf("participant node %s is not in network nodes", nodeName)
+				}
 				chainConfig := chainSpec.ChainConfig
 				if cfg, ok := chainSpec.PerNodeChainConfig[nodeName]; ok {
 					chainConfig = cfg
@@ -975,6 +979,10 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 		}
 		if chainSpec.NetworkUpgrade != nil {
 			for _, nodeName := range participants {
+				_, b := ln.nodes[nodeName]
+				if !b {
+					return nil, fmt.Errorf("participant node %s is not in network nodes", nodeName)
+				}
 				ln.nodes[nodeName].config.UpgradeConfigFiles[chainAlias] = string(chainSpec.NetworkUpgrade)
 				nodesToRestart.Add(nodeName)
 			}
