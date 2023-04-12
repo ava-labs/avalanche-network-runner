@@ -435,6 +435,23 @@ avalanche-network-runner control add-node \
 --avalanchego-path ${AVALANCHEGO_EXEC_PATH}
 ```
 
+To pause a node (in this case, node named `node99`):
+Resume by calling `restart-node`
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+
+curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control pause-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node99 
+```
+
 You can also provide additional flags that specify the node's config:
 
 ```sh
