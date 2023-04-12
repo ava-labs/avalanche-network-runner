@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
 	"io"
 	"net"
 	"net/http"
@@ -557,7 +558,7 @@ func (s *server) TransformElasticSubnet(
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 		defer cancel()
-		err := s.network.CreateChains(ctx, chainSpecs)
+		err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if err != nil {
@@ -569,7 +570,7 @@ func (s *server) TransformElasticSubnet(
 		}
 		s.log.Info("custom chains created")
 	}()
-	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: s.clusterInfo}, nil
+	return &rpcpb.TransformElasticSubnetResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
@@ -1233,21 +1234,25 @@ func isClientCanceled(ctxErr error, err error) bool {
 func getNetworkElasticSubnetSpec(
 	spec *rpcpb.ElasticSubnetSpec,
 ) (network.ElasticSubnetSpec, error) {
+	minValidatorRate := time.Duration(spec.MinStakeDuration) * time.Hour
+	maxValidatorRate := time.Duration(spec.MaxStakeDuration) * time.Hour
+
 	elasticSubnetSpec := network.ElasticSubnetSpec{
 		SubnetID:                 &spec.SubnetId,
 		AssetName:                spec.AssetName,
+		AssetSymbol:              spec.AssetSymbol,
 		InitialSupply:            spec.InitialSupply,
 		MaxSupply:                spec.MaxSupply,
-		MinConsumptionRate:       spec.MinConsumptionRate,
-		MaxConsumptionRate:       spec.MaxConsumptionRate,
-		MinValidatorRate:         spec.MinValidatorRate,
-		MaxValidatorRate:         spec.MaxValidatorRate,
-		MinStakeDuration:         spec.MinStakeDuration,
-		MaxStakeDuration:         spec.MaxStakeDuration,
+		MinConsumptionRate:       spec.MinConsumptionRate * reward.PercentDenominator,
+		MaxConsumptionRate:       spec.MaxConsumptionRate * reward.PercentDenominator,
+		MinValidatorStake:        spec.MinValidatorStake,
+		MaxValidatorStake:        spec.MaxValidatorStake,
+		MinStakeDuration:         minValidatorRate,
+		MaxStakeDuration:         maxValidatorRate,
 		MinDelegationFee:         spec.MinDelegationFee,
 		MinDelegatorStake:        spec.MinDelegatorStake,
-		MaxValidatorWeightFactor: spec.MaxValidatorWeightFactor,
-		UptimeRequirement:        spec.UptimeRequirement,
+		MaxValidatorWeightFactor: byte(spec.MaxValidatorWeightFactor),
+		UptimeRequirement:        spec.UptimeRequirement * reward.PercentDenominator,
 	}
 	return elasticSubnetSpec, nil
 }

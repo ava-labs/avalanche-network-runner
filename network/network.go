@@ -3,8 +3,8 @@ package network
 import (
 	"context"
 	"errors"
-
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"time"
 )
 
 var (
@@ -16,17 +16,18 @@ var (
 type ElasticSubnetSpec struct {
 	SubnetID                 *string
 	AssetName                string
+	AssetSymbol              string
 	InitialSupply            uint64
 	MaxSupply                uint64
 	MinConsumptionRate       uint64
 	MaxConsumptionRate       uint64
-	MinValidatorRate         uint64
-	MaxValidatorRate         uint64
-	MinStakeDuration         uint64
-	MaxStakeDuration         uint64
+	MinValidatorStake        uint64
+	MaxValidatorStake        uint64
+	MinStakeDuration         time.Duration
+	MaxStakeDuration         time.Duration
 	MinDelegationFee         uint32
 	MinDelegatorStake        uint64
-	MaxValidatorWeightFactor uint32
+	MaxValidatorWeightFactor byte
 	UptimeRequirement        uint32
 }
 
@@ -93,4 +94,6 @@ type Network interface {
 	CreateBlockchains(context.Context, []BlockchainSpec) error
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) error
+	// Transform subnet into elastic subnet
+	TransformSubnet(context.Context, []ElasticSubnetSpec) error
 }

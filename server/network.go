@@ -251,6 +251,44 @@ func (lc *localNetwork) CreateChains(
 	return nil
 }
 
+func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(elasticSubnetSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	if err := lc.nw.TransformSubnet(ctx, elasticSubnetSpecs); err != nil {
+		return err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnets")))
+	return nil
+}
+
 // Creates the given number of subnets.
 // Assumes [lc.lock] isn't held.
 func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network.SubnetSpec) error {
