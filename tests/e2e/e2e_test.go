@@ -15,17 +15,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
-	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -53,6 +54,7 @@ var (
 	newNodeName       = "test-add-node"
 	newNodeName2      = "test-add-node2"
 	newNode2NodeID    = ""
+	pausedNodeURI     = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -499,9 +501,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("can fetch status", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		_, err := cli.Status(ctx)
+		resp, err := cli.Status(ctx)
 		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
+		// get paused node URI for pause node test later
+		pausedNodeURI = resp.ClusterInfo.NodeInfos["node1"].Uri
 	})
 
 	ginkgo.It("can poll status", func() {
@@ -664,6 +668,35 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("wait for health", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+	})
+	ginkgo.It("can pause a node", func() {
+		ginkgo.By("calling PauseNode", func() {
+			ux.Print(log, logging.Green.Wrap("calling 'pause-node'"))
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.PauseNode(ctx, "node1")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			ux.Print(log, logging.Green.Wrap("successfully paused, node-names: %s"), resp.ClusterInfo.NodeNames)
+		})
+		ginkgo.By("can wait for health", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.Health(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.HaveOccurred())
+		})
+		ginkgo.By("calling restart API", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			resp, err := cli.RestartNode(ctx, "node1", client.WithExecPath(execPath1))
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			ux.Print(log, logging.Green.Wrap("successfully restarted, node-names: %s"), resp.ClusterInfo.NodeNames)
+		})
+		ginkgo.By("can wait for health", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Health(ctx)
 			cancel()
