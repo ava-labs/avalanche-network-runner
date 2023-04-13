@@ -18,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/ips"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
 	"github.com/ava-labs/avalanchego/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -197,9 +198,10 @@ func TestAttachPeer(t *testing.T) {
 
 	// For message creation and parsing
 	mc, err := message.NewCreator(
+		logging.NoLog{},
 		prometheus.NewRegistry(),
 		"",
-		true,
+		constants.DefaultNetworkCompressionType,
 		10*time.Second,
 	)
 	require.NoError(err)
