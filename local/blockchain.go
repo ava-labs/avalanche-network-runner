@@ -705,8 +705,6 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
-	fmt.Printf("getassetid tokenName%s \n", tokenName)
-	fmt.Printf("getassetid tokenSymbol%s \n", tokenSymbol)
 	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
 		tokenName,
 		tokenSymbol,
@@ -776,7 +774,6 @@ func (ln *localNetwork) transformToElasticSubnets(
 	// wallet needs txs for all previously created subnets
 	var preloadTXs []ids.ID
 	for _, elasticSubnetSpec := range elasticSubnetSpecs {
-		fmt.Printf("obtained Subnet IDs %s \n", *elasticSubnetSpec.SubnetID)
 		if elasticSubnetSpec.SubnetID != nil {
 			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
 			if err != nil {
@@ -785,7 +782,6 @@ func (ln *localNetwork) transformToElasticSubnets(
 			preloadTXs = append(preloadTXs, subnetID)
 		}
 	}
-	fmt.Printf("using clientURI %s \n", clientURI)
 	w, err := newWallet(ctx, clientURI, preloadTXs)
 
 	for i, elasticSubnetSpec := range elasticSubnetSpecs {
