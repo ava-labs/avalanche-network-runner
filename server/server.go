@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
 	"io"
 	"net"
 	"net/http"
@@ -511,6 +512,66 @@ func (s *server) CreateBlockchains(
 		return nil, err
 	}
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
+}
+
+func (s *server) TransformElasticSubnet(
+	_ context.Context,
+	req *rpcpb.TransformElasticSubnetRequest,
+) (*rpcpb.TransformElasticSubnetResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("TransformElasticSubnet")
+
+	if len(req.GetElasticSubnetSpec()) == 0 {
+		return nil, ErrNoBlockchainSpec
+	}
+
+	elasticSubnetSpecList := []network.ElasticSubnetSpec{}
+	for _, spec := range req.GetElasticSubnetSpec() {
+		elasticSubnetSpec, err := getNetworkElasticSubnetSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		elasticSubnetSpecList = append(elasticSubnetSpecList, elasticSubnetSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(s.clusterInfo.Subnets...)
+
+	for _, elasticSubnetSpec := range elasticSubnetSpecList {
+		if elasticSubnetSpec.SubnetID != nil && !subnetsSet.Contains(*elasticSubnetSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exits", *elasticSubnetSpec.SubnetID)
+		}
+	}
+
+	s.clusterInfo.Healthy = false
+	s.clusterInfo.CustomChainsHealthy = false
+
+	// update cluster info non-blocking
+	// the user is expected to poll this latest information
+	// to decide cluster/subnet readiness
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+		defer cancel()
+		err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err != nil {
+			s.log.Error("failed to create blockchains", zap.Error(err))
+			s.stopAndRemoveNetwork(err)
+			return
+		} else {
+			s.updateClusterInfo()
+		}
+		s.log.Info("custom chains created")
+	}()
+	return &rpcpb.TransformElasticSubnetResponse{ClusterInfo: s.clusterInfo}, nil
 }
 
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {
@@ -1167,6 +1228,32 @@ func isClientCanceled(ctxErr error, err error) bool {
 		}
 	}
 	return false
+}
+
+func getNetworkElasticSubnetSpec(
+	spec *rpcpb.ElasticSubnetSpec,
+) (network.ElasticSubnetSpec, error) {
+	minValidatorRate := time.Duration(spec.MinStakeDuration) * time.Hour
+	maxValidatorRate := time.Duration(spec.MaxStakeDuration) * time.Hour
+
+	elasticSubnetSpec := network.ElasticSubnetSpec{
+		SubnetID:                 &spec.SubnetId,
+		AssetName:                spec.AssetName,
+		AssetSymbol:              spec.AssetSymbol,
+		InitialSupply:            spec.InitialSupply,
+		MaxSupply:                spec.MaxSupply,
+		MinConsumptionRate:       spec.MinConsumptionRate * reward.PercentDenominator,
+		MaxConsumptionRate:       spec.MaxConsumptionRate * reward.PercentDenominator,
+		MinValidatorStake:        spec.MinValidatorStake,
+		MaxValidatorStake:        spec.MaxValidatorStake,
+		MinStakeDuration:         minValidatorRate,
+		MaxStakeDuration:         maxValidatorRate,
+		MinDelegationFee:         spec.MinDelegationFee,
+		MinDelegatorStake:        spec.MinDelegatorStake,
+		MaxValidatorWeightFactor: byte(spec.MaxValidatorWeightFactor),
+		UptimeRequirement:        spec.UptimeRequirement * reward.PercentDenominator,
+	}
+	return elasticSubnetSpec, nil
 }
 
 func getNetworkBlockchainSpec(

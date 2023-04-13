@@ -8,6 +8,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/avm"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/wallet/chain/x"
 	"os"
 	"path/filepath"
 	"sort"
@@ -135,6 +139,19 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
 			}
 		}
+	}
+	return nil
+}
+
+func (ln *localNetwork) TransformSubnet(
+	ctx context.Context,
+	elasticSubnetConfig []network.ElasticSubnetSpec,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	if _, err := ln.transformToElasticSubnets(ctx, elasticSubnetConfig); err != nil {
+		return err
 	}
 	return nil
 }
@@ -559,6 +576,10 @@ type wallet struct {
 	pBackend p.Backend
 	pBuilder p.Builder
 	pSigner  p.Signer
+	xWallet  x.Wallet
+	xBackend x.Backend
+	xBuilder x.Builder
+	xSigner  x.Signer
 }
 
 func newWallet(
@@ -567,7 +588,7 @@ func newWallet(
 	preloadTXs []ids.ID,
 ) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pCTX, _, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
@@ -585,12 +606,20 @@ func newWallet(
 		pTXs[id] = tx
 	}
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
+	xChainID := xCTX.BlockchainID()
+	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
 	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+
+	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
+	w.xBuilder = x.NewBuilder(kc.Addresses(), xBackend)
+	w.xSigner = x.NewSigner(kc, xBackend)
+	xClient := avm.NewClient(uri, "X")
+	w.xWallet = x.NewWallet(w.xBuilder, w.xSigner, xClient, w.xBackend)
 	return &w, nil
 }
 
@@ -664,6 +693,129 @@ func (ln *localNetwork) addPrimaryValidators(
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
 	}
 	return nil
+}
+
+func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol string, maxSupply uint64) (ids.ID, error) {
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			genesis.EWOQKey.PublicKey().Address(),
+		},
+	}
+	cctx, cancel := createDefaultCtx(ctx)
+	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
+		tokenName,
+		tokenSymbol,
+		9, // denomination for UI purposes only in explorer
+		map[uint32][]verify.State{
+			0: {
+				&secp256k1fx.TransferOutput{
+					Amt:          maxSupply,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(cctx),
+	)
+	defer cancel()
+	if err != nil {
+		return ids.Empty, err
+	}
+	return subnetAssetID, nil
+}
+
+func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, maxSupply uint64) error {
+	cctx, cancel := createDefaultCtx(ctx)
+	_, err := w.xWallet.IssueExportTx(
+		ids.Empty,
+		[]*avax.TransferableOutput{
+			{
+				Asset: avax.Asset{
+					ID: subnetAssetID,
+				},
+				Out: &secp256k1fx.TransferOutput{
+					Amt:          maxSupply,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(cctx),
+	)
+	defer cancel()
+	return err
+}
+
+func importFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
+	xWallet := w.xWallet
+	pWallet := w.pWallet
+	cctx, cancel := createDefaultCtx(ctx)
+	xChainID := xWallet.BlockchainID()
+	_, err := pWallet.IssueImportTx(
+		xChainID,
+		owner,
+		common.WithContext(cctx),
+	)
+	defer cancel()
+	return err
+}
+func (ln *localNetwork) transformToElasticSubnets(
+	ctx context.Context,
+	elasticSubnetSpecs []network.ElasticSubnetSpec,
+) ([]ids.ID, error) {
+	ln.log.Info("transforming elastic subnet tx")
+	elasticSubnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
+	for i, elasticSubnetSpec := range elasticSubnetSpecs {
+		ln.log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", *elasticSubnetSpec.SubnetID))
+		clientURI, err := ln.getClientURI()
+		if err != nil {
+			return nil, err
+		}
+		w, err := newWallet(ctx, clientURI, []ids.ID{})
+		if err != nil {
+			return nil, err
+		}
+
+		subnetAssetID, err := getAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
+		owner := &secp256k1fx.OutputOwners{
+			Threshold: 1,
+			Addrs: []ids.ShortID{
+				genesis.EWOQKey.PublicKey().Address(),
+			},
+		}
+		err = exportToPChain(ctx, w, owner, subnetAssetID, elasticSubnetSpec.MaxSupply)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("exported asset to P-Chain")
+		err = importFromXChain(ctx, w, owner)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("imported asset from X-Chain")
+		subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
+		if err != nil {
+			return nil, err
+		}
+		cctx, cancel := createDefaultCtx(ctx)
+		transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(subnetID, subnetAssetID,
+			elasticSubnetSpec.InitialSupply, elasticSubnetSpec.MaxSupply, elasticSubnetSpec.MinConsumptionRate,
+			elasticSubnetSpec.MaxConsumptionRate, elasticSubnetSpec.MinValidatorStake, elasticSubnetSpec.MaxValidatorStake,
+			elasticSubnetSpec.MinStakeDuration, elasticSubnetSpec.MaxStakeDuration, elasticSubnetSpec.MinDelegationFee,
+			elasticSubnetSpec.MinDelegatorStake, elasticSubnetSpec.MaxValidatorWeightFactor, elasticSubnetSpec.UptimeRequirement,
+			common.WithContext(cctx),
+		)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
+		elasticSubnetIDs[i] = transformSubnetTxID
+	}
+	return elasticSubnetIDs, nil
 }
 
 func createSubnets(
