@@ -192,6 +192,14 @@ message ClusterInfo {
   map<string, SubnetParticipants> subnet_participants = 10;
 }
 
+message SubnetInfo {
+  // If Subnet is an Elastic Subnet
+  string isElastic = 1;
+
+  // node validators of subnet
+  repeated SubnetParticipants subnet_participants = 2;
+}
+
 message CustomChainInfo {
   // Blockchain name given to the create blockchain TX
   // Currently used to keep a record of the VM name,

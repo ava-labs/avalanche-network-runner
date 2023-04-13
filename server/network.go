@@ -44,7 +44,8 @@ type localNetwork struct {
 	stopCh   chan struct{}
 	stopOnce sync.Once
 
-	subnets []string
+	//subnets []string
+	subnets map[string][]*rpcpb.SubnetInfo
 	// map from subnet ID to list of participating node ids
 	subnetParticipants map[string][]string
 }
@@ -369,14 +370,16 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		return err
 	}
 
-	lc.subnets = []string{}
+	//lc.subnets = []string{}
+	subnetIDList := []string{}
 	for _, subnet := range subnets {
 		if subnet.ID != avago_constants.PlatformChainID {
-			lc.subnets = append(lc.subnets, subnet.ID.String())
+			//lc.subnets = append(lc.subnets, subnet.ID.String())
+			subnetIDList = append(subnetIDList, subnet.ID.String())
 		}
 	}
 
-	for _, subnetID := range lc.subnets {
+	for _, subnetID := range subnetIDList {
 		createdSubnetID, err := ids.FromString(subnetID)
 		if err != nil {
 			return err
@@ -395,6 +398,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 			}
 		}
 		lc.subnetParticipants[subnetID] = nodeNameList
+		lc.subnets[subnetID] = nodeNameList
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
