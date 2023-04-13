@@ -403,7 +403,7 @@ avalanche-network-runner control remove-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node5
+node5
 ```
 
 To restart a node (in this case, the one named `node1`):
@@ -421,8 +421,8 @@ avalanche-network-runner control restart-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node1 \
---avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+node1 
 ```
 
 To add a node (in this case, a new node named `node99`):
@@ -440,8 +440,8 @@ avalanche-network-runner control add-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node99 \
---avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+node99 
 ```
 
 To pause a node (in this case, node named `node99`):
@@ -457,7 +457,7 @@ avalanche-network-runner control pause-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node99 
+node99 
 ```
 
 To resume a paused node (in this case, node named `node99`):
@@ -473,7 +473,7 @@ avalanche-network-runner control resume-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node99 
+node99 
 ```
 
 You can also provide additional flags that specify the node's config:

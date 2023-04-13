@@ -15,11 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/server"
-	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 
+	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
@@ -716,8 +715,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("API Call using paused node URI will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			cancel()
-
+			defer cancel()
 			platformCli := platformvm.NewClient(pausedNodeURI)
 			_, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
 			gomega.Ω(err).Should(gomega.HaveOccurred())
@@ -737,8 +735,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("API Call using resumed node URI", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			cancel()
-
+			defer cancel()
 			platformCli := platformvm.NewClient(pausedNodeURI)
 			_, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
 			gomega.Ω(err).Should(gomega.BeNil())
