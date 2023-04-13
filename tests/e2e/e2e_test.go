@@ -65,11 +65,15 @@ var (
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
 	}
-	numNodes            = uint32(5)
-	subnetParticipants  = []string{"node1", "node2", "node3"}
-	newParticipantNode  = "newParticipantNode"
-	subnetParticipants2 = []string{"node1", "node2", newParticipantNode}
-	existingNodes       = []string{"node1", "node2", "node3", "node4", "node5"}
+	numNodes                      = uint32(5)
+	subnetParticipants            = []string{"node1", "node2", "node3"}
+	newParticipantNode            = "newParticipantNode"
+	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
+	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
+	disjointNewSubnetParticipants = [][]string{
+		{"new_node1", "new_node2"},
+		{"new_node3", "new_node4"},
+	}
 )
 
 func init() {
@@ -160,6 +164,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	ginkgo.It("can create blockhains", func() {
 		existingSubnetID := ""
 		createdBlockchainID := ""
+		createdBlockchainID2 := ""
 		ginkgo.By("start with blockchain specs", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -361,6 +366,87 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			_, err := cli.WaitForHealthy(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can create two blockchains in two new disjoint subnets with bls validators", func() {
+			// get prev status
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			prevStatus, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			cancel()
+			// create blockchains
+			ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+			resp, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:     "subnetevm",
+						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						SubnetSpec: &rpcpb.SubnetSpec{Participants: disjointNewSubnetParticipants[0]},
+					},
+					{
+						VmName:     "subnetevm",
+						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						SubnetSpec: &rpcpb.SubnetSpec{Participants: disjointNewSubnetParticipants[1]},
+					},
+				},
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			// check new nodes
+			allNewParticipants := append(disjointNewSubnetParticipants[0], disjointNewSubnetParticipants[1]...)
+			expectedLen := len(prevStatus.ClusterInfo.NodeNames) + len(allNewParticipants)
+			gomega.Ω(len(resp.ClusterInfo.NodeNames)).Should(gomega.Equal(expectedLen))
+			for _, nodeName := range allNewParticipants {
+				_, ok := resp.ClusterInfo.NodeInfos[nodeName]
+				gomega.Ω(ok).Should(gomega.Equal(true))
+			}
+			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(2))
+			createdBlockchainID = resp.ChainIds[0]
+			createdBlockchainID2 = resp.ChainIds[1]
+		})
+
+		ginkgo.By("verify the new subnets also has correct participants", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			status, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			customChains := status.ClusterInfo.GetCustomChains()
+			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[0], status.ClusterInfo, createdSubnetIDString)
+			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
+			createdSubnetID2String := customChains[createdBlockchainID2].SubnetId
+			subnet2HasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[1], status.ClusterInfo, createdSubnetID2String)
+			gomega.Ω(subnet2HasCorrectParticipants).Should(gomega.Equal(true))
+		})
+
+		ginkgo.By("verify that new validators have BLS Keys", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+			gomega.Ω(err).Should(gomega.BeNil())
+			status, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			allNewParticipants := append(disjointNewSubnetParticipants[0], disjointNewSubnetParticipants[1]...)
+			for _, nodeName := range allNewParticipants {
+				nodeInfo, ok := status.ClusterInfo.NodeInfos[nodeName]
+				gomega.Ω(ok).Should(gomega.Equal(true))
+				found := false
+				for _, v := range vdrs {
+					if v.NodeID.String() == nodeInfo.Id {
+						gomega.Ω(v.Signer).Should(gomega.Not(gomega.BeNil()))
+						found = true
+					}
+				}
+				gomega.Ω(found).Should(gomega.Equal(true))
+			}
+			cancel()
 		})
 
 		ginkgo.By("can save snapshot", func() {

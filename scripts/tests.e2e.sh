@@ -111,6 +111,7 @@ then
     # download subnet-evm 
     # https://github.com/ava-labs/subnet-evm/releases
     GOARCH=$(go env GOARCH)
+    GOOS=$(go env GOOS)
     DOWNLOAD_URL=https://github.com/ava-labs/subnet-evm/releases/download/v${SUBNET_EVM_VERSION}/subnet-evm_${SUBNET_EVM_VERSION}_linux_${GOARCH}.tar.gz
     DOWNLOAD_PATH=/tmp/subnet-evm.tar.gz
     if [[ ${GOOS} == "darwin" ]]; then
