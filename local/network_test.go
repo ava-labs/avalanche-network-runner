@@ -100,7 +100,7 @@ func (*localTestFlagCheckProcessCreator) GetNodeVersion(_ node.Config) (string, 
 func newMockAPISuccessful(string, uint16) api.Client {
 	healthReply := &health.APIReply{Healthy: true}
 	healthClient := &healthmocks.Client{}
-	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything, mock.Anything).Return(healthReply, nil)
 	// ethClient used when removing nodes, to close websocket connection
 	ethClient := &apimocks.EthClient{}
 	ethClient.On("Close").Return()
@@ -114,7 +114,7 @@ func newMockAPISuccessful(string, uint16) api.Client {
 func newMockAPIUnhealthy(string, uint16) api.Client {
 	healthReply := &health.APIReply{Healthy: false}
 	healthClient := &healthmocks.Client{}
-	healthClient.On("Health", mock.Anything).Return(healthReply, nil)
+	healthClient.On("Health", mock.Anything, mock.Anything).Return(healthReply, nil)
 	client := &apimocks.Client{}
 	client.On("HealthAPI").Return(healthClient)
 	return client
@@ -1299,12 +1299,12 @@ func newMockAPIHealthyBlocks(string, uint16) api.Client {
 	healthClient := &healthmocks.Client{}
 	healthClient.On("Health", mock.MatchedBy(func(_ context.Context) bool {
 		return true
-	}), mock.Anything).Return(
-		func(ctx context.Context, _ ...rpc.Option) *health.APIReply {
+	}), mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, _ []string, _ ...rpc.Option) *health.APIReply {
 			<-ctx.Done()
 			return nil
 		},
-		func(ctx context.Context, _ ...rpc.Option) error {
+		func(ctx context.Context, _ []string, _ ...rpc.Option) error {
 			<-ctx.Done()
 			return ctx.Err()
 		},
