@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"sync"
 
@@ -136,8 +135,6 @@ func (lc *localNetwork) createConfig() error {
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 		nodeName := fmt.Sprintf("node%d", i+1)
-		logDir := filepath.Join(lc.options.rootDataDir, nodeName, "log")
-		dbDir := filepath.Join(lc.options.rootDataDir, nodeName, "db-dir")
 
 		cfg.NodeConfigs[i].Name = nodeName
 
@@ -160,9 +157,6 @@ func (lc *localNetwork) createConfig() error {
 			delete(cfg.NodeConfigs[i].Flags, config.HTTPPortKey)
 			delete(cfg.NodeConfigs[i].Flags, config.StakingPortKey)
 		}
-
-		cfg.NodeConfigs[i].Flags[config.LogsDirKey] = logDir
-		cfg.NodeConfigs[i].Flags[config.DBPathKey] = dbDir
 
 		if lc.options.trackSubnets != "" {
 			cfg.NodeConfigs[i].Flags[config.TrackSubnetsKey] = lc.options.trackSubnets
