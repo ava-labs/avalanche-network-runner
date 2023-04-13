@@ -679,7 +679,7 @@ func (ln *localNetwork) healthy(ctx context.Context) error {
 					// Since it is, it means the node stopped unexpectedly.
 					return fmt.Errorf("node %q stopped unexpectedly", nodeName)
 				}
-				health, err := node.client.HealthAPI().Health(ctx)
+				health, err := node.client.HealthAPI().Health(ctx, nil)
 				if err == nil && health.Healthy {
 					ln.log.Debug("node became healthy", zap.String("name", nodeName))
 					return nil

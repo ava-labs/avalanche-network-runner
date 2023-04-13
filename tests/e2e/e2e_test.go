@@ -577,9 +577,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ux.Print(log, logging.Green.Wrap("successfully attached peer, peers: %+v"), v.Peers)
 
 			mc, err := message.NewCreator(
+				logging.NoLog{},
 				prometheus.NewRegistry(),
 				"",
-				true,
+				avago_constants.DefaultNetworkCompressionType,
 				10*time.Second,
 			)
 			gomega.Ω(err).Should(gomega.BeNil())
