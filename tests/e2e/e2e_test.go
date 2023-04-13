@@ -64,7 +64,8 @@ var (
 	}
 	numNodes            = uint32(5)
 	subnetParticipants  = []string{"node1", "node2", "node3"}
-	subnetParticipants2 = []string{"node1", "node2", "testNode"}
+	newParticipantNode  = "newParticipantNode"
+	subnetParticipants2 = []string{"node1", "node2", newParticipantNode}
 	existingNodes       = []string{"node1", "node2", "node3", "node4", "node5"}
 )
 
@@ -307,7 +308,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			// verify that a new node is added to cluster
 			gomega.Ω(len(resp.ClusterInfo.NodeNames)).Should(gomega.Equal(6))
-			_, ok := resp.ClusterInfo.NodeInfos["testNode"]
+			_, ok := resp.ClusterInfo.NodeInfos[newParticipantNode]
 			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 			createdBlockchainID = resp.ChainIds[0]
@@ -796,6 +797,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			response, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants2}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
+			// verify that a new node is added to cluster
+			gomega.Ω(len(response.ClusterInfo.NodeNames)).Should(gomega.Equal(7))
+			_, ok := response.ClusterInfo.NodeInfos[newParticipantNode]
+			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
 		})
@@ -808,7 +813,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			resp, err := cli.AddNode(ctx, "testNode", execPath1)
+			resp, err := cli.AddNode(ctx, newParticipantNode, execPath1)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("repeated node name"))
 			gomega.Ω(resp).Should(gomega.BeNil())
