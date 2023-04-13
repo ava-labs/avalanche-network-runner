@@ -9,9 +9,9 @@ if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   exit 255
 fi
 
-DEFAULT_VERSION_1=1.9.16
-DEFAULT_VERSION_2=1.9.15
-DEFAULT_SUBNET_EVM_VERSION=0.4.12
+DEFAULT_VERSION_1=1.10.0
+DEFAULT_VERSION_2=1.9.16
+DEFAULT_SUBNET_EVM_VERSION=0.5.0
 
 if [ $# == 0 ]; then
     VERSION_1=$DEFAULT_VERSION_1
@@ -111,6 +111,7 @@ then
     # download subnet-evm 
     # https://github.com/ava-labs/subnet-evm/releases
     GOARCH=$(go env GOARCH)
+    GOOS=$(go env GOOS)
     DOWNLOAD_URL=https://github.com/ava-labs/subnet-evm/releases/download/v${SUBNET_EVM_VERSION}/subnet-evm_${SUBNET_EVM_VERSION}_linux_${GOARCH}.tar.gz
     DOWNLOAD_PATH=/tmp/subnet-evm.tar.gz
     if [[ ${GOOS} == "darwin" ]]; then
