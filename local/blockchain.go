@@ -8,15 +8,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/ava-labs/avalanchego/vms/avm"
-	"github.com/ava-labs/avalanchego/vms/components/avax"
-	"github.com/ava-labs/avalanchego/vms/components/verify"
-	"github.com/ava-labs/avalanchego/wallet/chain/x"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ava-labs/avalanchego/vms/avm"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/wallet/chain/x"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -758,6 +759,7 @@ func importFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputO
 	defer cancel()
 	return err
 }
+
 func (ln *localNetwork) transformToElasticSubnets(
 	ctx context.Context,
 	elasticSubnetSpecs []network.ElasticSubnetSpec,
