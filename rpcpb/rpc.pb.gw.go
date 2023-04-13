@@ -168,7 +168,7 @@ func local_request_ControlService_CreateBlockchains_0(ctx context.Context, marsh
 }
 
 func request_ControlService_TransformElasticSubnet_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq TransformElasticSubnetRequest
+	var protoReq TransformElasticSubnetsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -185,7 +185,7 @@ func request_ControlService_TransformElasticSubnet_0(ctx context.Context, marsha
 }
 
 func local_request_ControlService_TransformElasticSubnet_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq TransformElasticSubnetRequest
+	var protoReq TransformElasticSubnetsRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)

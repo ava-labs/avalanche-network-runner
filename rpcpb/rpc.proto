@@ -43,7 +43,7 @@ service ControlService {
     };
   }
 
-  rpc TransformElasticSubnet(TransformElasticSubnetRequest) returns (TransformElasticSubnetResponse) {
+  rpc TransformElasticSubnet(TransformElasticSubnetsRequest) returns (TransformElasticSubnetsResponse) {
     option (google.api.http) = {
       post: "/v1/control/transformelasticsubnet"
       body: "*"
@@ -327,12 +327,13 @@ message ElasticSubnetSpec {
   uint32 uptime_requirement = 15;
 }
 
-message TransformElasticSubnetRequest {
+message TransformElasticSubnetsRequest {
   repeated ElasticSubnetSpec elastic_subnet_spec = 1;
 }
 
-message TransformElasticSubnetResponse {
+message TransformElasticSubnetsResponse {
   ClusterInfo cluster_info = 1;
+  repeated string tx_ids = 2;
 }
 
 message BlockchainSpec {

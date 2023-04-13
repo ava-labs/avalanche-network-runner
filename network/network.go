@@ -97,5 +97,5 @@ type Network interface {
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
-	TransformSubnet(context.Context, []ElasticSubnetSpec) error
+	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
 }

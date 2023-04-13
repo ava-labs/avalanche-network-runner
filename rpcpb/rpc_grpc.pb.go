@@ -140,7 +140,7 @@ type ControlServiceClient interface {
 	RPCVersion(ctx context.Context, in *RPCVersionRequest, opts ...grpc.CallOption) (*RPCVersionResponse, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
-	TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetRequest, opts ...grpc.CallOption) (*TransformElasticSubnetResponse, error)
+	TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
@@ -196,8 +196,8 @@ func (c *controlServiceClient) CreateBlockchains(ctx context.Context, in *Create
 	return out, nil
 }
 
-func (c *controlServiceClient) TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetRequest, opts ...grpc.CallOption) (*TransformElasticSubnetResponse, error) {
-	out := new(TransformElasticSubnetResponse)
+func (c *controlServiceClient) TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error) {
+	out := new(TransformElasticSubnetsResponse)
 	err := c.cc.Invoke(ctx, ControlService_TransformElasticSubnet_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ type ControlServiceServer interface {
 	RPCVersion(context.Context, *RPCVersionRequest) (*RPCVersionResponse, error)
 	Start(context.Context, *StartRequest) (*StartResponse, error)
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
-	TransformElasticSubnet(context.Context, *TransformElasticSubnetRequest) (*TransformElasticSubnetResponse, error)
+	TransformElasticSubnet(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
@@ -432,7 +432,7 @@ func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (
 func (UnimplementedControlServiceServer) CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBlockchains not implemented")
 }
-func (UnimplementedControlServiceServer) TransformElasticSubnet(context.Context, *TransformElasticSubnetRequest) (*TransformElasticSubnetResponse, error) {
+func (UnimplementedControlServiceServer) TransformElasticSubnet(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransformElasticSubnet not implemented")
 }
 func (UnimplementedControlServiceServer) CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error) {
@@ -557,7 +557,7 @@ func _ControlService_CreateBlockchains_Handler(srv interface{}, ctx context.Cont
 }
 
 func _ControlService_TransformElasticSubnet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TransformElasticSubnetRequest)
+	in := new(TransformElasticSubnetsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -569,7 +569,7 @@ func _ControlService_TransformElasticSubnet_Handler(srv interface{}, ctx context
 		FullMethod: ControlService_TransformElasticSubnet_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).TransformElasticSubnet(ctx, req.(*TransformElasticSubnetRequest))
+		return srv.(ControlServiceServer).TransformElasticSubnet(ctx, req.(*TransformElasticSubnetsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

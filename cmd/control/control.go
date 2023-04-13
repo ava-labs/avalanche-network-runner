@@ -54,6 +54,7 @@ func NewCommand() *cobra.Command {
 		newStartCommand(),
 		newCreateBlockchainsCommand(),
 		newCreateSubnetsCommand(),
+		newTransformElasticSubnetsCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
 		newURIsCommand(),
@@ -380,6 +381,44 @@ func createSubnetsFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("create-subnets response: %+v"), info)
+	return nil
+}
+
+func newTransformElasticSubnetsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "elastic-subnets [options]",
+		Short: "Transform subnets to elastic subnets.",
+		RunE:  transformElasticSubnetsFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	elasticSubnetSpecsStr := args[0]
+
+	elasticSubnetSpecs := []*rpcpb.ElasticSubnetSpec{}
+	if err := json.Unmarshal([]byte(elasticSubnetSpecsStr), &elasticSubnetSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.TransformElasticSubnets(
+		ctx,
+		elasticSubnetSpecs,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("elastic-subnets response: %+v"), info)
 	return nil
 }
 

@@ -67,6 +67,10 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
+type elasticSubnetInfo struct {
+	txID ids.ID
+}
+
 // get an arbitrary node in the network
 func (ln *localNetwork) getSomeNode() node.Node {
 	var node node.Node
@@ -147,14 +151,11 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 func (ln *localNetwork) TransformSubnet(
 	ctx context.Context,
 	elasticSubnetConfig []network.ElasticSubnetSpec,
-) error {
+) ([]ids.ID, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	if _, err := ln.transformToElasticSubnets(ctx, elasticSubnetConfig); err != nil {
-		return err
-	}
-	return nil
+	return ln.transformToElasticSubnets(ctx, elasticSubnetConfig)
 }
 
 func (ln *localNetwork) CreateSubnets(
@@ -616,9 +617,9 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
-	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
-	w.xBuilder = x.NewBuilder(kc.Addresses(), xBackend)
-	w.xSigner = x.NewSigner(kc, xBackend)
+	w.xBackend = x.NewBackend(xCTX, xChainID, xUTXOs)
+	w.xBuilder = x.NewBuilder(kc.Addresses(), w.xBackend)
+	w.xSigner = x.NewSigner(kc, w.xBackend)
 	xClient := avm.NewClient(uri, "X")
 	w.xWallet = x.NewWallet(w.xBuilder, w.xSigner, xClient, w.xBackend)
 	return &w, nil
@@ -704,6 +705,8 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
+	fmt.Printf("getassetid tokenName%s \n", tokenName)
+	fmt.Printf("getassetid tokenSymbol%s \n", tokenSymbol)
 	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
 		tokenName,
 		tokenSymbol,
@@ -766,16 +769,27 @@ func (ln *localNetwork) transformToElasticSubnets(
 ) ([]ids.ID, error) {
 	ln.log.Info("transforming elastic subnet tx")
 	elasticSubnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return nil, err
+	}
+	// wallet needs txs for all previously created subnets
+	var preloadTXs []ids.ID
+	for _, elasticSubnetSpec := range elasticSubnetSpecs {
+		fmt.Printf("obtained Subnet IDs %s \n", *elasticSubnetSpec.SubnetID)
+		if elasticSubnetSpec.SubnetID != nil {
+			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
+			if err != nil {
+				return nil, err
+			}
+			preloadTXs = append(preloadTXs, subnetID)
+		}
+	}
+	fmt.Printf("using clientURI %s \n", clientURI)
+	w, err := newWallet(ctx, clientURI, preloadTXs)
+
 	for i, elasticSubnetSpec := range elasticSubnetSpecs {
 		ln.log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", *elasticSubnetSpec.SubnetID))
-		clientURI, err := ln.getClientURI()
-		if err != nil {
-			return nil, err
-		}
-		w, err := newWallet(ctx, clientURI, []ids.ID{})
-		if err != nil {
-			return nil, err
-		}
 
 		subnetAssetID, err := getAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
 		if err != nil {
