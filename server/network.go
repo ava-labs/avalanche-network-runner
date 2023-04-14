@@ -372,11 +372,9 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		return err
 	}
 
-	//lc.subnets = []string{}
 	subnetIDList := []string{}
 	for _, subnet := range subnets {
 		if subnet.ID != avago_constants.PlatformChainID {
-			//lc.subnets = append(lc.subnets, subnet.ID.String())
 			subnetIDList = append(subnetIDList, subnet.ID.String())
 		}
 	}
