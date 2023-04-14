@@ -188,7 +188,7 @@ message ClusterInfo {
   bool custom_chains_healthy = 7;
   // The map of blockchain IDs in "ids.ID" format to its blockchain information.
   map<string, CustomChainInfo> custom_chains = 8;
-  repeated string subnets          = 9;
+  map<string, SubnetInfo> subnets          = 9;
   map<string, SubnetParticipants> subnet_participants = 10;
 }
 

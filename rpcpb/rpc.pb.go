@@ -169,7 +169,7 @@ type ClusterInfo struct {
 	CustomChainsHealthy bool `protobuf:"varint,7,opt,name=custom_chains_healthy,json=customChainsHealthy,proto3" json:"custom_chains_healthy,omitempty"`
 	// The map of blockchain IDs in "ids.ID" format to its blockchain information.
 	CustomChains       map[string]*CustomChainInfo    `protobuf:"bytes,8,rep,name=custom_chains,json=customChains,proto3" json:"custom_chains,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Subnets            []string                       `protobuf:"bytes,9,rep,name=subnets,proto3" json:"subnets,omitempty"`
+	Subnets            map[string]*SubnetInfo         `protobuf:"bytes,9,rep,name=subnets,proto3" json:"subnets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	SubnetParticipants map[string]*SubnetParticipants `protobuf:"bytes,10,rep,name=subnet_participants,json=subnetParticipants,proto3" json:"subnet_participants,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -261,7 +261,7 @@ func (x *ClusterInfo) GetCustomChains() map[string]*CustomChainInfo {
 	return nil
 }
 
-func (x *ClusterInfo) GetSubnets() []string {
+func (x *ClusterInfo) GetSubnets() map[string]*SubnetInfo {
 	if x != nil {
 		return x.Subnets
 	}
@@ -3080,7 +3080,7 @@ var file_rpcpb_rpc_proto_rawDesc = []byte{
 	0x28, 0x05, 0x52, 0x03, 0x70, 0x69, 0x64, 0x22, 0x33, 0x0a, 0x12, 0x53, 0x75, 0x62, 0x6e, 0x65,
 	0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x12, 0x1d, 0x0a,
 	0x0a, 0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
-	0x09, 0x52, 0x09, 0x6e, 0x6f, 0x64, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x22, 0xfe, 0x06, 0x0a,
+	0x09, 0x52, 0x09, 0x6e, 0x6f, 0x64, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x22, 0xee, 0x07, 0x0a,
 	0x0b, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x1d, 0x0a, 0x0a,
 	0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09,
 	0x52, 0x09, 0x6e, 0x6f, 0x64, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x12, 0x40, 0x0a, 0x0a, 0x6e,
@@ -3106,30 +3106,37 @@ var file_rpcpb_rpc_proto_rawDesc = []byte{
 	0x03, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x6c, 0x75, 0x73,
 	0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x2e, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x43, 0x68,
 	0x61, 0x69, 0x6e, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x0c, 0x63, 0x75, 0x73, 0x74, 0x6f,
-	0x6d, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x75, 0x62, 0x6e, 0x65,
-	0x74, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74,
-	0x73, 0x12, 0x5b, 0x0a, 0x13, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x5f, 0x70, 0x61, 0x72, 0x74,
-	0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x18, 0x0a, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2a,
-	0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e,
-	0x66, 0x6f, 0x2e, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63, 0x69,
-	0x70, 0x61, 0x6e, 0x74, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x12, 0x73, 0x75, 0x62, 0x6e,
-	0x65, 0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x1a, 0x4d,
-	0x0a, 0x0e, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79,
-	0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b,
-	0x65, 0x79, 0x12, 0x25, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x0f, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x6e,
-	0x66, 0x6f, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x63, 0x0a,
-	0x16, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x65, 0x64, 0x50, 0x65, 0x65, 0x72, 0x49, 0x6e, 0x66,
-	0x6f, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x33, 0x0a, 0x05, 0x76, 0x61, 0x6c,
-	0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
-	0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4f, 0x66, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x65, 0x64, 0x50,
-	0x65, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02,
-	0x38, 0x01, 0x1a, 0x57, 0x0a, 0x11, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x43, 0x68, 0x61, 0x69,
-	0x6e, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x2c, 0x0a, 0x05, 0x76, 0x61, 0x6c,
-	0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
-	0x2e, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x6e, 0x66, 0x6f,
+	0x6d, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x12, 0x39, 0x0a, 0x07, 0x73, 0x75, 0x62, 0x6e, 0x65,
+	0x74, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62,
+	0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x2e, 0x53, 0x75, 0x62,
+	0x6e, 0x65, 0x74, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x73, 0x75, 0x62, 0x6e, 0x65,
+	0x74, 0x73, 0x12, 0x5b, 0x0a, 0x13, 0x73, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x5f, 0x70, 0x61, 0x72,
+	0x74, 0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x18, 0x0a, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x2a, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x49,
+	0x6e, 0x66, 0x6f, 0x2e, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63,
+	0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x12, 0x73, 0x75, 0x62,
+	0x6e, 0x65, 0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74, 0x73, 0x1a,
+	0x4d, 0x0a, 0x0e, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x73, 0x45, 0x6e, 0x74, 0x72,
+	0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03,
+	0x6b, 0x65, 0x79, 0x12, 0x25, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x49,
+	0x6e, 0x66, 0x6f, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x63,
+	0x0a, 0x16, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x65, 0x64, 0x50, 0x65, 0x65, 0x72, 0x49, 0x6e,
+	0x66, 0x6f, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x33, 0x0a, 0x05, 0x76, 0x61,
+	0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x72, 0x70, 0x63, 0x70,
+	0x62, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4f, 0x66, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x65, 0x64,
+	0x50, 0x65, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a,
+	0x02, 0x38, 0x01, 0x1a, 0x57, 0x0a, 0x11, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x43, 0x68, 0x61,
+	0x69, 0x6e, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x2c, 0x0a, 0x05, 0x76, 0x61,
+	0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x72, 0x70, 0x63, 0x70,
+	0x62, 0x2e, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x6e, 0x66,
+	0x6f, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x4d, 0x0a, 0x0c,
+	0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03,
+	0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x27,
+	0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x11, 0x2e,
+	0x72, 0x70, 0x63, 0x70, 0x62, 0x2e, 0x53, 0x75, 0x62, 0x6e, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f,
 	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x60, 0x0a, 0x17, 0x53,
 	0x75, 0x62, 0x6e, 0x65, 0x74, 0x50, 0x61, 0x72, 0x74, 0x69, 0x63, 0x69, 0x70, 0x61, 0x6e, 0x74,
 	0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20,
@@ -3715,7 +3722,7 @@ func file_rpcpb_rpc_proto_rawDescGZIP() []byte {
 	return file_rpcpb_rpc_proto_rawDescData
 }
 
-var file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 70)
+var file_rpcpb_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
 var file_rpcpb_rpc_proto_goTypes = []interface{}{
 	(*PingRequest)(nil),                 // 0: rpcpb.PingRequest
 	(*PingResponse)(nil),                // 1: rpcpb.PingResponse
@@ -3773,114 +3780,117 @@ var file_rpcpb_rpc_proto_goTypes = []interface{}{
 	nil,                                 // 53: rpcpb.ClusterInfo.NodeInfosEntry
 	nil,                                 // 54: rpcpb.ClusterInfo.AttachedPeerInfosEntry
 	nil,                                 // 55: rpcpb.ClusterInfo.CustomChainsEntry
-	nil,                                 // 56: rpcpb.ClusterInfo.SubnetParticipantsEntry
-	nil,                                 // 57: rpcpb.StartRequest.CustomNodeConfigsEntry
-	nil,                                 // 58: rpcpb.StartRequest.ChainConfigsEntry
-	nil,                                 // 59: rpcpb.StartRequest.UpgradeConfigsEntry
-	nil,                                 // 60: rpcpb.StartRequest.SubnetConfigsEntry
-	nil,                                 // 61: rpcpb.RestartNodeRequest.ChainConfigsEntry
-	nil,                                 // 62: rpcpb.RestartNodeRequest.UpgradeConfigsEntry
-	nil,                                 // 63: rpcpb.RestartNodeRequest.SubnetConfigsEntry
-	nil,                                 // 64: rpcpb.AddNodeRequest.ChainConfigsEntry
-	nil,                                 // 65: rpcpb.AddNodeRequest.UpgradeConfigsEntry
-	nil,                                 // 66: rpcpb.AddNodeRequest.SubnetConfigsEntry
-	nil,                                 // 67: rpcpb.LoadSnapshotRequest.ChainConfigsEntry
-	nil,                                 // 68: rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
-	nil,                                 // 69: rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
+	nil,                                 // 56: rpcpb.ClusterInfo.SubnetsEntry
+	nil,                                 // 57: rpcpb.ClusterInfo.SubnetParticipantsEntry
+	nil,                                 // 58: rpcpb.StartRequest.CustomNodeConfigsEntry
+	nil,                                 // 59: rpcpb.StartRequest.ChainConfigsEntry
+	nil,                                 // 60: rpcpb.StartRequest.UpgradeConfigsEntry
+	nil,                                 // 61: rpcpb.StartRequest.SubnetConfigsEntry
+	nil,                                 // 62: rpcpb.RestartNodeRequest.ChainConfigsEntry
+	nil,                                 // 63: rpcpb.RestartNodeRequest.UpgradeConfigsEntry
+	nil,                                 // 64: rpcpb.RestartNodeRequest.SubnetConfigsEntry
+	nil,                                 // 65: rpcpb.AddNodeRequest.ChainConfigsEntry
+	nil,                                 // 66: rpcpb.AddNodeRequest.UpgradeConfigsEntry
+	nil,                                 // 67: rpcpb.AddNodeRequest.SubnetConfigsEntry
+	nil,                                 // 68: rpcpb.LoadSnapshotRequest.ChainConfigsEntry
+	nil,                                 // 69: rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
+	nil,                                 // 70: rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
 }
 var file_rpcpb_rpc_proto_depIdxs = []int32{
 	53, // 0: rpcpb.ClusterInfo.node_infos:type_name -> rpcpb.ClusterInfo.NodeInfosEntry
 	54, // 1: rpcpb.ClusterInfo.attached_peer_infos:type_name -> rpcpb.ClusterInfo.AttachedPeerInfosEntry
 	55, // 2: rpcpb.ClusterInfo.custom_chains:type_name -> rpcpb.ClusterInfo.CustomChainsEntry
-	56, // 3: rpcpb.ClusterInfo.subnet_participants:type_name -> rpcpb.ClusterInfo.SubnetParticipantsEntry
-	2,  // 4: rpcpb.SubnetInfo.subnet_participants:type_name -> rpcpb.SubnetParticipants
-	7,  // 5: rpcpb.ListOfAttachedPeerInfo.peers:type_name -> rpcpb.AttachedPeerInfo
-	14, // 6: rpcpb.StartRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
-	57, // 7: rpcpb.StartRequest.custom_node_configs:type_name -> rpcpb.StartRequest.CustomNodeConfigsEntry
-	58, // 8: rpcpb.StartRequest.chain_configs:type_name -> rpcpb.StartRequest.ChainConfigsEntry
-	59, // 9: rpcpb.StartRequest.upgrade_configs:type_name -> rpcpb.StartRequest.UpgradeConfigsEntry
-	60, // 10: rpcpb.StartRequest.subnet_configs:type_name -> rpcpb.StartRequest.SubnetConfigsEntry
-	3,  // 11: rpcpb.StartResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	13, // 12: rpcpb.BlockchainSpec.subnet_spec:type_name -> rpcpb.SubnetSpec
-	14, // 13: rpcpb.CreateBlockchainsRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
-	3,  // 14: rpcpb.CreateBlockchainsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	13, // 15: rpcpb.CreateSubnetsRequest.subnet_specs:type_name -> rpcpb.SubnetSpec
-	3,  // 16: rpcpb.CreateSubnetsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 17: rpcpb.HealthResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 18: rpcpb.WaitForHealthyResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 19: rpcpb.StatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 20: rpcpb.StreamStatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	61, // 21: rpcpb.RestartNodeRequest.chain_configs:type_name -> rpcpb.RestartNodeRequest.ChainConfigsEntry
-	62, // 22: rpcpb.RestartNodeRequest.upgrade_configs:type_name -> rpcpb.RestartNodeRequest.UpgradeConfigsEntry
-	63, // 23: rpcpb.RestartNodeRequest.subnet_configs:type_name -> rpcpb.RestartNodeRequest.SubnetConfigsEntry
-	3,  // 24: rpcpb.RestartNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 25: rpcpb.RemoveNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 26: rpcpb.PauseNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 27: rpcpb.ResumeNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	64, // 28: rpcpb.AddNodeRequest.chain_configs:type_name -> rpcpb.AddNodeRequest.ChainConfigsEntry
-	65, // 29: rpcpb.AddNodeRequest.upgrade_configs:type_name -> rpcpb.AddNodeRequest.UpgradeConfigsEntry
-	66, // 30: rpcpb.AddNodeRequest.subnet_configs:type_name -> rpcpb.AddNodeRequest.SubnetConfigsEntry
-	3,  // 31: rpcpb.AddNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 32: rpcpb.StopResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	3,  // 33: rpcpb.AttachPeerResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	7,  // 34: rpcpb.AttachPeerResponse.attached_peer_info:type_name -> rpcpb.AttachedPeerInfo
-	67, // 35: rpcpb.LoadSnapshotRequest.chain_configs:type_name -> rpcpb.LoadSnapshotRequest.ChainConfigsEntry
-	68, // 36: rpcpb.LoadSnapshotRequest.upgrade_configs:type_name -> rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
-	69, // 37: rpcpb.LoadSnapshotRequest.subnet_configs:type_name -> rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
-	3,  // 38: rpcpb.LoadSnapshotResponse.cluster_info:type_name -> rpcpb.ClusterInfo
-	6,  // 39: rpcpb.ClusterInfo.NodeInfosEntry.value:type_name -> rpcpb.NodeInfo
-	8,  // 40: rpcpb.ClusterInfo.AttachedPeerInfosEntry.value:type_name -> rpcpb.ListOfAttachedPeerInfo
-	5,  // 41: rpcpb.ClusterInfo.CustomChainsEntry.value:type_name -> rpcpb.CustomChainInfo
-	2,  // 42: rpcpb.ClusterInfo.SubnetParticipantsEntry.value:type_name -> rpcpb.SubnetParticipants
-	0,  // 43: rpcpb.PingService.Ping:input_type -> rpcpb.PingRequest
-	10, // 44: rpcpb.ControlService.RPCVersion:input_type -> rpcpb.RPCVersionRequest
-	9,  // 45: rpcpb.ControlService.Start:input_type -> rpcpb.StartRequest
-	15, // 46: rpcpb.ControlService.CreateBlockchains:input_type -> rpcpb.CreateBlockchainsRequest
-	17, // 47: rpcpb.ControlService.CreateSubnets:input_type -> rpcpb.CreateSubnetsRequest
-	19, // 48: rpcpb.ControlService.Health:input_type -> rpcpb.HealthRequest
-	21, // 49: rpcpb.ControlService.URIs:input_type -> rpcpb.URIsRequest
-	23, // 50: rpcpb.ControlService.WaitForHealthy:input_type -> rpcpb.WaitForHealthyRequest
-	25, // 51: rpcpb.ControlService.Status:input_type -> rpcpb.StatusRequest
-	27, // 52: rpcpb.ControlService.StreamStatus:input_type -> rpcpb.StreamStatusRequest
-	31, // 53: rpcpb.ControlService.RemoveNode:input_type -> rpcpb.RemoveNodeRequest
-	37, // 54: rpcpb.ControlService.AddNode:input_type -> rpcpb.AddNodeRequest
-	29, // 55: rpcpb.ControlService.RestartNode:input_type -> rpcpb.RestartNodeRequest
-	33, // 56: rpcpb.ControlService.PauseNode:input_type -> rpcpb.PauseNodeRequest
-	35, // 57: rpcpb.ControlService.ResumeNode:input_type -> rpcpb.ResumeNodeRequest
-	39, // 58: rpcpb.ControlService.Stop:input_type -> rpcpb.StopRequest
-	41, // 59: rpcpb.ControlService.AttachPeer:input_type -> rpcpb.AttachPeerRequest
-	43, // 60: rpcpb.ControlService.SendOutboundMessage:input_type -> rpcpb.SendOutboundMessageRequest
-	45, // 61: rpcpb.ControlService.SaveSnapshot:input_type -> rpcpb.SaveSnapshotRequest
-	47, // 62: rpcpb.ControlService.LoadSnapshot:input_type -> rpcpb.LoadSnapshotRequest
-	49, // 63: rpcpb.ControlService.RemoveSnapshot:input_type -> rpcpb.RemoveSnapshotRequest
-	51, // 64: rpcpb.ControlService.GetSnapshotNames:input_type -> rpcpb.GetSnapshotNamesRequest
-	1,  // 65: rpcpb.PingService.Ping:output_type -> rpcpb.PingResponse
-	11, // 66: rpcpb.ControlService.RPCVersion:output_type -> rpcpb.RPCVersionResponse
-	12, // 67: rpcpb.ControlService.Start:output_type -> rpcpb.StartResponse
-	16, // 68: rpcpb.ControlService.CreateBlockchains:output_type -> rpcpb.CreateBlockchainsResponse
-	18, // 69: rpcpb.ControlService.CreateSubnets:output_type -> rpcpb.CreateSubnetsResponse
-	20, // 70: rpcpb.ControlService.Health:output_type -> rpcpb.HealthResponse
-	22, // 71: rpcpb.ControlService.URIs:output_type -> rpcpb.URIsResponse
-	24, // 72: rpcpb.ControlService.WaitForHealthy:output_type -> rpcpb.WaitForHealthyResponse
-	26, // 73: rpcpb.ControlService.Status:output_type -> rpcpb.StatusResponse
-	28, // 74: rpcpb.ControlService.StreamStatus:output_type -> rpcpb.StreamStatusResponse
-	32, // 75: rpcpb.ControlService.RemoveNode:output_type -> rpcpb.RemoveNodeResponse
-	38, // 76: rpcpb.ControlService.AddNode:output_type -> rpcpb.AddNodeResponse
-	30, // 77: rpcpb.ControlService.RestartNode:output_type -> rpcpb.RestartNodeResponse
-	34, // 78: rpcpb.ControlService.PauseNode:output_type -> rpcpb.PauseNodeResponse
-	36, // 79: rpcpb.ControlService.ResumeNode:output_type -> rpcpb.ResumeNodeResponse
-	40, // 80: rpcpb.ControlService.Stop:output_type -> rpcpb.StopResponse
-	42, // 81: rpcpb.ControlService.AttachPeer:output_type -> rpcpb.AttachPeerResponse
-	44, // 82: rpcpb.ControlService.SendOutboundMessage:output_type -> rpcpb.SendOutboundMessageResponse
-	46, // 83: rpcpb.ControlService.SaveSnapshot:output_type -> rpcpb.SaveSnapshotResponse
-	48, // 84: rpcpb.ControlService.LoadSnapshot:output_type -> rpcpb.LoadSnapshotResponse
-	50, // 85: rpcpb.ControlService.RemoveSnapshot:output_type -> rpcpb.RemoveSnapshotResponse
-	52, // 86: rpcpb.ControlService.GetSnapshotNames:output_type -> rpcpb.GetSnapshotNamesResponse
-	65, // [65:87] is the sub-list for method output_type
-	43, // [43:65] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	56, // 3: rpcpb.ClusterInfo.subnets:type_name -> rpcpb.ClusterInfo.SubnetsEntry
+	57, // 4: rpcpb.ClusterInfo.subnet_participants:type_name -> rpcpb.ClusterInfo.SubnetParticipantsEntry
+	2,  // 5: rpcpb.SubnetInfo.subnet_participants:type_name -> rpcpb.SubnetParticipants
+	7,  // 6: rpcpb.ListOfAttachedPeerInfo.peers:type_name -> rpcpb.AttachedPeerInfo
+	14, // 7: rpcpb.StartRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
+	58, // 8: rpcpb.StartRequest.custom_node_configs:type_name -> rpcpb.StartRequest.CustomNodeConfigsEntry
+	59, // 9: rpcpb.StartRequest.chain_configs:type_name -> rpcpb.StartRequest.ChainConfigsEntry
+	60, // 10: rpcpb.StartRequest.upgrade_configs:type_name -> rpcpb.StartRequest.UpgradeConfigsEntry
+	61, // 11: rpcpb.StartRequest.subnet_configs:type_name -> rpcpb.StartRequest.SubnetConfigsEntry
+	3,  // 12: rpcpb.StartResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	13, // 13: rpcpb.BlockchainSpec.subnet_spec:type_name -> rpcpb.SubnetSpec
+	14, // 14: rpcpb.CreateBlockchainsRequest.blockchain_specs:type_name -> rpcpb.BlockchainSpec
+	3,  // 15: rpcpb.CreateBlockchainsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	13, // 16: rpcpb.CreateSubnetsRequest.subnet_specs:type_name -> rpcpb.SubnetSpec
+	3,  // 17: rpcpb.CreateSubnetsResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 18: rpcpb.HealthResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 19: rpcpb.WaitForHealthyResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 20: rpcpb.StatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 21: rpcpb.StreamStatusResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	62, // 22: rpcpb.RestartNodeRequest.chain_configs:type_name -> rpcpb.RestartNodeRequest.ChainConfigsEntry
+	63, // 23: rpcpb.RestartNodeRequest.upgrade_configs:type_name -> rpcpb.RestartNodeRequest.UpgradeConfigsEntry
+	64, // 24: rpcpb.RestartNodeRequest.subnet_configs:type_name -> rpcpb.RestartNodeRequest.SubnetConfigsEntry
+	3,  // 25: rpcpb.RestartNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 26: rpcpb.RemoveNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 27: rpcpb.PauseNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 28: rpcpb.ResumeNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	65, // 29: rpcpb.AddNodeRequest.chain_configs:type_name -> rpcpb.AddNodeRequest.ChainConfigsEntry
+	66, // 30: rpcpb.AddNodeRequest.upgrade_configs:type_name -> rpcpb.AddNodeRequest.UpgradeConfigsEntry
+	67, // 31: rpcpb.AddNodeRequest.subnet_configs:type_name -> rpcpb.AddNodeRequest.SubnetConfigsEntry
+	3,  // 32: rpcpb.AddNodeResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 33: rpcpb.StopResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	3,  // 34: rpcpb.AttachPeerResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	7,  // 35: rpcpb.AttachPeerResponse.attached_peer_info:type_name -> rpcpb.AttachedPeerInfo
+	68, // 36: rpcpb.LoadSnapshotRequest.chain_configs:type_name -> rpcpb.LoadSnapshotRequest.ChainConfigsEntry
+	69, // 37: rpcpb.LoadSnapshotRequest.upgrade_configs:type_name -> rpcpb.LoadSnapshotRequest.UpgradeConfigsEntry
+	70, // 38: rpcpb.LoadSnapshotRequest.subnet_configs:type_name -> rpcpb.LoadSnapshotRequest.SubnetConfigsEntry
+	3,  // 39: rpcpb.LoadSnapshotResponse.cluster_info:type_name -> rpcpb.ClusterInfo
+	6,  // 40: rpcpb.ClusterInfo.NodeInfosEntry.value:type_name -> rpcpb.NodeInfo
+	8,  // 41: rpcpb.ClusterInfo.AttachedPeerInfosEntry.value:type_name -> rpcpb.ListOfAttachedPeerInfo
+	5,  // 42: rpcpb.ClusterInfo.CustomChainsEntry.value:type_name -> rpcpb.CustomChainInfo
+	4,  // 43: rpcpb.ClusterInfo.SubnetsEntry.value:type_name -> rpcpb.SubnetInfo
+	2,  // 44: rpcpb.ClusterInfo.SubnetParticipantsEntry.value:type_name -> rpcpb.SubnetParticipants
+	0,  // 45: rpcpb.PingService.Ping:input_type -> rpcpb.PingRequest
+	10, // 46: rpcpb.ControlService.RPCVersion:input_type -> rpcpb.RPCVersionRequest
+	9,  // 47: rpcpb.ControlService.Start:input_type -> rpcpb.StartRequest
+	15, // 48: rpcpb.ControlService.CreateBlockchains:input_type -> rpcpb.CreateBlockchainsRequest
+	17, // 49: rpcpb.ControlService.CreateSubnets:input_type -> rpcpb.CreateSubnetsRequest
+	19, // 50: rpcpb.ControlService.Health:input_type -> rpcpb.HealthRequest
+	21, // 51: rpcpb.ControlService.URIs:input_type -> rpcpb.URIsRequest
+	23, // 52: rpcpb.ControlService.WaitForHealthy:input_type -> rpcpb.WaitForHealthyRequest
+	25, // 53: rpcpb.ControlService.Status:input_type -> rpcpb.StatusRequest
+	27, // 54: rpcpb.ControlService.StreamStatus:input_type -> rpcpb.StreamStatusRequest
+	31, // 55: rpcpb.ControlService.RemoveNode:input_type -> rpcpb.RemoveNodeRequest
+	37, // 56: rpcpb.ControlService.AddNode:input_type -> rpcpb.AddNodeRequest
+	29, // 57: rpcpb.ControlService.RestartNode:input_type -> rpcpb.RestartNodeRequest
+	33, // 58: rpcpb.ControlService.PauseNode:input_type -> rpcpb.PauseNodeRequest
+	35, // 59: rpcpb.ControlService.ResumeNode:input_type -> rpcpb.ResumeNodeRequest
+	39, // 60: rpcpb.ControlService.Stop:input_type -> rpcpb.StopRequest
+	41, // 61: rpcpb.ControlService.AttachPeer:input_type -> rpcpb.AttachPeerRequest
+	43, // 62: rpcpb.ControlService.SendOutboundMessage:input_type -> rpcpb.SendOutboundMessageRequest
+	45, // 63: rpcpb.ControlService.SaveSnapshot:input_type -> rpcpb.SaveSnapshotRequest
+	47, // 64: rpcpb.ControlService.LoadSnapshot:input_type -> rpcpb.LoadSnapshotRequest
+	49, // 65: rpcpb.ControlService.RemoveSnapshot:input_type -> rpcpb.RemoveSnapshotRequest
+	51, // 66: rpcpb.ControlService.GetSnapshotNames:input_type -> rpcpb.GetSnapshotNamesRequest
+	1,  // 67: rpcpb.PingService.Ping:output_type -> rpcpb.PingResponse
+	11, // 68: rpcpb.ControlService.RPCVersion:output_type -> rpcpb.RPCVersionResponse
+	12, // 69: rpcpb.ControlService.Start:output_type -> rpcpb.StartResponse
+	16, // 70: rpcpb.ControlService.CreateBlockchains:output_type -> rpcpb.CreateBlockchainsResponse
+	18, // 71: rpcpb.ControlService.CreateSubnets:output_type -> rpcpb.CreateSubnetsResponse
+	20, // 72: rpcpb.ControlService.Health:output_type -> rpcpb.HealthResponse
+	22, // 73: rpcpb.ControlService.URIs:output_type -> rpcpb.URIsResponse
+	24, // 74: rpcpb.ControlService.WaitForHealthy:output_type -> rpcpb.WaitForHealthyResponse
+	26, // 75: rpcpb.ControlService.Status:output_type -> rpcpb.StatusResponse
+	28, // 76: rpcpb.ControlService.StreamStatus:output_type -> rpcpb.StreamStatusResponse
+	32, // 77: rpcpb.ControlService.RemoveNode:output_type -> rpcpb.RemoveNodeResponse
+	38, // 78: rpcpb.ControlService.AddNode:output_type -> rpcpb.AddNodeResponse
+	30, // 79: rpcpb.ControlService.RestartNode:output_type -> rpcpb.RestartNodeResponse
+	34, // 80: rpcpb.ControlService.PauseNode:output_type -> rpcpb.PauseNodeResponse
+	36, // 81: rpcpb.ControlService.ResumeNode:output_type -> rpcpb.ResumeNodeResponse
+	40, // 82: rpcpb.ControlService.Stop:output_type -> rpcpb.StopResponse
+	42, // 83: rpcpb.ControlService.AttachPeer:output_type -> rpcpb.AttachPeerResponse
+	44, // 84: rpcpb.ControlService.SendOutboundMessage:output_type -> rpcpb.SendOutboundMessageResponse
+	46, // 85: rpcpb.ControlService.SaveSnapshot:output_type -> rpcpb.SaveSnapshotResponse
+	48, // 86: rpcpb.ControlService.LoadSnapshot:output_type -> rpcpb.LoadSnapshotResponse
+	50, // 87: rpcpb.ControlService.RemoveSnapshot:output_type -> rpcpb.RemoveSnapshotResponse
+	52, // 88: rpcpb.ControlService.GetSnapshotNames:output_type -> rpcpb.GetSnapshotNamesResponse
+	67, // [67:89] is the sub-list for method output_type
+	45, // [45:67] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_rpcpb_rpc_proto_init() }
@@ -4537,7 +4547,7 @@ func file_rpcpb_rpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_rpcpb_rpc_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   70,
+			NumMessages:   71,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
