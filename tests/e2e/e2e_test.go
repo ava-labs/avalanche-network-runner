@@ -233,8 +233,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			//subnetIDs := status.ClusterInfo.GetSubnets()
-			//createdSubnetIDString := subnetIDs[0]
 			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(existingNodes, status.ClusterInfo, existingSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})

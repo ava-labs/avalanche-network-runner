@@ -399,11 +399,6 @@ func (s *server) updateClusterInfo() {
 			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: subnet.subnetParticipants},
 		}
 	}
-	//s.clusterInfo.Subnets = s.network.subnets
-	//s.clusterInfo.SubnetParticipants = make(map[string]*rpcpb.SubnetParticipants)
-	//for subnetID, nodes := range s.network.subnetParticipants {
-	//	s.clusterInfo.SubnetParticipants[subnetID] = &rpcpb.SubnetParticipants{NodeNames: nodes}
-	//}
 }
 
 // wait until some of this conditions is met:
