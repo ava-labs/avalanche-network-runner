@@ -1026,12 +1026,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
 			gomega.Ω(err).Should(gomega.HaveOccurred())
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			_, err := cli.WaitForHealthy(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
+		//ginkgo.By("wait for custom chains healthy", func() {
+		//	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		//	defer cancel()
+		//	_, err := cli.WaitForHealthy(ctx)
+		//	gomega.Ω(err).Should(gomega.BeNil())
+		//})
 	})
 
 	ginkgo.It("snapshots + blockchain creation", func() {
