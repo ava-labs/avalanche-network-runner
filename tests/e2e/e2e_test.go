@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"golang.org/x/exp/maps"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
