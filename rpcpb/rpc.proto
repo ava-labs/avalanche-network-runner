@@ -194,10 +194,10 @@ message ClusterInfo {
 
 message SubnetInfo {
   // If Subnet is an Elastic Subnet
-  string isElastic = 1;
+  bool isElastic = 1;
 
   // node validators of subnet
-  repeated SubnetParticipants subnet_participants = 2;
+  SubnetParticipants subnet_participants = 2;
 }
 
 message CustomChainInfo {

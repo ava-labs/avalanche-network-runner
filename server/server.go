@@ -392,7 +392,14 @@ func (s *server) updateClusterInfo() {
 	for chainID, chainInfo := range s.network.customChainIDToInfo {
 		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 	}
-	s.clusterInfo.Subnets = s.network.subnets
+	s.clusterInfo.Subnets = make(map[string]*rpcpb.SubnetInfo)
+	for subnetID, subnet := range s.network.subnets {
+		s.clusterInfo.Subnets[subnetID] = &rpcpb.SubnetInfo{
+			IsElastic:          subnet.isElastic,
+			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: subnet.subnetParticipants},
+		}
+	}
+	//s.clusterInfo.Subnets = s.network.subnets
 	s.clusterInfo.SubnetParticipants = make(map[string]*rpcpb.SubnetParticipants)
 	for subnetID, nodes := range s.network.subnetParticipants {
 		s.clusterInfo.SubnetParticipants[subnetID] = &rpcpb.SubnetParticipants{NodeNames: nodes}
@@ -478,7 +485,8 @@ func (s *server) CreateBlockchains(
 
 	// check that the given subnets exist
 	subnetsSet := set.Set[string]{}
-	subnetsSet.Add(s.clusterInfo.Subnets...)
+	subnetIDsList := maps.Keys(s.clusterInfo.Subnets)
+	subnetsSet.Add(subnetIDsList...)
 
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.SubnetID != nil && !subnetsSet.Contains(*chainSpec.SubnetID) {
