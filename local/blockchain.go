@@ -67,10 +67,6 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
-type elasticSubnetInfo struct {
-	txID ids.ID
-}
-
 // get an arbitrary node in the network
 func (ln *localNetwork) getSomeNode() node.Node {
 	var node node.Node
@@ -705,6 +701,7 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
 	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
 		tokenName,
 		tokenSymbol,
@@ -718,8 +715,8 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 			},
 		},
 		common.WithContext(cctx),
+		defaultPoll,
 	)
-	defer cancel()
 	if err != nil {
 		return ids.Empty, err
 	}
@@ -728,6 +725,7 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 
 func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, maxSupply uint64) error {
 	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
 	_, err := w.xWallet.IssueExportTx(
 		ids.Empty,
 		[]*avax.TransferableOutput{
@@ -742,8 +740,8 @@ func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwn
 			},
 		},
 		common.WithContext(cctx),
+		defaultPoll,
 	)
-	defer cancel()
 	return err
 }
 
@@ -751,13 +749,14 @@ func importFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputO
 	xWallet := w.xWallet
 	pWallet := w.pWallet
 	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
 	xChainID := xWallet.BlockchainID()
 	_, err := pWallet.IssueImportTx(
 		xChainID,
 		owner,
 		common.WithContext(cctx),
+		defaultPoll,
 	)
-	defer cancel()
 	return err
 }
 
@@ -783,6 +782,9 @@ func (ln *localNetwork) transformToElasticSubnets(
 		}
 	}
 	w, err := newWallet(ctx, clientURI, preloadTXs)
+	if err != nil {
+		return nil, err
+	}
 
 	for i, elasticSubnetSpec := range elasticSubnetSpecs {
 		ln.log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", *elasticSubnetSpec.SubnetID))
@@ -819,6 +821,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 			elasticSubnetSpec.MinStakeDuration, elasticSubnetSpec.MaxStakeDuration, elasticSubnetSpec.MinDelegationFee,
 			elasticSubnetSpec.MinDelegatorStake, elasticSubnetSpec.MaxValidatorWeightFactor, elasticSubnetSpec.UptimeRequirement,
 			common.WithContext(cctx),
+			defaultPoll,
 		)
 		cancel()
 		if err != nil {

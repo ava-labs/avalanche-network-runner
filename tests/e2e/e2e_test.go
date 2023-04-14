@@ -8,6 +8,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanchego/api/admin"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/prometheus/client_golang/prometheus"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,18 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/server"
-	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
-
-	"github.com/ava-labs/avalanchego/api/admin"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/message"
-	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -74,6 +72,22 @@ var (
 		{"new_node1", "new_node2"},
 		{"new_node3", "new_node4"},
 	}
+	testElasticSubnetConfig = rpcpb.ElasticSubnetSpec{
+		SubnetId:                 "",
+		AssetName:                "BLIZZARD",
+		AssetSymbol:              "BRRR",
+		InitialSupply:            240000000,
+		MaxSupply:                720000000,
+		MinConsumptionRate:       100000,
+		MaxConsumptionRate:       120000,
+		MinValidatorStake:        2000,
+		MaxValidatorStake:        3000000,
+		MinStakeDuration:         14 * 24,
+		MaxStakeDuration:         365 * 24,
+		MinDelegationFee:         20000,
+		MinDelegatorStake:        25,
+		MaxValidatorWeightFactor: 5,
+		UptimeRequirement:        0.8 * 1_000_000}
 )
 
 func init() {
@@ -885,87 +899,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("transform subnet to elastic subnets", func() {
-		var createdSubnetID string
-		ginkgo.By("add 1 subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
-			createdSubnetID = resp.SubnetIds[0]
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("check subnet number is 2", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(2))
-		})
-		ginkgo.By("transform 1 subnet to elastic subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			response, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{{
-				SubnetId:                 createdSubnetID,
-				AssetName:                "BLIZZARD",
-				AssetSymbol:              "BRRR",
-				InitialSupply:            240000000,
-				MaxSupply:                720000000,
-				MinConsumptionRate:       100000,
-				MaxConsumptionRate:       120000,
-				MinValidatorStake:        2000,
-				MaxValidatorStake:        3000000,
-				MinStakeDuration:         14 * 24,
-				MaxStakeDuration:         365 * 24,
-				MinDelegationFee:         20000,
-				MinDelegatorStake:        25,
-				MaxValidatorWeightFactor: 5,
-				UptimeRequirement:        0.8 * 1_000_000}})
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{{
-				SubnetId:                 createdSubnetID,
-				AssetName:                "BLIZZARD",
-				AssetSymbol:              "BRRR",
-				InitialSupply:            240000000,
-				MaxSupply:                720000000,
-				MinConsumptionRate:       100000,
-				MaxConsumptionRate:       120000,
-				MinValidatorStake:        2000,
-				MaxValidatorStake:        3000000,
-				MinStakeDuration:         14 * 24,
-				MaxStakeDuration:         365 * 24,
-				MinDelegationFee:         20000,
-				MinDelegatorStake:        25,
-				MaxValidatorWeightFactor: 5,
-				UptimeRequirement:        0.8 * 1_000_000}})
-			cancel()
-			gomega.Ω(err).Should(gomega.HaveOccurred())
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-	})
-
 	ginkgo.It("subnet creation", func() {
 		var createdSubnetID string
 		ginkgo.By("add 1 subnet", func() {
@@ -1044,6 +977,59 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
+		})
+	})
+
+	ginkgo.It("transform subnet to elastic subnets", func() {
+		var createdSubnetID string
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
+			createdSubnetID = resp.SubnetIds[0]
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_, err := cli.WaitForHealthy(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("check subnet number is 2", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			status, err := cli.Status(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			numSubnets := len(status.ClusterInfo.Subnets)
+			gomega.Ω(numSubnets).Should(gomega.Equal(2))
+		})
+		ginkgo.By("transform 1 subnet to elastic subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testElasticSubnetConfig.SubnetId = createdSubnetID
+			response, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_, err := cli.WaitForHealthy(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testElasticSubnetConfig.SubnetId = createdSubnetID
+			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
+			gomega.Ω(err).Should(gomega.HaveOccurred())
+		})
+		ginkgo.By("wait for custom chains healthy", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_, err := cli.WaitForHealthy(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})
 
