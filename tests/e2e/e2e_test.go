@@ -997,13 +997,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			_, err := cli.WaitForHealthy(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("check subnet number is 3", func() {
+		ginkgo.By("check subnet number is 5", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(3))
+			gomega.Ω(numSubnets).Should(gomega.Equal(5))
 		})
 		ginkgo.By("transform 1 subnet to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
