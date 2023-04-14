@@ -413,7 +413,6 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 	for {
 		s.mu.RLock()
 		if s.clusterInfo == nil {
-			fmt.Printf("this is why its not bootstrapped \n")
 			defer s.mu.RUnlock()
 			return nil, ErrNotBootstrapped
 		}
@@ -430,30 +429,21 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 			defer s.mu.RUnlock()
 			clusterInfo, deepCopyErr := deepCopy(s.clusterInfo)
 			if deepCopyErr != nil {
-				fmt.Printf("asyncerror \n")
-
 				err = multierr.Append(err, deepCopyErr)
 				return nil, err
 			}
-			fmt.Printf("asyncerror part 2\n")
-
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, err
 		case <-ctx.Done():
 			defer s.mu.RUnlock()
 			clusterInfo, err := deepCopy(s.clusterInfo)
 			if err != nil {
-				fmt.Printf("ctx done part 1\n")
-
 				return nil, err
 			}
-			fmt.Printf("ctx done part 2\n")
-
 			return &rpcpb.WaitForHealthyResponse{ClusterInfo: clusterInfo}, ctx.Err()
 		default:
 		}
 		if s.network == nil {
 			defer s.mu.RUnlock()
-			fmt.Printf("this is why its not bootstrapped part 2\n")
 			return nil, ErrNotBootstrapped
 		}
 		s.mu.RUnlock()
