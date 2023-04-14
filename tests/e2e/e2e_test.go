@@ -88,7 +88,8 @@ var (
 		MinDelegationFee:         20000,
 		MinDelegatorStake:        25,
 		MaxValidatorWeightFactor: 5,
-		UptimeRequirement:        0.8 * 1_000_000}
+		UptimeRequirement:        0.8 * 1_000_000,
+	}
 )
 
 func init() {
