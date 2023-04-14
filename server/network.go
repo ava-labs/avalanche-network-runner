@@ -47,7 +47,7 @@ type localNetwork struct {
 	//subnets []string
 	subnets map[string]subnetInfo
 	// map from subnet ID to list of participating node ids
-	subnetParticipants map[string][]string
+	//subnetParticipants map[string][]string
 }
 
 type chainInfo struct {
@@ -110,7 +110,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		stopCh:              make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
 		subnets:             make(map[string]subnetInfo),
-		subnetParticipants:  make(map[string][]string),
+		//subnetParticipants:  make(map[string][]string),
 	}, nil
 }
 
@@ -403,7 +403,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				}
 			}
 		}
-		lc.subnetParticipants[subnetID] = nodeNameList
+		//lc.subnetParticipants[subnetID] = nodeNameList
 		lc.subnets[subnetID] = subnetInfo{isElastic: false, subnetParticipants: nodeNameList}
 	}
 

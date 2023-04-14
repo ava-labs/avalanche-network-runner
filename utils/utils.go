@@ -104,7 +104,8 @@ func VerifySubnetHasCorrectParticipants(
 	subnetID string,
 ) bool {
 	if cluster != nil {
-		participatingNodeNames := cluster.SubnetParticipants[subnetID].GetNodeNames()
+		participatingNodeNames := cluster.Subnets[subnetID].GetSubnetParticipants().GetNodeNames()
+
 		var nodeIsInList bool
 		// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
 		for _, node := range subnetParticipants {
