@@ -164,7 +164,7 @@ func (c *client) TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs
 		ElasticSubnetSpec: elasticSubnetSpecs,
 	}
 
-	c.log.Info("create subnets")
+	c.log.Info("transform subnets")
 	return c.controlc.TransformElasticSubnet(ctx, req)
 }
 

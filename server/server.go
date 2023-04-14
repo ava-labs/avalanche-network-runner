@@ -558,13 +558,14 @@ func (s *server) TransformElasticSubnet(
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
 	txIDs, err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
+
+	s.updateClusterInfo()
+
 	if err != nil {
 		s.log.Error("failed to transform subnet into elastic subnet", zap.Error(err))
-		s.stopAndRemoveNetwork(err)
 		return nil, err
-	} else {
-		s.updateClusterInfo()
 	}
+
 	s.log.Info("subnet transformed into elastic subnet")
 
 	strTXIDs := []string{}
