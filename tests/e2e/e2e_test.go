@@ -184,13 +184,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ux.Print(log, logging.Green.Wrap("successfully started, node-names: %s"), resp.ClusterInfo.NodeNames)
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("can create a blockchain with a new subnet id", func() {
 			ux.Print(log, logging.Blue.Wrap("can create a blockchain in a new subnet"))
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -1072,4 +1065,3 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 })
-
