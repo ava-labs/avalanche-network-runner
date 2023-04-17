@@ -61,7 +61,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: anr-logs-${{ matrix.os }}
-          path: /tmp/network-runner-root-data*/
+          path: |
+            /tmp/network-runner-root-data*/
+            /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/network-runner-root-data*/
           retention-days: 5
   release:
     needs: [lint_test, unit_test, e2e_test]
