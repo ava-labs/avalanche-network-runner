@@ -56,6 +56,13 @@ jobs:
       - name: Run e2e tests
         shell: bash
         run: scripts/tests.e2e.sh
+      - name: "Upload Artifact"
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: anr-logs-${{ matrix.os }}
+          path: /tmp/network-runner-root-data*/
+          retention-days: 5
   release:
     needs: [lint_test, unit_test, e2e_test]
     runs-on: ubuntu-20.04
