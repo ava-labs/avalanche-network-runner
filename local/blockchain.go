@@ -282,9 +282,9 @@ func (ln *localNetwork) installCustomChains(
 	}
 
 	// refresh vm list
-	//if err := ln.reloadVMPlugins(ctx); err != nil {
-	//	return nil, err
-	//}
+	if err := ln.reloadVMPlugins(ctx); err != nil {
+		return nil, err
+	}
 
 	// create blockchain from txs before spending more utxos
 	if err := ln.createBlockchains(ctx, chainSpecs, blockchainTxs, w, ln.log); err != nil {
