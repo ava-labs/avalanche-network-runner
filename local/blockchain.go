@@ -279,6 +279,11 @@ func (ln *localNetwork) installCustomChains(
 		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nodesToRestartForBlockchainConfigUpdate); err != nil {
 			return nil, err
 		}
+		clientURI, err = ln.getClientURI()
+		if err != nil {
+			return nil, err
+		}
+		w.reload(clientURI)
 	}
 
 	// refresh vm list
@@ -592,6 +597,11 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 	return &w, nil
+}
+
+func (w *wallet) reload(uri string) {
+	pClient := platformvm.NewClient(uri)
+	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 }
 
 // add all nodes as validators of the primary network, in case they are not
