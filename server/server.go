@@ -48,7 +48,7 @@ const (
 
 	stopTimeout           = 5 * time.Second
 	defaultStartTimeout   = 5 * time.Minute
-	waitForHealthyTimeout = 2 * time.Minute
+	waitForHealthyTimeout = 3 * time.Minute
 
 	rootDataDirPrefix = "network-runner-root-data"
 )
