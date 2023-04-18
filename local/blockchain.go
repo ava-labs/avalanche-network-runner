@@ -259,10 +259,6 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
-		return nil, err
-	}
-
 	blockchainTxs, err := createBlockchainTxs(ctx, chainSpecs, w, ln.log)
 	if err != nil {
 		return nil, err
@@ -288,6 +284,10 @@ func (ln *localNetwork) installCustomChains(
 
 	// refresh vm list
 	if err := ln.reloadVMPlugins(ctx); err != nil {
+		return nil, err
+	}
+
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -385,11 +385,11 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil); err != nil {
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil); err != nil {
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
