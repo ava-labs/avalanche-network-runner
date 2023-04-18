@@ -56,6 +56,8 @@ jobs:
       - name: Run e2e tests
         shell: bash
         run: scripts/tests.e2e.sh
+      - name: Set TMPDIR in Github Actions Environment
+        run: echo "TMPDIR=${TMPDIR}" >> $GITHUB_ENV
       - name: "Upload Artifact"
         if: always()
         uses: actions/upload-artifact@v3
@@ -63,7 +65,7 @@ jobs:
           name: anr-logs-${{ matrix.os }}
           path: |
             /tmp/network-runner-root-data*/
-            /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/network-runner-root-data*/
+            /${{ env.TMPDIR }}/network-runner-root-data*/
           retention-days: 5
   release:
     needs: [lint_test, unit_test, e2e_test]
