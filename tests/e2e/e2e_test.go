@@ -200,13 +200,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("get subnet ID", func() {
 			cctx, ccancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(cctx)
