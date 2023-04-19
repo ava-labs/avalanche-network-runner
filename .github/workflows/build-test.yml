@@ -51,10 +51,10 @@ jobs:
         shell: bash
         run: scripts/tests.e2e.sh
       - name: Set ubuntu tmpdir into actions env
-        if: startsWith(matrix.os, 'ubuntu')
+        if: always() && startsWith(matrix.os, 'ubuntu')
         run: echo "ANR_TMPDIR=/tmp/" >> $GITHUB_ENV
       - name: Set macos tmpdir into actions env
-        if: startsWith(matrix.os, 'macos')
+        if: always() && sstartsWith(matrix.os, 'macos')
         run: echo "ANR_TMPDIR=$TMPDIR" >> $GITHUB_ENV
       - name: "Upload Artifact"
         if: always()
