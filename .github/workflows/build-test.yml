@@ -54,7 +54,7 @@ jobs:
         if: always() && startsWith(matrix.os, 'ubuntu')
         run: echo "ANR_TMPDIR=/tmp/" >> $GITHUB_ENV
       - name: Set macos tmpdir into actions env
-        if: always() && sstartsWith(matrix.os, 'macos')
+        if: always() && startsWith(matrix.os, 'macos')
         run: echo "ANR_TMPDIR=$TMPDIR" >> $GITHUB_ENV
       - name: "Upload Artifact"
         if: always()
