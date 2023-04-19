@@ -47,14 +47,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.19'
-      - name: Lets see the value
-        run: echo ${{ matrix.os }}
-      - name: Set ubuntu tmpdir into actions env
-        if: startsWith(matrix.os, 'ubuntu')
-        run: echo "ANR_TMPDIR=/tmp/" >> $GITHUB_ENV
-      - name: Set macos tmpdir into actions env
-        if: startsWith(matrix.os, 'macos')
-        run: echo "ANR_TMPDIR=$TMPDIR" >> $GITHUB_ENV
       - name: Run e2e tests
         shell: bash
         run: scripts/tests.e2e.sh
