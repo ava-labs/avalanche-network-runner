@@ -29,16 +29,16 @@ const (
 )
 
 // isFreePort verifies a given [port] is free
-func isFreePort(port uint16) bool {
+func isFreePort(port uint16) error {
 	// Verify it's free by binding to it
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		// Could not bind to [port]. Assumed to be not free.
-		return false
+		return err
 	}
 	// We could bind to [port] so must be free.
 	_ = l.Close()
-	return true
+	return nil
 }
 
 // getFreePort generates a random port number and then
@@ -55,7 +55,7 @@ func getFreePort() (uint16, error) {
 		default:
 			// Generate random port in [minPort, maxPort]
 			port := uint16(rand.Intn(maxPort-minPort+1) + minPort) //nolint
-			if !isFreePort(port) {
+			if isFreePort(port) != nil {
 				// Not free. Try another.
 				continue
 			}
@@ -210,15 +210,15 @@ func getPort(
 			return 0, fmt.Errorf("couldn't get free port: %w", err)
 		}
 	}
-	if reassignIfUsed && !isFreePort(port) {
+	if reassignIfUsed && isFreePort(port) != nil {
 		port, err = getFreePort()
 		if err != nil {
 			return 0, fmt.Errorf("couldn't get free port: %w", err)
 		}
 	}
 	// last check, avoid starting network with used ports
-	if !isFreePort(port) {
-		return 0, fmt.Errorf("port %d is not free", port)
+	if err := isFreePort(port); err != nil {
+		return 0, fmt.Errorf("port %d is not free: %w", port, err)
 	}
 	return port, nil
 }
