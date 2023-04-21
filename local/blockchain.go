@@ -62,20 +62,19 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
-// get first node from ordered list of node names
+// get node with minimum port number
 func (ln *localNetwork) getNode() node.Node {
-	allNodeNames := maps.Keys(ln.nodes)
-	sort.Strings(allNodeNames)
 	var node node.Node
-	for _, nodeName := range allNodeNames {
-		n := ln.nodes[nodeName]
+	minAPIPortNumber := uint16(maxPort)
+	for _, n := range ln.nodes {
 		if n.paused {
 			continue
 		}
-		node = n
-		break
+		if n.GetAPIPort() < minAPIPortNumber {
+			minAPIPortNumber = n.GetAPIPort()
+			node = n
+		}
 	}
-
 	return node
 }
 
