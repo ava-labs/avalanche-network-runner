@@ -62,5 +62,5 @@ jobs:
         with:
           name: anr-logs-${{ matrix.os }}
           path: |
-            ${{ env.ANR_TMPDIR }}/network-runner-root-data
+            ${{ env.ANR_TMPDIR }}/network-runner-root-data*
           retention-days: 5
