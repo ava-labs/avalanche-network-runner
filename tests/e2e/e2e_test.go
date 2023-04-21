@@ -228,7 +228,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(existingNodes, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, existingNodes, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -289,7 +289,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 			// verify that no new nodes is added to cluster
 			gomega.Ω(len(status.ClusterInfo.NodeNames)).Should(gomega.Equal(5))
@@ -331,7 +331,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -407,10 +407,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[0], status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, disjointNewSubnetParticipants[0], status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 			createdSubnetID2String := customChains[createdBlockchainID2].SubnetId
-			subnet2HasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[1], status.ClusterInfo, createdSubnetID2String)
+			subnet2HasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, disjointNewSubnetParticipants[1], status.ClusterInfo, createdSubnetID2String)
 			gomega.Ω(subnet2HasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -922,7 +922,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, createdSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
@@ -957,7 +957,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, createdSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 	})
