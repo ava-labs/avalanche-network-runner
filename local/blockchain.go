@@ -62,23 +62,30 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
-// get an arbitrary node in the network
-func (ln *localNetwork) getSomeNode() node.Node {
+// get first node from ordered list of node names
+func (ln *localNetwork) getNode() node.Node {
+	allNodeNames := maps.Keys(ln.nodes)
+	sort.Strings(allNodeNames)
 	var node node.Node
-	for _, n := range ln.nodes {
+	for _, nodeName := range allNodeNames {
+		n := ln.nodes[nodeName]
 		if n.paused {
 			continue
 		}
 		node = n
 		break
 	}
+
 	return node
 }
 
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) { //nolint
-	node := ln.getSomeNode()
+	node := ln.getNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
+	ln.log.Info("getClientURI",
+		zap.String("nodeName", node.GetName()),
+		zap.String("uri", clientURI))
 	return clientURI, nil
 }
 

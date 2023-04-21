@@ -67,12 +67,12 @@ var (
 	}
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
-	newParticipantNode            = "newParticipantNode"
+	newParticipantNode            = "node-new"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
-		{"new_node1", "new_node2"},
-		{"new_node3", "new_node4"},
+		{"node1-bls", "node2-bls"},
+		{"node3-bls", "node4-bls"},
 	}
 )
 
@@ -169,6 +169,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			resp, err := cli.Start(ctx, execPath1,
+				client.WithReassignPortsIfUsed(true),
 				client.WithPluginDir(filepath.Join(filepath.Dir(execPath1), "plugins")),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
@@ -444,7 +445,9 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err := cli.LoadSnapshot(ctx, "test")
+			_, err := cli.LoadSnapshot(ctx, "test",
+				client.WithReassignPortsIfUsed(true),
+			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
