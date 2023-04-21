@@ -262,11 +262,11 @@ func createFileAndWrite(path string, contents []byte) error {
 
 // addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].
 // [nodeFlags] must not be nil.
-func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
+func addNetworkFlags(networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
 	for flagName, flagVal := range networkFlags {
 		// If the same flag is given in network config and node config,
 		// the flag in the node config takes precedence
-		if val, ok := nodeFlags[flagName]; !ok {
+		if _, ok := nodeFlags[flagName]; !ok {
 			nodeFlags[flagName] = flagVal
 		}
 	}

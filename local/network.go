@@ -518,7 +518,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			nodeConfig.SubnetConfigFiles[k] = v
 		}
 	}
-	addNetworkFlags(ln.log, ln.flags, nodeConfig.Flags)
+	addNetworkFlags(ln.flags, nodeConfig.Flags)
 
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
