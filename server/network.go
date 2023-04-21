@@ -184,9 +184,22 @@ func (lc *localNetwork) createConfig() error {
 
 // Creates a network and sets [lc.nw] to it.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) Start() error {
+func (lc *localNetwork) Start(ctx context.Context) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
 
 	if err := lc.createConfig(); err != nil {
 		return err
@@ -201,6 +214,10 @@ func (lc *localNetwork) Start() error {
 
 	// node info is already available
 	if err := lc.updateNodeInfo(); err != nil {
+		return err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return err
 	}
 
@@ -229,12 +246,12 @@ func (lc *localNetwork) CreateChains(
 		}
 	}(ctx)
 
-	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
-	}
-
 	if len(chainSpecs) == 0 {
 		return nil, nil
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, err
 	}
 
 	chainIDs, err := lc.nw.CreateBlockchains(ctx, chainSpecs)

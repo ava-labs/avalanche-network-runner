@@ -129,15 +129,18 @@ var (
 var _ = ginkgo.BeforeSuite(func() {
 	if logDir == "" {
 		var err error
-		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-e2e-logs-%d", time.Now().Unix()))
+		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-client-logs-%d", time.Now().Unix()))
 		gomega.Ω(err).Should(gomega.BeNil())
 	}
 	lvl, err := logging.ToLevel(logLevel)
 	gomega.Ω(err).Should(gomega.BeNil())
-	lcfg := logging.Config{
+	logFactory := logging.NewFactory(logging.Config{
+		RotatingWriterConfig: logging.RotatingWriterConfig{
+			Directory: logDir,
+		},
 		DisplayLevel: lvl,
-	}
-	logFactory := logging.NewFactory(lcfg)
+		LogLevel:     lvl,
+	})
 	log, err = logFactory.Make(constants.LogNameTest)
 	gomega.Ω(err).Should(gomega.BeNil())
 
