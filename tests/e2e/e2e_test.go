@@ -177,7 +177,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ux.Print(log, logging.Green.Wrap("sending 'start' with the valid binary path: %s"), execPath1)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			resp, err := cli.Start(ctx, execPath1,
-				// client.WithReassignPortsIfUsed(true),
 				client.WithPluginDir(filepath.Join(filepath.Dir(execPath1), "plugins")),
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
@@ -453,8 +452,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "test") // client.WithReassignPortsIfUsed(true),
-
+			_, err := cli.LoadSnapshot(ctx, "test")
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
