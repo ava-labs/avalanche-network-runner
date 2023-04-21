@@ -67,12 +67,12 @@ var (
 	}
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
-	newParticipantNode            = "node-new"
+	newParticipantNode            = "new_participant_node"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
-		{"node1-bls", "node2-bls"},
-		{"node3-bls", "node4-bls"},
+		{"new_node1", "new_node2"},
+		{"new_node3", "new_node4"},
 	}
 )
 
