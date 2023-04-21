@@ -268,13 +268,6 @@ func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, no
 		// the flag in the node config takes precedence
 		if val, ok := nodeFlags[flagName]; !ok {
 			nodeFlags[flagName] = flagVal
-		} else {
-			log.Debug(
-				"not overwriting node config flag with network config flag",
-				zap.String("flag-name", flagName),
-				zap.Any("value", val),
-				zap.Any("network config value", flagVal),
-			)
 		}
 	}
 }
