@@ -216,10 +216,6 @@ func (lc *localNetwork) CreateChains(
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	if len(chainSpecs) == 0 {
-		return nil, nil
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -235,6 +231,10 @@ func (lc *localNetwork) CreateChains(
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return nil, err
+	}
+
+	if len(chainSpecs) == 0 {
+		return nil, nil
 	}
 
 	chainIDs, err := lc.nw.CreateBlockchains(ctx, chainSpecs)
