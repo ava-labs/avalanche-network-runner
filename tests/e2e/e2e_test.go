@@ -7,7 +7,6 @@ package e2e_test
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -41,6 +40,8 @@ func TestE2e(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
 	ginkgo.RunSpecs(t, "network-runner-example e2e test suites")
 }
+
+const clientRootDirPrefix = "client"
 
 var (
 	logLevel      string
@@ -127,9 +128,13 @@ var (
 )
 
 var _ = ginkgo.BeforeSuite(func() {
+	var err error
 	if logDir == "" {
-		var err error
-		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-client-logs-%d", time.Now().Unix()))
+		anrRootDir := filepath.Join(os.TempDir(), constants.RootDirPrefix)
+		err = os.MkdirAll(anrRootDir, os.ModePerm)
+		gomega.Ω(err).Should(gomega.BeNil())
+		clientRootDir := filepath.Join(anrRootDir, clientRootDirPrefix)
+		logDir, err = utils.MkDirWithTimestamp(clientRootDir)
 		gomega.Ω(err).Should(gomega.BeNil())
 	}
 	lvl, err := logging.ToLevel(logLevel)
