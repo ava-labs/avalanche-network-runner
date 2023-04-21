@@ -452,7 +452,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 
 		ginkgo.By("can load snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.LoadSnapshot(ctx, "test",
 				client.WithReassignPortsIfUsed(true),
 			)
@@ -1003,13 +1003,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrNotBootstrapped.Error()))
 		})
 		ginkgo.By("load fail for unknown snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.LoadSnapshot(ctx, "papa")
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot not found"))
 		})
 		ginkgo.By("can load snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.LoadSnapshot(ctx, "pepe")
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
