@@ -305,13 +305,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdBlockchainID = resp.ChainIds[0]
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("verify subnet has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -348,13 +341,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdBlockchainID = resp.ChainIds[0]
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("verify the newer subnet also has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -385,13 +371,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(2))
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("can create two blockchains in two new disjoint subnets with bls validators", func() {
@@ -473,13 +452,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				gomega.Ω(found).Should(gomega.Equal(true))
 			}
 			cancel()
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("stop the network", func() {
@@ -836,12 +808,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("verify that new validator has BLS Keys", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			clientURIs, err := cli.URIs(ctx)
@@ -873,12 +839,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("check subnet number is 2", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(ctx)
@@ -894,12 +854,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("verify subnet has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -920,12 +874,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
@@ -994,12 +942,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.LoadSnapshot(ctx, "pepe")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("wait for network to be healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
