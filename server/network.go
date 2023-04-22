@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
@@ -353,11 +354,20 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 // Doesn't contain the Primary network.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
-	allNodeNames := maps.Keys(lc.nodeInfos)
-	sort.Strings(allNodeNames)
-	node, err := lc.nw.GetNode(allNodeNames[0])
+	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
+	}
+	minAPIPortNumber := uint16(local.MaxPort)
+	var node node.Node
+	for _, n := range nodes {
+		if n.GetPaused() {
+			continue
+		}
+		if n.GetAPIPort() < minAPIPortNumber {
+			minAPIPortNumber = n.GetAPIPort()
+			node = n
+		}
 	}
 
 	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)

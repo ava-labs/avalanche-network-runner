@@ -65,7 +65,7 @@ type blockchainInfo struct {
 // get node with minimum port number
 func (ln *localNetwork) getNode() node.Node {
 	var node node.Node
-	minAPIPortNumber := uint16(maxPort)
+	minAPIPortNumber := uint16(MaxPort)
 	for _, n := range ln.nodes {
 		if n.paused {
 			continue

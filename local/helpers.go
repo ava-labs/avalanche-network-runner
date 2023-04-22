@@ -23,7 +23,7 @@ func init() {
 }
 
 const (
-	maxPort          = math.MaxUint16
+	MaxPort          = math.MaxUint16
 	minPort          = 10000
 	netListenTimeout = 3 * time.Second
 )
@@ -54,7 +54,7 @@ func getFreePort() (uint16, error) {
 			return 0, ctx.Err()
 		default:
 			// Generate random port in [minPort, maxPort]
-			port := uint16(rand.Intn(maxPort-minPort+1) + minPort) //nolint
+			port := uint16(rand.Intn(MaxPort-minPort+1) + minPort) //nolint
 			if isFreePort(port) != nil {
 				// Not free. Try another.
 				continue
