@@ -248,9 +248,41 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
+		ginkgo.By("can save snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.SaveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
+			_, err := cli.LoadSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
+		// (testing for no snapshots)
+		ginkgo.By("can remove snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.RemoveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can create a blockchain with an existing subnet id loaded from snapshot", func() {
+			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+				},
+			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -441,52 +473,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				gomega.Ω(found).Should(gomega.Equal(true))
 			}
 			cancel()
-		})
-
-		ginkgo.By("can save snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("can load snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
-		// (testing for no snapshots)
-		ginkgo.By("can remove snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.RemoveSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("can create a blockchain with an existing subnet id", func() {
-			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.CreateBlockchains(ctx,
-				[]*rpcpb.BlockchainSpec{
-					{
-						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
-						SubnetId: &existingSubnetID,
-					},
-				},
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("wait for custom chains healthy", func() {
