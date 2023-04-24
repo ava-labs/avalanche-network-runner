@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
@@ -184,9 +185,22 @@ func (lc *localNetwork) createConfig() error {
 
 // Creates a network and sets [lc.nw] to it.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) Start() error {
+func (lc *localNetwork) Start(ctx context.Context) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
 
 	if err := lc.createConfig(); err != nil {
 		return err
@@ -204,6 +218,10 @@ func (lc *localNetwork) Start() error {
 		return err
 	}
 
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -215,10 +233,6 @@ func (lc *localNetwork) CreateChains(
 ) ([]ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
-
-	if len(chainSpecs) == 0 {
-		return nil, nil
-	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -232,6 +246,10 @@ func (lc *localNetwork) CreateChains(
 			// This method is done. Don't leak [ctx].
 		}
 	}(ctx)
+
+	if len(chainSpecs) == 0 {
+		return nil, nil
+	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
 		return nil, err
@@ -336,11 +354,20 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 // Doesn't contain the Primary network.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
-	allNodeNames := maps.Keys(lc.nodeInfos)
-	sort.Strings(allNodeNames)
-	node, err := lc.nw.GetNode(allNodeNames[0])
+	nodes, err := lc.nw.GetAllNodes()
 	if err != nil {
 		return err
+	}
+	minAPIPortNumber := uint16(local.MaxPort)
+	var node node.Node
+	for _, n := range nodes {
+		if n.GetPaused() {
+			continue
+		}
+		if n.GetAPIPort() < minAPIPortNumber {
+			minAPIPortNumber = n.GetAPIPort()
+			node = n
+		}
 	}
 
 	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)

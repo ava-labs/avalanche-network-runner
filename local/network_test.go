@@ -1005,7 +1005,7 @@ func TestAddNetworkFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			addNetworkFlags(logging.NoLog{}, tt.netFlags, tt.beforeNodeFlags)
+			addNetworkFlags(tt.netFlags, tt.beforeNodeFlags)
 			require.Equal(tt.afterNodeFlags, tt.beforeNodeFlags)
 		})
 	}

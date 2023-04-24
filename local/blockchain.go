@@ -62,23 +62,29 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
-// get an arbitrary node in the network
-func (ln *localNetwork) getSomeNode() node.Node {
+// get node with minimum port number
+func (ln *localNetwork) getNode() node.Node {
 	var node node.Node
+	minAPIPortNumber := uint16(MaxPort)
 	for _, n := range ln.nodes {
 		if n.paused {
 			continue
 		}
-		node = n
-		break
+		if n.GetAPIPort() < minAPIPortNumber {
+			minAPIPortNumber = n.GetAPIPort()
+			node = n
+		}
 	}
 	return node
 }
 
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) { //nolint
-	node := ln.getSomeNode()
+	node := ln.getNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
+	ln.log.Info("getClientURI",
+		zap.String("nodeName", node.GetName()),
+		zap.String("uri", clientURI))
 	return clientURI, nil
 }
 

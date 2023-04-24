@@ -7,7 +7,6 @@ package e2e_test
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -42,6 +41,8 @@ func TestE2e(t *testing.T) {
 	ginkgo.RunSpecs(t, "network-runner-example e2e test suites")
 }
 
+const clientRootDirPrefix = "client"
+
 var (
 	logLevel      string
 	logDir        string
@@ -67,7 +68,7 @@ var (
 	}
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
-	newParticipantNode            = "newParticipantNode"
+	newParticipantNode            = "new_participant_node"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
@@ -127,17 +128,24 @@ var (
 )
 
 var _ = ginkgo.BeforeSuite(func() {
+	var err error
 	if logDir == "" {
-		var err error
-		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-e2e-logs-%d", time.Now().Unix()))
+		anrRootDir := filepath.Join(os.TempDir(), constants.RootDirPrefix)
+		err = os.MkdirAll(anrRootDir, os.ModePerm)
+		gomega.Ω(err).Should(gomega.BeNil())
+		clientRootDir := filepath.Join(anrRootDir, clientRootDirPrefix)
+		logDir, err = utils.MkDirWithTimestamp(clientRootDir)
 		gomega.Ω(err).Should(gomega.BeNil())
 	}
 	lvl, err := logging.ToLevel(logLevel)
 	gomega.Ω(err).Should(gomega.BeNil())
-	lcfg := logging.Config{
+	logFactory := logging.NewFactory(logging.Config{
+		RotatingWriterConfig: logging.RotatingWriterConfig{
+			Directory: logDir,
+		},
 		DisplayLevel: lvl,
-	}
-	logFactory := logging.NewFactory(lcfg)
+		LogLevel:     lvl,
+	})
 	log, err = logFactory.Make(constants.LogNameTest)
 	gomega.Ω(err).Should(gomega.BeNil())
 
@@ -200,13 +208,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("get subnet ID", func() {
 			cctx, ccancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(cctx)
@@ -226,7 +227,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			subnetIDs := status.ClusterInfo.GetSubnets()
 			createdSubnetIDString := subnetIDs[0]
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(existingNodes, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, existingNodes, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -247,9 +248,41 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(1))
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
+		ginkgo.By("can save snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.SaveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
+			_, err := cli.LoadSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
+		// (testing for no snapshots)
+		ginkgo.By("can remove snapshot", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.RemoveSnapshot(ctx, "test")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("can create a blockchain with an existing subnet id loaded from snapshot", func() {
+			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.CreateBlockchains(ctx,
+				[]*rpcpb.BlockchainSpec{
+					{
+						VmName:   "subnetevm",
+						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						SubnetId: &existingSubnetID,
+					},
+				},
+			)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -272,13 +305,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdBlockchainID = resp.ChainIds[0]
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("verify subnet has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -287,7 +313,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 			// verify that no new nodes is added to cluster
 			gomega.Ω(len(status.ClusterInfo.NodeNames)).Should(gomega.Equal(5))
@@ -315,13 +341,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			createdBlockchainID = resp.ChainIds[0]
 		})
 
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("verify the newer subnet also has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -329,7 +348,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -352,13 +371,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.ChainIds)).Should(gomega.Equal(2))
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("can create two blockchains in two new disjoint subnets with bls validators", func() {
@@ -405,10 +417,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			customChains := status.ClusterInfo.GetCustomChains()
 			createdSubnetIDString := customChains[createdBlockchainID].SubnetId
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[0], status.ClusterInfo, createdSubnetIDString)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, disjointNewSubnetParticipants[0], status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 			createdSubnetID2String := customChains[createdBlockchainID2].SubnetId
-			subnet2HasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(disjointNewSubnetParticipants[1], status.ClusterInfo, createdSubnetID2String)
+			subnet2HasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, disjointNewSubnetParticipants[1], status.ClusterInfo, createdSubnetID2String)
 			gomega.Ω(subnet2HasCorrectParticipants).Should(gomega.Equal(true))
 		})
 
@@ -440,59 +452,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				gomega.Ω(found).Should(gomega.Equal(true))
 			}
 			cancel()
-		})
-
-		ginkgo.By("can save snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("can load snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err := cli.LoadSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		// need to remove the snapshot otherwise it fails later in the 2nd part of snapshot tests
-		// (testing for no snapshots)
-		ginkgo.By("can remove snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.RemoveSnapshot(ctx, "test")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("can create a blockchain with an existing subnet id", func() {
-			ux.Print(log, logging.Blue.Wrap("can create a blockchain in an existing subnet"))
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.CreateBlockchains(ctx,
-				[]*rpcpb.BlockchainSpec{
-					{
-						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
-						SubnetId: &existingSubnetID,
-					},
-				},
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("stop the network", func() {
@@ -791,7 +750,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Health(ctx)
 			cancel()
-			gomega.Ω(err).Should(gomega.HaveOccurred())
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("API Call using paused node URI will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -849,12 +808,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("verify that new validator has BLS Keys", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			clientURIs, err := cli.URIs(ctx)
@@ -886,12 +839,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("check subnet number is 2", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			status, err := cli.Status(ctx)
@@ -908,18 +855,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("verify subnet has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, createdSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
@@ -933,12 +874,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
 			createdSubnetID = response.SubnetIds[0]
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
@@ -954,7 +889,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(subnetParticipants2, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, createdSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 	})
@@ -999,20 +934,14 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrNotBootstrapped.Error()))
 		})
 		ginkgo.By("load fail for unknown snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.LoadSnapshot(ctx, "papa")
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot not found"))
 		})
 		ginkgo.By("can load snapshot", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.LoadSnapshot(ctx, "pepe")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("wait for network to be healthy", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.WaitForHealthy(ctx)
+			_, err := cli.LoadSnapshot(ctx, "pepe")
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
