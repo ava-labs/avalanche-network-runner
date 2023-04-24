@@ -750,7 +750,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Health(ctx)
 			cancel()
-			gomega.Ω(err).Should(gomega.HaveOccurred())
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("API Call using paused node URI will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
