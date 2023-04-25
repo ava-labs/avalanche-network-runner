@@ -576,7 +576,9 @@ func (lc *localNetwork) generatePrometheusConf() error {
 	}
 	prometheusConf := prometheusConfCommon
 	for _, nodeInfo := range lc.nodeInfos {
-		prometheusConf += "        - " + strings.TrimPrefix(nodeInfo.Uri, "http://") + "\n"
+		if !nodeInfo.Paused {
+			prometheusConf += "        - " + strings.TrimPrefix(nodeInfo.Uri, "http://") + "\n"
+		}
 	}
 	file, err := os.Create(lc.prometheusConfPath)
 	if err != nil {
