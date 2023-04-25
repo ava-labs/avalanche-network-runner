@@ -7,7 +7,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
@@ -21,6 +24,27 @@ import (
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"golang.org/x/exp/maps"
+)
+
+const (
+	prometheusConfFname  = "prometheus.yaml"
+	prometheusConfCommon = `global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: 
+        - localhost:9090
+  - job_name: machine
+    static_configs:
+      - targets:
+        - localhost:9100
+  - job_name: avalanchego
+    metrics_path: /ext/metrics
+    static_configs:
+      - targets:
+`
 )
 
 type localNetwork struct {
@@ -48,6 +72,8 @@ type localNetwork struct {
 	subnets []string
 	// map from subnet ID to list of participating node ids
 	subnetParticipants map[string][]string
+
+	prometheusConfPath string
 }
 
 type chainInfo struct {
@@ -538,7 +564,25 @@ func (lc *localNetwork) updateNodeInfo() error {
 			lc.pluginDir = node.GetPluginDir()
 		}
 	}
-	return nil
+	return lc.generatePrometheusConf()
+}
+
+func (lc *localNetwork) generatePrometheusConf() error {
+	if lc.prometheusConfPath == "" {
+		lc.prometheusConfPath = filepath.Join(lc.options.rootDataDir, prometheusConfFname)
+		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("prometheus conf file %s"), lc.prometheusConfPath))
+	}
+	prometheusConf := prometheusConfCommon
+	for _, nodeInfo := range lc.nodeInfos {
+		prometheusConf += "        - " + strings.TrimPrefix(nodeInfo.Uri, "http://") + "\n"
+	}
+	file, err := os.Create(lc.prometheusConfPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write([]byte(prometheusConf))
+	return err
 }
 
 // Assumes [lc.lock] isn't held.

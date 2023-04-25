@@ -885,7 +885,7 @@ func (s *server) PauseNode(ctx context.Context, req *rpcpb.PauseNodeRequest) (*r
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -913,7 +913,7 @@ func (s *server) ResumeNode(ctx context.Context, req *rpcpb.ResumeNodeRequest) (
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
