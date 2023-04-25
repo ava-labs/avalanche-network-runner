@@ -36,10 +36,12 @@ scrape_configs:
     static_configs:
       - targets: 
         - localhost:9090
-  - job_name: machine
+  - job_name: avalanchego-machine
     static_configs:
-      - targets:
-        - localhost:9100
+     - targets: 
+       - localhost:9100
+       labels:
+         alias: machine
   - job_name: avalanchego
     metrics_path: /ext/metrics
     static_configs:
