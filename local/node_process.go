@@ -123,6 +123,8 @@ func (p *nodeProcess) awaitExit() {
 		p.log.Debug("node returned error on wait", zap.String("node", p.name), zap.Error(err))
 	}
 
+	p.log.Debug("node process finished", zap.String("node", p.name))
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
 

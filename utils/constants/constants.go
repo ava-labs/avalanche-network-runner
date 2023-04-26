@@ -8,6 +8,7 @@ const (
 	LogNameMain    = "main"
 	LogNameControl = "control"
 	LogNameTest    = "test"
+	RootDirPrefix  = "network-runner-root-data"
 )
 
 var (

@@ -363,6 +363,25 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
+To create a blockchain with a new subnet id with select nodes as participants (requires network restart):
+(New nodes will first be added as primary validators similar to the process in `create-subnets`)
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": "{"participants": ["node1", "node2", "testNode"]}"]}'
+
+# or
+avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": "{"participants": ["node1", "node2", "testNode"]}]' --plugin-dir $PLUGIN_DIR
+```
+
+To create two blockchains in two disjoint subnets (not shared validators), and where all validators have bls keys (parcipants new to the network):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node1", "new_node2"]}},{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node3", "new_node4"]}}]'
+
+# or
+go run main.go control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node1", "new_node2"]}},{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node3", "new_node4"]}}]'
+```
+
 Chain config can also be defined on a per node basis. For that, a per node chain config file is needed, which is a JSON that specifies the chain config per node. For example, given the following as the contents of the file with path `$PER_NODE_CHAIN_CONFIG`:
 
 ```json
@@ -394,7 +413,7 @@ avalanche-network-runner control remove-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node5
+node5
 ```
 
 To restart a node (in this case, the one named `node1`):
@@ -412,8 +431,8 @@ avalanche-network-runner control restart-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node1 \
---avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+node1 
 ```
 
 To add a node (in this case, a new node named `node99`):
@@ -431,8 +450,40 @@ avalanche-network-runner control add-node \
 --request-timeout=3m \
 --log-level debug \
 --endpoint="0.0.0.0:8080" \
---node-name node99 \
---avalanchego-path ${AVALANCHEGO_EXEC_PATH}
+--avalanchego-path ${AVALANCHEGO_EXEC_PATH} \
+node99 
+```
+
+To pause a node (in this case, node named `node99`):
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+
+curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control pause-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+node99 
+```
+
+To resume a paused node (in this case, node named `node99`):
+```bash
+# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+AVALANCHEGO_EXEC_PATH="avalanchego"
+
+
+curl -X POST -k http://localhost:8081/v1/control/resumenode -d '{"name":"node99","logLevel":"INFO"}'
+
+# or
+avalanche-network-runner control resume-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+node99 
 ```
 
 You can also provide additional flags that specify the node's config:

@@ -9,11 +9,10 @@ import (
 	"time"
 
 	rpcb "github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"golang.org/x/net/context"
-
+	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
 const (
@@ -102,43 +101,32 @@ func MkDirWithTimestamp(dirPrefix string) (string, error) {
 }
 
 func VerifySubnetHasCorrectParticipants(
-	ctx context.Context,
+	log logging.Logger,
 	subnetParticipants []string,
-	clientURI string,
-	createdSubnetID ids.ID,
 	cluster *rpcb.ClusterInfo,
+	subnetID string,
 ) bool {
 	if cluster != nil {
-		var nodeIdsList []string
-		// Get list of node IDs for nodes added as validator to subnet as configured in subnet participants specs
-		for nodeName, nodeInfo := range cluster.NodeInfos {
-			for _, subnetValidatorNodeName := range subnetParticipants {
-				if nodeName == subnetValidatorNodeName {
-					nodeIdsList = append(nodeIdsList, nodeInfo.Id)
-				}
-			}
-		}
-
-		platformCli := platformvm.NewClient(clientURI)
-		vdrs, err := platformCli.GetCurrentValidators(ctx, createdSubnetID, nil)
-		if err != nil {
-			return false
-		}
+		participatingNodeNames := cluster.SubnetParticipants[subnetID].GetNodeNames()
 		var nodeIsInList bool
 		// Check that all subnet validators are equal to the node IDs added as participant in subnet creation
-		for _, v := range vdrs {
+		for _, node := range subnetParticipants {
 			nodeIsInList = false
-			for _, subnetValidator := range nodeIdsList {
-				if v.NodeID.String() == subnetValidator {
+			for _, subnetValidator := range participatingNodeNames {
+				if subnetValidator == node {
 					nodeIsInList = true
 					break
 				}
 			}
 			if !nodeIsInList {
+				ux.Print(log, logging.Red.Wrap(fmt.Sprintf("VerifySubnetHasCorrectParticipants: %#v", cluster)))
+				ux.Print(log, logging.Red.Wrap(fmt.Sprintf("VerifySubnetHasCorrectParticipants: node not in list subnet %q node %q %v %v", subnetID, node, subnetParticipants, participatingNodeNames)))
 				return false
 			}
 		}
 		return true
+	} else {
+		ux.Print(log, logging.Red.Wrap("VerifySubnetHasCorrectParticipants: cluster is nil"))
 	}
 	return false
 }
