@@ -117,14 +117,9 @@ func TestCheckPluginPaths(t *testing.T) {
 			genesisPath: "",
 			expectedErr: ErrNotExistsPlugin,
 		},
-		{
-			pluginPath:  pluginPath,
-			genesisPath: "invalid",
-			expectedErr: ErrNotExistsPluginGenesis,
-		},
 	}
 	for i, tv := range tt {
-		err := CheckPluginPaths(tv.pluginPath, tv.genesisPath)
+		err := CheckPluginPath(tv.pluginPath)
 		require.Equal(t, tv.expectedErr, err, fmt.Sprintf("[%d] unexpected error", i))
 	}
 }
