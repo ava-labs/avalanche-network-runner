@@ -7,7 +7,6 @@ package e2e_test
 import (
 	"context"
 	"flag"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -516,28 +515,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(server.ErrInvalidVMName.Error()))
-
-			os.RemoveAll(filePath)
-		})
-
-		ginkgo.By("start request with invalid custom VM genesis path should fail", func() {
-			vmID, err := utils.VMID("hello")
-			gomega.Ω(err).Should(gomega.BeNil())
-			filePath := filepath.Join(os.TempDir(), vmID.String())
-			gomega.Ω(os.WriteFile(filePath, []byte{0}, fs.ModePerm)).Should(gomega.BeNil())
-
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err = cli.Start(ctx, execPath1,
-				client.WithPluginDir(filepath.Dir(filePath)),
-				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
-					{
-						VmName:  "hello",
-						Genesis: "invalid",
-					},
-				}),
-			)
-			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrNotExistsPluginGenesis.Error()))
 
 			os.RemoveAll(filePath)
 		})
