@@ -839,7 +839,7 @@ func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
 	if exitCode := node.process.Stop(ctx); exitCode != 0 {
 		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
-	_ = syscall.Sync()
+	syscall.Sync()
 	node.paused = true
 	return nil
 }
@@ -960,7 +960,7 @@ func (ln *localNetwork) restartNode(
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
 		}
-		_ = syscall.Sync()
+		syscall.Sync()
 	}
 
 	if _, err := ln.addNode(nodeConfig); err != nil {
