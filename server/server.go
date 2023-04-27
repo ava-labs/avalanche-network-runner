@@ -1200,14 +1200,14 @@ func getNetworkBlockchainSpec(
 		}
 	}
 
-	genesisBytes, err := os.ReadFile(spec.Genesis)
+	genesisBytes, err := readFileOrString(spec.Genesis)
 	if err != nil {
 		return network.BlockchainSpec{}, err
 	}
 
 	var chainConfigBytes []byte
 	if spec.ChainConfig != "" {
-		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
+		chainConfigBytes, err = readFileOrString(spec.ChainConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1215,7 +1215,7 @@ func getNetworkBlockchainSpec(
 
 	var networkUpgradeBytes []byte
 	if spec.NetworkUpgrade != "" {
-		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
+		networkUpgradeBytes, err = readFileOrString(spec.NetworkUpgrade)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1223,7 +1223,7 @@ func getNetworkBlockchainSpec(
 
 	var subnetConfigBytes []byte
 	if spec.SubnetSpec != nil && spec.SubnetSpec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetSpec.SubnetConfig)
+		subnetConfigBytes, err = readFileOrString(spec.SubnetSpec.SubnetConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1231,7 +1231,7 @@ func getNetworkBlockchainSpec(
 
 	perNodeChainConfig := map[string][]byte{}
 	if spec.PerNodeChainConfig != "" {
-		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
+		perNodeChainConfigBytes, err := readFileOrString(spec.PerNodeChainConfig)
 		if err != nil {
 			return network.BlockchainSpec{}, err
 		}
@@ -1277,7 +1277,7 @@ func getNetworkSubnetSpec(
 	var subnetConfigBytes []byte
 	var err error
 	if spec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
+		subnetConfigBytes, err = readFileOrString(spec.SubnetConfig)
 		if err != nil {
 			return network.SubnetSpec{}, err
 		}
@@ -1286,4 +1286,21 @@ func getNetworkSubnetSpec(
 		Participants: spec.Participants,
 		SubnetConfig: subnetConfigBytes,
 	}, nil
+}
+
+// if [conf] is a path, returns the file contents
+// if not, returns [conf] as a byte slice
+func readFileOrString(conf string) ([]byte, error) {
+	_, err := os.Stat(conf)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []byte(conf), nil
+		}
+		return nil, err
+	}
+	confBytes, err := os.ReadFile(conf)
+	if err != nil {
+		return nil, err
+	}
+	return confBytes, nil
 }

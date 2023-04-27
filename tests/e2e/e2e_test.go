@@ -75,6 +75,9 @@ var (
 		{"new_node1", "new_node2"},
 		{"new_node3", "new_node4"},
 	}
+
+	genesisPath     string
+	genesisContents string
 )
 
 func init() {
@@ -154,6 +157,11 @@ var _ = ginkgo.BeforeSuite(func() {
 		DialTimeout: 10 * time.Second,
 	}, log)
 	gomega.Ω(err).Should(gomega.BeNil())
+
+	genesisPath = "tests/e2e/subnet-evm-genesis.json"
+	genesisByteContents, err := os.ReadFile(genesisPath)
+	gomega.Ω(err).Should(gomega.BeNil())
+	genesisContents = string(genesisByteContents)
 })
 
 var _ = ginkgo.AfterSuite(func() {
@@ -181,7 +189,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				client.WithBlockchainSpecs([]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "subnetevm",
-						Genesis: "tests/e2e/subnet-evm-genesis.json",
+						Genesis: genesisPath, // test genesis path usage
 					},
 				}),
 			)
@@ -199,7 +207,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:  "subnetevm",
-						Genesis: "tests/e2e/subnet-evm-genesis.json",
+						Genesis: genesisPath, // test genesis path usage
 					},
 				},
 			)
@@ -238,7 +246,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						Genesis:  genesisContents,
 						SubnetId: &existingSubnetID,
 					},
 				},
@@ -278,7 +286,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						Genesis:  genesisContents,
 						SubnetId: &existingSubnetID,
 					},
 				},
@@ -294,7 +302,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:     "subnetevm",
-						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						Genesis:    genesisContents,
 						SubnetSpec: &rpcpb.SubnetSpec{Participants: subnetParticipants},
 					},
 				},
@@ -326,7 +334,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:     "subnetevm",
-						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						Genesis:    genesisContents,
 						SubnetSpec: &rpcpb.SubnetSpec{Participants: subnetParticipants2},
 					},
 				},
@@ -358,12 +366,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						Genesis:  genesisContents,
 						SubnetId: &existingSubnetID,
 					},
 					{
 						VmName:   "subnetevm",
-						Genesis:  "tests/e2e/subnet-evm-genesis.json",
+						Genesis:  genesisContents,
 						SubnetId: &existingSubnetID,
 					},
 				},
@@ -385,12 +393,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 				[]*rpcpb.BlockchainSpec{
 					{
 						VmName:     "subnetevm",
-						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						Genesis:    genesisContents,
 						SubnetSpec: &rpcpb.SubnetSpec{Participants: disjointNewSubnetParticipants[0]},
 					},
 					{
 						VmName:     "subnetevm",
-						Genesis:    "tests/e2e/subnet-evm-genesis.json",
+						Genesis:    genesisContents,
 						SubnetSpec: &rpcpb.SubnetSpec{Participants: disjointNewSubnetParticipants[1]},
 					},
 				},
