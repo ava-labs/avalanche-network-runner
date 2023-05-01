@@ -5,13 +5,14 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/server"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
@@ -21,6 +22,8 @@ import (
 func init() {
 	cobra.EnablePrefixMatching = true
 }
+
+const serverRootDirPrefix = "server"
 
 var (
 	logLevel           string
@@ -55,7 +58,13 @@ func NewCommand() *cobra.Command {
 
 func serverFunc(*cobra.Command, []string) (err error) {
 	if logDir == "" {
-		logDir, err = os.MkdirTemp("", fmt.Sprintf("anr-server-logs-%d", time.Now().Unix()))
+		anrRootDir := filepath.Join(os.TempDir(), constants.RootDirPrefix)
+		err = os.MkdirAll(anrRootDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		serverRootDir := filepath.Join(anrRootDir, serverRootDirPrefix)
+		logDir, err = utils.MkDirWithTimestamp(serverRootDir)
 		if err != nil {
 			return err
 		}

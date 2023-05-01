@@ -25,6 +25,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
@@ -48,9 +49,9 @@ const (
 
 	stopTimeout           = 5 * time.Second
 	defaultStartTimeout   = 5 * time.Minute
-	waitForHealthyTimeout = 2 * time.Minute
+	waitForHealthyTimeout = 3 * time.Minute
 
-	rootDataDirPrefix = "network-runner-root-data"
+	networkRootDirPrefix = "network"
 )
 
 var (
@@ -299,9 +300,13 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	)
 
 	if len(rootDataDir) == 0 {
-		rootDataDir = os.TempDir()
+		rootDataDir = filepath.Join(os.TempDir(), constants.RootDirPrefix)
+		err = os.MkdirAll(rootDataDir, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
 	}
-	rootDataDir = filepath.Join(rootDataDir, rootDataDirPrefix)
+	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err
@@ -349,13 +354,15 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		zap.String("global-node-config", globalNodeConfig),
 	)
 
-	if err := s.network.Start(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	if err := s.network.Start(ctx); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel = context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
 	chainIDs, err := s.network.CreateChains(ctx, chainSpecs)
 	if err != nil {
@@ -945,7 +952,7 @@ func (s *server) PauseNode(ctx context.Context, req *rpcpb.PauseNodeRequest) (*r
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -973,7 +980,7 @@ func (s *server) ResumeNode(ctx context.Context, req *rpcpb.ResumeNodeRequest) (
 		return nil, err
 	}
 
-	if err := s.network.updateNodeInfo(); err != nil {
+	if err := s.network.UpdateNodeInfo(); err != nil {
 		return nil, err
 	}
 
@@ -1082,12 +1089,16 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		return nil, ErrAlreadyBootstrapped
 	}
 
+	var err error
 	rootDataDir := req.GetRootDataDir()
 	if len(rootDataDir) == 0 {
-		rootDataDir = os.TempDir()
+		rootDataDir = filepath.Join(os.TempDir(), constants.RootDirPrefix)
+		err = os.MkdirAll(rootDataDir, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
 	}
-	rootDataDir = filepath.Join(rootDataDir, rootDataDirPrefix)
-	var err error
+	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
 	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
 	if err != nil {
 		return nil, err
@@ -1123,24 +1134,16 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		return nil, err
 	}
 
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
-		defer cancel()
-		err := s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err != nil {
-			s.log.Warn("snapshot load failed to complete. stopping network and cleaning up network", zap.Error(err))
-			s.stopAndRemoveNetwork(err)
-			return
-		} else {
-			s.updateClusterInfo()
-		}
-		s.log.Info("network healthy")
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	err = s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
+	if err != nil {
+		s.log.Warn("snapshot load failed to complete. stopping network and cleaning up network", zap.Error(err))
+		s.stopAndRemoveNetwork(err)
+		return nil, err
+	}
+	s.updateClusterInfo()
+	s.log.Info("network healthy")
 
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
