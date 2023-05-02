@@ -3,10 +3,13 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ava-labs/avalanche-network-runner/pkg/models"
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"github.com/ava-labs/avalanche-network-runner/pkg/models"
+	"github.com/ava-labs/avalanche-network-runner/ux"
+	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
 const (
@@ -41,6 +44,10 @@ func GetSubnetDir() string {
 	return filepath.Join(GetBaseDir(), SubnetDir)
 }
 
+func GetSubnetNameDir(subnet string) string {
+	return filepath.Join(GetSubnetDir(), subnet)
+}
+
 func GetElasticSubnetConfigPath(subnetName string) string {
 	return filepath.Join(GetSubnetDir(), subnetName, ElasticSubnetConfigFileName)
 }
@@ -60,6 +67,9 @@ func CreateElasticSubnetConfig(subnetName string, es *models.ElasticSubnetConfig
 
 func LoadElasticSubnetConfig(subnetName string) (models.ElasticSubnetConfig, error) {
 	elasticSubnetConfigPath := GetElasticSubnetConfigPath(subnetName)
+	if _, err := os.Stat(elasticSubnetConfigPath); err != nil {
+		return models.ElasticSubnetConfig{}, nil
+	}
 	jsonBytes, err := os.ReadFile(elasticSubnetConfigPath)
 	if err != nil {
 		return models.ElasticSubnetConfig{}, err
@@ -68,4 +78,21 @@ func LoadElasticSubnetConfig(subnetName string) (models.ElasticSubnetConfig, err
 	var esc models.ElasticSubnetConfig
 	err = json.Unmarshal(jsonBytes, &esc)
 	return esc, err
+}
+
+func DeleteElasticSubnetConfigs(logger logging.Logger) {
+	allSubnetDirs, err := os.ReadDir(GetSubnetDir())
+	if err != nil {
+		ux.Print(logger, logging.Red.Wrap("error getting subnet directory"))
+	}
+
+	for _, subnetDir := range allSubnetDirs {
+		if !subnetDir.IsDir() {
+			continue
+		}
+		fmt.Printf("deleting %s \n", subnetDir.Name())
+		if err := os.RemoveAll(GetSubnetNameDir(subnetDir.Name())); err != nil {
+			ux.Print(logger, logging.Red.Wrap("error deleting elastic subnet config"))
+		}
+	}
 }

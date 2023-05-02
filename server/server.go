@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/pkg"
+
 	"go.uber.org/multierr"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -261,6 +263,8 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
 	}
+	// remove any existing elastic subnet config used to store current mapping of subnet to elastic subnet txID
+	pkg.DeleteElasticSubnetConfigs(s.log)
 
 	// Set default values for [req.NumNodes] if not given.
 	if req.NumNodes == nil {
@@ -720,6 +724,7 @@ func (s *server) stopAndRemoveNetwork(err error) {
 		s.clusterInfo.CustomChainsHealthy = false
 	}
 	s.network = nil
+	pkg.DeleteElasticSubnetConfigs(s.log)
 }
 
 // TODO document this

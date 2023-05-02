@@ -494,7 +494,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 		lc.subnetParticipants[subnetID] = nodeNameList
 		esc, err := pkg.LoadElasticSubnetConfig(subnetID)
-		lc.elasticSubnetMap[subnetID] = esc.TxID.String()
+		if err != nil {
+			return err
+		}
+		if esc.TxID != ids.Empty {
+			lc.elasticSubnetMap[subnetID] = esc.TxID.String()
+		}
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
