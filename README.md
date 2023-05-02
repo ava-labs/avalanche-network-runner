@@ -345,6 +345,15 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]' --plugin-dir $PLUGIN_DIR
 ```
 
+Genesis can be given either as file path or file contents:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]}'
+
+# or
+avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]' --plugin-dir $PLUGIN_DIR
+```
+
 To create a blockchain with a subnet id (does not require restart):
 
 ```bash
