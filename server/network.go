@@ -82,11 +82,6 @@ type chainInfo struct {
 	blockchainID ids.ID
 }
 
-type subnetInfo struct {
-	isElastic          bool
-	subnetParticipants []string
-}
-
 type localNetworkOptions struct {
 	execPath            string
 	rootDataDir         string
