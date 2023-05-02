@@ -42,14 +42,14 @@ func TestE2e(t *testing.T) {
 const clientRootDirPrefix = "client"
 
 var (
-	logLevel      string
-	logDir        string
-	gRPCEp        string
-	gRPCGatewayEp string
-	execPath1     string
-	execPath2     string
-	subnetEvmPath string
-  genesisPath     string
+	logLevel        string
+	logDir          string
+	gRPCEp          string
+	gRPCGatewayEp   string
+	execPath1       string
+	execPath2       string
+	subnetEvmPath   string
+	genesisPath     string
 	genesisContents string
 
 	newNodeName       = "test-add-node"
