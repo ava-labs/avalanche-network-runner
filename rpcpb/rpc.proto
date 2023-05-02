@@ -197,6 +197,7 @@ message ClusterInfo {
   map<string, CustomChainInfo> custom_chains = 8;
   repeated string subnets          = 9;
   map<string, SubnetParticipants> subnet_participants = 10;
+  map<string, string> elastic_subnet_info = 11;
 }
 
 message CustomChainInfo {

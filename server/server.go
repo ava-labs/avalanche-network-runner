@@ -405,6 +405,10 @@ func (s *server) updateClusterInfo() {
 	for subnetID, nodes := range s.network.subnetParticipants {
 		s.clusterInfo.SubnetParticipants[subnetID] = &rpcpb.SubnetParticipants{NodeNames: nodes}
 	}
+	s.clusterInfo.ElasticSubnetInfo = make(map[string]string)
+	for subnetID, txID := range s.network.elasticSubnetMap {
+		s.clusterInfo.ElasticSubnetInfo[subnetID] = txID
+	}
 }
 
 // wait until some of this conditions is met:

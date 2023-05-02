@@ -14,6 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/pkg"
+	"github.com/ava-labs/avalanche-network-runner/pkg/models"
+
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
@@ -845,8 +848,38 @@ func (ln *localNetwork) transformToElasticSubnets(
 		}
 		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
 		elasticSubnetIDs[i] = transformSubnetTxID
+		elasticSubnetConfig := getElasticSubnetConfig(elasticSubnetSpec, transformSubnetTxID, subnetAssetID, subnetID)
+		if err = pkg.CreateElasticSubnetConfig(*elasticSubnetSpec.SubnetID, &elasticSubnetConfig); err != nil {
+			return nil, err
+		}
 	}
 	return elasticSubnetIDs, nil
+}
+
+func getElasticSubnetConfig(
+	esSpec network.ElasticSubnetSpec,
+	txID ids.ID,
+	assetID ids.ID,
+	subnetID ids.ID,
+) models.ElasticSubnetConfig {
+	elasticSubnetConfig := models.ElasticSubnetConfig{
+		TxID:                     txID,
+		SubnetID:                 subnetID,
+		AssetID:                  assetID,
+		InitialSupply:            esSpec.InitialSupply,
+		MaxSupply:                esSpec.MaxSupply,
+		MinConsumptionRate:       esSpec.MinConsumptionRate,
+		MaxConsumptionRate:       esSpec.MaxConsumptionRate,
+		MinValidatorStake:        esSpec.MinValidatorStake,
+		MaxValidatorStake:        esSpec.MaxValidatorStake,
+		MinStakeDuration:         esSpec.MinStakeDuration,
+		MaxStakeDuration:         esSpec.MaxStakeDuration,
+		MinDelegationFee:         esSpec.MinDelegationFee,
+		MinDelegatorStake:        esSpec.MinDelegatorStake,
+		MaxValidatorWeightFactor: esSpec.MaxValidatorWeightFactor,
+		UptimeRequirement:        esSpec.UptimeRequirement,
+	}
+	return elasticSubnetConfig
 }
 
 func createSubnets(
