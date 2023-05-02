@@ -23,22 +23,22 @@ func init() {
 }
 
 const (
-	maxPort          = math.MaxUint16
+	MaxPort          = math.MaxUint16
 	minPort          = 10000
 	netListenTimeout = 3 * time.Second
 )
 
 // isFreePort verifies a given [port] is free
-func isFreePort(port uint16) bool {
+func isFreePort(port uint16) error {
 	// Verify it's free by binding to it
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		// Could not bind to [port]. Assumed to be not free.
-		return false
+		return err
 	}
 	// We could bind to [port] so must be free.
 	_ = l.Close()
-	return true
+	return nil
 }
 
 // getFreePort generates a random port number and then
@@ -54,8 +54,8 @@ func getFreePort() (uint16, error) {
 			return 0, ctx.Err()
 		default:
 			// Generate random port in [minPort, maxPort]
-			port := uint16(rand.Intn(maxPort-minPort+1) + minPort) //nolint
-			if !isFreePort(port) {
+			port := uint16(rand.Intn(MaxPort-minPort+1) + minPort) //nolint
+			if isFreePort(port) != nil {
 				// Not free. Try another.
 				continue
 			}
@@ -210,15 +210,15 @@ func getPort(
 			return 0, fmt.Errorf("couldn't get free port: %w", err)
 		}
 	}
-	if reassignIfUsed && !isFreePort(port) {
+	if reassignIfUsed && isFreePort(port) != nil {
 		port, err = getFreePort()
 		if err != nil {
 			return 0, fmt.Errorf("couldn't get free port: %w", err)
 		}
 	}
 	// last check, avoid starting network with used ports
-	if !isFreePort(port) {
-		return 0, fmt.Errorf("port %d is not free", port)
+	if err := isFreePort(port); err != nil {
+		return 0, fmt.Errorf("port %d is not free: %w", port, err)
 	}
 	return port, nil
 }
@@ -262,19 +262,12 @@ func createFileAndWrite(path string, contents []byte) error {
 
 // addNetworkFlags adds the flags in [networkFlags] to [nodeConfig.Flags].
 // [nodeFlags] must not be nil.
-func addNetworkFlags(log logging.Logger, networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
+func addNetworkFlags(networkFlags map[string]interface{}, nodeFlags map[string]interface{}) {
 	for flagName, flagVal := range networkFlags {
 		// If the same flag is given in network config and node config,
 		// the flag in the node config takes precedence
-		if val, ok := nodeFlags[flagName]; !ok {
+		if _, ok := nodeFlags[flagName]; !ok {
 			nodeFlags[flagName] = flagVal
-		} else {
-			log.Debug(
-				"not overwriting node config flag with network config flag",
-				zap.String("flag-name", flagName),
-				zap.Any("value", val),
-				zap.Any("network config value", flagVal),
-			)
 		}
 	}
 }

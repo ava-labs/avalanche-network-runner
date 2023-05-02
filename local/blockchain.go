@@ -62,23 +62,29 @@ type blockchainInfo struct {
 	blockchainID ids.ID
 }
 
-// get an arbitrary node in the network
-func (ln *localNetwork) getSomeNode() node.Node {
+// get node with minimum port number
+func (ln *localNetwork) getNode() node.Node {
 	var node node.Node
+	minAPIPortNumber := uint16(MaxPort)
 	for _, n := range ln.nodes {
 		if n.paused {
 			continue
 		}
-		node = n
-		break
+		if n.GetAPIPort() < minAPIPortNumber {
+			minAPIPortNumber = n.GetAPIPort()
+			node = n
+		}
 	}
 	return node
 }
 
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) { //nolint
-	node := ln.getSomeNode()
+	node := ln.getNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
+	ln.log.Info("getClientURI",
+		zap.String("nodeName", node.GetName()),
+		zap.String("uri", clientURI))
 	return clientURI, nil
 }
 
@@ -275,6 +281,11 @@ func (ln *localNetwork) installCustomChains(
 		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nodesToRestartForBlockchainConfigUpdate); err != nil {
 			return nil, err
 		}
+		clientURI, err = ln.getClientURI()
+		if err != nil {
+			return nil, err
+		}
+		w.reload(clientURI)
 	}
 
 	// refresh vm list
@@ -592,6 +603,11 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 	return &w, nil
+}
+
+func (w *wallet) reload(uri string) {
+	pClient := platformvm.NewClient(uri)
+	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 }
 
 // add all nodes as validators of the primary network, in case they are not

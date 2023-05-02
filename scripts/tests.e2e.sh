@@ -148,7 +148,7 @@ go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.1.3
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 ./tests/e2e/e2e.test --help
 
-snapshots_dir=/tmp/avalanche-network-runner-snapshots-e2e/
+snapshots_dir=/tmp/network-runner-root-data/snapshots-e2e/
 rm -rf $snapshots_dir
 
 killall avalanche-network-runner || true

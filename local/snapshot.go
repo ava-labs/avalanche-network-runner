@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -128,7 +129,8 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// make copy of network flags
 	networkConfigFlags := maps.Clone(ln.flags)
-	// remove all log dir references
+	// remove all data dir, log dir references
+	delete(networkConfigFlags, config.DataDirKey)
 	delete(networkConfigFlags, config.LogsDirKey)
 	for nodeName, nodeConfig := range nodesConfig {
 		if nodeConfig.ConfigFile != "" {
@@ -138,6 +140,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 				return "", err
 			}
 		}
+		delete(nodeConfig.Flags, config.DataDirKey)
 		delete(nodeConfig.Flags, config.LogsDirKey)
 		nodesConfig[nodeName] = nodeConfig
 	}
@@ -146,6 +149,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	if err := ln.stop(ctx); err != nil {
 		return "", err
 	}
+	syscall.Sync()
 	// create main snapshot dirs
 	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	if err := os.MkdirAll(snapshotDBDir, os.ModePerm); err != nil {
