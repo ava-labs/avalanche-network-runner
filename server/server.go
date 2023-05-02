@@ -535,10 +535,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 
 	subnetSpecs := []network.SubnetSpec{}
 	for _, spec := range req.GetSubnetSpecs() {
-		subnetSpec, err := getNetworkSubnetSpec(spec)
-		if err != nil {
-			return nil, err
-		}
+		subnetSpec := getNetworkSubnetSpec(spec)
 		subnetSpecs = append(subnetSpecs, subnetSpec)
 	}
 
@@ -1195,49 +1192,33 @@ func getNetworkBlockchainSpec(
 
 	// there is no default plugindir from the ANR point of view, will not check if not given
 	if pluginDir != "" {
-		if err := utils.CheckPluginPaths(
+		if err := utils.CheckPluginPath(
 			filepath.Join(pluginDir, vmID.String()),
-			spec.Genesis,
 		); err != nil {
 			return network.BlockchainSpec{}, err
 		}
 	}
 
-	genesisBytes, err := os.ReadFile(spec.Genesis)
-	if err != nil {
-		return network.BlockchainSpec{}, err
-	}
+	genesisBytes := readFileOrString(spec.Genesis)
 
 	var chainConfigBytes []byte
 	if spec.ChainConfig != "" {
-		chainConfigBytes, err = os.ReadFile(spec.ChainConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
+		chainConfigBytes = readFileOrString(spec.ChainConfig)
 	}
 
 	var networkUpgradeBytes []byte
 	if spec.NetworkUpgrade != "" {
-		networkUpgradeBytes, err = os.ReadFile(spec.NetworkUpgrade)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
+		networkUpgradeBytes = readFileOrString(spec.NetworkUpgrade)
 	}
 
 	var subnetConfigBytes []byte
 	if spec.SubnetSpec != nil && spec.SubnetSpec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetSpec.SubnetConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
+		subnetConfigBytes = readFileOrString(spec.SubnetSpec.SubnetConfig)
 	}
 
 	perNodeChainConfig := map[string][]byte{}
 	if spec.PerNodeChainConfig != "" {
-		perNodeChainConfigBytes, err := os.ReadFile(spec.PerNodeChainConfig)
-		if err != nil {
-			return network.BlockchainSpec{}, err
-		}
+		perNodeChainConfigBytes := readFileOrString(spec.PerNodeChainConfig)
 
 		perNodeChainConfigMap := map[string]interface{}{}
 		if err := json.Unmarshal(perNodeChainConfigBytes, &perNodeChainConfigMap); err != nil {
@@ -1276,17 +1257,23 @@ func getNetworkBlockchainSpec(
 
 func getNetworkSubnetSpec(
 	spec *rpcpb.SubnetSpec,
-) (network.SubnetSpec, error) {
+) network.SubnetSpec {
 	var subnetConfigBytes []byte
-	var err error
 	if spec.SubnetConfig != "" {
-		subnetConfigBytes, err = os.ReadFile(spec.SubnetConfig)
-		if err != nil {
-			return network.SubnetSpec{}, err
-		}
+		subnetConfigBytes = readFileOrString(spec.SubnetConfig)
 	}
 	return network.SubnetSpec{
 		Participants: spec.Participants,
 		SubnetConfig: subnetConfigBytes,
-	}, nil
+	}
+}
+
+// if [conf] is a readable file path, returns the file contents
+// if not, returns [conf] as a byte slice
+func readFileOrString(conf string) []byte {
+	confBytes, err := os.ReadFile(conf)
+	if err != nil {
+		return []byte(conf)
+	}
+	return confBytes
 }

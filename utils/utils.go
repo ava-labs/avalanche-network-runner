@@ -47,10 +47,9 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 }
 
 var (
-	ErrInvalidExecPath        = errors.New("avalanche exec is invalid")
-	ErrNotExists              = errors.New("avalanche exec not exists")
-	ErrNotExistsPlugin        = errors.New("plugin exec not exists")
-	ErrNotExistsPluginGenesis = errors.New("plugin genesis not exists")
+	ErrInvalidExecPath = errors.New("avalanche exec is invalid")
+	ErrNotExists       = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin = errors.New("plugin exec not exists")
 )
 
 func CheckExecPath(exec string) error {
@@ -67,19 +66,13 @@ func CheckExecPath(exec string) error {
 	return nil
 }
 
-func CheckPluginPaths(pluginExec string, pluginGenesisPath string) error {
+func CheckPluginPath(pluginExec string) error {
 	var err error
 	if _, err = os.Stat(pluginExec); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return ErrNotExistsPlugin
 		}
 		return fmt.Errorf("failed to stat plugin exec %q (%w)", pluginExec, err)
-	}
-	if _, err = os.Stat(pluginGenesisPath); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return ErrNotExistsPluginGenesis
-		}
-		return fmt.Errorf("failed to stat plugin genesis %q (%w)", pluginGenesisPath, err)
 	}
 
 	return nil
