@@ -400,12 +400,7 @@ func (s *server) updateClusterInfo() {
 		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 	}
 	s.clusterInfo.Subnets = make(map[string]*rpcpb.SubnetInfo)
-	for subnetID, subnet := range s.network.subnets {
-		s.clusterInfo.Subnets[subnetID] = &rpcpb.SubnetInfo{
-			IsElastic:          subnet.isElastic,
-			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: subnet.subnetParticipants},
-		}
-	}
+	s.clusterInfo.Subnets = s.network.subnets
 }
 
 // wait until some of this conditions is met:

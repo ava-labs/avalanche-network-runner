@@ -71,7 +71,7 @@ type localNetwork struct {
 	stopCh   chan struct{}
 	stopOnce sync.Once
 
-	subnets map[string]subnetInfo
+	subnets map[string]*rpcpb.SubnetInfo
 
 	prometheusConfPath string
 }
@@ -135,7 +135,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 		customChainIDToInfo: make(map[ids.ID]chainInfo),
 		stopCh:              make(chan struct{}),
 		nodeInfos:           make(map[string]*rpcpb.NodeInfo),
-		subnets:             make(map[string]subnetInfo),
+		subnets:             make(map[string]*rpcpb.SubnetInfo),
 	}, nil
 }
 
@@ -452,7 +452,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				}
 			}
 		}
-		lc.subnets[subnetID] = subnetInfo{isElastic: false, subnetParticipants: nodeNameList}
+		lc.subnets[subnetID] = &rpcpb.SubnetInfo{IsElastic: false, SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList}}
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
