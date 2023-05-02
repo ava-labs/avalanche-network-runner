@@ -299,21 +299,24 @@ message StartResponse {
 message SubnetSpec {
   // if empty, assumes all nodes should be participants
   repeated string participants = 1;
+  // either file path or file contents
   string subnet_config = 2;
 }
 
 message BlockchainSpec {
   string vm_name = 1;
+  // either file path or file contents
   string genesis = 2;
   // either a subnet_id is given for a previously created subnet,
   // or a subnet specification is given for a new subnet generation
   optional string subnet_id = 3;
   optional SubnetSpec subnet_spec = 4;
-  // General chain config file path
+  // General chain config, either file path or file contents
   string chain_config = 5;
+  // either file path or file contents
   string network_upgrade = 6;
   string blockchain_alias = 7;
-  // Per node chain config file path
+  // Per node chain config, either file path or file contents
   string per_node_chain_config = 8;
 }
 
