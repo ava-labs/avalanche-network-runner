@@ -399,7 +399,6 @@ func (s *server) updateClusterInfo() {
 	for chainID, chainInfo := range s.network.customChainIDToInfo {
 		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 	}
-	s.clusterInfo.Subnets = make(map[string]*rpcpb.SubnetInfo)
 	s.clusterInfo.Subnets = s.network.subnets
 }
 
