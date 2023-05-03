@@ -9,7 +9,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.26.0
-	github.com/otiai10/copy v1.9.0
+	github.com/otiai10/copy v1.11.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/cobra v1.6.1
