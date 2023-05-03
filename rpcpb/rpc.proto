@@ -45,7 +45,7 @@ service ControlService {
 
   rpc TransformElasticSubnets(TransformElasticSubnetsRequest) returns (TransformElasticSubnetsResponse) {
     option (google.api.http) = {
-      post: "/v1/control/transformelasticsubnet"
+      post: "/v1/control/transformelasticsubnets"
       body: "*"
     };
   }
