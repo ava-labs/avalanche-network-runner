@@ -14,6 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ava-labs/avalanchego/vms/avm"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/wallet/chain/x"
+
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -143,6 +148,16 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 		}
 	}
 	return nil
+}
+
+func (ln *localNetwork) TransformSubnet(
+	ctx context.Context,
+	elasticSubnetConfig []network.ElasticSubnetSpec,
+) ([]ids.ID, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.transformToElasticSubnets(ctx, elasticSubnetConfig)
 }
 
 func (ln *localNetwork) CreateSubnets(
@@ -570,6 +585,7 @@ type wallet struct {
 	pBackend p.Backend
 	pBuilder p.Builder
 	pSigner  p.Signer
+	xWallet  x.Wallet
 }
 
 func newWallet(
@@ -578,7 +594,7 @@ func newWallet(
 	preloadTXs []ids.ID,
 ) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pCTX, _, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
@@ -596,12 +612,20 @@ func newWallet(
 		pTXs[id] = tx
 	}
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
+	xChainID := xCTX.BlockchainID()
+	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
 	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+
+	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
+	xBuilder := x.NewBuilder(kc.Addresses(), xBackend)
+	xSigner := x.NewSigner(kc, xBackend)
+	xClient := avm.NewClient(uri, "X")
+	w.xWallet = x.NewWallet(xBuilder, xSigner, xClient, xBackend)
 	return &w, nil
 }
 
@@ -680,6 +704,144 @@ func (ln *localNetwork) addPrimaryValidators(
 		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
 	}
 	return nil
+}
+
+func getXChainAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol string, maxSupply uint64) (ids.ID, error) {
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			w.addr,
+		},
+	}
+	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
+	return w.xWallet.IssueCreateAssetTx(
+		tokenName,
+		tokenSymbol,
+		9, // denomination for UI purposes only in explorer
+		map[uint32][]verify.State{
+			0: {
+				&secp256k1fx.TransferOutput{
+					Amt:          maxSupply,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(cctx),
+		defaultPoll,
+	)
+}
+
+func exportXChainToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, assetAmount uint64) error {
+	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
+	_, err := w.xWallet.IssueExportTx(
+		ids.Empty,
+		[]*avax.TransferableOutput{
+			{
+				Asset: avax.Asset{
+					ID: subnetAssetID,
+				},
+				Out: &secp256k1fx.TransferOutput{
+					Amt:          assetAmount,
+					OutputOwners: *owner,
+				},
+			},
+		},
+		common.WithContext(cctx),
+		defaultPoll,
+	)
+	return err
+}
+
+func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
+	xWallet := w.xWallet
+	pWallet := w.pWallet
+	cctx, cancel := createDefaultCtx(ctx)
+	defer cancel()
+	xChainID := xWallet.BlockchainID()
+	_, err := pWallet.IssueImportTx(
+		xChainID,
+		owner,
+		common.WithContext(cctx),
+		defaultPoll,
+	)
+	return err
+}
+
+func (ln *localNetwork) transformToElasticSubnets(
+	ctx context.Context,
+	elasticSubnetSpecs []network.ElasticSubnetSpec,
+) ([]ids.ID, error) {
+	ln.log.Info("transforming elastic subnet tx")
+	elasticSubnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return nil, err
+	}
+	// wallet needs txs for all previously created subnets
+	var preloadTXs []ids.ID
+	for _, elasticSubnetSpec := range elasticSubnetSpecs {
+		if elasticSubnetSpec.SubnetID == nil {
+			return nil, errors.New("elastic subnet spec has no subnet ID")
+		} else {
+			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
+			if err != nil {
+				return nil, err
+			}
+			preloadTXs = append(preloadTXs, subnetID)
+		}
+	}
+	w, err := newWallet(ctx, clientURI, preloadTXs)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, elasticSubnetSpec := range elasticSubnetSpecs {
+		ln.log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", *elasticSubnetSpec.SubnetID))
+
+		subnetAssetID, err := getXChainAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
+		owner := &secp256k1fx.OutputOwners{
+			Threshold: 1,
+			Addrs: []ids.ShortID{
+				w.addr,
+			},
+		}
+		err = exportXChainToPChain(ctx, w, owner, subnetAssetID, elasticSubnetSpec.MaxSupply)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("exported asset to P-Chain")
+		err = importPChainFromXChain(ctx, w, owner)
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("imported asset from X-Chain")
+		subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
+		if err != nil {
+			return nil, err
+		}
+		cctx, cancel := createDefaultCtx(ctx)
+		transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(subnetID, subnetAssetID,
+			elasticSubnetSpec.InitialSupply, elasticSubnetSpec.MaxSupply, elasticSubnetSpec.MinConsumptionRate,
+			elasticSubnetSpec.MaxConsumptionRate, elasticSubnetSpec.MinValidatorStake, elasticSubnetSpec.MaxValidatorStake,
+			elasticSubnetSpec.MinStakeDuration, elasticSubnetSpec.MaxStakeDuration, elasticSubnetSpec.MinDelegationFee,
+			elasticSubnetSpec.MinDelegatorStake, elasticSubnetSpec.MaxValidatorWeightFactor, elasticSubnetSpec.UptimeRequirement,
+			common.WithContext(cctx),
+			defaultPoll,
+		)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
+		elasticSubnetIDs[i] = transformSubnetTxID
+	}
+	return elasticSubnetIDs, nil
 }
 
 func createSubnets(

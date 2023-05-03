@@ -17,17 +17,16 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/ava-labs/avalanche-network-runner/server"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
-
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -46,13 +45,15 @@ func TestE2e(t *testing.T) {
 const clientRootDirPrefix = "client"
 
 var (
-	logLevel      string
-	logDir        string
-	gRPCEp        string
-	gRPCGatewayEp string
-	execPath1     string
-	execPath2     string
-	subnetEvmPath string
+	logLevel        string
+	logDir          string
+	gRPCEp          string
+	gRPCGatewayEp   string
+	execPath1       string
+	execPath2       string
+	subnetEvmPath   string
+	genesisPath     string
+	genesisContents string
 
 	newNodeName       = "test-add-node"
 	newNodeName2      = "test-add-node2"
@@ -77,9 +78,23 @@ var (
 		{"new_node1", "new_node2"},
 		{"new_node3", "new_node4"},
 	}
-
-	genesisPath     string
-	genesisContents string
+	testElasticSubnetConfig = rpcpb.ElasticSubnetSpec{
+		SubnetId:                 "",
+		AssetName:                "BLIZZARD",
+		AssetSymbol:              "BRRR",
+		InitialSupply:            240000000,
+		MaxSupply:                720000000,
+		MinConsumptionRate:       100000,
+		MaxConsumptionRate:       120000,
+		MinValidatorStake:        2000,
+		MaxValidatorStake:        3000000,
+		MinStakeDuration:         14 * 24,
+		MaxStakeDuration:         365 * 24,
+		MinDelegationFee:         20000,
+		MinDelegatorStake:        25,
+		MaxValidatorWeightFactor: 5,
+		UptimeRequirement:        0.8 * 1_000_000,
+	}
 )
 
 func init() {
@@ -883,6 +898,34 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
+	ginkgo.It("transform subnet to elastic subnets", func() {
+		var createdSubnetID string
+		ginkgo.By("add 1 subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
+			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
+			createdSubnetID = resp.SubnetIds[0]
+		})
+		ginkgo.By("transform 1 subnet to elastic subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testElasticSubnetConfig.SubnetId = createdSubnetID
+			response, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
+		})
+		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testElasticSubnetConfig.SubnetId = createdSubnetID
+			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
+			gomega.Ω(err).Should(gomega.HaveOccurred())
+		})
+	})
+
 	ginkgo.It("snapshots + blockchain creation", func() {
 		var originalUris []string
 		var originalSubnets []string
@@ -900,7 +943,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(4))
+			gomega.Ω(numSubnets).Should(gomega.Equal(5))
 			originalSubnets = maps.Keys(status.ClusterInfo.Subnets)
 		})
 		ginkgo.By("check there are no snapshots", func() {
