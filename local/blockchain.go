@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanche-network-runner/server"
 	"os"
 	"path/filepath"
 	"sort"
@@ -709,16 +710,16 @@ func (ln *localNetwork) addPrimaryValidators(
 	return nil
 }
 
-func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol string, maxSupply uint64) (ids.ID, error) {
+func getXChainAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol string, maxSupply uint64) (ids.ID, error) {
 	owner := &secp256k1fx.OutputOwners{
 		Threshold: 1,
 		Addrs: []ids.ShortID{
-			genesis.EWOQKey.PublicKey().Address(),
+			w.addr,
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
 	defer cancel()
-	subnetAssetID, err := w.xWallet.IssueCreateAssetTx(
+	return w.xWallet.IssueCreateAssetTx(
 		tokenName,
 		tokenSymbol,
 		9, // denomination for UI purposes only in explorer
@@ -733,13 +734,9 @@ func getAssetID(ctx context.Context, w *wallet, tokenName string, tokenSymbol st
 		common.WithContext(cctx),
 		defaultPoll,
 	)
-	if err != nil {
-		return ids.Empty, err
-	}
-	return subnetAssetID, nil
 }
 
-func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, maxSupply uint64) error {
+func exportXChainToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, assetAmount uint64) error {
 	cctx, cancel := createDefaultCtx(ctx)
 	defer cancel()
 	_, err := w.xWallet.IssueExportTx(
@@ -750,7 +747,7 @@ func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwn
 					ID: subnetAssetID,
 				},
 				Out: &secp256k1fx.TransferOutput{
-					Amt:          maxSupply,
+					Amt:          assetAmount,
 					OutputOwners: *owner,
 				},
 			},
@@ -761,7 +758,7 @@ func exportToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwn
 	return err
 }
 
-func importFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
+func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
 	xWallet := w.xWallet
 	pWallet := w.pWallet
 	cctx, cancel := createDefaultCtx(ctx)
@@ -789,7 +786,9 @@ func (ln *localNetwork) transformToElasticSubnets(
 	// wallet needs txs for all previously created subnets
 	var preloadTXs []ids.ID
 	for _, elasticSubnetSpec := range elasticSubnetSpecs {
-		if elasticSubnetSpec.SubnetID != nil {
+		if elasticSubnetSpec.SubnetID == nil {
+			return nil, server.ErrNoSubnetiD
+		} else {
 			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
 			if err != nil {
 				return nil, err
@@ -805,7 +804,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 	for i, elasticSubnetSpec := range elasticSubnetSpecs {
 		ln.log.Info(logging.Green.Wrap("transforming elastic subnet"), zap.String("subnet ID", *elasticSubnetSpec.SubnetID))
 
-		subnetAssetID, err := getAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
+		subnetAssetID, err := getXChainAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
 		if err != nil {
 			return nil, err
 		}
@@ -813,15 +812,15 @@ func (ln *localNetwork) transformToElasticSubnets(
 		owner := &secp256k1fx.OutputOwners{
 			Threshold: 1,
 			Addrs: []ids.ShortID{
-				genesis.EWOQKey.PublicKey().Address(),
+				w.addr,
 			},
 		}
-		err = exportToPChain(ctx, w, owner, subnetAssetID, elasticSubnetSpec.MaxSupply)
+		err = exportXChainToPChain(ctx, w, owner, subnetAssetID, elasticSubnetSpec.MaxSupply)
 		if err != nil {
 			return nil, err
 		}
 		ln.log.Info("exported asset to P-Chain")
-		err = importFromXChain(ctx, w, owner)
+		err = importPChainFromXChain(ctx, w, owner)
 		if err != nil {
 			return nil, err
 		}

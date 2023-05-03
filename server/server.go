@@ -65,6 +65,7 @@ var (
 	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
 	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
 	ErrNoSubnetiD             = errors.New("subnetID is missing")
+	ErrNoElasticSubnetSpec    = errors.New("no elastic subnet spec was provided")
 )
 
 type Config struct {
@@ -532,7 +533,7 @@ func (s *server) TransformElasticSubnets(
 	s.log.Debug("TransformElasticSubnet")
 
 	if len(req.GetElasticSubnetSpec()) == 0 {
-		return nil, ErrNoBlockchainSpec
+		return nil, ErrNoElasticSubnetSpec
 	}
 
 	elasticSubnetSpecList := []network.ElasticSubnetSpec{}
@@ -548,17 +549,14 @@ func (s *server) TransformElasticSubnets(
 	for _, elasticSubnetSpec := range elasticSubnetSpecList {
 		if elasticSubnetSpec.SubnetID == nil {
 			return nil, ErrNoSubnetiD
-		} else if elasticSubnetSpec.SubnetID != nil && !subnetsSet.Contains(*elasticSubnetSpec.SubnetID) {
-			return nil, fmt.Errorf("subnet id %q does not exits", *elasticSubnetSpec.SubnetID)
+		} else if !subnetsSet.Contains(*elasticSubnetSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", *elasticSubnetSpec.SubnetID)
 		}
 	}
 
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	// update cluster info non-blocking
-	// the user is expected to poll this latest information
-	// to decide cluster/subnet readiness
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
 	txIDs, err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
@@ -1236,8 +1234,8 @@ func isClientCanceled(ctxErr error, err error) bool {
 func getNetworkElasticSubnetSpec(
 	spec *rpcpb.ElasticSubnetSpec,
 ) network.ElasticSubnetSpec {
-	minValidatorRate := time.Duration(spec.MinStakeDuration) * time.Hour
-	maxValidatorRate := time.Duration(spec.MaxStakeDuration) * time.Hour
+	minStakeDuration := time.Duration(spec.MinStakeDuration) * time.Hour
+	maxStakeDuration := time.Duration(spec.MaxStakeDuration) * time.Hour
 
 	elasticSubnetSpec := network.ElasticSubnetSpec{
 		SubnetID:                 &spec.SubnetId,
@@ -1249,8 +1247,8 @@ func getNetworkElasticSubnetSpec(
 		MaxConsumptionRate:       spec.MaxConsumptionRate,
 		MinValidatorStake:        spec.MinValidatorStake,
 		MaxValidatorStake:        spec.MaxValidatorStake,
-		MinStakeDuration:         minValidatorRate,
-		MaxStakeDuration:         maxValidatorRate,
+		MinStakeDuration:         minStakeDuration,
+		MaxStakeDuration:         maxStakeDuration,
 		MinDelegationFee:         spec.MinDelegationFee,
 		MinDelegatorStake:        spec.MinDelegatorStake,
 		MaxValidatorWeightFactor: byte(spec.MaxValidatorWeightFactor),

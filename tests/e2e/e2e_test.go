@@ -906,21 +906,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
+			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
 			createdSubnetID = resp.SubnetIds[0]
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			_, err := cli.WaitForHealthy(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("check subnet number is 5", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			status, err := cli.Status(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(5))
 		})
 		ginkgo.By("transform 1 subnet to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -930,24 +917,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
 		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			_, err := cli.WaitForHealthy(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
 		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 			testElasticSubnetConfig.SubnetId = createdSubnetID
 			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
 			gomega.Ω(err).Should(gomega.HaveOccurred())
-		})
-		ginkgo.By("wait for custom chains healthy", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			_, err := cli.WaitForHealthy(ctx)
-			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})
 
