@@ -9,9 +9,12 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/ava-labs/avalanche-network-runner/server"
 	"github.com/ava-labs/avalanche-network-runner/utils"
@@ -247,7 +250,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetIDs := status.ClusterInfo.GetSubnets()
+			subnetIDs := maps.Keys(status.ClusterInfo.Subnets)
+			sort.Strings(subnetIDs)
 			createdSubnetIDString := subnetIDs[0]
 			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, existingNodes, status.ClusterInfo, createdSubnetIDString)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
@@ -965,7 +969,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
 			gomega.Ω(numSubnets).Should(gomega.Equal(5))
-			originalSubnets = status.ClusterInfo.Subnets
+			originalSubnets = maps.Keys(status.ClusterInfo.Subnets)
 		})
 		ginkgo.By("check there are no snapshots", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -1011,7 +1015,10 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			status, err := cli.Status(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(status.ClusterInfo.Subnets).Should(gomega.Equal(originalSubnets))
+			subnetIDs := maps.Keys(status.ClusterInfo.Subnets)
+			sort.Strings(subnetIDs)
+			sort.Strings(originalSubnets)
+			gomega.Ω(subnetIDs).Should(gomega.Equal(originalSubnets))
 		})
 		ginkgo.By("save fail for already saved snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

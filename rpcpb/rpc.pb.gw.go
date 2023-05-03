@@ -167,7 +167,7 @@ func local_request_ControlService_CreateBlockchains_0(ctx context.Context, marsh
 
 }
 
-func request_ControlService_TransformElasticSubnet_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_ControlService_TransformElasticSubnets_0(ctx context.Context, marshaler runtime.Marshaler, client ControlServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq TransformElasticSubnetsRequest
 	var metadata runtime.ServerMetadata
 
@@ -179,12 +179,12 @@ func request_ControlService_TransformElasticSubnet_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.TransformElasticSubnet(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.TransformElasticSubnets(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_ControlService_TransformElasticSubnet_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_ControlService_TransformElasticSubnets_0(ctx context.Context, marshaler runtime.Marshaler, server ControlServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq TransformElasticSubnetsRequest
 	var metadata runtime.ServerMetadata
 
@@ -196,7 +196,7 @@ func local_request_ControlService_TransformElasticSubnet_0(ctx context.Context, 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.TransformElasticSubnet(ctx, &protoReq)
+	msg, err := server.TransformElasticSubnets(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -919,7 +919,7 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_TransformElasticSubnet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_TransformElasticSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -927,12 +927,12 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnet", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ControlService_TransformElasticSubnet_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ControlService_TransformElasticSubnets_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -940,7 +940,7 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			return
 		}
 
-		forward_ControlService_TransformElasticSubnet_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_TransformElasticSubnets_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1554,25 +1554,25 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_ControlService_TransformElasticSubnet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ControlService_TransformElasticSubnets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnet", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ControlService_TransformElasticSubnet_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ControlService_TransformElasticSubnets_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ControlService_TransformElasticSubnet_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ControlService_TransformElasticSubnets_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1982,7 +1982,7 @@ var (
 
 	pattern_ControlService_CreateBlockchains_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createblockchains"}, ""))
 
-	pattern_ControlService_TransformElasticSubnet_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "transformelasticsubnet"}, ""))
+	pattern_ControlService_TransformElasticSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "transformelasticsubnet"}, ""))
 
 	pattern_ControlService_CreateSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createsubnets"}, ""))
 
@@ -2028,7 +2028,7 @@ var (
 
 	forward_ControlService_CreateBlockchains_0 = runtime.ForwardResponseMessage
 
-	forward_ControlService_TransformElasticSubnet_0 = runtime.ForwardResponseMessage
+	forward_ControlService_TransformElasticSubnets_0 = runtime.ForwardResponseMessage
 
 	forward_ControlService_CreateSubnets_0 = runtime.ForwardResponseMessage
 

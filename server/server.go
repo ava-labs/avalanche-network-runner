@@ -401,10 +401,6 @@ func (s *server) updateClusterInfo() {
 		s.clusterInfo.CustomChains[chainID.String()] = chainInfo.info
 	}
 	s.clusterInfo.Subnets = s.network.subnets
-	s.clusterInfo.SubnetParticipants = make(map[string]*rpcpb.SubnetParticipants)
-	for subnetID, nodes := range s.network.subnetParticipants {
-		s.clusterInfo.SubnetParticipants[subnetID] = &rpcpb.SubnetParticipants{NodeNames: nodes}
-	}
 }
 
 // wait until some of this conditions is met:
@@ -486,7 +482,8 @@ func (s *server) CreateBlockchains(
 
 	// check that the given subnets exist
 	subnetsSet := set.Set[string]{}
-	subnetsSet.Add(s.clusterInfo.Subnets...)
+	subnetIDsList := maps.Keys(s.clusterInfo.Subnets)
+	subnetsSet.Add(subnetIDsList...)
 
 	for _, chainSpec := range chainSpecs {
 		if chainSpec.SubnetID != nil && !subnetsSet.Contains(*chainSpec.SubnetID) {
@@ -546,7 +543,7 @@ func (s *server) TransformElasticSubnet(
 
 	// check that the given subnets exist
 	subnetsSet := set.Set[string]{}
-	subnetsSet.Add(s.clusterInfo.Subnets...)
+	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
 
 	for _, elasticSubnetSpec := range elasticSubnetSpecList {
 		if elasticSubnetSpec.SubnetID == nil {

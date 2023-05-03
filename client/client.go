@@ -165,7 +165,7 @@ func (c *client) TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs
 	}
 
 	c.log.Info("transform subnets")
-	return c.controlc.TransformElasticSubnet(ctx, req)
+	return c.controlc.TransformElasticSubnets(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {

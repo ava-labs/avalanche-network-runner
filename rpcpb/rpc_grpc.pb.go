@@ -109,28 +109,28 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ControlService_RPCVersion_FullMethodName             = "/rpcpb.ControlService/RPCVersion"
-	ControlService_Start_FullMethodName                  = "/rpcpb.ControlService/Start"
-	ControlService_CreateBlockchains_FullMethodName      = "/rpcpb.ControlService/CreateBlockchains"
-	ControlService_TransformElasticSubnet_FullMethodName = "/rpcpb.ControlService/TransformElasticSubnet"
-	ControlService_CreateSubnets_FullMethodName          = "/rpcpb.ControlService/CreateSubnets"
-	ControlService_Health_FullMethodName                 = "/rpcpb.ControlService/Health"
-	ControlService_URIs_FullMethodName                   = "/rpcpb.ControlService/URIs"
-	ControlService_WaitForHealthy_FullMethodName         = "/rpcpb.ControlService/WaitForHealthy"
-	ControlService_Status_FullMethodName                 = "/rpcpb.ControlService/Status"
-	ControlService_StreamStatus_FullMethodName           = "/rpcpb.ControlService/StreamStatus"
-	ControlService_RemoveNode_FullMethodName             = "/rpcpb.ControlService/RemoveNode"
-	ControlService_AddNode_FullMethodName                = "/rpcpb.ControlService/AddNode"
-	ControlService_RestartNode_FullMethodName            = "/rpcpb.ControlService/RestartNode"
-	ControlService_PauseNode_FullMethodName              = "/rpcpb.ControlService/PauseNode"
-	ControlService_ResumeNode_FullMethodName             = "/rpcpb.ControlService/ResumeNode"
-	ControlService_Stop_FullMethodName                   = "/rpcpb.ControlService/Stop"
-	ControlService_AttachPeer_FullMethodName             = "/rpcpb.ControlService/AttachPeer"
-	ControlService_SendOutboundMessage_FullMethodName    = "/rpcpb.ControlService/SendOutboundMessage"
-	ControlService_SaveSnapshot_FullMethodName           = "/rpcpb.ControlService/SaveSnapshot"
-	ControlService_LoadSnapshot_FullMethodName           = "/rpcpb.ControlService/LoadSnapshot"
-	ControlService_RemoveSnapshot_FullMethodName         = "/rpcpb.ControlService/RemoveSnapshot"
-	ControlService_GetSnapshotNames_FullMethodName       = "/rpcpb.ControlService/GetSnapshotNames"
+	ControlService_RPCVersion_FullMethodName              = "/rpcpb.ControlService/RPCVersion"
+	ControlService_Start_FullMethodName                   = "/rpcpb.ControlService/Start"
+	ControlService_CreateBlockchains_FullMethodName       = "/rpcpb.ControlService/CreateBlockchains"
+	ControlService_TransformElasticSubnets_FullMethodName = "/rpcpb.ControlService/TransformElasticSubnets"
+	ControlService_CreateSubnets_FullMethodName           = "/rpcpb.ControlService/CreateSubnets"
+	ControlService_Health_FullMethodName                  = "/rpcpb.ControlService/Health"
+	ControlService_URIs_FullMethodName                    = "/rpcpb.ControlService/URIs"
+	ControlService_WaitForHealthy_FullMethodName          = "/rpcpb.ControlService/WaitForHealthy"
+	ControlService_Status_FullMethodName                  = "/rpcpb.ControlService/Status"
+	ControlService_StreamStatus_FullMethodName            = "/rpcpb.ControlService/StreamStatus"
+	ControlService_RemoveNode_FullMethodName              = "/rpcpb.ControlService/RemoveNode"
+	ControlService_AddNode_FullMethodName                 = "/rpcpb.ControlService/AddNode"
+	ControlService_RestartNode_FullMethodName             = "/rpcpb.ControlService/RestartNode"
+	ControlService_PauseNode_FullMethodName               = "/rpcpb.ControlService/PauseNode"
+	ControlService_ResumeNode_FullMethodName              = "/rpcpb.ControlService/ResumeNode"
+	ControlService_Stop_FullMethodName                    = "/rpcpb.ControlService/Stop"
+	ControlService_AttachPeer_FullMethodName              = "/rpcpb.ControlService/AttachPeer"
+	ControlService_SendOutboundMessage_FullMethodName     = "/rpcpb.ControlService/SendOutboundMessage"
+	ControlService_SaveSnapshot_FullMethodName            = "/rpcpb.ControlService/SaveSnapshot"
+	ControlService_LoadSnapshot_FullMethodName            = "/rpcpb.ControlService/LoadSnapshot"
+	ControlService_RemoveSnapshot_FullMethodName          = "/rpcpb.ControlService/RemoveSnapshot"
+	ControlService_GetSnapshotNames_FullMethodName        = "/rpcpb.ControlService/GetSnapshotNames"
 )
 
 // ControlServiceClient is the client API for ControlService service.
@@ -140,7 +140,7 @@ type ControlServiceClient interface {
 	RPCVersion(ctx context.Context, in *RPCVersionRequest, opts ...grpc.CallOption) (*RPCVersionResponse, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
-	TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
+	TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
@@ -196,9 +196,9 @@ func (c *controlServiceClient) CreateBlockchains(ctx context.Context, in *Create
 	return out, nil
 }
 
-func (c *controlServiceClient) TransformElasticSubnet(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error) {
+func (c *controlServiceClient) TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error) {
 	out := new(TransformElasticSubnetsResponse)
-	err := c.cc.Invoke(ctx, ControlService_TransformElasticSubnet_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ControlService_TransformElasticSubnets_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +397,7 @@ type ControlServiceServer interface {
 	RPCVersion(context.Context, *RPCVersionRequest) (*RPCVersionResponse, error)
 	Start(context.Context, *StartRequest) (*StartResponse, error)
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
-	TransformElasticSubnet(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
+	TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
@@ -432,8 +432,8 @@ func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (
 func (UnimplementedControlServiceServer) CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBlockchains not implemented")
 }
-func (UnimplementedControlServiceServer) TransformElasticSubnet(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TransformElasticSubnet not implemented")
+func (UnimplementedControlServiceServer) TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TransformElasticSubnets not implemented")
 }
 func (UnimplementedControlServiceServer) CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateSubnets not implemented")
@@ -556,20 +556,20 @@ func _ControlService_CreateBlockchains_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControlService_TransformElasticSubnet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ControlService_TransformElasticSubnets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TransformElasticSubnetsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServiceServer).TransformElasticSubnet(ctx, in)
+		return srv.(ControlServiceServer).TransformElasticSubnets(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ControlService_TransformElasticSubnet_FullMethodName,
+		FullMethod: ControlService_TransformElasticSubnets_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServiceServer).TransformElasticSubnet(ctx, req.(*TransformElasticSubnetsRequest))
+		return srv.(ControlServiceServer).TransformElasticSubnets(ctx, req.(*TransformElasticSubnetsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -921,8 +921,8 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ControlService_CreateBlockchains_Handler,
 		},
 		{
-			MethodName: "TransformElasticSubnet",
-			Handler:    _ControlService_TransformElasticSubnet_Handler,
+			MethodName: "TransformElasticSubnets",
+			Handler:    _ControlService_TransformElasticSubnets_Handler,
 		},
 		{
 			MethodName: "CreateSubnets",
