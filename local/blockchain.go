@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/ava-labs/avalanche-network-runner/server"
 	"os"
 	"path/filepath"
 	"sort"
@@ -787,7 +786,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 	var preloadTXs []ids.ID
 	for _, elasticSubnetSpec := range elasticSubnetSpecs {
 		if elasticSubnetSpec.SubnetID == nil {
-			return nil, server.ErrNoSubnetiD
+			return nil, errors.New("elastic subnet spec has no subnet ID")
 		} else {
 			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
 			if err != nil {
