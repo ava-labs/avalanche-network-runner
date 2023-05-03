@@ -468,12 +468,12 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	for _, subnetID := range subnetIDList {
-		createdSubnetID, err := ids.FromString(subnetID)
+	for _, subnetIDStr := range subnetIDList {
+		subnetID, err := ids.FromString(subnetIDStr)
 		if err != nil {
 			return err
 		}
-		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, createdSubnetID, nil)
+		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
 		if err != nil {
 			return err
 		}
@@ -486,7 +486,17 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				}
 			}
 		}
-		lc.subnets[subnetID] = &rpcpb.SubnetInfo{IsElastic: false, SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList}}
+
+		isElastic := false
+		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err != nil {
+			// if subnet is already elastic it will return "not found" error
+			if !strings.Contains(err.Error(), "not found") {
+				return err
+			}
+			isElastic = true
+		}
+
+		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{IsElastic: isElastic, SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList}}
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
