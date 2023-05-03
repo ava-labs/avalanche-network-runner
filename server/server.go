@@ -64,7 +64,7 @@ var (
 	ErrPeerNotFound           = errors.New("peer not found")
 	ErrStatusCanceled         = errors.New("gRPC stream status canceled")
 	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
-	ErrNoSubnetiD             = errors.New("subnetID is missing")
+	ErrNoSubnetID             = errors.New("subnetID is missing")
 	ErrNoElasticSubnetSpec    = errors.New("no elastic subnet spec was provided")
 )
 
@@ -548,7 +548,7 @@ func (s *server) TransformElasticSubnets(
 
 	for _, elasticSubnetSpec := range elasticSubnetSpecList {
 		if elasticSubnetSpec.SubnetID == nil {
-			return nil, ErrNoSubnetiD
+			return nil, ErrNoSubnetID
 		} else if !subnetsSet.Contains(*elasticSubnetSpec.SubnetID) {
 			return nil, fmt.Errorf("subnet id %q does not exist", *elasticSubnetSpec.SubnetID)
 		}
