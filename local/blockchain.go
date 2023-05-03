@@ -586,9 +586,6 @@ type wallet struct {
 	pBuilder p.Builder
 	pSigner  p.Signer
 	xWallet  x.Wallet
-	xBackend x.Backend
-	xBuilder x.Builder
-	xSigner  x.Signer
 }
 
 func newWallet(
@@ -624,11 +621,11 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
-	w.xBackend = x.NewBackend(xCTX, xChainID, xUTXOs)
-	w.xBuilder = x.NewBuilder(kc.Addresses(), w.xBackend)
-	w.xSigner = x.NewSigner(kc, w.xBackend)
+	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
+	xBuilder := x.NewBuilder(kc.Addresses(), xBackend)
+	xSigner := x.NewSigner(kc, xBackend)
 	xClient := avm.NewClient(uri, "X")
-	w.xWallet = x.NewWallet(w.xBuilder, w.xSigner, xClient, w.xBackend)
+	w.xWallet = x.NewWallet(xBuilder, xSigner, xClient, xBackend)
 	return &w, nil
 }
 
