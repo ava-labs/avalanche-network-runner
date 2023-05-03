@@ -518,7 +518,7 @@ func (s *server) CreateBlockchains(
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
-func (s *server) TransformElasticSubnet(
+func (s *server) TransformElasticSubnets(
 	_ context.Context,
 	req *rpcpb.TransformElasticSubnetsRequest,
 ) (*rpcpb.TransformElasticSubnetsResponse, error) {
