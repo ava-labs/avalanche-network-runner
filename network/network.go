@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/ids"
@@ -13,6 +14,24 @@ var (
 	ErrStopped      = errors.New("network stopped")
 	ErrNodeNotFound = errors.New("node not found in network")
 )
+
+type ElasticSubnetSpec struct {
+	SubnetID                 *string
+	AssetName                string
+	AssetSymbol              string
+	InitialSupply            uint64
+	MaxSupply                uint64
+	MinConsumptionRate       uint64
+	MaxConsumptionRate       uint64
+	MinValidatorStake        uint64
+	MaxValidatorStake        uint64
+	MinStakeDuration         time.Duration
+	MaxStakeDuration         time.Duration
+	MinDelegationFee         uint32
+	MinDelegatorStake        uint64
+	MaxValidatorWeightFactor byte
+	UptimeRequirement        uint32
+}
 
 type SubnetSpec struct {
 	Participants []string
@@ -77,4 +96,6 @@ type Network interface {
 	CreateBlockchains(context.Context, []BlockchainSpec) ([]ids.ID, error)
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
+	// Transform subnet into elastic subnet
+	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
 }

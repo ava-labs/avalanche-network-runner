@@ -43,6 +43,13 @@ service ControlService {
     };
   }
 
+  rpc TransformElasticSubnets(TransformElasticSubnetsRequest) returns (TransformElasticSubnetsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/transformelasticsubnets"
+      body: "*"
+    };
+  }
+
   rpc CreateSubnets(CreateSubnetsRequest) returns (CreateSubnetsResponse) {
     option (google.api.http) = {
       post: "/v1/control/createsubnets"
@@ -193,7 +200,7 @@ message ClusterInfo {
 
 message SubnetInfo {
   // If Subnet is an Elastic Subnet
-  bool isElastic = 1;
+  bool is_elastic = 1;
 
   // node validators of subnet
   SubnetParticipants subnet_participants = 2;
@@ -308,6 +315,33 @@ message SubnetSpec {
   repeated string participants = 1;
   // either file path or file contents
   string subnet_config = 2;
+}
+
+message ElasticSubnetSpec {
+  string subnet_id = 1;
+  string asset_name = 2;
+  string asset_symbol = 3;
+  uint64 initial_supply = 4;
+  uint64 max_supply = 5;
+  uint64 min_consumption_rate = 6;
+  uint64 max_consumption_rate = 7;
+  uint64 min_validator_stake = 8;
+  uint64 max_validator_stake = 9;
+  uint64 min_stake_duration = 10;
+  uint64 max_stake_duration = 11;
+  uint32 min_delegation_fee = 12;
+  uint64 min_delegator_stake = 13;
+  uint32 max_validator_weight_factor = 14;
+  uint32 uptime_requirement = 15;
+}
+
+message TransformElasticSubnetsRequest {
+  repeated ElasticSubnetSpec elastic_subnet_spec = 1;
+}
+
+message TransformElasticSubnetsResponse {
+  ClusterInfo cluster_info = 1;
+  repeated string tx_ids = 2;
 }
 
 message BlockchainSpec {

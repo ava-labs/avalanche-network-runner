@@ -33,6 +33,7 @@ type Client interface {
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
+	TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -156,6 +157,15 @@ func (c *client) CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetS
 
 	c.log.Info("create subnets")
 	return c.controlc.CreateSubnets(ctx, req)
+}
+
+func (c *client) TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error) {
+	req := &rpcpb.TransformElasticSubnetsRequest{
+		ElasticSubnetSpec: elasticSubnetSpecs,
+	}
+
+	c.log.Info("transform subnets")
+	return c.controlc.TransformElasticSubnets(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
