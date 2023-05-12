@@ -286,6 +286,13 @@ func startFunc(*cobra.Command, []string) error {
 		if err := json.Unmarshal([]byte(blockchainSpecsStr), &blockchainSpecs); err != nil {
 			return err
 		}
+		for _, spec := range blockchainSpecs {
+			if _, err := os.Stat(spec.Genesis); os.IsNotExist(err) {
+				return fmt.Errorf("genesis file does not exist: %s", spec.Genesis)
+			} else if err != nil {
+				return err
+			}
+		}
 		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
 
