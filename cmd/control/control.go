@@ -61,6 +61,7 @@ func NewCommand() *cobra.Command {
 		newCreateBlockchainsCommand(),
 		newCreateSubnetsCommand(),
 		newTransformElasticSubnetsCommand(),
+		newAddPermissionlessValidatorCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
 		newURIsCommand(),
@@ -412,6 +413,15 @@ func newTransformElasticSubnetsCommand() *cobra.Command {
 	return cmd
 }
 
+func newAddPermissionlessValidatorCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-permissionless-validator [options]",
+		Short: "Add permissionelss validator to elastic subnets.",
+		RunE:  addPermissionlessValidatorFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
 func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
@@ -437,6 +447,34 @@ func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("elastic-subnets response: %+v"), info)
+	return nil
+}
+
+func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	validatorSpecStr := args[0]
+
+	validatorSpec := []*rpcpb.PermissionlessValidatorSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.AddPermissionlessValidator(
+		ctx,
+		validatorSpec,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("add-permissionless-validator response: %+v"), info)
 	return nil
 }
 

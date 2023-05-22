@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
 	"os"
 	"path/filepath"
 	"sort"
@@ -53,6 +54,8 @@ const (
 	// check period while waiting for all validators to be ready
 	waitForValidatorsPullFrequency = time.Second
 	defaultTimeout                 = time.Minute
+	stakingMinimumLeadTime         = 25 * time.Second
+	minStakeDuration               = 24 * 14 * time.Hour
 )
 
 var (
@@ -148,6 +151,16 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 		}
 	}
 	return nil
+}
+
+func (ln *localNetwork) AddPermissionlessValidator(
+	ctx context.Context,
+	validatorSpec []network.PermissionlessValidatorSpec,
+) ([]ids.ID, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.addPermissionlessValidators(ctx, validatorSpec)
 }
 
 func (ln *localNetwork) TransformSubnet(
@@ -769,6 +782,81 @@ func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.O
 	return err
 }
 
+func (ln *localNetwork) addPermissionlessValidators(
+	ctx context.Context,
+	validatorSpecs []network.PermissionlessValidatorSpec,
+) ([]ids.ID, error) {
+	ln.log.Info("adding permissionless validator tx")
+	validatorSpecIDs := make([]ids.ID, len(validatorSpecs))
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return nil, err
+	}
+	// wallet needs txs for all previously created subnets
+	var preloadTXs []ids.ID
+	for _, validatorSpec := range validatorSpecs {
+		if validatorSpec.SubnetID == nil {
+			return nil, errors.New("permissionless validator spec has no subnet ID")
+		} else {
+			subnetID, err := ids.FromString(*validatorSpec.SubnetID)
+			if err != nil {
+				return nil, err
+			}
+			preloadTXs = append(preloadTXs, subnetID)
+		}
+	}
+	w, err := newWallet(ctx, clientURI, preloadTXs)
+	if err != nil {
+		return nil, err
+	}
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			w.addr,
+		},
+	}
+	for i, validatorSpec := range validatorSpecs {
+		ln.log.Info(logging.Green.Wrap("adding permissionless validator"), zap.String("node ID", validatorSpec.NodeID))
+		cctx, cancel := createDefaultCtx(ctx)
+		validatoreNodeID, err := ids.NodeIDFromString(validatorSpec.NodeID)
+		if err != nil {
+			return nil, err
+		}
+		subnetID, err := ids.FromString(*validatorSpec.SubnetID)
+		if err != nil {
+			return nil, err
+		}
+		assetID, err := ids.FromString(validatorSpec.AssetID)
+		if err != nil {
+			return nil, err
+		}
+		txID, err := w.pWallet.IssueAddPermissionlessValidatorTx(
+			&txs.SubnetValidator{
+				Validator: txs.Validator{
+					NodeID: validatoreNodeID,
+					Start:  uint64(validatorSpec.StartTime.Unix()),
+					End:    uint64(validatorSpec.StartTime.Add(validatorSpec.StakeDuration).Unix()),
+					Wght:   validatorSpec.StakedAmount,
+				},
+				Subnet: subnetID,
+			},
+			&signer.Empty{},
+			assetID,
+			owner,
+			&secp256k1fx.OutputOwners{},
+			reward.PercentDenominator,
+			common.WithContext(cctx),
+			defaultPoll,
+		)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		ln.log.Info("Validator successfully added as permissionless validator", zap.String("TX ID", txID.String()))
+		validatorSpecIDs[i] = txID
+	}
+	return validatorSpecIDs, nil
+}
 func (ln *localNetwork) transformToElasticSubnets(
 	ctx context.Context,
 	elasticSubnetSpecs []network.ElasticSubnetSpec,

@@ -293,6 +293,45 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
+func (lc *localNetwork) AddPermissionlessValidator(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) ([]ids.ID, error) {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(validatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, err
+	}
+
+	txIDs, err := lc.nw.AddPermissionlessValidator(ctx, validatorSpecs)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding permissionless validators")))
+	return txIDs, nil
+}
+
 func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()

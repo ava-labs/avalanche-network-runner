@@ -50,6 +50,13 @@ service ControlService {
     };
   }
 
+  rpc AddPermissionlessValidator(AddPermissionlessValidatorRequest) returns (AddPermissionlessValidatorResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/addpermissionlessvalidator"
+      body: "*"
+    };
+  }
+
   rpc CreateSubnets(CreateSubnetsRequest) returns (CreateSubnetsResponse) {
     option (google.api.http) = {
       post: "/v1/control/createsubnets"
@@ -340,6 +347,24 @@ message TransformElasticSubnetsRequest {
 }
 
 message TransformElasticSubnetsResponse {
+  ClusterInfo cluster_info = 1;
+  repeated string tx_ids = 2;
+}
+
+message PermissionlessValidatorSpec {
+  string subnet_id = 1;
+  string node_id = 2;
+  uint64 staked_token_amount = 3;
+  string asset_id = 4;
+  string start_time = 5;
+  uint64 stake_duration = 6;
+}
+
+message AddPermissionlessValidatorRequest {
+  repeated PermissionlessValidatorSpec validator_spec = 1;
+}
+
+message AddPermissionlessValidatorResponse {
   ClusterInfo cluster_info = 1;
   repeated string tx_ids = 2;
 }

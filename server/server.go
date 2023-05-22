@@ -51,7 +51,9 @@ const (
 	defaultStartTimeout   = 5 * time.Minute
 	waitForHealthyTimeout = 3 * time.Minute
 
-	networkRootDirPrefix = "network"
+	networkRootDirPrefix   = "network"
+	timeParseLayout        = "2006-01-02 15:04:05"
+	stakingMinimumLeadTime = 25 * time.Second
 )
 
 var (
@@ -66,6 +68,7 @@ var (
 	ErrNoBlockchainSpec       = errors.New("no blockchain spec was provided")
 	ErrNoSubnetID             = errors.New("subnetID is missing")
 	ErrNoElasticSubnetSpec    = errors.New("no elastic subnet spec was provided")
+	ErrNoValidatorSpec        = errors.New("no elastic subnet spec was provided")
 )
 
 type Config struct {
@@ -517,6 +520,72 @@ func (s *server) CreateBlockchains(
 		return nil, err
 	}
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
+}
+
+func (s *server) AddPermissionlessValidator(
+	_ context.Context,
+	req *rpcpb.AddPermissionlessValidatorRequest,
+) (*rpcpb.AddPermissionlessValidatorResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("AddPermissionlessValidator")
+
+	if len(req.GetValidatorSpec()) == 0 {
+		return nil, ErrNoValidatorSpec
+	}
+
+	validatorSpecList := []network.PermissionlessValidatorSpec{}
+	for _, spec := range req.GetValidatorSpec() {
+		validatorSpec, err := getPermissionlessValidatorSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		validatorSpecList = append(validatorSpecList, validatorSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
+
+	for _, validatorSpec := range validatorSpecList {
+		if validatorSpec.SubnetID == nil {
+			return nil, ErrNoSubnetID
+		} else if !subnetsSet.Contains(*validatorSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", *validatorSpec.SubnetID)
+		}
+	}
+
+	s.clusterInfo.Healthy = false
+	s.clusterInfo.CustomChainsHealthy = false
+
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	txIDs, err := s.network.AddPermissionlessValidator(ctx, validatorSpecList)
+
+	s.updateClusterInfo()
+
+	if err != nil {
+		s.log.Error("failed to add permissionless validator", zap.Error(err))
+		return nil, err
+	}
+
+	s.log.Info("successfully added permissionless validator")
+
+	strTXIDs := []string{}
+	for _, txID := range txIDs {
+		strTXIDs = append(strTXIDs, txID.String())
+	}
+
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AddPermissionlessValidatorResponse{ClusterInfo: clusterInfo, TxIds: strTXIDs}, nil
 }
 
 func (s *server) TransformElasticSubnets(
@@ -1255,6 +1324,29 @@ func getNetworkElasticSubnetSpec(
 		UptimeRequirement:        spec.UptimeRequirement,
 	}
 	return elasticSubnetSpec
+}
+
+func getPermissionlessValidatorSpec(
+	spec *rpcpb.PermissionlessValidatorSpec,
+) (network.PermissionlessValidatorSpec, error) {
+	startTime, err := time.Parse(timeParseLayout, spec.StartTime)
+	if err != nil {
+		return network.PermissionlessValidatorSpec{}, err
+	}
+	if startTime.Before(time.Now().Add(stakingMinimumLeadTime)) {
+		return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", stakingMinimumLeadTime, spec.NodeId)
+	}
+	stakeDuration := time.Duration(spec.StakeDuration) * time.Hour
+
+	validatorSpec := network.PermissionlessValidatorSpec{
+		SubnetID:      &spec.SubnetId,
+		AssetID:       spec.AssetId,
+		NodeID:        spec.NodeId,
+		StakedAmount:  spec.StakedTokenAmount,
+		StartTime:     startTime,
+		StakeDuration: stakeDuration,
+	}
+	return validatorSpec, nil
 }
 
 func getNetworkBlockchainSpec(

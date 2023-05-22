@@ -34,6 +34,7 @@ type Client interface {
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
 	TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error)
+	AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessValidatorSpec) (*rpcpb.AddPermissionlessValidatorResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -166,6 +167,15 @@ func (c *client) TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs
 
 	c.log.Info("transform subnets")
 	return c.controlc.TransformElasticSubnets(ctx, req)
+}
+
+func (c *client) AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessValidatorSpec) (*rpcpb.AddPermissionlessValidatorResponse, error) {
+	req := &rpcpb.AddPermissionlessValidatorRequest{
+		ValidatorSpec: validatorSpec,
+	}
+
+	c.log.Info("add permissionless validators to elastic subnets")
+	return c.controlc.AddPermissionlessValidator(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {

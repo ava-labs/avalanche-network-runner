@@ -15,6 +15,15 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
+type PermissionlessValidatorSpec struct {
+	SubnetID      *string
+	AssetID       string
+	NodeID        string
+	StakedAmount  uint64
+	StartTime     time.Time
+	StakeDuration time.Duration
+}
+
 type ElasticSubnetSpec struct {
 	SubnetID                 *string
 	AssetName                string
@@ -98,4 +107,6 @@ type Network interface {
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
+	// Add a validator into an elastic subnet
+	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) ([]ids.ID, error)
 }
