@@ -52,8 +52,8 @@ const (
 	waitForHealthyTimeout = 3 * time.Minute
 
 	networkRootDirPrefix   = "network"
-	timeParseLayout        = "2006-01-02 15:04:05"
-	stakingMinimumLeadTime = 25 * time.Second
+	TimeParseLayout        = "2006-01-02 15:04:05"
+	StakingMinimumLeadTime = 25 * time.Second
 )
 
 var (
@@ -1334,12 +1334,12 @@ func getNetworkElasticSubnetSpec(
 func getPermissionlessValidatorSpec(
 	spec *rpcpb.PermissionlessValidatorSpec,
 ) (network.PermissionlessValidatorSpec, error) {
-	startTime, err := time.Parse(timeParseLayout, spec.StartTime)
+	startTime, err := time.Parse(TimeParseLayout, spec.StartTime)
 	if err != nil {
 		return network.PermissionlessValidatorSpec{}, err
 	}
-	if startTime.Before(time.Now().Add(stakingMinimumLeadTime)) {
-		return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", stakingMinimumLeadTime, spec.NodeId)
+	if startTime.Before(time.Now().Add(StakingMinimumLeadTime)) {
+		return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", StakingMinimumLeadTime, spec.NodeId)
 	}
 	stakeDuration := time.Duration(spec.StakeDuration) * time.Hour
 
