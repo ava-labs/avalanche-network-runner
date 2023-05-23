@@ -8,12 +8,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
 
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -857,6 +858,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 	}
 	return validatorSpecIDs, nil
 }
+
 func (ln *localNetwork) transformToElasticSubnets(
 	ctx context.Context,
 	elasticSubnetSpecs []network.ElasticSubnetSpec,

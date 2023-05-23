@@ -422,6 +422,7 @@ func newAddPermissionlessValidatorCommand() *cobra.Command {
 	}
 	return cmd
 }
+
 func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
