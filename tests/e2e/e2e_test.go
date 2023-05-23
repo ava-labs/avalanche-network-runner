@@ -105,7 +105,7 @@ var (
 
 	testValidatorConfig = rpcpb.PermissionlessValidatorSpec{
 		StakedTokenAmount: 2000,
-		StartTime:         time.Now().Add(server.StakingMinimumLeadTime).UTC().Format(server.TimeParseLayout),
+		StartTime:         time.Now().Add(1 * time.Hour).UTC().Format(server.TimeParseLayout),
 		StakeDuration:     336,
 	}
 )
