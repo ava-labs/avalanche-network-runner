@@ -332,13 +332,13 @@ func (lc *localNetwork) AddPermissionlessValidator(ctx context.Context, validato
 	return txIDs, nil
 }
 
-func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, error) {
+func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, []ids.ID, error) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
 	if len(elasticSubnetSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -355,20 +355,20 @@ func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	chainIDs, err := lc.nw.TransformSubnet(ctx, elasticSubnetSpecs)
+	chainIDs, assetIDs, err := lc.nw.TransformSubnet(ctx, elasticSubnetSpecs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished transforming subnets")))
-	return chainIDs, nil
+	return chainIDs, assetIDs, nil
 }
 
 // Creates the given number of subnets.

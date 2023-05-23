@@ -349,6 +349,7 @@ message TransformElasticSubnetsRequest {
 message TransformElasticSubnetsResponse {
   ClusterInfo cluster_info = 1;
   repeated string tx_ids = 2;
+  repeated string asset_ids = 3;
 }
 
 message PermissionlessValidatorSpec {

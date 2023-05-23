@@ -106,7 +106,7 @@ type Network interface {
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
-	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
+	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
 	// Add a validator into an elastic subnet
 	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) ([]ids.ID, error)
 }

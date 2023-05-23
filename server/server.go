@@ -628,7 +628,7 @@ func (s *server) TransformElasticSubnets(
 
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
-	txIDs, err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
+	txIDs, assetIDs, err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
 
 	s.updateClusterInfo()
 
@@ -644,11 +644,16 @@ func (s *server) TransformElasticSubnets(
 		strTXIDs = append(strTXIDs, txID.String())
 	}
 
+	strAssetIDs := []string{}
+	for _, assetID := range assetIDs {
+		strAssetIDs = append(strAssetIDs, assetID.String())
+	}
+
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &rpcpb.TransformElasticSubnetsResponse{ClusterInfo: clusterInfo, TxIds: strTXIDs}, nil
+	return &rpcpb.TransformElasticSubnetsResponse{ClusterInfo: clusterInfo, TxIds: strTXIDs, AssetIds: strAssetIDs}, nil
 }
 
 func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsRequest) (*rpcpb.CreateSubnetsResponse, error) {

@@ -166,7 +166,7 @@ func (ln *localNetwork) AddPermissionlessValidator(
 func (ln *localNetwork) TransformSubnet(
 	ctx context.Context,
 	elasticSubnetConfig []network.ElasticSubnetSpec,
-) ([]ids.ID, error) {
+) ([]ids.ID, []ids.ID, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
@@ -860,29 +860,30 @@ func (ln *localNetwork) addPermissionlessValidators(
 func (ln *localNetwork) transformToElasticSubnets(
 	ctx context.Context,
 	elasticSubnetSpecs []network.ElasticSubnetSpec,
-) ([]ids.ID, error) {
+) ([]ids.ID, []ids.ID, error) {
 	ln.log.Info("transforming elastic subnet tx")
 	elasticSubnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
+	assetIDs := make([]ids.ID, len(elasticSubnetSpecs))
 	clientURI, err := ln.getClientURI()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// wallet needs txs for all previously created subnets
 	var preloadTXs []ids.ID
 	for _, elasticSubnetSpec := range elasticSubnetSpecs {
 		if elasticSubnetSpec.SubnetID == nil {
-			return nil, errors.New("elastic subnet spec has no subnet ID")
+			return nil, nil, errors.New("elastic subnet spec has no subnet ID")
 		} else {
 			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			preloadTXs = append(preloadTXs, subnetID)
 		}
 	}
 	w, err := newWallet(ctx, clientURI, preloadTXs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for i, elasticSubnetSpec := range elasticSubnetSpecs {
@@ -890,8 +891,9 @@ func (ln *localNetwork) transformToElasticSubnets(
 
 		subnetAssetID, err := getXChainAssetID(ctx, w, elasticSubnetSpec.AssetName, elasticSubnetSpec.AssetSymbol, elasticSubnetSpec.MaxSupply)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		assetIDs[i] = subnetAssetID
 		ln.log.Info("created asset ID", zap.String("asset-ID", subnetAssetID.String()))
 		owner := &secp256k1fx.OutputOwners{
 			Threshold: 1,
@@ -901,17 +903,17 @@ func (ln *localNetwork) transformToElasticSubnets(
 		}
 		err = exportXChainToPChain(ctx, w, owner, subnetAssetID, elasticSubnetSpec.MaxSupply)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		ln.log.Info("exported asset to P-Chain")
 		err = importPChainFromXChain(ctx, w, owner)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		ln.log.Info("imported asset from X-Chain")
 		subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		cctx, cancel := createDefaultCtx(ctx)
 		transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(subnetID, subnetAssetID,
@@ -924,12 +926,12 @@ func (ln *localNetwork) transformToElasticSubnets(
 		)
 		cancel()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
 		elasticSubnetIDs[i] = transformSubnetTxID
 	}
-	return elasticSubnetIDs, nil
+	return elasticSubnetIDs, assetIDs, nil
 }
 
 func createSubnets(
