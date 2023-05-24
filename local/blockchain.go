@@ -857,6 +857,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 	if err != nil {
 		return nil, err
 	}
+	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
 	var preloadTXs []ids.ID
 	for _, validatorSpec := range validatorSpecs {
@@ -880,6 +881,30 @@ func (ln *localNetwork) addPermissionlessValidators(
 			w.addr,
 		},
 	}
+	// create new nodes
+	for _, validatorSpec := range validatorSpecs {
+		_, ok := ln.nodes[validatorSpec.NodeName]
+		if !ok {
+			ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", validatorSpec.NodeName)))
+			if _, err := ln.addNode(node.Config{Name: validatorSpec.NodeName}); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return nil, err
+	}
+
+	// just ensure all nodes are primary validators (so can be subnet validators)
+	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
+		return nil, err
+	}
+
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return nil, err
+	}
+
 	for i, validatorSpec := range validatorSpecs {
 		ln.log.Info(logging.Green.Wrap("adding permissionless validator"), zap.String("node ", validatorSpec.NodeName))
 		cctx, cancel := createDefaultCtx(ctx)
