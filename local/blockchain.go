@@ -593,6 +593,70 @@ func (ln *localNetwork) restartNodes(
 	return nil
 }
 
+func (ln *localNetwork) restartPermissionlessValidator(
+	ctx context.Context,
+	validatorSpecs []network.PermissionlessValidatorSpec,
+) (err error) {
+	fmt.Println()
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
+
+	nodeNames := maps.Keys(ln.nodes)
+	sort.Strings(nodeNames)
+
+	for _, nodeName := range nodeNames {
+		node := ln.nodes[nodeName]
+
+		// delete node specific flag so as to use default one
+		nodeConfig := node.GetConfig()
+
+		previousTrackedSubnets := ""
+		previousTrackedSubnetsIntf, ok := nodeConfig.Flags[config.TrackSubnetsKey]
+		if ok {
+			previousTrackedSubnets, ok = previousTrackedSubnetsIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
+			}
+		}
+
+		trackSubnetIDsSet := set.Set[string]{}
+		if previousTrackedSubnets != "" {
+			for _, s := range strings.Split(previousTrackedSubnets, ",") {
+				trackSubnetIDsSet.Add(s)
+			}
+		}
+		needsRestart := false
+		for _, validatorSpec := range validatorSpecs {
+			if validatorSpec.NodeID == node.nodeID.String() {
+				trackSubnetIDsSet.Add(*validatorSpec.SubnetID)
+				needsRestart = true
+			}
+		}
+		trackSubnetIDs := trackSubnetIDsSet.List()
+		sort.Strings(trackSubnetIDs)
+
+		tracked := strings.Join(trackSubnetIDs, ",")
+		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
+
+		if !needsRestart {
+			continue
+		}
+
+		if node.paused {
+			continue
+		}
+
+		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to track subnets %s", nodeName, tracked)))
+
+		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
+			return err
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 type wallet struct {
 	addr     ids.ShortID
 	pWallet  p.Wallet
@@ -855,6 +919,9 @@ func (ln *localNetwork) addPermissionlessValidators(
 		}
 		ln.log.Info("Validator successfully added as permissionless validator", zap.String("TX ID", txID.String()))
 		validatorSpecIDs[i] = txID
+	}
+	if err := ln.restartPermissionlessValidator(ctx, validatorSpecs); err != nil {
+		return nil, err
 	}
 	return validatorSpecIDs, nil
 }
