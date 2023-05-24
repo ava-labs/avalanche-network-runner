@@ -354,7 +354,7 @@ message TransformElasticSubnetsResponse {
 
 message PermissionlessValidatorSpec {
   string subnet_id = 1;
-  string node_id = 2;
+  string node_name = 2;
   uint64 staked_token_amount = 3;
   string asset_id = 4;
   string start_time = 5;

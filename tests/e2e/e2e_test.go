@@ -69,13 +69,6 @@ var (
 		"node6": `{"api-admin-enabled":false}`,
 		"node7": `{"api-admin-enabled":false}`,
 	}
-	nodeNameToNodeIDMap = map[string]string{
-		"node1": "NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
-		"node2": "NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ",
-		"node3": "NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN",
-		"node4": "NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu",
-		"node5": "NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5",
-	}
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
 	newParticipantNode            = "new_participant_node"
@@ -966,7 +959,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			testValidatorConfig.SubnetId = createdSubnetID
 			testValidatorConfig.AssetId = assetID
-			testValidatorConfig.NodeId = nodeNameToNodeIDMap["node4"]
+			testValidatorConfig.NodeName = "node4"
 			_, err := cli.AddPermissionlessValidator(ctx, []*rpcpb.PermissionlessValidatorSpec{&testValidatorConfig})
 			gomega.Ω(err).Should(gomega.BeNil())
 		})

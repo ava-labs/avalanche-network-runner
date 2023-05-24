@@ -18,7 +18,7 @@ var (
 type PermissionlessValidatorSpec struct {
 	SubnetID      *string
 	AssetID       string
-	NodeID        string
+	NodeName      string
 	StakedAmount  uint64
 	StartTime     time.Time
 	StakeDuration time.Duration

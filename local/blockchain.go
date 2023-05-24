@@ -626,7 +626,7 @@ func (ln *localNetwork) restartPermissionlessValidator(
 		}
 		needsRestart := false
 		for _, validatorSpec := range validatorSpecs {
-			if validatorSpec.NodeID == node.nodeID.String() {
+			if validatorSpec.NodeName == node.name {
 				trackSubnetIDsSet.Add(*validatorSpec.SubnetID)
 				needsRestart = true
 			}
@@ -881,12 +881,9 @@ func (ln *localNetwork) addPermissionlessValidators(
 		},
 	}
 	for i, validatorSpec := range validatorSpecs {
-		ln.log.Info(logging.Green.Wrap("adding permissionless validator"), zap.String("node ID", validatorSpec.NodeID))
+		ln.log.Info(logging.Green.Wrap("adding permissionless validator"), zap.String("node ", validatorSpec.NodeName))
 		cctx, cancel := createDefaultCtx(ctx)
-		validatoreNodeID, err := ids.NodeIDFromString(validatorSpec.NodeID)
-		if err != nil {
-			return nil, err
-		}
+		validatorNodeID := ln.nodes[validatorSpec.NodeName].nodeID
 		subnetID, err := ids.FromString(*validatorSpec.SubnetID)
 		if err != nil {
 			return nil, err
@@ -898,7 +895,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 		txID, err := w.pWallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
-					NodeID: validatoreNodeID,
+					NodeID: validatorNodeID,
 					Start:  uint64(validatorSpec.StartTime.Unix()),
 					End:    uint64(validatorSpec.StartTime.Add(validatorSpec.StakeDuration).Unix()),
 					Wght:   validatorSpec.StakedAmount,

@@ -1339,14 +1339,14 @@ func getPermissionlessValidatorSpec(
 		return network.PermissionlessValidatorSpec{}, err
 	}
 	if startTime.Before(time.Now().Add(StakingMinimumLeadTime)) {
-		return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", StakingMinimumLeadTime, spec.NodeId)
+		return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", StakingMinimumLeadTime, spec.NodeName)
 	}
 	stakeDuration := time.Duration(spec.StakeDuration) * time.Hour
 
 	validatorSpec := network.PermissionlessValidatorSpec{
 		SubnetID:      &spec.SubnetId,
 		AssetID:       spec.AssetId,
-		NodeID:        spec.NodeId,
+		NodeName:      spec.NodeName,
 		StakedAmount:  spec.StakedTokenAmount,
 		StartTime:     startTime,
 		StakeDuration: stakeDuration,
