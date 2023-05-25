@@ -904,17 +904,48 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("transform subnet to elastic subnets", func() {
+	ginkgo.It("can remove subnet validator", func() {
 		var createdSubnetID string
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
+			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
 			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
 			createdSubnetID = resp.SubnetIds[0]
 		})
+		ginkgo.By("removing a subnet validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testRemoveSubnetValidatorConfig := rpcpb.RemoveSubnetValidatorSpec{
+				NodeNames: []string{"node3"},
+				SubnetId:  createdSubnetID,
+			}
+			_, err := cli.RemoveSubnetValidator(ctx, []*rpcpb.RemoveSubnetValidatorSpec{&testRemoveSubnetValidatorConfig})
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("verify there are only two validators left for subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			subnetID, err := ids.FromString(createdSubnetID)
+			gomega.Ω(err).Should(gomega.BeNil())
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, subnetID, nil)
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(vdrs)).Should(gomega.Equal(2))
+		})
+	})
+
+	ginkgo.It("transform subnet to elastic subnets", func() {
+		var createdSubnetID string
 		ginkgo.By("transform 1 subnet to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
