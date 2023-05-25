@@ -54,8 +54,8 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/ava-labs/avalanchego v1.10.1 h1:lBeamJ1iNq+p2oKg2nAs+A65m8vhSDjkiTDbwzQW7kY=
 github.com/ava-labs/avalanchego v1.10.1/go.mod h1:ZvSXWlbkUKlbk3BsWx29a+8eVHe/WBsOxh55BSGoeRk=
-github.com/ava-labs/coreth v0.12.1 h1:EWSkFGHGVUxmu1pnSK/2pdcxaAVHbGspHqO3Ag+i7sA=
-github.com/ava-labs/coreth v0.12.1/go.mod h1:/5x54QlIKjlPebkdzTA5ic9wXdejbWOnQosztkv9jxo=
+github.com/ava-labs/coreth v0.12.2 h1:fjPOTAfrUeAwVwRV8lZJKXTPOSViHqZo5+/M2nkLeYs=
+github.com/ava-labs/coreth v0.12.2/go.mod h1:/5x54QlIKjlPebkdzTA5ic9wXdejbWOnQosztkv9jxo=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
