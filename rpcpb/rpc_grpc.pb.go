@@ -114,6 +114,7 @@ const (
 	ControlService_CreateBlockchains_FullMethodName          = "/rpcpb.ControlService/CreateBlockchains"
 	ControlService_TransformElasticSubnets_FullMethodName    = "/rpcpb.ControlService/TransformElasticSubnets"
 	ControlService_AddPermissionlessValidator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessValidator"
+	ControlService_RemoveSubnetValidator_FullMethodName      = "/rpcpb.ControlService/RemoveSubnetValidator"
 	ControlService_CreateSubnets_FullMethodName              = "/rpcpb.ControlService/CreateSubnets"
 	ControlService_Health_FullMethodName                     = "/rpcpb.ControlService/Health"
 	ControlService_URIs_FullMethodName                       = "/rpcpb.ControlService/URIs"
@@ -143,6 +144,7 @@ type ControlServiceClient interface {
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessValidator(ctx context.Context, in *AddPermissionlessValidatorRequest, opts ...grpc.CallOption) (*AddPermissionlessValidatorResponse, error)
+	RemoveSubnetValidator(ctx context.Context, in *RemoveSubnetValidatorRequest, opts ...grpc.CallOption) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
@@ -210,6 +212,15 @@ func (c *controlServiceClient) TransformElasticSubnets(ctx context.Context, in *
 func (c *controlServiceClient) AddPermissionlessValidator(ctx context.Context, in *AddPermissionlessValidatorRequest, opts ...grpc.CallOption) (*AddPermissionlessValidatorResponse, error) {
 	out := new(AddPermissionlessValidatorResponse)
 	err := c.cc.Invoke(ctx, ControlService_AddPermissionlessValidator_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) RemoveSubnetValidator(ctx context.Context, in *RemoveSubnetValidatorRequest, opts ...grpc.CallOption) (*RemoveSubnetValidatorResponse, error) {
+	out := new(RemoveSubnetValidatorResponse)
+	err := c.cc.Invoke(ctx, ControlService_RemoveSubnetValidator_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -410,6 +421,7 @@ type ControlServiceServer interface {
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error)
+	RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
@@ -449,6 +461,9 @@ func (UnimplementedControlServiceServer) TransformElasticSubnets(context.Context
 }
 func (UnimplementedControlServiceServer) AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPermissionlessValidator not implemented")
+}
+func (UnimplementedControlServiceServer) RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveSubnetValidator not implemented")
 }
 func (UnimplementedControlServiceServer) CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateSubnets not implemented")
@@ -603,6 +618,24 @@ func _ControlService_AddPermissionlessValidator_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).AddPermissionlessValidator(ctx, req.(*AddPermissionlessValidatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_RemoveSubnetValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveSubnetValidatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).RemoveSubnetValidator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_RemoveSubnetValidator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).RemoveSubnetValidator(ctx, req.(*RemoveSubnetValidatorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -960,6 +993,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddPermissionlessValidator",
 			Handler:    _ControlService_AddPermissionlessValidator_Handler,
+		},
+		{
+			MethodName: "RemoveSubnetValidator",
+			Handler:    _ControlService_RemoveSubnetValidator_Handler,
 		},
 		{
 			MethodName: "CreateSubnets",

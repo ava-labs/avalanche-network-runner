@@ -154,6 +154,16 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
+func (ln *localNetwork) RemoveSubnetValidator(
+	ctx context.Context,
+	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
+) ([]ids.ID, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.removeSubnetValidators(ctx, removeSubnetSpecs)
+}
+
 func (ln *localNetwork) AddPermissionlessValidator(
 	ctx context.Context,
 	validatorSpec []network.PermissionlessValidatorSpec,
@@ -657,6 +667,72 @@ func (ln *localNetwork) restartPermissionlessValidator(
 	return nil
 }
 
+func (ln *localNetwork) restartRemovedSubnetValidator(
+	ctx context.Context,
+	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
+) (err error) {
+	fmt.Println()
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
+
+	nodeNames := maps.Keys(ln.nodes)
+	sort.Strings(nodeNames)
+
+	for _, nodeName := range nodeNames {
+		node := ln.nodes[nodeName]
+
+		// delete node specific flag so as to use default one
+		nodeConfig := node.GetConfig()
+
+		previousTrackedSubnets := ""
+		previousTrackedSubnetsIntf, ok := nodeConfig.Flags[config.TrackSubnetsKey]
+		if ok {
+			previousTrackedSubnets, ok = previousTrackedSubnetsIntf.(string)
+			if !ok {
+				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
+			}
+		}
+
+		trackSubnetIDsSet := set.Set[string]{}
+		if previousTrackedSubnets != "" {
+			for _, s := range strings.Split(previousTrackedSubnets, ",") {
+				trackSubnetIDsSet.Add(s)
+			}
+		}
+		needsRestart := false
+		for _, removeSubnetSpec := range removeSubnetSpecs {
+			for _, toRemoveNode := range removeSubnetSpec.NodeNames {
+				if toRemoveNode == node.name {
+					trackSubnetIDsSet.Remove(*removeSubnetSpec.SubnetID)
+					needsRestart = true
+				}
+			}
+		}
+		trackSubnetIDs := trackSubnetIDsSet.List()
+		sort.Strings(trackSubnetIDs)
+
+		tracked := strings.Join(trackSubnetIDs, ",")
+		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
+
+		if !needsRestart {
+			continue
+		}
+
+		if node.paused {
+			continue
+		}
+
+		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to stop tracking subnets %s", nodeName, tracked)))
+
+		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
+			return err
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 type wallet struct {
 	addr     ids.ShortID
 	pWallet  p.Wallet
@@ -845,6 +921,86 @@ func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.O
 		defaultPoll,
 	)
 	return err
+}
+
+func (ln *localNetwork) removeSubnetValidators(
+	ctx context.Context,
+	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
+) ([]ids.ID, error) {
+	ln.log.Info("removing subnet validator tx")
+	removeSubnetSpecIDs := make([]ids.ID, len(removeSubnetSpecs))
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return nil, err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+	// wallet needs txs for all previously created subnets
+	var preloadTXs []ids.ID
+	for _, removeSubnetSpec := range removeSubnetSpecs {
+		if removeSubnetSpec.SubnetID == nil {
+			return nil, errors.New("remove subnet validator spec has no subnet ID")
+		} else {
+			subnetID, err := ids.FromString(*removeSubnetSpec.SubnetID)
+			if err != nil {
+				return nil, err
+			}
+			preloadTXs = append(preloadTXs, subnetID)
+		}
+	}
+	w, err := newWallet(ctx, clientURI, preloadTXs)
+	if err != nil {
+		return nil, err
+	}
+	ln.log.Info(logging.Green.Wrap("removing the nodes as subnet validators"))
+	for i, subnetSpec := range removeSubnetSpecs {
+		subnetID, err := ids.FromString(*subnetSpec.SubnetID)
+		if err != nil {
+			return nil, err
+		}
+		cctx, cancel := createDefaultCtx(ctx)
+		vs, err := platformCli.GetCurrentValidators(cctx, subnetID, nil)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		subnetValidators := set.Set[ids.NodeID]{}
+		for _, v := range vs {
+			subnetValidators.Add(v.NodeID)
+		}
+		toRemoveNodes := subnetSpec.NodeNames
+		for _, nodeName := range toRemoveNodes {
+			node, b := ln.nodes[nodeName]
+			if !b {
+				return nil, fmt.Errorf("node %s is not in network nodes", nodeName)
+			}
+			nodeID := node.GetNodeID()
+			if isValidator := subnetValidators.Contains(nodeID); !isValidator {
+				return nil, fmt.Errorf("node %s is currently not a subnet validator of subnet %s", nodeName, subnetID.String())
+			}
+			cctx, cancel := createDefaultCtx(ctx)
+			txID, err := w.pWallet.IssueRemoveSubnetValidatorTx(
+				nodeID,
+				subnetID,
+				common.WithContext(cctx),
+				defaultPoll,
+			)
+			cancel()
+			if err != nil {
+				return nil, fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s, subnetID %s", "IssueRemoveSubnetValidatorTx", err, nodeID.String(), subnetID.String())
+			}
+			ln.log.Info("removed node as subnet validator",
+				zap.String("node-name", nodeName),
+				zap.String("node-ID", nodeID.String()),
+				zap.String("subnet-ID", subnetID.String()),
+				zap.String("tx-ID", txID.String()),
+			)
+			removeSubnetSpecIDs[i] = txID
+		}
+	}
+	if err := ln.restartRemovedSubnetValidator(ctx, removeSubnetSpecs); err != nil {
+		return nil, err
+	}
+	return removeSubnetSpecIDs, nil
 }
 
 func (ln *localNetwork) addPermissionlessValidators(
