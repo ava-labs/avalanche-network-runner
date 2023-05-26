@@ -1014,7 +1014,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			originalUris, err = cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(originalUris)).Should(gomega.Equal(8))
+			gomega.Ω(len(originalUris)).Should(gomega.Equal(7))
 		})
 		ginkgo.By("get original subnets", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -1022,7 +1022,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(6))
+			gomega.Ω(numSubnets).Should(gomega.Equal(7))
 			originalSubnets = maps.Keys(status.ClusterInfo.Subnets)
 		})
 		ginkgo.By("check there are no snapshots", func() {
