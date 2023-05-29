@@ -845,6 +845,14 @@ func (ln *localNetwork) transformToElasticSubnets(
 	return elasticSubnetIDs, nil
 }
 
+func (ln *localNetwork) GetElasticSubnetID(_ context.Context, subnetID ids.ID) (ids.ID, error) {
+	elasticSubnetID, ok := ln.subnetID2elasticSubnetID[subnetID]
+	if !ok {
+		return ids.Empty, fmt.Errorf("subnetID not found on map")
+	}
+	return elasticSubnetID, nil
+}
+
 func createSubnets(
 	ctx context.Context,
 	numSubnets uint32,
