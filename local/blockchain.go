@@ -840,6 +840,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 		}
 		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
 		elasticSubnetIDs[i] = transformSubnetTxID
+		ln.subnetID2elasticSubnetID[subnetID] = transformSubnetTxID
 	}
 	return elasticSubnetIDs, nil
 }
