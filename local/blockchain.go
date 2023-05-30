@@ -808,7 +808,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
-	var preloadTXs []ids.ID
+	preloadTXs := make([]ids.ID, len(validatorSpecs))
 	for _, validatorSpec := range validatorSpecs {
 		subnetID, err := ids.FromString(validatorSpec.SubnetID)
 		if err != nil {
