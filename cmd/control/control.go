@@ -417,7 +417,7 @@ func newTransformElasticSubnetsCommand() *cobra.Command {
 func newAddPermissionlessValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-permissionless-validator [options]",
-		Short: "Add permissionelss validator to elastic subnets.",
+		Short: "Add permissionless validator to elastic subnets.",
 		RunE:  addPermissionlessValidatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}

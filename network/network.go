@@ -16,7 +16,7 @@ var (
 )
 
 type PermissionlessValidatorSpec struct {
-	SubnetID      *string
+	SubnetID      string
 	AssetID       string
 	NodeName      string
 	StakedAmount  uint64
@@ -113,7 +113,7 @@ type Network interface {
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
 	// Add a validator into an elastic subnet
-	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) ([]ids.ID, error)
+	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) error
 	// Remove a validator from a subnet
 	RemoveSubnetValidator(context.Context, []RemoveSubnetValidatorSpec) ([]ids.ID, error)
 }

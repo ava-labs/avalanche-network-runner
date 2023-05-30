@@ -906,7 +906,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("can remove subnet validator", func() {
+ginkgo.It("can remove subnet validator", func() {
 		ginkgo.By("removing a subnet validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
@@ -962,7 +962,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.HaveOccurred())
 		})
 	})
-
+  
 	ginkgo.It("add permissionless validator to elastic subnets", func() {
 		ginkgo.By("adding a permissionless validator to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -992,7 +992,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(7))
+			gomega.Ω(numSubnets).Should(gomega.Equal(5))
 			originalSubnets = maps.Keys(status.ClusterInfo.Subnets)
 		})
 		ginkgo.By("check there are no snapshots", func() {
