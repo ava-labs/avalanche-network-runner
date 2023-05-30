@@ -939,7 +939,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	ginkgo.It("transform subnet to elastic subnets", func() {
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{Participants: subnetParticipants}})
+			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
@@ -953,6 +953,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			response, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
+			gomega.Ω(len(response.AssetIds)).Should(gomega.Equal(1))
+			elasticAssetID = response.AssetIds[0]
 		})
 		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
