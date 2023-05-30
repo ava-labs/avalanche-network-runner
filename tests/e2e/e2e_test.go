@@ -943,7 +943,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
-			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(6))
+			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
 			elasticSubnetID = resp.SubnetIds[0]
 		})
 		ginkgo.By("transform 1 subnet to elastic subnet", func() {
