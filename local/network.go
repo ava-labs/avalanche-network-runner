@@ -117,7 +117,7 @@ type localNetwork struct {
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
 	// map from subnet id to elastic subnet tx id
-	subnetID2elasticSubnetID map[ids.ID]ids.ID
+	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 }
 
 type deprecatedFlagEsp struct {
@@ -330,7 +330,7 @@ func newNetwork(
 		rootDir:                  rootDir,
 		snapshotsDir:             snapshotsDir,
 		reassignPortsIfUsed:      reassignPortsIfUsed,
-		subnetID2elasticSubnetID: map[ids.ID]ids.ID{},
+		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 	}
 	return net, nil
 }
