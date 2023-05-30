@@ -489,11 +489,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 
 		isElastic := false
 		elasticSubnetID := ids.Empty
-		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err != nil {
-			// if subnet is already elastic it will return "not found" error
-			if !strings.Contains(err.Error(), "not found") {
-				return err
-			}
+		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
 			isElastic = true
 			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
 			if err != nil {
