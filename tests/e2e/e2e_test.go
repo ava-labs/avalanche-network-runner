@@ -906,7 +906,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-ginkgo.It("can remove subnet validator", func() {
+	ginkgo.It("can remove subnet validator", func() {
 		ginkgo.By("removing a subnet validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
@@ -962,7 +962,7 @@ ginkgo.It("can remove subnet validator", func() {
 			gomega.Ω(err).Should(gomega.HaveOccurred())
 		})
 	})
-  
+
 	ginkgo.It("add permissionless validator to elastic subnets", func() {
 		ginkgo.By("adding a permissionless validator to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

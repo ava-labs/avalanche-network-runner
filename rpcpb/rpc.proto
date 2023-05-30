@@ -387,7 +387,6 @@ message RemoveSubnetValidatorRequest {
 
 message RemoveSubnetValidatorResponse {
   ClusterInfo cluster_info = 1;
-  repeated string tx_ids = 2;
 }
 
 message BlockchainSpec {

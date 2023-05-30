@@ -332,13 +332,13 @@ func (lc *localNetwork) AddPermissionlessValidator(ctx context.Context, validato
 	return nil
 }
 
-func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) ([]ids.ID, error) {
+func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
 	if len(validatorSpecs) == 0 {
 		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
-		return nil, nil
+		return nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -355,20 +355,20 @@ func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpec
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
-	txIDs, err := lc.nw.RemoveSubnetValidator(ctx, validatorSpecs)
+	err := lc.nw.RemoveSubnetValidator(ctx, validatorSpecs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished removing subnet validators")))
-	return txIDs, nil
+	return nil
 }
 
 func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, []ids.ID, error) {

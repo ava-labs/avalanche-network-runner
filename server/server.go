@@ -623,7 +623,7 @@ func (s *server) RemoveSubnetValidator(
 
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
-	txIDs, err := s.network.RemoveSubnetValidator(ctx, validatorSpecList)
+	err := s.network.RemoveSubnetValidator(ctx, validatorSpecList)
 
 	s.updateClusterInfo()
 
@@ -634,16 +634,11 @@ func (s *server) RemoveSubnetValidator(
 
 	s.log.Info("successfully removed subnet validator")
 
-	strTXIDs := []string{}
-	for _, txID := range txIDs {
-		strTXIDs = append(strTXIDs, txID.String())
-	}
-
 	clusterInfo, err := deepCopy(s.clusterInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &rpcpb.RemoveSubnetValidatorResponse{ClusterInfo: clusterInfo, TxIds: strTXIDs}, nil
+	return &rpcpb.RemoveSubnetValidatorResponse{ClusterInfo: clusterInfo}, nil
 }
 
 func (s *server) TransformElasticSubnets(
