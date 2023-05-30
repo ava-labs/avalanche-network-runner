@@ -941,7 +941,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			testValidatorConfig.SubnetId = elasticSubnetID
 			testValidatorConfig.AssetId = elasticAssetID
-			testValidatorConfig.NodeName = "node4"
+			testValidatorConfig.NodeName = "permissionlessNode"
 			_, err := cli.AddPermissionlessValidator(ctx, []*rpcpb.PermissionlessValidatorSpec{&testValidatorConfig})
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -956,7 +956,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			originalUris, err = cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(originalUris)).Should(gomega.Equal(7))
+			gomega.Ω(len(originalUris)).Should(gomega.Equal(8))
 		})
 		ginkgo.By("get original subnets", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
