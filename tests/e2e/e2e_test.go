@@ -967,6 +967,12 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
 			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(elasticSubnetID))
 		})
+		ginkgo.By("remove snapshot with elastic info", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.RemoveSnapshot(ctx, "elastic_snapshot")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
 	})
 
 	ginkgo.It("snapshots + blockchain creation", func() {
