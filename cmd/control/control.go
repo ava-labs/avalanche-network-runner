@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -287,11 +288,25 @@ func startFunc(*cobra.Command, []string) error {
 			return err
 		}
 		for _, spec := range blockchainSpecs {
-			if _, err := os.Stat(spec.Genesis); os.IsNotExist(err) {
-				return fmt.Errorf("genesis file does not exist: %s", spec.Genesis)
-			} else if err != nil {
-				return err
+
+			// Check if spec.Genesis is valid json content
+			if strings.Contains(spec.Genesis, "{") || strings.Contains(spec.Genesis, "}") {
+				var result map[string]interface{}
+
+				err := json.Unmarshal([]byte(spec.Genesis), &result)
+
+				if err != nil {
+					return fmt.Errorf("genesis content does not valid: %s", spec.Genesis)
+				}
+			} else {
+				// Check if spec.Genesis file exist
+				if _, err := os.Stat(spec.Genesis); os.IsNotExist(err) {
+					return fmt.Errorf("genesis file does not exist: %s", spec.Genesis)
+				} else if err != nil {
+					return err
+				}
 			}
+
 		}
 		opts = append(opts, client.WithBlockchainSpecs(blockchainSpecs))
 	}
