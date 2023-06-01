@@ -573,24 +573,22 @@ func (ln *localNetwork) restartNodes(
 			}
 		}
 		needsRestart := false
-		if validatorSpecs != nil {
-			for _, validatorSpec := range validatorSpecs {
-				if validatorSpec.NodeName == node.name {
-					trackSubnetIDsSet.Add(validatorSpec.SubnetID)
+		for _, validatorSpec := range validatorSpecs {
+			if validatorSpec.NodeName == node.name {
+				trackSubnetIDsSet.Add(validatorSpec.SubnetID)
+				needsRestart = true
+			}
+		}
+
+		for _, removeValidatorSpec := range removeValidatorSpecs {
+			for _, toRemoveNode := range removeValidatorSpec.NodeNames {
+				if toRemoveNode == node.name {
+					trackSubnetIDsSet.Remove(removeValidatorSpec.SubnetID)
 					needsRestart = true
 				}
 			}
 		}
-		if removeValidatorSpecs != nil {
-			for _, removeValidatorSpec := range removeValidatorSpecs {
-				for _, toRemoveNode := range removeValidatorSpec.NodeNames {
-					if toRemoveNode == node.name {
-						trackSubnetIDsSet.Remove(removeValidatorSpec.SubnetID)
-						needsRestart = true
-					}
-				}
-			}
-		}
+
 		for i, subnetID := range subnetIDs {
 			for _, participant := range subnetSpecs[i].Participants {
 				if participant == nodeName {
