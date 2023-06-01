@@ -155,7 +155,7 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
-func (ln *localNetwork) RemoveSubnetValidator(
+func (ln *localNetwork) RemoveSubnetValidators(
 	ctx context.Context,
 	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
 ) error {
@@ -165,7 +165,7 @@ func (ln *localNetwork) RemoveSubnetValidator(
 	return ln.removeSubnetValidators(ctx, removeSubnetSpecs)
 }
 
-func (ln *localNetwork) AddPermissionlessValidator(
+func (ln *localNetwork) AddPermissionlessValidators(
 	ctx context.Context,
 	validatorSpec []network.PermissionlessValidatorSpec,
 ) error {
@@ -318,7 +318,7 @@ func (ln *localNetwork) installCustomChains(
 	if len(subnetSpecs) > 0 || len(nodesToRestartForBlockchainConfigUpdate) > 0 {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, false, nodesToRestartForBlockchainConfigUpdate); err != nil {
+		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, nil, nodesToRestartForBlockchainConfigUpdate); err != nil {
 			return nil, err
 		}
 		clientURI, err = ln.getClientURI()
@@ -431,7 +431,7 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, false, nil); err != nil {
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, nil, nil); err != nil {
 		return nil, err
 	}
 
@@ -537,9 +537,14 @@ func (ln *localNetwork) restartNodes(
 	subnetIDs []ids.ID,
 	subnetSpecs []network.SubnetSpec,
 	validatorSpecs []network.PermissionlessValidatorSpec,
-	isPermissionlessValidator bool,
+	removeValidatorSpecs []network.RemoveSubnetValidatorSpec,
 	nodesToRestartForBlockchainConfigUpdate set.Set[string],
 ) (err error) {
+	if (subnetSpecs != nil && validatorSpecs != nil) || (subnetSpecs != nil && removeValidatorSpecs != nil) ||
+		(validatorSpecs != nil && removeValidatorSpecs != nil) {
+		return errors.New("only one type of spec between subnet specs, add permissionless validator specs and " +
+			"remove validator specs can be supplied at one time")
+	}
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 
@@ -568,11 +573,20 @@ func (ln *localNetwork) restartNodes(
 			}
 		}
 		needsRestart := false
-		if isPermissionlessValidator {
+		if validatorSpecs != nil {
 			for _, validatorSpec := range validatorSpecs {
 				if validatorSpec.NodeName == node.name {
 					trackSubnetIDsSet.Add(validatorSpec.SubnetID)
 					needsRestart = true
+				}
+			}
+		} else if removeValidatorSpecs != nil {
+			for _, removeValidatorSpec := range removeValidatorSpecs {
+				for _, toRemoveNode := range removeValidatorSpec.NodeNames {
+					if toRemoveNode == node.name {
+						trackSubnetIDsSet.Remove(removeValidatorSpec.SubnetID)
+						needsRestart = true
+					}
 				}
 			}
 		} else {
@@ -591,7 +605,7 @@ func (ln *localNetwork) restartNodes(
 		tracked := strings.Join(trackSubnetIDs, ",")
 		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
 
-		if !isPermissionlessValidator {
+		if subnetSpecs != nil {
 			if nodesToRestartForBlockchainConfigUpdate.Contains(nodeName) {
 				needsRestart = true
 			}
@@ -605,73 +619,11 @@ func (ln *localNetwork) restartNodes(
 			continue
 		}
 
-		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to track subnets %s", nodeName, tracked)))
-
-		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
-			return err
+		if removeValidatorSpecs != nil {
+			ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to stop tracking subnets %s", nodeName, tracked)))
+		} else {
+			ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to track subnets %s", nodeName, tracked)))
 		}
-	}
-	if err := ln.healthy(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ln *localNetwork) restartRemovedSubnetValidator(
-	ctx context.Context,
-	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
-) (err error) {
-	fmt.Println()
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
-
-	nodeNames := maps.Keys(ln.nodes)
-	sort.Strings(nodeNames)
-
-	for _, nodeName := range nodeNames {
-		node := ln.nodes[nodeName]
-
-		// delete node specific flag so as to use default one
-		nodeConfig := node.GetConfig()
-
-		previousTrackedSubnets := ""
-		previousTrackedSubnetsIntf, ok := nodeConfig.Flags[config.TrackSubnetsKey]
-		if ok {
-			previousTrackedSubnets, ok = previousTrackedSubnetsIntf.(string)
-			if !ok {
-				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
-			}
-		}
-
-		trackSubnetIDsSet := set.Set[string]{}
-		if previousTrackedSubnets != "" {
-			for _, s := range strings.Split(previousTrackedSubnets, ",") {
-				trackSubnetIDsSet.Add(s)
-			}
-		}
-		needsRestart := false
-		for _, removeSubnetSpec := range removeSubnetSpecs {
-			for _, toRemoveNode := range removeSubnetSpec.NodeNames {
-				if toRemoveNode == node.name {
-					trackSubnetIDsSet.Remove(*removeSubnetSpec.SubnetID)
-					needsRestart = true
-				}
-			}
-		}
-		trackSubnetIDs := trackSubnetIDsSet.List()
-		sort.Strings(trackSubnetIDs)
-
-		tracked := strings.Join(trackSubnetIDs, ",")
-		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
-
-		if !needsRestart {
-			continue
-		}
-
-		if node.paused {
-			continue
-		}
-
-		ln.log.Info(logging.Green.Wrap(fmt.Sprintf("restarting node %s to stop tracking subnets %s", nodeName, tracked)))
 
 		if err := ln.restartNode(ctx, nodeName, "", "", "", nil, nil, nil); err != nil {
 			return err
@@ -887,15 +839,11 @@ func (ln *localNetwork) removeSubnetValidators(
 	// wallet needs txs for all previously created subnets
 	var preloadTXs []ids.ID
 	for _, removeSubnetSpec := range removeSubnetSpecs {
-		if removeSubnetSpec.SubnetID == nil {
-			return errors.New("remove subnet validator spec has no subnet ID")
-		} else {
-			subnetID, err := ids.FromString(*removeSubnetSpec.SubnetID)
-			if err != nil {
-				return err
-			}
-			preloadTXs = append(preloadTXs, subnetID)
+		subnetID, err := ids.FromString(removeSubnetSpec.SubnetID)
+		if err != nil {
+			return err
 		}
+		preloadTXs = append(preloadTXs, subnetID)
 	}
 	w, err := newWallet(ctx, clientURI, preloadTXs)
 	if err != nil {
@@ -903,7 +851,7 @@ func (ln *localNetwork) removeSubnetValidators(
 	}
 	ln.log.Info(logging.Green.Wrap("removing the nodes as subnet validators"))
 	for i, subnetSpec := range removeSubnetSpecs {
-		subnetID, err := ids.FromString(*subnetSpec.SubnetID)
+		subnetID, err := ids.FromString(subnetSpec.SubnetID)
 		if err != nil {
 			return err
 		}
@@ -947,7 +895,7 @@ func (ln *localNetwork) removeSubnetValidators(
 			removeSubnetSpecIDs[i] = txID
 		}
 	}
-	return ln.restartRemovedSubnetValidator(ctx, removeSubnetSpecs)
+	return ln.restartNodes(ctx, nil, nil, nil, removeSubnetSpecs, nil)
 }
 
 func (ln *localNetwork) addPermissionlessValidators(
@@ -1063,7 +1011,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 		}
 		ln.log.Info("Validator successfully added as permissionless validator", zap.String("TX ID", txID.String()))
 	}
-	return ln.restartNodes(ctx, nil, nil, validatorSpecs, true, nil)
+	return ln.restartNodes(ctx, nil, nil, validatorSpecs, nil, nil)
 }
 
 func (ln *localNetwork) transformToElasticSubnets(

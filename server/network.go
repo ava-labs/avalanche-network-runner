@@ -293,7 +293,7 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
-func (lc *localNetwork) AddPermissionlessValidator(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
+func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -319,7 +319,7 @@ func (lc *localNetwork) AddPermissionlessValidator(ctx context.Context, validato
 		return err
 	}
 
-	err := lc.nw.AddPermissionlessValidator(ctx, validatorSpecs)
+	err := lc.nw.AddPermissionlessValidators(ctx, validatorSpecs)
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpec
 		return err
 	}
 
-	err := lc.nw.RemoveSubnetValidator(ctx, validatorSpecs)
+	err := lc.nw.RemoveSubnetValidators(ctx, validatorSpecs)
 	if err != nil {
 		return err
 	}

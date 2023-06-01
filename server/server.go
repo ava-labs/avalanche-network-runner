@@ -565,7 +565,7 @@ func (s *server) AddPermissionlessValidator(
 
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
-	err := s.network.AddPermissionlessValidator(ctx, validatorSpecList)
+	err := s.network.AddPermissionlessValidators(ctx, validatorSpecList)
 
 	s.updateClusterInfo()
 
@@ -611,10 +611,10 @@ func (s *server) RemoveSubnetValidator(
 	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
 
 	for _, validatorSpec := range validatorSpecList {
-		if validatorSpec.SubnetID == nil {
+		if validatorSpec.SubnetID == "" {
 			return nil, ErrNoSubnetID
-		} else if !subnetsSet.Contains(*validatorSpec.SubnetID) {
-			return nil, fmt.Errorf("subnet id %q does not exist", *validatorSpec.SubnetID)
+		} else if !subnetsSet.Contains(validatorSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", validatorSpec.SubnetID)
 		}
 	}
 
@@ -1416,7 +1416,7 @@ func getRemoveSubnetValidatorSpec(
 	spec *rpcpb.RemoveSubnetValidatorSpec,
 ) network.RemoveSubnetValidatorSpec {
 	validatorSpec := network.RemoveSubnetValidatorSpec{
-		SubnetID:  &spec.SubnetId,
+		SubnetID:  spec.SubnetId,
 		NodeNames: spec.GetNodeNames(),
 	}
 	return validatorSpec

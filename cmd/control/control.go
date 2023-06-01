@@ -426,7 +426,7 @@ func newAddPermissionlessValidatorCommand() *cobra.Command {
 
 func newRemoveSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-subnet-validator [options]",
+		Use:   "remove-subnet-validator removeValidatorSpec [options]",
 		Short: "Remove subnet validator",
 		RunE:  removeSubnetValidatorFunc,
 		Args:  cobra.ExactArgs(1),
