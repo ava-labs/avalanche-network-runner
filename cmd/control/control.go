@@ -406,7 +406,7 @@ func createSubnetsFunc(_ *cobra.Command, args []string) error {
 
 func newTransformElasticSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "elastic-subnets [options]",
+		Use:   "elastic-subnets elastic_subnets_specs [options]",
 		Short: "Transform subnets to elastic subnets.",
 		RunE:  transformElasticSubnetsFunc,
 		Args:  cobra.ExactArgs(1),
@@ -416,7 +416,7 @@ func newTransformElasticSubnetsCommand() *cobra.Command {
 
 func newAddPermissionlessValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add-permissionless-validator [options]",
+		Use:   "add-permissionless-validator permissionlessValidatorSpecs [options]",
 		Short: "Add permissionless validator to elastic subnets.",
 		RunE:  addPermissionlessValidatorFunc,
 		Args:  cobra.ExactArgs(1),

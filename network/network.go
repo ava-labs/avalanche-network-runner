@@ -116,4 +116,6 @@ type Network interface {
 	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) error
 	// Remove a validator from a subnet
 	RemoveSubnetValidator(context.Context, []RemoveSubnetValidatorSpec) error
+	// Get the elastic subnet tx id for the given subnet id
+	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
 }
