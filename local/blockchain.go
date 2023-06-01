@@ -532,6 +532,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	return nil
 }
 
+//nolint:all
 func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
@@ -837,13 +838,13 @@ func (ln *localNetwork) removeSubnetValidators(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
-	var preloadTXs []ids.ID
-	for _, removeSubnetSpec := range removeSubnetSpecs {
+	preloadTXs := make([]ids.ID, len(removeSubnetSpecs))
+	for i, removeSubnetSpec := range removeSubnetSpecs {
 		subnetID, err := ids.FromString(removeSubnetSpec.SubnetID)
 		if err != nil {
 			return err
 		}
-		preloadTXs = append(preloadTXs, subnetID)
+		preloadTXs[i] = subnetID
 	}
 	w, err := newWallet(ctx, clientURI, preloadTXs)
 	if err != nil {
