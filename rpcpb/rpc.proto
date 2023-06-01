@@ -209,8 +209,11 @@ message SubnetInfo {
   // If Subnet is an Elastic Subnet
   bool is_elastic = 1;
 
+  // TXID for the elastic subnet transform
+  string elastic_subnet_id = 2;
+
   // node validators of subnet
-  SubnetParticipants subnet_participants = 2;
+  SubnetParticipants subnet_participants = 3;
 }
 
 message CustomChainInfo {

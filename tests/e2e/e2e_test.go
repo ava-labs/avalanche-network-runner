@@ -916,6 +916,15 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
 			elasticSubnetID = resp.SubnetIds[0]
 		})
+		ginkgo.By("check expected non elastic status", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(false))
+			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(ids.Empty.String()))
+		})
 		ginkgo.By("transform 1 subnet to elastic subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
@@ -926,12 +935,49 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(len(response.AssetIds)).Should(gomega.Equal(1))
 			elasticAssetID = response.AssetIds[0]
 		})
+		ginkgo.By("check expected elastic status", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
+			gomega.Ω(subnetInfo.ElasticSubnetId).ShouldNot(gomega.Equal(ids.Empty.String()))
+			elasticSubnetID = subnetInfo.ElasticSubnetId
+		})
 		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 			testElasticSubnetConfig.SubnetId = elasticSubnetID
 			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
 			gomega.Ω(err).Should(gomega.HaveOccurred())
+		})
+		ginkgo.By("save snapshot with elastic info", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.SaveSnapshot(ctx, "elastic_snapshot")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("load snapshot with elastic info", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, err := cli.LoadSnapshot(ctx, "elastic_snapshot")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("check expected elastic status", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			status, err := cli.Status(ctx)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
+			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(elasticSubnetID))
+		})
+		ginkgo.By("remove snapshot with elastic info", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, err := cli.RemoveSnapshot(ctx, "elastic_snapshot")
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})
 

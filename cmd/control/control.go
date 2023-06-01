@@ -405,7 +405,7 @@ func createSubnetsFunc(_ *cobra.Command, args []string) error {
 
 func newTransformElasticSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "elastic-subnets [options]",
+		Use:   "elastic-subnets elastic_subnets_specs [options]",
 		Short: "Transform subnets to elastic subnets.",
 		RunE:  transformElasticSubnetsFunc,
 		Args:  cobra.ExactArgs(1),
