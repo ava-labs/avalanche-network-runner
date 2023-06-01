@@ -532,7 +532,6 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	return nil
 }
 
-//nolint:all
 func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
@@ -581,7 +580,8 @@ func (ln *localNetwork) restartNodes(
 					needsRestart = true
 				}
 			}
-		} else if removeValidatorSpecs != nil {
+		}
+		if removeValidatorSpecs != nil {
 			for _, removeValidatorSpec := range removeValidatorSpecs {
 				for _, toRemoveNode := range removeValidatorSpec.NodeNames {
 					if toRemoveNode == node.name {
@@ -590,16 +590,16 @@ func (ln *localNetwork) restartNodes(
 					}
 				}
 			}
-		} else {
-			for i, subnetID := range subnetIDs {
-				for _, participant := range subnetSpecs[i].Participants {
-					if participant == nodeName {
-						trackSubnetIDsSet.Add(subnetID.String())
-						needsRestart = true
-					}
+		}
+		for i, subnetID := range subnetIDs {
+			for _, participant := range subnetSpecs[i].Participants {
+				if participant == nodeName {
+					trackSubnetIDsSet.Add(subnetID.String())
+					needsRestart = true
 				}
 			}
 		}
+
 		trackSubnetIDs := trackSubnetIDsSet.List()
 		sort.Strings(trackSubnetIDs)
 
