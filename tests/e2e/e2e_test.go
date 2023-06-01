@@ -62,6 +62,7 @@ var (
 	pausedNodeName    = "node1"
 	elasticSubnetID   = ""
 	elasticAssetID    = ""
+	createdSubnetID   = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
