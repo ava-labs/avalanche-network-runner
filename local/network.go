@@ -25,6 +25,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
@@ -115,6 +116,8 @@ type localNetwork struct {
 	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
+	// map from subnet id to elastic subnet tx id
+	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 }
 
 type deprecatedFlagEsp struct {
@@ -317,16 +320,17 @@ func newNetwork(
 	}
 	// Create the network
 	net := &localNetwork{
-		nextNodeSuffix:      1,
-		nodes:               map[string]*localNode{},
-		onStopCh:            make(chan struct{}),
-		log:                 log,
-		bootstraps:          beacon.NewSet(),
-		newAPIClientF:       newAPIClientF,
-		nodeProcessCreator:  nodeProcessCreator,
-		rootDir:             rootDir,
-		snapshotsDir:        snapshotsDir,
-		reassignPortsIfUsed: reassignPortsIfUsed,
+		nextNodeSuffix:           1,
+		nodes:                    map[string]*localNode{},
+		onStopCh:                 make(chan struct{}),
+		log:                      log,
+		bootstraps:               beacon.NewSet(),
+		newAPIClientF:            newAPIClientF,
+		nodeProcessCreator:       nodeProcessCreator,
+		rootDir:                  rootDir,
+		snapshotsDir:             snapshotsDir,
+		reassignPortsIfUsed:      reassignPortsIfUsed,
+		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 	}
 	return net, nil
 }
