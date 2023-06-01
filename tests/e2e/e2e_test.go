@@ -62,7 +62,6 @@ var (
 	pausedNodeName    = "node1"
 	elasticSubnetID   = ""
 	elasticAssetID    = ""
-	createdSubnetID   = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -845,6 +844,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	})
 
 	ginkgo.It("subnet creation", func() {
+		var createdSubnetID string
 		ginkgo.By("add 1 subnet", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
@@ -921,7 +921,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			status, err := cli.Status(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			subnetInfo := status.ClusterInfo.Subnets[elasticSubnetID]
 			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(false))
 			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(ids.Empty.String()))
 		})
@@ -940,7 +940,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			status, err := cli.Status(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			subnetInfo := status.ClusterInfo.Subnets[elasticSubnetID]
 			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
 			gomega.Ω(subnetInfo.ElasticSubnetId).ShouldNot(gomega.Equal(ids.Empty.String()))
 			elasticSubnetID = subnetInfo.ElasticSubnetId
@@ -969,7 +969,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			status, err := cli.Status(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
+			subnetInfo := status.ClusterInfo.Subnets[elasticSubnetID]
 			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
 			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(elasticSubnetID))
 		})
