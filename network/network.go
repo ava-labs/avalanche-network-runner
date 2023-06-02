@@ -15,6 +15,15 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
+type PermissionlessValidatorSpec struct {
+	SubnetID      string
+	AssetID       string
+	NodeName      string
+	StakedAmount  uint64
+	StartTime     time.Time
+	StakeDuration time.Duration
+}
+
 type ElasticSubnetSpec struct {
 	SubnetID                 *string
 	AssetName                string
@@ -36,6 +45,11 @@ type ElasticSubnetSpec struct {
 type SubnetSpec struct {
 	Participants []string
 	SubnetConfig []byte
+}
+
+type RemoveSubnetValidatorSpec struct {
+	NodeNames []string
+	SubnetID  string
 }
 
 type BlockchainSpec struct {
@@ -97,7 +111,11 @@ type Network interface {
 	// Create the given numbers of subnets
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
-	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
+	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
+	// Add a validator into an elastic subnet
+	AddPermissionlessValidators(context.Context, []PermissionlessValidatorSpec) error
+	// Remove a validator from a subnet
+	RemoveSubnetValidators(context.Context, []RemoveSubnetValidatorSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
 }
