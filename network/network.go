@@ -47,6 +47,11 @@ type SubnetSpec struct {
 	SubnetConfig []byte
 }
 
+type RemoveSubnetValidatorSpec struct {
+	NodeNames []string
+	SubnetID  string
+}
+
 type BlockchainSpec struct {
 	VMName             string
 	Genesis            []byte
@@ -108,7 +113,9 @@ type Network interface {
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
 	// Add a validator into an elastic subnet
-	AddPermissionlessValidator(context.Context, []PermissionlessValidatorSpec) error
+	AddPermissionlessValidators(context.Context, []PermissionlessValidatorSpec) error
+	// Remove a validator from a subnet
+	RemoveSubnetValidators(context.Context, []RemoveSubnetValidatorSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
 }

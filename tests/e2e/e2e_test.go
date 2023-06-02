@@ -61,6 +61,7 @@ var (
 	pausedNodeName    = "node1"
 	createdSubnetID   = ""
 	elasticAssetID    = ""
+	newSubnetID       = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
 		"node2": `{"api-admin-enabled":true}`,
@@ -863,14 +864,14 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
-			createdSubnetID = response.SubnetIds[0]
+			newSubnetID = response.SubnetIds[0]
 		})
 		ginkgo.By("verify subnet has correct participants", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants, status.ClusterInfo, newSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
 		})
 		ginkgo.By("add 1 subnet with node not currently added", func() {
@@ -883,7 +884,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			_, ok := response.ClusterInfo.NodeInfos[newParticipantNode]
 			gomega.Ω(ok).Should(gomega.Equal(true))
 			gomega.Ω(len(response.SubnetIds)).Should(gomega.Equal(1))
-			createdSubnetID = response.SubnetIds[0]
+			newSubnetID = response.SubnetIds[0]
 		})
 		ginkgo.By("calling AddNode with existing node name, should fail", func() {
 			ux.Print(log, logging.Green.Wrap("calling 'add-node' with the valid binary path: %s"), execPath1)
@@ -899,8 +900,38 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			status, err := cli.Status(ctx)
 			gomega.Ω(err).Should(gomega.BeNil())
-			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, createdSubnetID)
+			subnetHasCorrectParticipants := utils.VerifySubnetHasCorrectParticipants(log, subnetParticipants2, status.ClusterInfo, newSubnetID)
 			gomega.Ω(subnetHasCorrectParticipants).Should(gomega.Equal(true))
+		})
+	})
+
+	ginkgo.It("can remove subnet validator", func() {
+		ginkgo.By("removing a subnet validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testRemoveSubnetValidatorConfig := rpcpb.RemoveSubnetValidatorSpec{
+				NodeNames: []string{"node2"},
+				SubnetId:  newSubnetID,
+			}
+			_, err := cli.RemoveSubnetValidator(ctx, []*rpcpb.RemoveSubnetValidatorSpec{&testRemoveSubnetValidatorConfig})
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+		ginkgo.By("verify there are only two validators left for subnet", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			clientURIs, err := cli.URIs(ctx)
+			gomega.Ω(err).Should(gomega.BeNil())
+			var clientURI string
+			for _, uri := range clientURIs {
+				clientURI = uri
+				break
+			}
+			subnetID, err := ids.FromString(newSubnetID)
+			gomega.Ω(err).Should(gomega.BeNil())
+			platformCli := platformvm.NewClient(clientURI)
+			vdrs, err := platformCli.GetCurrentValidators(ctx, subnetID, nil)
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(len(vdrs)).Should(gomega.Equal(2))
 		})
 	})
 

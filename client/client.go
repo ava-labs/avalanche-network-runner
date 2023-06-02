@@ -35,6 +35,7 @@ type Client interface {
 	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
 	TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error)
 	AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessValidatorSpec) (*rpcpb.AddPermissionlessValidatorResponse, error)
+	RemoveSubnetValidator(ctx context.Context, validatorSpec []*rpcpb.RemoveSubnetValidatorSpec) (*rpcpb.RemoveSubnetValidatorResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
@@ -176,6 +177,15 @@ func (c *client) AddPermissionlessValidator(ctx context.Context, validatorSpec [
 
 	c.log.Info("add permissionless validators to elastic subnets")
 	return c.controlc.AddPermissionlessValidator(ctx, req)
+}
+
+func (c *client) RemoveSubnetValidator(ctx context.Context, validatorSpec []*rpcpb.RemoveSubnetValidatorSpec) (*rpcpb.RemoveSubnetValidatorResponse, error) {
+	req := &rpcpb.RemoveSubnetValidatorRequest{
+		ValidatorSpec: validatorSpec,
+	}
+
+	c.log.Info("remove subnet validator")
+	return c.controlc.RemoveSubnetValidator(ctx, req)
 }
 
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
