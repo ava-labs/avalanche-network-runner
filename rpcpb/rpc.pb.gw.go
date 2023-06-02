@@ -927,7 +927,7 @@ func RegisterControlServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnets"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1560,7 +1560,7 @@ func RegisterControlServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnet"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/rpcpb.ControlService/TransformElasticSubnets", runtime.WithHTTPPathPattern("/v1/control/transformelasticsubnets"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1982,7 +1982,7 @@ var (
 
 	pattern_ControlService_CreateBlockchains_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createblockchains"}, ""))
 
-	pattern_ControlService_TransformElasticSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "transformelasticsubnet"}, ""))
+	pattern_ControlService_TransformElasticSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "transformelasticsubnets"}, ""))
 
 	pattern_ControlService_CreateSubnets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "control", "createsubnets"}, ""))
 

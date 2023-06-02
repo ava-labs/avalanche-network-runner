@@ -98,4 +98,6 @@ type Network interface {
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, error)
+	// Get the elastic subnet tx id for the given subnet id
+	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
 }

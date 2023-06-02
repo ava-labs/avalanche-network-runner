@@ -488,15 +488,20 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 
 		isElastic := false
-		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err != nil {
-			// if subnet is already elastic it will return "not found" error
-			if !strings.Contains(err.Error(), "not found") {
+		elasticSubnetID := ids.Empty
+		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+			isElastic = true
+			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+			if err != nil {
 				return err
 			}
-			isElastic = true
 		}
 
-		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{IsElastic: isElastic, SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList}}
+		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
+			IsElastic:          isElastic,
+			ElasticSubnetId:    elasticSubnetID.String(),
+			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+		}
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {

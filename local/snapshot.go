@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	dircopy "github.com/otiai10/copy"
@@ -25,6 +26,12 @@ const (
 	deprecatedBuildDirKey           = "build-dir"
 	deprecatedWhitelistedSubnetsKey = "whitelisted-subnets"
 )
+
+// NetworkState defines dynamic network information not available on blockchain db
+type NetworkState struct {
+	// Map from subnet id to elastic subnet tx id
+	SubnetID2ElasticSubnetID map[string]string `json:"subnetID2ElasticSubnetID"`
+}
 
 // snapshots generated using older ANR versions may contain deprecated avago flags
 func fixDeprecatedAvagoFlags(flags map[string]interface{}) error {
@@ -187,6 +194,21 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	if err := createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON); err != nil {
 		return "", err
 	}
+	// save dynamic part of network not available on blockchain
+	subnetID2ElasticSubnetID := map[string]string{}
+	for subnetID, elasticSubnetID := range ln.subnetID2ElasticSubnetID {
+		subnetID2ElasticSubnetID[subnetID.String()] = elasticSubnetID.String()
+	}
+	networkState := NetworkState{
+		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
+	}
+	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	if err := createFileAndWrite(filepath.Join(snapshotDir, "state.json"), networkStateJSON); err != nil {
+		return "", err
+	}
 	return snapshotDir, nil
 }
 
@@ -278,6 +300,31 @@ func (ln *localNetwork) loadSnapshot(
 		}
 		for k, v := range subnetConfigs {
 			networkConfig.NodeConfigs[i].SubnetConfigFiles[k] = v
+		}
+	}
+	// load network state not available at blockchain db
+	networkStateJSON, err := os.ReadFile(filepath.Join(snapshotDir, "state.json"))
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("failure reading network state file from snapshot: %w", err)
+		}
+		ln.log.Warn("network state file not found on snapshot")
+	} else {
+		networkState := NetworkState{}
+		if err := json.Unmarshal(networkStateJSON, &networkState); err != nil {
+			return fmt.Errorf("failure unmarshaling network state from snapshot: %w", err)
+		}
+		ln.subnetID2ElasticSubnetID = map[ids.ID]ids.ID{}
+		for subnetIDStr, elasticSubnetIDStr := range networkState.SubnetID2ElasticSubnetID {
+			subnetID, err := ids.FromString(subnetIDStr)
+			if err != nil {
+				return err
+			}
+			elasticSubnetID, err := ids.FromString(elasticSubnetIDStr)
+			if err != nil {
+				return err
+			}
+			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
 	}
 	return ln.loadConfig(ctx, networkConfig)
