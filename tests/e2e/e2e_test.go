@@ -1023,6 +1023,19 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
+	ginkgo.It("add permissionless delegator to elastic subnets", func() {
+		ginkgo.By("adding a permissionless delegator to permissionless validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			testValidatorConfig.SubnetId = createdSubnetID
+			testValidatorConfig.AssetId = elasticAssetID
+			testValidatorConfig.NodeName = "permissionlessNode"
+			testValidatorConfig.StakedTokenAmount = 35
+			_, err := cli.AddPermissionlessDelegator(ctx, []*rpcpb.PermissionlessValidatorSpec{&testValidatorConfig})
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+	})
+
 	ginkgo.It("snapshots + blockchain creation", func() {
 		var originalUris []string
 		var originalSubnets []string
