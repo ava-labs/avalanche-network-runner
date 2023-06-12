@@ -50,6 +50,13 @@ service ControlService {
     };
   }
 
+  rpc AddPermissionlessDelegator(AddPermissionlessDelegatorRequest) returns (AddPermissionlessDelegatorResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/addpermissionlessdelegator"
+      body: "*"
+    };
+  }
+
   rpc AddPermissionlessValidator(AddPermissionlessValidatorRequest) returns (AddPermissionlessValidatorResponse) {
     option (google.api.http) = {
       post: "/v1/control/addpermissionlessvalidator"
@@ -376,6 +383,14 @@ message AddPermissionlessValidatorRequest {
 }
 
 message AddPermissionlessValidatorResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message AddPermissionlessDelegatorRequest {
+  repeated PermissionlessValidatorSpec validator_spec = 1;
+}
+
+message AddPermissionlessDelegatorResponse {
   ClusterInfo cluster_info = 1;
 }
 

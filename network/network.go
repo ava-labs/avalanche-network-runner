@@ -112,6 +112,8 @@ type Network interface {
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
+	// Delegate stake into a permissionless validator in an elastic subnet
+	AddPermissionlessDelegators(context.Context, []PermissionlessValidatorSpec) error
 	// Add a validator into an elastic subnet
 	AddPermissionlessValidators(context.Context, []PermissionlessValidatorSpec) error
 	// Remove a validator from a subnet

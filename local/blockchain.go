@@ -175,6 +175,16 @@ func (ln *localNetwork) AddPermissionlessValidators(
 	return ln.addPermissionlessValidators(ctx, validatorSpec)
 }
 
+func (ln *localNetwork) AddPermissionlessDelegators(
+	ctx context.Context,
+	validatorSpec []network.PermissionlessValidatorSpec,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.addPermissionlessDelegators(ctx, validatorSpec)
+}
+
 func (ln *localNetwork) TransformSubnet(
 	ctx context.Context,
 	elasticSubnetConfig []network.ElasticSubnetSpec,
@@ -897,6 +907,95 @@ func (ln *localNetwork) removeSubnetValidators(
 	return ln.restartNodes(ctx, nil, nil, nil, removeSubnetSpecs, nil)
 }
 
+func (ln *localNetwork) addPermissionlessDelegators(
+	ctx context.Context,
+	validatorSpecs []network.PermissionlessValidatorSpec,
+) error {
+	ln.log.Info("adding permissionless delegator tx")
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+	// wallet needs txs for all previously created subnets
+	preloadTXs := make([]ids.ID, len(validatorSpecs))
+	for i, validatorSpec := range validatorSpecs {
+		subnetID, err := ids.FromString(validatorSpec.SubnetID)
+		if err != nil {
+			return err
+		}
+		preloadTXs[i] = subnetID
+	}
+	w, err := newWallet(ctx, clientURI, preloadTXs)
+	if err != nil {
+		return err
+	}
+	owner := &secp256k1fx.OutputOwners{
+		Threshold: 1,
+		Addrs: []ids.ShortID{
+			w.addr,
+		},
+	}
+	cctx, cancel := createDefaultCtx(ctx)
+	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	cancel()
+	if err != nil {
+		return err
+	}
+	primaryValidatorsEndtime := make(map[ids.NodeID]time.Time)
+	for _, v := range vs {
+		primaryValidatorsEndtime[v.NodeID] = time.Unix(int64(v.EndTime), 0)
+	}
+
+	for _, validatorSpec := range validatorSpecs {
+		ln.log.Info(logging.Green.Wrap("adding permissionless delegator to validator"), zap.String("node ", validatorSpec.NodeName))
+		cctx, cancel := createDefaultCtx(ctx)
+		validatorNodeID := ln.nodes[validatorSpec.NodeName].nodeID
+		subnetID, err := ids.FromString(validatorSpec.SubnetID)
+		if err != nil {
+			return err
+		}
+		assetID, err := ids.FromString(validatorSpec.AssetID)
+		if err != nil {
+			return err
+		}
+		var startTime uint64
+		var endTime uint64
+		if validatorSpec.StartTime.IsZero() {
+			startTime = uint64(time.Now().Add(permissionlessValidationStartOffset).Unix())
+		} else {
+			startTime = uint64(validatorSpec.StartTime.Unix())
+		}
+
+		if validatorSpec.StakeDuration == 0 {
+			endTime = uint64(primaryValidatorsEndtime[validatorNodeID].Unix())
+		} else {
+			endTime = uint64(validatorSpec.StartTime.Add(validatorSpec.StakeDuration).Unix())
+		}
+		txID, err := w.pWallet.IssueAddPermissionlessDelegatorTx(
+			&txs.SubnetValidator{
+				Validator: txs.Validator{
+					NodeID: validatorNodeID,
+					Start:  startTime,
+					End:    endTime,
+					Wght:   validatorSpec.StakedAmount,
+				},
+				Subnet: subnetID,
+			},
+			assetID,
+			owner,
+			common.WithContext(cctx),
+			defaultPoll,
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		ln.log.Info("Successfully delegated to a validator", zap.String("TX ID", txID.String()))
+	}
+	return nil
+}
+
 func (ln *localNetwork) addPermissionlessValidators(
 	ctx context.Context,
 	validatorSpecs []network.PermissionlessValidatorSpec,
@@ -999,7 +1098,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 			&signer.Empty{},
 			assetID,
 			owner,
-			&secp256k1fx.OutputOwners{},
+			owner,
 			reward.PercentDenominator,
 			common.WithContext(cctx),
 			defaultPoll,

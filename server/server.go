@@ -522,6 +522,61 @@ func (s *server) CreateBlockchains(
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
+func (s *server) AddPermissionlessDelegator(
+	_ context.Context,
+	req *rpcpb.AddPermissionlessDelegatorRequest,
+) (*rpcpb.AddPermissionlessDelegatorResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("AddPermissionlessDelegator")
+
+	if len(req.GetValidatorSpec()) == 0 {
+		return nil, ErrNoValidatorSpec
+	}
+
+	validatorSpecList := []network.PermissionlessValidatorSpec{}
+	for _, spec := range req.GetValidatorSpec() {
+		validatorSpec, err := getPermissionlessValidatorSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		validatorSpecList = append(validatorSpecList, validatorSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
+
+	for _, validatorSpec := range validatorSpecList {
+		if validatorSpec.SubnetID == "" {
+			return nil, ErrNoSubnetID
+		} else if !subnetsSet.Contains(validatorSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", validatorSpec.SubnetID)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	err := s.network.AddPermissionlessDelegators(ctx, validatorSpecList)
+
+	if err != nil {
+		s.log.Error("failed to add permissionless validator", zap.Error(err))
+		return nil, err
+	}
+
+	s.log.Info("successfully added permissionless validator")
+
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AddPermissionlessDelegatorResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
 func (s *server) AddPermissionlessValidator(
 	_ context.Context,
 	req *rpcpb.AddPermissionlessValidatorRequest,

@@ -113,6 +113,7 @@ const (
 	ControlService_Start_FullMethodName                      = "/rpcpb.ControlService/Start"
 	ControlService_CreateBlockchains_FullMethodName          = "/rpcpb.ControlService/CreateBlockchains"
 	ControlService_TransformElasticSubnets_FullMethodName    = "/rpcpb.ControlService/TransformElasticSubnets"
+	ControlService_AddPermissionlessDelegator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessDelegator"
 	ControlService_AddPermissionlessValidator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessValidator"
 	ControlService_RemoveSubnetValidator_FullMethodName      = "/rpcpb.ControlService/RemoveSubnetValidator"
 	ControlService_CreateSubnets_FullMethodName              = "/rpcpb.ControlService/CreateSubnets"
@@ -143,6 +144,7 @@ type ControlServiceClient interface {
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
+	AddPermissionlessDelegator(ctx context.Context, in *AddPermissionlessDelegatorRequest, opts ...grpc.CallOption) (*AddPermissionlessDelegatorResponse, error)
 	AddPermissionlessValidator(ctx context.Context, in *AddPermissionlessValidatorRequest, opts ...grpc.CallOption) (*AddPermissionlessValidatorResponse, error)
 	RemoveSubnetValidator(ctx context.Context, in *RemoveSubnetValidatorRequest, opts ...grpc.CallOption) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
@@ -203,6 +205,15 @@ func (c *controlServiceClient) CreateBlockchains(ctx context.Context, in *Create
 func (c *controlServiceClient) TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error) {
 	out := new(TransformElasticSubnetsResponse)
 	err := c.cc.Invoke(ctx, ControlService_TransformElasticSubnets_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) AddPermissionlessDelegator(ctx context.Context, in *AddPermissionlessDelegatorRequest, opts ...grpc.CallOption) (*AddPermissionlessDelegatorResponse, error) {
+	out := new(AddPermissionlessDelegatorResponse)
+	err := c.cc.Invoke(ctx, ControlService_AddPermissionlessDelegator_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -420,6 +431,7 @@ type ControlServiceServer interface {
 	Start(context.Context, *StartRequest) (*StartResponse, error)
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
+	AddPermissionlessDelegator(context.Context, *AddPermissionlessDelegatorRequest) (*AddPermissionlessDelegatorResponse, error)
 	AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error)
 	RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
@@ -458,6 +470,9 @@ func (UnimplementedControlServiceServer) CreateBlockchains(context.Context, *Cre
 }
 func (UnimplementedControlServiceServer) TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransformElasticSubnets not implemented")
+}
+func (UnimplementedControlServiceServer) AddPermissionlessDelegator(context.Context, *AddPermissionlessDelegatorRequest) (*AddPermissionlessDelegatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddPermissionlessDelegator not implemented")
 }
 func (UnimplementedControlServiceServer) AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPermissionlessValidator not implemented")
@@ -600,6 +615,24 @@ func _ControlService_TransformElasticSubnets_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).TransformElasticSubnets(ctx, req.(*TransformElasticSubnetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_AddPermissionlessDelegator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddPermissionlessDelegatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).AddPermissionlessDelegator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_AddPermissionlessDelegator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).AddPermissionlessDelegator(ctx, req.(*AddPermissionlessDelegatorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -989,6 +1022,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TransformElasticSubnets",
 			Handler:    _ControlService_TransformElasticSubnets_Handler,
+		},
+		{
+			MethodName: "AddPermissionlessDelegator",
+			Handler:    _ControlService_AddPermissionlessDelegator_Handler,
 		},
 		{
 			MethodName: "AddPermissionlessValidator",
