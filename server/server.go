@@ -565,11 +565,11 @@ func (s *server) AddPermissionlessDelegator(
 	err := s.network.AddPermissionlessDelegators(ctx, validatorSpecList)
 
 	if err != nil {
-		s.log.Error("failed to add permissionless validator", zap.Error(err))
+		s.log.Error("failed to add permissionless delegator", zap.Error(err))
 		return nil, err
 	}
 
-	s.log.Info("successfully added permissionless validator")
+	s.log.Info("successfully added permissionless delegator")
 
 	if err != nil {
 		return nil, err
