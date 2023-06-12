@@ -563,7 +563,6 @@ func (s *server) AddPermissionlessDelegator(
 	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
 	defer cancel()
 	err := s.network.AddPermissionlessDelegators(ctx, validatorSpecList)
-
 	if err != nil {
 		s.log.Error("failed to add permissionless delegator", zap.Error(err))
 		return nil, err
