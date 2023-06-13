@@ -293,13 +293,13 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
-func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, error) {
+func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	if len(elasticSubnetSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
-		return nil, nil
+	if len(validatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
+		return nil
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -316,20 +316,98 @@ func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs
 	}(ctx)
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
-	chainIDs, err := lc.nw.TransformSubnet(ctx, elasticSubnetSpecs)
+	err := lc.nw.AddPermissionlessValidators(ctx, validatorSpecs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return nil, err
+		return err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding permissionless validators")))
+	return nil
+}
+
+func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(validatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	err := lc.nw.RemoveSubnetValidators(ctx, validatorSpecs)
+	if err != nil {
+		return err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished removing subnet validators")))
+	return nil
+}
+
+func (lc *localNetwork) TransformSubnets(ctx context.Context, elasticSubnetSpecs []network.ElasticSubnetSpec) ([]ids.ID, []ids.ID, error) {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(elasticSubnetSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no subnets specified...")))
+		return nil, nil, nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	chainIDs, assetIDs, err := lc.nw.TransformSubnet(ctx, elasticSubnetSpecs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, nil, err
 	}
 
 	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished transforming subnets")))
-	return chainIDs, nil
+	return chainIDs, assetIDs, nil
 }
 
 // Creates the given number of subnets.
@@ -488,15 +566,20 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 
 		isElastic := false
-		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err != nil {
-			// if subnet is already elastic it will return "not found" error
-			if !strings.Contains(err.Error(), "not found") {
+		elasticSubnetID := ids.Empty
+		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+			isElastic = true
+			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+			if err != nil {
 				return err
 			}
-			isElastic = true
 		}
 
-		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{IsElastic: isElastic, SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList}}
+		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
+			IsElastic:          isElastic,
+			ElasticSubnetId:    elasticSubnetID.String(),
+			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+		}
 	}
 
 	for chainID, chainInfo := range lc.customChainIDToInfo {
