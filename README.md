@@ -551,6 +551,70 @@ avalanche-network-runner control stop \
 --endpoint="0.0.0.0:8080"
 ```
 
+## Elastic Subnets
+
+**Elastic Subnets are permissionless Subnets. More information can be found [here](https://docs.avax.network/subnets/reference-elastic-subnets-parameters).**
+
+To transform permissioned Subnets into permissionless Subnets (NOTE: this action is irreversible):
+
+Values provided below are the default values on [Primary Network on Mainnet](https://docs.avax.network/subnets/reference-elastic-subnets-parameters#primary-network-parameters-on-mainnet).
+```bash
+curl -X POST -k http://localhost:8081/v1/control/elasticsubnets -d '[{"subnet_id":"'$SUBNET_ID'", "asset_name":"'$ASSET_NAME'", 
+"asset_symbol":"'$ASSET_SYMBOL'", "initial_supply": 240000000, "max_supply": 720000000, "min_consumption_rate": 100000, 
+"max_consumption_rate": 120000, "min_validator_stake": 2000, "max_validator_stake": 3000000, "min_stake_duration": 336, 
+"max_stake_duration": 8760, "min_delegation_fee": 20000, "min_delegator_stake": 25, "max_validator_weight_factor": 5, 
+"uptime_requirement": 800000}]'
+
+# or
+avalanche-network-runner control elastic-subnets '[{"subnet_id":"'$SUBNET_ID'", "asset_name":"'$ASSET_NAME'", 
+"asset_symbol":"'$ASSET_SYMBOL'", "initial_supply": 240000000, "max_supply": 720000000, "min_consumption_rate": 100000, 
+"max_consumption_rate": 120000, "min_validator_stake": 2000, "max_validator_stake": 3000000, "min_stake_duration": 336, 
+"max_stake_duration": 8760, "min_delegation_fee": 20000, "min_delegator_stake": 25, "max_validator_weight_factor": 5, 
+"uptime_requirement": 800000}]'
+```
+
+To enable a node to join an Elastic Subnet as a permissionless validator:
+
+If the node specified in the command doesn't exist yet, it will be created and added as a primary network validator first
+before being added as a permissionless validator in the Elastic Subnet.
+
+If `start_time` and `stake_duration` are omitted, the default value for validation start time will be 30 seconds ahead from
+when the command was called and the node will be a validator until the node stops validating on the primary network.
+
+Note: Asset ID is returned by elastic-subnets command
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/addpermissionlessvalidator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", 
+"staked_token_amount": 2000, "asset_id": "'$ASSET_ID'", "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+
+# or
+avalanche-network-runner control add-permissionless-validator '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", 
+"staked_token_amount": 2000, "asset_id": "'$ASSET_ID'", "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+```
+
+To remove a node as a permissioned validator from a Subnet:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+
+# or
+avalanche-network-runner control remove-subnet-validator '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+```
+
+To delegate stake in a permissionless validator in an Elastic Subnet:
+
+Amount that can be delegated to a validator is detailed [here](https://docs.avax.network/subnets/reference-elastic-subnets-parameters#delegators-weight-checks).
+
+If `start_time` and `stake_duration` are omitted, the default value for validation start time will be 30 seconds ahead from
+when the command was called and the stake will be delegated until the node stops validating on the primary network.
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/addpermissionlessdelegator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", "asset_id": "'$ASSET_ID'", "staked_token_amount": 2000, "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+
+# or
+avalanche-network-runner control ./bin/avalanche-network-runner control add-permissionless-delegator '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", "asset_id": "'$ASSET_ID'", "staked_token_amount": 2000, "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+```
+
 ## `network-runner` RPC server: `subnet-evm` example
 
 To start the server:
