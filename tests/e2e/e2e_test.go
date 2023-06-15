@@ -74,6 +74,7 @@ var (
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
 	newParticipantNode            = "new_participant_node"
+	delegateeNode                 = "permissionlessNode"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
@@ -98,7 +99,7 @@ var (
 		UptimeRequirement:        0.8 * 1_000_000,
 	}
 
-	testValidatorConfig = rpcpb.PermissionlessValidatorSpec{
+	testValidatorConfig = rpcpb.PermissionlessStakerSpec{
 		StakedTokenAmount: 2000,
 		StartTime:         time.Now().Add(1 * time.Hour).UTC().Format(server.TimeParseLayout),
 		StakeDuration:     336,
@@ -1017,8 +1018,8 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			testValidatorConfig.SubnetId = createdSubnetID
 			testValidatorConfig.AssetId = elasticAssetID
-			testValidatorConfig.NodeName = "permissionlessNode"
-			_, err := cli.AddPermissionlessValidator(ctx, []*rpcpb.PermissionlessValidatorSpec{&testValidatorConfig})
+			testValidatorConfig.NodeName = delegateeNode
+			_, err := cli.AddPermissionlessValidator(ctx, []*rpcpb.PermissionlessStakerSpec{&testValidatorConfig})
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})
@@ -1029,9 +1030,9 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			defer cancel()
 			testValidatorConfig.SubnetId = createdSubnetID
 			testValidatorConfig.AssetId = elasticAssetID
-			testValidatorConfig.NodeName = "permissionlessNode"
+			testValidatorConfig.NodeName = delegateeNode
 			testValidatorConfig.StakedTokenAmount = 35
-			_, err := cli.AddPermissionlessDelegator(ctx, []*rpcpb.PermissionlessValidatorSpec{&testValidatorConfig})
+			_, err := cli.AddPermissionlessDelegator(ctx, []*rpcpb.PermissionlessStakerSpec{&testValidatorConfig})
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 	})

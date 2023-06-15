@@ -480,10 +480,10 @@ func addPermissionlessDelegatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecStr := args[0]
+	delegatorSpecsStr := args[0]
 
-	validatorSpec := []*rpcpb.PermissionlessValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+	delegatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
+	if err := json.Unmarshal([]byte(delegatorSpecsStr), &delegatorSpecs); err != nil {
 		return err
 	}
 
@@ -491,7 +491,7 @@ func addPermissionlessDelegatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.AddPermissionlessDelegator(
 		ctx,
-		validatorSpec,
+		delegatorSpecs,
 	)
 	if err != nil {
 		return err
@@ -508,10 +508,10 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecStr := args[0]
+	validatorSpecsStr := args[0]
 
-	validatorSpec := []*rpcpb.PermissionlessValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+	validatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
 		return err
 	}
 
@@ -519,7 +519,7 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.AddPermissionlessValidator(
 		ctx,
-		validatorSpec,
+		validatorSpecs,
 	)
 	if err != nil {
 		return err
@@ -536,10 +536,10 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecStr := args[0]
+	validatorSpecsStr := args[0]
 
-	validatorSpec := []*rpcpb.RemoveSubnetValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+	validatorSpecs := []*rpcpb.RemoveSubnetValidatorSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
 		return err
 	}
 
@@ -547,7 +547,7 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.RemoveSubnetValidator(
 		ctx,
-		validatorSpec,
+		validatorSpecs,
 	)
 	if err != nil {
 		return err

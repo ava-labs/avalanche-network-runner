@@ -369,7 +369,7 @@ message TransformElasticSubnetsResponse {
   repeated string asset_ids = 3;
 }
 
-message PermissionlessValidatorSpec {
+message PermissionlessStakerSpec {
   string subnet_id = 1;
   string node_name = 2;
   uint64 staked_token_amount = 3;
@@ -379,7 +379,7 @@ message PermissionlessValidatorSpec {
 }
 
 message AddPermissionlessValidatorRequest {
-  repeated PermissionlessValidatorSpec validator_spec = 1;
+  repeated PermissionlessStakerSpec validator_spec = 1;
 }
 
 message AddPermissionlessValidatorResponse {
@@ -387,7 +387,7 @@ message AddPermissionlessValidatorResponse {
 }
 
 message AddPermissionlessDelegatorRequest {
-  repeated PermissionlessValidatorSpec validator_spec = 1;
+  repeated PermissionlessStakerSpec validator_spec = 1;
 }
 
 message AddPermissionlessDelegatorResponse {

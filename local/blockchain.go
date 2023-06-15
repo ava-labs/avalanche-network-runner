@@ -167,7 +167,7 @@ func (ln *localNetwork) RemoveSubnetValidators(
 
 func (ln *localNetwork) AddPermissionlessValidators(
 	ctx context.Context,
-	validatorSpec []network.PermissionlessValidatorSpec,
+	validatorSpec []network.PermissionlessStakerSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -177,12 +177,12 @@ func (ln *localNetwork) AddPermissionlessValidators(
 
 func (ln *localNetwork) AddPermissionlessDelegators(
 	ctx context.Context,
-	validatorSpec []network.PermissionlessValidatorSpec,
+	delegatorSpec []network.PermissionlessStakerSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addPermissionlessDelegators(ctx, validatorSpec)
+	return ln.addPermissionlessDelegators(ctx, delegatorSpec)
 }
 
 func (ln *localNetwork) TransformSubnet(
@@ -546,7 +546,7 @@ func (ln *localNetwork) restartNodes(
 	ctx context.Context,
 	subnetIDs []ids.ID,
 	subnetSpecs []network.SubnetSpec,
-	validatorSpecs []network.PermissionlessValidatorSpec,
+	validatorSpecs []network.PermissionlessStakerSpec,
 	removeValidatorSpecs []network.RemoveSubnetValidatorSpec,
 	nodesToRestartForBlockchainConfigUpdate set.Set[string],
 ) (err error) {
@@ -909,7 +909,7 @@ func (ln *localNetwork) removeSubnetValidators(
 
 func (ln *localNetwork) addPermissionlessDelegators(
 	ctx context.Context,
-	validatorSpecs []network.PermissionlessValidatorSpec,
+	delegatorSpecs []network.PermissionlessStakerSpec,
 ) error {
 	ln.log.Info("adding permissionless delegator tx")
 	clientURI, err := ln.getClientURI()
@@ -918,9 +918,9 @@ func (ln *localNetwork) addPermissionlessDelegators(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
-	preloadTXs := make([]ids.ID, len(validatorSpecs))
-	for i, validatorSpec := range validatorSpecs {
-		subnetID, err := ids.FromString(validatorSpec.SubnetID)
+	preloadTXs := make([]ids.ID, len(delegatorSpecs))
+	for i, delegatorSpec := range delegatorSpecs {
+		subnetID, err := ids.FromString(delegatorSpec.SubnetID)
 		if err != nil {
 			return err
 		}
@@ -947,30 +947,30 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		primaryValidatorsEndtime[v.NodeID] = time.Unix(int64(v.EndTime), 0)
 	}
 
-	for _, validatorSpec := range validatorSpecs {
-		ln.log.Info(logging.Green.Wrap("adding permissionless delegator to validator"), zap.String("node ", validatorSpec.NodeName))
+	for _, delegatorSpec := range delegatorSpecs {
+		ln.log.Info(logging.Green.Wrap("adding permissionless delegator to validator"), zap.String("node ", delegatorSpec.NodeName))
 		cctx, cancel := createDefaultCtx(ctx)
-		validatorNodeID := ln.nodes[validatorSpec.NodeName].nodeID
-		subnetID, err := ids.FromString(validatorSpec.SubnetID)
+		validatorNodeID := ln.nodes[delegatorSpec.NodeName].nodeID
+		subnetID, err := ids.FromString(delegatorSpec.SubnetID)
 		if err != nil {
 			return err
 		}
-		assetID, err := ids.FromString(validatorSpec.AssetID)
+		assetID, err := ids.FromString(delegatorSpec.AssetID)
 		if err != nil {
 			return err
 		}
 		var startTime uint64
 		var endTime uint64
-		if validatorSpec.StartTime.IsZero() {
+		if delegatorSpec.StartTime.IsZero() {
 			startTime = uint64(time.Now().Add(permissionlessValidationStartOffset).Unix())
 		} else {
-			startTime = uint64(validatorSpec.StartTime.Unix())
+			startTime = uint64(delegatorSpec.StartTime.Unix())
 		}
 
-		if validatorSpec.StakeDuration == 0 {
+		if delegatorSpec.StakeDuration == 0 {
 			endTime = uint64(primaryValidatorsEndtime[validatorNodeID].Unix())
 		} else {
-			endTime = uint64(validatorSpec.StartTime.Add(validatorSpec.StakeDuration).Unix())
+			endTime = uint64(delegatorSpec.StartTime.Add(delegatorSpec.StakeDuration).Unix())
 		}
 		txID, err := w.pWallet.IssueAddPermissionlessDelegatorTx(
 			&txs.SubnetValidator{
@@ -978,7 +978,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 					NodeID: validatorNodeID,
 					Start:  startTime,
 					End:    endTime,
-					Wght:   validatorSpec.StakedAmount,
+					Wght:   delegatorSpec.StakedAmount,
 				},
 				Subnet: subnetID,
 			},
@@ -998,7 +998,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 
 func (ln *localNetwork) addPermissionlessValidators(
 	ctx context.Context,
-	validatorSpecs []network.PermissionlessValidatorSpec,
+	validatorSpecs []network.PermissionlessStakerSpec,
 ) error {
 	ln.log.Info("adding permissionless validator tx")
 	clientURI, err := ln.getClientURI()

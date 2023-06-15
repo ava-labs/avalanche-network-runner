@@ -293,12 +293,12 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
-func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
+func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, delegatorSpecs []network.PermissionlessStakerSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	if len(validatorSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
+	if len(delegatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no delegator specs provided...")))
 		return nil
 	}
 
@@ -319,7 +319,7 @@ func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, validat
 		return err
 	}
 
-	err := lc.nw.AddPermissionlessDelegators(ctx, validatorSpecs)
+	err := lc.nw.AddPermissionlessDelegators(ctx, delegatorSpecs)
 	if err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, validat
 	return nil
 }
 
-func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
+func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessStakerSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
