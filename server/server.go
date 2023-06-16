@@ -522,6 +522,60 @@ func (s *server) CreateBlockchains(
 	return &rpcpb.CreateBlockchainsResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
+func (s *server) AddPermissionlessDelegator(
+	_ context.Context,
+	req *rpcpb.AddPermissionlessDelegatorRequest,
+) (*rpcpb.AddPermissionlessDelegatorResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("AddPermissionlessDelegator")
+
+	if len(req.GetValidatorSpec()) == 0 {
+		return nil, ErrNoValidatorSpec
+	}
+
+	delegatorSpecList := []network.PermissionlessStakerSpec{}
+	for _, spec := range req.GetValidatorSpec() {
+		validatorSpec, err := getPermissionlessValidatorSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		delegatorSpecList = append(delegatorSpecList, validatorSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
+
+	for _, validatorSpec := range delegatorSpecList {
+		if validatorSpec.SubnetID == "" {
+			return nil, ErrNoSubnetID
+		} else if !subnetsSet.Contains(validatorSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", validatorSpec.SubnetID)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	err := s.network.AddPermissionlessDelegators(ctx, delegatorSpecList)
+	if err != nil {
+		s.log.Error("failed to add permissionless delegator", zap.Error(err))
+		return nil, err
+	}
+
+	s.log.Info("successfully added permissionless delegator")
+
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AddPermissionlessDelegatorResponse{ClusterInfo: s.clusterInfo}, nil
+}
+
 func (s *server) AddPermissionlessValidator(
 	_ context.Context,
 	req *rpcpb.AddPermissionlessValidatorRequest,
@@ -539,7 +593,7 @@ func (s *server) AddPermissionlessValidator(
 		return nil, ErrNoValidatorSpec
 	}
 
-	validatorSpecList := []network.PermissionlessValidatorSpec{}
+	validatorSpecList := []network.PermissionlessStakerSpec{}
 	for _, spec := range req.GetValidatorSpec() {
 		validatorSpec, err := getPermissionlessValidatorSpec(spec)
 		if err != nil {
@@ -1385,23 +1439,23 @@ func getNetworkElasticSubnetSpec(
 }
 
 func getPermissionlessValidatorSpec(
-	spec *rpcpb.PermissionlessValidatorSpec,
-) (network.PermissionlessValidatorSpec, error) {
+	spec *rpcpb.PermissionlessStakerSpec,
+) (network.PermissionlessStakerSpec, error) {
 	var startTime time.Time
 	var err error
 	if spec.StartTime != "" {
 		startTime, err = time.Parse(TimeParseLayout, spec.StartTime)
 		if err != nil {
-			return network.PermissionlessValidatorSpec{}, err
+			return network.PermissionlessStakerSpec{}, err
 		}
 		if startTime.Before(time.Now().Add(StakingMinimumLeadTime)) {
-			return network.PermissionlessValidatorSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", StakingMinimumLeadTime, spec.NodeName)
+			return network.PermissionlessStakerSpec{}, fmt.Errorf("time should be at least %s in the future for validator spec of %s", StakingMinimumLeadTime, spec.NodeName)
 		}
 	}
 
 	stakeDuration := time.Duration(spec.StakeDuration) * time.Hour
 
-	validatorSpec := network.PermissionlessValidatorSpec{
+	validatorSpec := network.PermissionlessStakerSpec{
 		SubnetID:      spec.SubnetId,
 		AssetID:       spec.AssetId,
 		NodeName:      spec.NodeName,

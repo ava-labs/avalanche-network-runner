@@ -15,7 +15,7 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
-type PermissionlessValidatorSpec struct {
+type PermissionlessStakerSpec struct {
 	SubnetID      string
 	AssetID       string
 	NodeName      string
@@ -112,8 +112,10 @@ type Network interface {
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
+	// Delegate stake into a permissionless validator in an elastic subnet
+	AddPermissionlessDelegators(context.Context, []PermissionlessStakerSpec) error
 	// Add a validator into an elastic subnet
-	AddPermissionlessValidators(context.Context, []PermissionlessValidatorSpec) error
+	AddPermissionlessValidators(context.Context, []PermissionlessStakerSpec) error
 	// Remove a validator from a subnet
 	RemoveSubnetValidators(context.Context, []RemoveSubnetValidatorSpec) error
 	// Get the elastic subnet tx id for the given subnet id

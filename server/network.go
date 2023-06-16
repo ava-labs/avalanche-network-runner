@@ -293,7 +293,46 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
-func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
+func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, delegatorSpecs []network.PermissionlessStakerSpec) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(delegatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no delegator specs provided...")))
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	err := lc.nw.AddPermissionlessDelegators(ctx, delegatorSpecs)
+	if err != nil {
+		return err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding permissionless delegators")))
+	return nil
+}
+
+func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessStakerSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 

@@ -62,6 +62,7 @@ func NewCommand() *cobra.Command {
 		newCreateSubnetsCommand(),
 		newTransformElasticSubnetsCommand(),
 		newAddPermissionlessValidatorCommand(),
+		newAddPermissionlessDelegatorCommand(),
 		newRemoveSubnetValidatorCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
@@ -414,6 +415,16 @@ func newTransformElasticSubnetsCommand() *cobra.Command {
 	return cmd
 }
 
+func newAddPermissionlessDelegatorCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-permissionless-delegator permissionlessValidatorSpecs [options]",
+		Short: "Delegate to a permissionless validator in an elastic subnet",
+		RunE:  addPermissionlessDelegatorFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
 func newAddPermissionlessValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-permissionless-validator permissionlessValidatorSpecs [options]",
@@ -462,6 +473,34 @@ func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+func addPermissionlessDelegatorFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	delegatorSpecsStr := args[0]
+
+	delegatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
+	if err := json.Unmarshal([]byte(delegatorSpecsStr), &delegatorSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.AddPermissionlessDelegator(
+		ctx,
+		delegatorSpecs,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("add-permissionless-delegator response: %+v"), info)
+	return nil
+}
+
 func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
@@ -469,10 +508,10 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecStr := args[0]
+	validatorSpecsStr := args[0]
 
-	validatorSpec := []*rpcpb.PermissionlessValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+	validatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
 		return err
 	}
 
@@ -480,7 +519,7 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.AddPermissionlessValidator(
 		ctx,
-		validatorSpec,
+		validatorSpecs,
 	)
 	if err != nil {
 		return err
@@ -497,10 +536,10 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecStr := args[0]
+	validatorSpecsStr := args[0]
 
-	validatorSpec := []*rpcpb.RemoveSubnetValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
+	validatorSpecs := []*rpcpb.RemoveSubnetValidatorSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
 		return err
 	}
 
@@ -508,7 +547,7 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.RemoveSubnetValidator(
 		ctx,
-		validatorSpec,
+		validatorSpecs,
 	)
 	if err != nil {
 		return err

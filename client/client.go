@@ -34,7 +34,8 @@ type Client interface {
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
 	TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error)
-	AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessValidatorSpec) (*rpcpb.AddPermissionlessValidatorResponse, error)
+	AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessStakerSpec) (*rpcpb.AddPermissionlessValidatorResponse, error)
+	AddPermissionlessDelegator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessStakerSpec) (*rpcpb.AddPermissionlessDelegatorResponse, error)
 	RemoveSubnetValidator(ctx context.Context, validatorSpec []*rpcpb.RemoveSubnetValidatorSpec) (*rpcpb.RemoveSubnetValidatorResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
@@ -170,7 +171,16 @@ func (c *client) TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs
 	return c.controlc.TransformElasticSubnets(ctx, req)
 }
 
-func (c *client) AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessValidatorSpec) (*rpcpb.AddPermissionlessValidatorResponse, error) {
+func (c *client) AddPermissionlessDelegator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessStakerSpec) (*rpcpb.AddPermissionlessDelegatorResponse, error) {
+	req := &rpcpb.AddPermissionlessDelegatorRequest{
+		ValidatorSpec: validatorSpec,
+	}
+
+	c.log.Info("add permissionless delegators to elastic subnets")
+	return c.controlc.AddPermissionlessDelegator(ctx, req)
+}
+
+func (c *client) AddPermissionlessValidator(ctx context.Context, validatorSpec []*rpcpb.PermissionlessStakerSpec) (*rpcpb.AddPermissionlessValidatorResponse, error) {
 	req := &rpcpb.AddPermissionlessValidatorRequest{
 		ValidatorSpec: validatorSpec,
 	}
