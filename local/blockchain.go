@@ -177,12 +177,12 @@ func (ln *localNetwork) AddPermissionlessValidators(
 
 func (ln *localNetwork) AddPermissionlessDelegators(
 	ctx context.Context,
-	delegatorSpec []network.PermissionlessStakerSpec,
+	delegatorSpecs []network.PermissionlessStakerSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addPermissionlessDelegators(ctx, delegatorSpec)
+	return ln.addPermissionlessDelegators(ctx, delegatorSpecs)
 }
 
 func (ln *localNetwork) TransformSubnet(
