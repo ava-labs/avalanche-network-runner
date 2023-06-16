@@ -686,7 +686,7 @@ func newWallet(
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
-	xBackend := x.NewBackend(xCTX, xChainID, xUTXOs)
+	xBackend := x.NewBackend(xCTX, xUTXOs)
 	xBuilder := x.NewBuilder(kc.Addresses(), xBackend)
 	xSigner := x.NewSigner(kc, xBackend)
 	xClient := avm.NewClient(uri, "X")
