@@ -658,12 +658,13 @@ func newWallet(
 	uri string,
 	preloadTXs []ids.ID,
 ) (*wallet, error) {
+	pClient := platformvm.NewClient(uri)
+	xClient := avm.NewClient(uri, "X")
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, pClient, xClient, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
-	pClient := platformvm.NewClient(uri)
 	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, id := range preloadTXs {
 		txBytes, err := pClient.GetTx(ctx, id)
@@ -689,7 +690,6 @@ func newWallet(
 	xBackend := x.NewBackend(xCTX, xUTXOs)
 	xBuilder := x.NewBuilder(kc.Addresses(), xBackend)
 	xSigner := x.NewSigner(kc, xBackend)
-	xClient := avm.NewClient(uri, "X")
 	w.xWallet = x.NewWallet(xBuilder, xSigner, xClient, xBackend)
 	return &w, nil
 }
