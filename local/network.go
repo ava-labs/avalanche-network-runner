@@ -944,47 +944,55 @@ func (ln *localNetwork) restartNode(
 	if !ok {
 		return fmt.Errorf("node %q not found", nodeName)
 	}
+	if node.ssh == "" {
+		nodeConfig := node.GetConfig()
+		if binaryPath != "" {
+			nodeConfig.BinaryPath = binaryPath
+		}
+		if pluginDir != "" {
+			nodeConfig.Flags[config.PluginDirKey] = pluginDir
+		}
 
-	nodeConfig := node.GetConfig()
-
-	if binaryPath != "" {
-		nodeConfig.BinaryPath = binaryPath
-	}
-	if pluginDir != "" {
-		nodeConfig.Flags[config.PluginDirKey] = pluginDir
-	}
-
-	if trackSubnets != "" {
-		nodeConfig.Flags[config.TrackSubnetsKey] = trackSubnets
-	}
-
-	// keep same ports, dbdir in node flags
-	nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
-	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
-	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
-	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
-	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
-	// apply chain configs
-	for k, v := range chainConfigs {
-		nodeConfig.ChainConfigFiles[k] = v
-	}
-	// apply upgrade configs
-	for k, v := range upgradeConfigs {
-		nodeConfig.UpgradeConfigFiles[k] = v
-	}
-	// apply subnet configs
-	for k, v := range subnetConfigs {
-		nodeConfig.SubnetConfigFiles[k] = v
-	}
-
-	if !node.paused {
-		if err := ln.removeNode(ctx, nodeName); err != nil {
+		if trackSubnets != "" {
+			nodeConfig.Flags[config.TrackSubnetsKey] = trackSubnets
+		}
+		// keep same ports, dbdir in node flags
+		nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
+		nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
+		nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
+		nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
+		nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+		// apply chain configs
+		for k, v := range chainConfigs {
+			nodeConfig.ChainConfigFiles[k] = v
+		}
+		// apply upgrade configs
+		for k, v := range upgradeConfigs {
+			nodeConfig.UpgradeConfigFiles[k] = v
+		}
+		// apply subnet configs
+		for k, v := range subnetConfigs {
+			nodeConfig.SubnetConfigFiles[k] = v
+		}
+		if !node.paused {
+			if err := ln.removeNode(ctx, nodeName); err != nil {
+				return err
+			}
+		}
+		if _, err := ln.addNode(nodeConfig); err != nil {
 			return err
 		}
-	}
-
-	if _, err := ln.addNode(nodeConfig); err != nil {
-		return err
+	} else {
+		// TODO: add all extra complexity. This changed mainly to enable subnet/blockchain creation.
+		ln.log.Info("restarting attached node")
+		out, err := execSshCmd(node.ssh, "sudo systemctl restart avalanchego.service")
+		if err != nil {
+			ln.log.Debug(out)
+			return err
+		}
+		if node.paused {
+			node.paused = false
+		}
 	}
 
 	return nil
