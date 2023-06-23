@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -840,10 +839,18 @@ func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
 	// cchain eth api uses a websocket connection and must be closed before stopping the node,
 	// to avoid errors logs at client
 	node.client.CChainEthAPI().Close()
-	if exitCode := node.process.Stop(ctx); exitCode != 0 {
-		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
+	if node.ssh == "" {
+		if exitCode := node.process.Stop(ctx); exitCode != 0 {
+			return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
+		}
+	} else {
+		ln.log.Info("pausing attached node")
+		out, err := execSshCmd(node.ssh, "sudo systemctl stop avalanchego.service")
+		if err != nil {
+			ln.log.Debug(out)
+			return err
+		}
 	}
-	syscall.Sync()
 	node.paused = true
 	return nil
 }
@@ -874,15 +881,25 @@ func (ln *localNetwork) resumeNode(
 	if !node.paused {
 		return fmt.Errorf("node has not been paused")
 	}
-	nodeConfig := node.GetConfig()
-	nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
-	nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
-	nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
-	nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
-	nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
-	if _, err := ln.addNode(nodeConfig); err != nil {
-		return err
+	if node.ssh == "" {
+		nodeConfig := node.GetConfig()
+		nodeConfig.Flags[config.DataDirKey] = node.GetDataDir()
+		nodeConfig.Flags[config.DBPathKey] = node.GetDbDir()
+		nodeConfig.Flags[config.LogsDirKey] = node.GetLogsDir()
+		nodeConfig.Flags[config.HTTPPortKey] = int(node.GetAPIPort())
+		nodeConfig.Flags[config.StakingPortKey] = int(node.GetP2PPort())
+		if _, err := ln.addNode(nodeConfig); err != nil {
+			return err
+		}
+	} else {
+		ln.log.Info("resuming attached node")
+		out, err := execSshCmd(node.ssh, "sudo systemctl start avalanchego.service")
+		if err != nil {
+			ln.log.Debug(out)
+			return err
+		}
 	}
+	node.paused = false
 	return nil
 }
 
@@ -964,7 +981,6 @@ func (ln *localNetwork) restartNode(
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
 		}
-		syscall.Sync()
 	}
 
 	if _, err := ln.addNode(nodeConfig); err != nil {

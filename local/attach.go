@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -54,6 +55,40 @@ func (ln *localNetwork) attach(
 		return err
 	}
 	createdNodes := avalancheOpsData["resource"].(map[string]interface{})["created_nodes"].([]interface{})
+	regionalResources := avalancheOpsData["resource"].(map[string]interface{})["regional_resources"].(map[string]interface{})
+	sshCmds := map[string]string{}
+	for _, resource := range regionalResources {
+		sshCommandsPathAnchorNodesPath := resource.(map[string]interface{})["ssh_commands_path_anchor_nodes"].(string)
+		sshCommandsPathNonAnchorNodesPath := resource.(map[string]interface{})["ssh_commands_path_non_anchor_nodes"].(string)
+		sshCommandsPathAnchorNodesBytes, err := os.ReadFile(sshCommandsPathAnchorNodesPath)
+		if err != nil {
+			return err
+		}
+		sshCommandsPathNonAnchorNodesBytes, err := os.ReadFile(sshCommandsPathNonAnchorNodesPath)
+		if err != nil {
+			return err
+		}
+		sshCommandsPathAnchorNodes := string(sshCommandsPathAnchorNodesBytes)
+		for _, line := range strings.Split(sshCommandsPathAnchorNodes, "\n") {
+			if strings.HasPrefix(line, "ssh ") {
+				cmdParts := strings.Fields(line)
+				if len(cmdParts) == 7 {
+					ip := strings.Split(cmdParts[6], "@")[1]
+					sshCmds[ip] = line
+				}
+			}
+		}
+		sshCommandsPathNonAnchorNodes := string(sshCommandsPathNonAnchorNodesBytes)
+		for _, line := range strings.Split(sshCommandsPathNonAnchorNodes, "\n") {
+			if strings.HasPrefix(line, "ssh ") {
+				cmdParts := strings.Fields(line)
+				if len(cmdParts) == 7 {
+					ip := strings.Split(cmdParts[6], "@")[1]
+					sshCmds[ip] = line
+				}
+			}
+		}
+	}
 	for _, node := range createdNodes {
 		nodeMap := node.(map[string]interface{})
 		machineId := nodeMap["machineId"].(string)
@@ -81,8 +116,36 @@ func (ln *localNetwork) attach(
 			apiPort: apiPort,
 			process: nodeProcess,
 			IP:      publicIp,
+			ssh:     sshCmds[publicIp],
 		}
 		ln.nodes[machineId] = node
 	}
 	return nil
+}
+
+func getBaseSshCmd(cmdLine string) (string, []string) {
+	cmd := ""
+	args := []string{}
+	for i, ws := range strings.Split(cmdLine, "\"") {
+		if i%2 == 0 {
+			for _, w := range strings.Fields(ws) {
+				if cmd == "" {
+					cmd = w
+				} else {
+					args = append(args, w)
+				}
+			}
+		} else {
+			args = append(args, ws)
+		}
+	}
+	return cmd, args
+}
+
+func execSshCmd(baseSsh string, remoteCmd string) (string, error) {
+	cmd, args := getBaseSshCmd(baseSsh)
+	args = append(args, remoteCmd)
+	exeCmd := exec.Command(cmd, args...)
+	out, err := exeCmd.CombinedOutput()
+	return string(out), err
 }

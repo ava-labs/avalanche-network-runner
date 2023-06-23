@@ -79,6 +79,7 @@ type localNode struct {
 	// and can be resumed
 	paused bool
 	IP     string
+	ssh    string
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
