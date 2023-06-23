@@ -2,7 +2,7 @@ package local
 
 import (
 	"context"
-	//"encoding/json"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"strconv"
@@ -13,11 +13,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
 
-	//"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	//"go.uber.org/zap"
+	"go.uber.org/zap"
 )
 
 func NewAttachedNetwork(
@@ -61,6 +61,7 @@ func (ln *localNetwork) attach(
 		return err
 	}
 	ln.s3Bucket = avalancheOpsData["resource"].(map[string]interface{})["s3_bucket"].(string)
+	ln.s3Key = avalancheOpsData["id"].(string)
 	createdNodes := avalancheOpsData["resource"].(map[string]interface{})["created_nodes"].([]interface{})
 	regionalResources := avalancheOpsData["resource"].(map[string]interface{})["regional_resources"].(map[string]interface{})
 	sshCmds := map[string]string{}
@@ -116,22 +117,20 @@ func (ln *localNetwork) attach(
 		if err != nil {
 			return err
 		}
-		/*
-			ln.log.Info("getting config file for node", zap.String("name", machineId))
-			tmpPath := "/tmp/" + machineId + "_config.json"
-			if out, err := execScpCmd(sshCmds[publicIp], "/data/avalanche-configs/config.json", tmpPath, false); err != nil {
-				ln.log.Debug(out)
-				return err
-			}
-			bs, err := os.ReadFile(tmpPath)
-			if err != nil {
-				return err
-			}
-			var flags map[string]interface{}
-			if err := json.Unmarshal(bs, &flags); err != nil {
-				return err
-			}
-		*/
+		ln.log.Info("getting config file for node", zap.String("name", machineId))
+		tmpPath := "/tmp/" + machineId + "_config.json"
+		if out, err := execScpCmd(sshCmds[publicIp], "/data/avalanche-configs/config.json", tmpPath, false); err != nil {
+			ln.log.Debug(out)
+			return err
+		}
+		bs, err := os.ReadFile(tmpPath)
+		if err != nil {
+			return err
+		}
+		var flags map[string]interface{}
+		if err := json.Unmarshal(bs, &flags); err != nil {
+			return err
+		}
 		ln.nodes[machineId] = &localNode{
 			name:    machineId,
 			nodeID:  nodeID,
@@ -140,12 +139,11 @@ func (ln *localNetwork) attach(
 			process: nodeProcess,
 			IP:      publicIp,
 			ssh:     sshCmds[publicIp],
-			/*
-				config: node.Config{
-					Flags:      flags,
-					ConfigFile: string(bs),
-				},
-			*/
+			logsDir: "/var/log/avalanchego/",
+			config: node.Config{
+				Flags:      flags,
+				ConfigFile: string(bs),
+			},
 		}
 	}
 	return nil

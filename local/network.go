@@ -119,6 +119,7 @@ type localNetwork struct {
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 	localPluginDir           string
 	s3Bucket                 string
+	s3Key                    string
 }
 
 type deprecatedFlagEsp struct {

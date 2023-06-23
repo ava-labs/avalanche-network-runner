@@ -50,7 +50,7 @@ const (
 
 	stopTimeout           = 5 * time.Second
 	defaultStartTimeout   = 5 * time.Minute
-	waitForHealthyTimeout = 3 * time.Minute
+	waitForHealthyTimeout = 10 * time.Minute
 
 	networkRootDirPrefix   = "network"
 	TimeParseLayout        = "2006-01-02 15:04:05"
@@ -419,12 +419,6 @@ func (s *server) Attach(_ context.Context, req *rpcpb.AttachRequest) (*rpcpb.Att
 	if err := s.network.Attach(ctx, req.AvalancheOpsYaml); err != nil {
 		s.log.Warn("attach failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
-		return nil, err
-	}
-	err = s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
-	if err != nil {
-		s.log.Warn("attach failed to complete", zap.Error(err))
-		s.stopAndRemoveNetwork(err)
 		return nil, err
 	}
 	s.updateClusterInfo()

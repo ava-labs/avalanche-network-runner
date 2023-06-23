@@ -218,21 +218,34 @@ func (ln *localNetwork) installCustomChains(
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and install custom chains")))
 
 	if ln.localPluginDir != "" {
-		ln.log.Info("copying vm binaries to s3")
-		vmPathsSet := set.Set[string]{}
+		vmIDsSet := set.Set[string]{}
 		for _, chainSpec := range chainSpecs {
 			vmID, err := utils.VMID(chainSpec.VMName)
 			if err != nil {
 				return nil, err
 			}
-			vmPath := filepath.Join(ln.localPluginDir, vmID.String())
-			vmPathsSet.Add(vmPath)
+			vmIDsSet.Add(vmID.String())
 		}
-		vmPathsList := vmPathsSet.List()
-		for _, vmPath := range vmPathsList {
-			if _, err := os.Stat(vmPath + ".gz"); err != nil {
+		vmIDsList := vmIDsSet.List()
+		for _, vmID := range vmIDsList {
+			localVmPath := filepath.Join(ln.localPluginDir, vmID)
+			localVmPathGz := localVmPath + ".gz"
+			vmFname := filepath.Base(localVmPath)
+			vmFnameGz := filepath.Base(localVmPathGz)
+			installed := false
+			for _, node := range ln.nodes {
+				if _, err := execSshCmd(node.ssh, "sudo ls /data/avalanche-plugins/"+vmFname); err == nil {
+					installed = true
+					break
+				}
+			}
+			if installed {
+				continue
+			}
+			ln.log.Info("uploading vm binary to s3", zap.String("id", vmID))
+			if _, err := os.Stat(localVmPathGz); err != nil {
 				if errors.Is(err, fs.ErrNotExist) {
-					exeCmd := exec.Command("gzip", "-k", vmPath)
+					exeCmd := exec.Command("gzip", "-k", localVmPath)
 					out, err := exeCmd.CombinedOutput()
 					if err != nil {
 						fmt.Println(out)
@@ -242,29 +255,30 @@ func (ln *localNetwork) installCustomChains(
 					return nil, err
 				}
 			}
-			fmt.Println("UNO")
-			exeCmd := exec.Command("aws", "s3", "cp", vmPath+".gz", "s3://"+ln.s3Bucket)
+			exeCmd := exec.Command("aws", "s3", "cp", localVmPathGz, "s3://"+ln.s3Bucket+"/"+ln.s3Key+"/")
 			out, err := exeCmd.CombinedOutput()
-			fmt.Println(string(out))
 			if err != nil {
 				fmt.Println(string(out))
 				return nil, err
 			}
 			for _, node := range ln.nodes {
-				fmt.Println("DOS")
-				out, err := execSshCmd(node.ssh, "aws s3 cp s3://"+ln.s3Bucket+"/"+vmPath+".gz /tmp/"+vmPath+".gz")
+				ln.log.Info("downloading vm binary on node", zap.String("name", node.name))
+				out, err := execSshCmd(node.ssh, "aws s3 cp s3://"+ln.s3Bucket+"/"+ln.s3Key+"/"+vmFnameGz+" /tmp/"+vmFnameGz)
 				if err != nil {
 					fmt.Println(string(out))
 					return nil, err
 				}
-				fmt.Println("TRES")
-				out, err = execSshCmd(node.ssh, "gunzip /tmp/"+vmPath+".gz")
+				out, err = execSshCmd(node.ssh, "gunzip -f /tmp/"+vmFnameGz)
 				if err != nil {
 					fmt.Println(string(out))
 					return nil, err
 				}
-				fmt.Println("CUATRO")
-				out, err = execSshCmd(node.ssh, "cp "+vmPath+" /data/avalanche-plugins")
+				out, err = execSshCmd(node.ssh, "sudo cp /tmp/"+vmFname+" /data/avalanche-plugins")
+				if err != nil {
+					fmt.Println(string(out))
+					return nil, err
+				}
+				out, err = execSshCmd(node.ssh, "sudo chmod +x /data/avalanche-plugins/"+vmFname)
 				if err != nil {
 					fmt.Println(string(out))
 					return nil, err
@@ -272,7 +286,6 @@ func (ln *localNetwork) installCustomChains(
 			}
 		}
 	}
-	return nil, nil
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
@@ -398,9 +411,11 @@ func (ln *localNetwork) installCustomChains(
 		w.reload(clientURI)
 	}
 
-	// refresh vm list
-	if err := ln.reloadVMPlugins(ctx); err != nil {
-		return nil, err
+	if ln.s3Bucket == "" {
+		// refresh vm list
+		if err := ln.reloadVMPlugins(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
@@ -573,9 +588,17 @@ func (ln *localNetwork) waitForCustomChainsReady(
 				zap.String("path", p),
 			)
 			for {
-				if _, err := os.Stat(p); err == nil {
-					ln.log.Info("found the log", zap.String("path", p))
-					break
+				if node.ssh == "" {
+					if _, err := os.Stat(p); err == nil {
+						ln.log.Info("found the log", zap.String("path", p))
+						break
+					}
+				} else {
+					ln.log.Info("checking log for attached node")
+					if _, err := execSshCmd(node.ssh, "sudo ls "+p); err == nil {
+						ln.log.Info("found the log", zap.String("path", p))
+						break
+					}
 				}
 				ln.log.Info("log not found yet, retrying...",
 					zap.String("vm-ID", chainInfo.vmID.String()),
