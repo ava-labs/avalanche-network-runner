@@ -22,6 +22,7 @@ import (
 
 func NewAttachedNetwork(
 	log logging.Logger,
+	localPluginDir string,
 	avalancheOpsYaml string,
 ) (network.Network, error) {
 	net, err := newNetwork(
@@ -40,6 +41,7 @@ func NewAttachedNetwork(
 	if err != nil {
 		return net, err
 	}
+	net.localPluginDir = localPluginDir
 	err = net.attach(
 		context.Background(),
 		avalancheOpsYaml,
@@ -58,6 +60,7 @@ func (ln *localNetwork) attach(
 	if err != nil {
 		return err
 	}
+	ln.s3Bucket = avalancheOpsData["resource"].(map[string]interface{})["s3_bucket"].(string)
 	createdNodes := avalancheOpsData["resource"].(map[string]interface{})["created_nodes"].([]interface{})
 	regionalResources := avalancheOpsData["resource"].(map[string]interface{})["regional_resources"].(map[string]interface{})
 	sshCmds := map[string]string{}

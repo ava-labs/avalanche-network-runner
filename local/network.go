@@ -117,6 +117,8 @@ type localNetwork struct {
 	reassignPortsIfUsed bool
 	// map from subnet id to elastic subnet tx id
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
+	localPluginDir           string
+	s3Bucket                 string
 }
 
 type deprecatedFlagEsp struct {

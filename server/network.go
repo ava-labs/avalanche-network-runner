@@ -266,7 +266,7 @@ func (lc *localNetwork) Attach(ctx context.Context, avalancheOpsYaml string) err
 		}
 	}(ctx)
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("attach to a network")))
-	nw, err := local.NewAttachedNetwork(lc.log, avalancheOpsYaml)
+	nw, err := local.NewAttachedNetwork(lc.log, lc.pluginDir, avalancheOpsYaml)
 	if err != nil {
 		return err
 	}

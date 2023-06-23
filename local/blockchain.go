@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -214,6 +216,63 @@ func (ln *localNetwork) installCustomChains(
 ) ([]blockchainInfo, error) {
 	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and install custom chains")))
+
+	if ln.localPluginDir != "" {
+		ln.log.Info("copying vm binaries to s3")
+		vmPathsSet := set.Set[string]{}
+		for _, chainSpec := range chainSpecs {
+			vmID, err := utils.VMID(chainSpec.VMName)
+			if err != nil {
+				return nil, err
+			}
+			vmPath := filepath.Join(ln.localPluginDir, vmID.String())
+			vmPathsSet.Add(vmPath)
+		}
+		vmPathsList := vmPathsSet.List()
+		for _, vmPath := range vmPathsList {
+			if _, err := os.Stat(vmPath + ".gz"); err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					exeCmd := exec.Command("gzip", "-k", vmPath)
+					out, err := exeCmd.CombinedOutput()
+					if err != nil {
+						fmt.Println(out)
+						return nil, err
+					}
+				} else {
+					return nil, err
+				}
+			}
+			fmt.Println("UNO")
+			exeCmd := exec.Command("aws", "s3", "cp", vmPath+".gz", "s3://"+ln.s3Bucket)
+			out, err := exeCmd.CombinedOutput()
+			fmt.Println(string(out))
+			if err != nil {
+				fmt.Println(string(out))
+				return nil, err
+			}
+			for _, node := range ln.nodes {
+				fmt.Println("DOS")
+				out, err := execSshCmd(node.ssh, "aws s3 cp s3://"+ln.s3Bucket+"/"+vmPath+".gz /tmp/"+vmPath+".gz")
+				if err != nil {
+					fmt.Println(string(out))
+					return nil, err
+				}
+				fmt.Println("TRES")
+				out, err = execSshCmd(node.ssh, "gunzip /tmp/"+vmPath+".gz")
+				if err != nil {
+					fmt.Println(string(out))
+					return nil, err
+				}
+				fmt.Println("CUATRO")
+				out, err = execSshCmd(node.ssh, "cp "+vmPath+" /data/avalanche-plugins")
+				if err != nil {
+					fmt.Println(string(out))
+					return nil, err
+				}
+			}
+		}
+	}
+	return nil, nil
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
