@@ -741,13 +741,13 @@ func (lc *localNetwork) updateNodeInfo() error {
 		}
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
-			Name:               node.GetName(),
-			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
-			Id:                 node.GetNodeID().String(),
-			ExecPath:           node.GetBinaryPath(),
-			LogDir:             node.GetLogsDir(),
-			DbDir:              node.GetDbDir(),
-			Config:             []byte(node.GetConfigFile()),
+			Name:     node.GetName(),
+			Uri:      fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
+			Id:       node.GetNodeID().String(),
+			ExecPath: node.GetBinaryPath(),
+			LogDir:   node.GetLogsDir(),
+			DbDir:    node.GetDbDir(),
+			//Config:             []byte(node.GetConfigFile()),
 			PluginDir:          node.GetPluginDir(),
 			WhitelistedSubnets: trackSubnets,
 			Paused:             node.GetPaused(),

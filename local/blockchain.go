@@ -6,6 +6,7 @@ package local
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -575,7 +576,6 @@ func (ln *localNetwork) restartNodes(
 				return fmt.Errorf("expected node config %s to have type string obtained %T", config.TrackSubnetsKey, previousTrackedSubnetsIntf)
 			}
 		}
-
 		trackSubnetIDsSet := set.Set[string]{}
 		if previousTrackedSubnets != "" {
 			for _, s := range strings.Split(previousTrackedSubnets, ",") {
@@ -589,7 +589,6 @@ func (ln *localNetwork) restartNodes(
 				needsRestart = true
 			}
 		}
-
 		for _, removeValidatorSpec := range removeValidatorSpecs {
 			for _, toRemoveNode := range removeValidatorSpec.NodeNames {
 				if toRemoveNode == node.name {
@@ -598,7 +597,6 @@ func (ln *localNetwork) restartNodes(
 				}
 			}
 		}
-
 		for i, subnetID := range subnetIDs {
 			for _, participant := range subnetSpecs[i].Participants {
 				if participant == nodeName {
@@ -607,12 +605,31 @@ func (ln *localNetwork) restartNodes(
 				}
 			}
 		}
-
 		trackSubnetIDs := trackSubnetIDsSet.List()
 		sort.Strings(trackSubnetIDs)
-
 		tracked := strings.Join(trackSubnetIDs, ",")
 		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
+
+		if needsRestart && node.ssh != "" {
+			ln.log.Info("setting config file for attached node", zap.String("name", node.name))
+			bs, err := json.Marshal(nodeConfig.Flags)
+			if err != nil {
+				return err
+			}
+			tmpPath := "/tmp/" + node.name + "_config.json"
+			if err := os.WriteFile(tmpPath, bs, 0644); err != nil {
+				return err
+			}
+			if out, err := execScpCmd(node.ssh, tmpPath, tmpPath, true); err != nil {
+				ln.log.Debug(out)
+				return err
+			}
+			out, err := execSshCmd(node.ssh, "sudo cp "+tmpPath+"  "+"/data/avalanche-configs/config.json")
+			if err != nil {
+				ln.log.Debug(out)
+				return err
+			}
+		}
 
 		if subnetSpecs != nil {
 			if nodesToRestartForBlockchainConfigUpdate.Contains(nodeName) {

@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"strconv"
@@ -11,9 +12,11 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/logging"
+	"go.uber.org/zap"
 )
 
 func NewAttachedNetwork(
@@ -89,8 +92,8 @@ func (ln *localNetwork) attach(
 			}
 		}
 	}
-	for _, node := range createdNodes {
-		nodeMap := node.(map[string]interface{})
+	for _, createdNode := range createdNodes {
+		nodeMap := createdNode.(map[string]interface{})
 		machineId := nodeMap["machineId"].(string)
 		nodeIDStr := nodeMap["nodeId"].(string)
 		nodeID, err := ids.NodeIDFromString(nodeIDStr)
@@ -109,7 +112,21 @@ func (ln *localNetwork) attach(
 		if err != nil {
 			return err
 		}
-		node := &localNode{
+		ln.log.Info("getting config file for node", zap.String("name", machineId))
+		tmpPath := "/tmp/" + machineId + "_config.json"
+		if out, err := execScpCmd(sshCmds[publicIp], "/data/avalanche-configs/config.json", tmpPath, false); err != nil {
+			ln.log.Debug(out)
+			return err
+		}
+		bs, err := os.ReadFile(tmpPath)
+		if err != nil {
+			return err
+		}
+		var flags map[string]interface{}
+		if err := json.Unmarshal(bs, &flags); err != nil {
+			return err
+		}
+		ln.nodes[machineId] = &localNode{
 			name:    machineId,
 			nodeID:  nodeID,
 			client:  ln.newAPIClientF(publicIp, apiPort),
@@ -117,8 +134,11 @@ func (ln *localNetwork) attach(
 			process: nodeProcess,
 			IP:      publicIp,
 			ssh:     sshCmds[publicIp],
+			config: node.Config{
+				Flags:      flags,
+				ConfigFile: string(bs),
+			},
 		}
-		ln.nodes[machineId] = node
 	}
 	return nil
 }
@@ -145,6 +165,21 @@ func getBaseSshCmd(cmdLine string) (string, []string) {
 func execSshCmd(baseSsh string, remoteCmd string) (string, error) {
 	cmd, args := getBaseSshCmd(baseSsh)
 	args = append(args, remoteCmd)
+	exeCmd := exec.Command(cmd, args...)
+	out, err := exeCmd.CombinedOutput()
+	return string(out), err
+}
+
+func execScpCmd(baseSsh string, remoteFilePath string, localFilePath string, isUpload bool) (string, error) {
+	cmd, args := getBaseSshCmd(baseSsh)
+	key := args[3]
+	userMachine := args[4]
+	cmd = "scp"
+	if isUpload {
+		args = []string{"-i", key, localFilePath, userMachine + ":" + remoteFilePath}
+	} else {
+		args = []string{"-i", key, userMachine + ":" + remoteFilePath, localFilePath}
+	}
 	exeCmd := exec.Command(cmd, args...)
 	out, err := exeCmd.CombinedOutput()
 	return string(out), err
