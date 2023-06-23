@@ -36,6 +36,13 @@ service ControlService {
     };
   }
 
+  rpc Attach(AttachRequest) returns (AttachResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/attach"
+      body: "*"
+    };
+  }
+
   rpc CreateBlockchains(CreateBlockchainsRequest) returns (CreateBlockchainsResponse) {
     option (google.api.http) = {
       post: "/v1/control/createblockchains"
@@ -332,6 +339,14 @@ message RPCVersionResponse {
 message StartResponse {
   ClusterInfo cluster_info = 1;
   repeated string chain_ids = 2;
+}
+
+message AttachRequest {
+  string avalanche_ops_yaml = 1;
+}
+
+message AttachResponse {
+  ClusterInfo cluster_info = 1;
 }
 
 message SubnetSpec {

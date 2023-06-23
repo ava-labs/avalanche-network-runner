@@ -58,6 +58,7 @@ func NewCommand() *cobra.Command {
 	cmd.AddCommand(
 		newRPCVersionCommand(),
 		newStartCommand(),
+		newAttachCommand(),
 		newCreateBlockchainsCommand(),
 		newCreateSubnetsCommand(),
 		newTransformElasticSubnetsCommand(),
@@ -162,7 +163,7 @@ func RPCVersionFunc(*cobra.Command, []string) error {
 func newStartCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [options]",
-		Short: "Starts the server.",
+		Short: "Starts a network.",
 		RunE:  startFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -326,6 +327,36 @@ func startFunc(*cobra.Command, []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("start response: %+v"), info)
+	return nil
+}
+
+func newAttachCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attach avalanche_ops_yaml_path",
+		Short: "Attach to a network.",
+		RunE:  attachFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func attachFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+	avalancheOpsYamlPath := args[0]
+	avalancheOpsYamlBytes, err := os.ReadFile(avalancheOpsYamlPath)
+	if err != nil {
+		return err
+	}
+	ctx := getAsyncContext()
+	info, err := cli.Attach(ctx, string(avalancheOpsYamlBytes))
+	if err != nil {
+		return err
+	}
+	ux.Print(log, logging.Green.Wrap("attach response: %+v"), info)
 	return nil
 }
 

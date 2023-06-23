@@ -31,6 +31,7 @@ type Client interface {
 	Ping(ctx context.Context) (*rpcpb.PingResponse, error)
 	RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, error)
 	Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error)
+	Attach(ctx context.Context, avalancheOpsYaml string) (*rpcpb.AttachResponse, error)
 	CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error)
 	CreateSubnets(ctx context.Context, subnetSpecs []*rpcpb.SubnetSpec) (*rpcpb.CreateSubnetsResponse, error)
 	TransformElasticSubnets(ctx context.Context, elasticSubnetSpecs []*rpcpb.ElasticSubnetSpec) (*rpcpb.TransformElasticSubnetsResponse, error)
@@ -142,6 +143,14 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 
 	c.log.Info("start")
 	return c.controlc.Start(ctx, req)
+}
+
+func (c *client) Attach(ctx context.Context, avalancheOpsYaml string) (*rpcpb.AttachResponse, error) {
+	req := &rpcpb.AttachRequest{
+		AvalancheOpsYaml: avalancheOpsYaml,
+	}
+	c.log.Info("attach")
+	return c.controlc.Attach(ctx, req)
 }
 
 func (c *client) CreateBlockchains(ctx context.Context, blockchainSpecs []*rpcpb.BlockchainSpec) (*rpcpb.CreateBlockchainsResponse, error) {

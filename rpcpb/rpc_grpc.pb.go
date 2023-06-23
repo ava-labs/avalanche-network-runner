@@ -111,6 +111,7 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 const (
 	ControlService_RPCVersion_FullMethodName                 = "/rpcpb.ControlService/RPCVersion"
 	ControlService_Start_FullMethodName                      = "/rpcpb.ControlService/Start"
+	ControlService_Attach_FullMethodName                     = "/rpcpb.ControlService/Attach"
 	ControlService_CreateBlockchains_FullMethodName          = "/rpcpb.ControlService/CreateBlockchains"
 	ControlService_TransformElasticSubnets_FullMethodName    = "/rpcpb.ControlService/TransformElasticSubnets"
 	ControlService_AddPermissionlessDelegator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessDelegator"
@@ -142,6 +143,7 @@ const (
 type ControlServiceClient interface {
 	RPCVersion(ctx context.Context, in *RPCVersionRequest, opts ...grpc.CallOption) (*RPCVersionResponse, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
+	Attach(ctx context.Context, in *AttachRequest, opts ...grpc.CallOption) (*AttachResponse, error)
 	CreateBlockchains(ctx context.Context, in *CreateBlockchainsRequest, opts ...grpc.CallOption) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessDelegator(ctx context.Context, in *AddPermissionlessDelegatorRequest, opts ...grpc.CallOption) (*AddPermissionlessDelegatorResponse, error)
@@ -187,6 +189,15 @@ func (c *controlServiceClient) RPCVersion(ctx context.Context, in *RPCVersionReq
 func (c *controlServiceClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error) {
 	out := new(StartResponse)
 	err := c.cc.Invoke(ctx, ControlService_Start_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) Attach(ctx context.Context, in *AttachRequest, opts ...grpc.CallOption) (*AttachResponse, error) {
+	out := new(AttachResponse)
+	err := c.cc.Invoke(ctx, ControlService_Attach_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +440,7 @@ func (c *controlServiceClient) GetSnapshotNames(ctx context.Context, in *GetSnap
 type ControlServiceServer interface {
 	RPCVersion(context.Context, *RPCVersionRequest) (*RPCVersionResponse, error)
 	Start(context.Context, *StartRequest) (*StartResponse, error)
+	Attach(context.Context, *AttachRequest) (*AttachResponse, error)
 	CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error)
 	TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessDelegator(context.Context, *AddPermissionlessDelegatorRequest) (*AddPermissionlessDelegatorResponse, error)
@@ -464,6 +476,9 @@ func (UnimplementedControlServiceServer) RPCVersion(context.Context, *RPCVersion
 }
 func (UnimplementedControlServiceServer) Start(context.Context, *StartRequest) (*StartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+}
+func (UnimplementedControlServiceServer) Attach(context.Context, *AttachRequest) (*AttachResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Attach not implemented")
 }
 func (UnimplementedControlServiceServer) CreateBlockchains(context.Context, *CreateBlockchainsRequest) (*CreateBlockchainsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBlockchains not implemented")
@@ -579,6 +594,24 @@ func _ControlService_Start_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).Start(ctx, req.(*StartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_Attach_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttachRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).Attach(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_Attach_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).Attach(ctx, req.(*AttachRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1014,6 +1047,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Start",
 			Handler:    _ControlService_Start_Handler,
+		},
+		{
+			MethodName: "Attach",
+			Handler:    _ControlService_Attach_Handler,
 		},
 		{
 			MethodName: "CreateBlockchains",
