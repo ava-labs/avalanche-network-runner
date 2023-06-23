@@ -261,20 +261,20 @@ func (node *localNode) GetConfig() node.Config {
 // See node.Node
 func (node *localNode) GetFlag(k string) (string, error) {
 	var v string
-	if node.config.ConfigFile != "" {
-		var configFileMap map[string]interface{}
-		if err := json.Unmarshal([]byte(node.config.ConfigFile), &configFileMap); err != nil {
-			return "", err
-		}
-		vIntf, ok := configFileMap[k]
+	if node.config.Flags != nil {
+		vIntf, ok := node.config.Flags[k]
 		if ok {
 			v, ok = vIntf.(string)
 			if !ok {
 				return "", fmt.Errorf("unexpected type for %q expected string got %T", k, vIntf)
 			}
 		}
-	} else if node.config.Flags != nil {
-		vIntf, ok := node.config.Flags[k]
+	} else if node.config.ConfigFile != "" {
+		var configFileMap map[string]interface{}
+		if err := json.Unmarshal([]byte(node.config.ConfigFile), &configFileMap); err != nil {
+			return "", err
+		}
+		vIntf, ok := configFileMap[k]
 		if ok {
 			v, ok = vIntf.(string)
 			if !ok {

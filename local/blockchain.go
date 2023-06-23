@@ -611,11 +611,12 @@ func (ln *localNetwork) restartNodes(
 		nodeConfig.Flags[config.TrackSubnetsKey] = tracked
 
 		if needsRestart && node.ssh != "" {
-			ln.log.Info("setting config file for attached node", zap.String("name", node.name))
+			ln.log.Info("setting config file for node", zap.String("name", node.name))
 			bs, err := json.Marshal(nodeConfig.Flags)
 			if err != nil {
 				return err
 			}
+			nodeConfig.ConfigFile = string(bs)
 			tmpPath := "/tmp/" + node.name + "_config.json"
 			if err := os.WriteFile(tmpPath, bs, 0644); err != nil {
 				return err
