@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -396,10 +397,14 @@ func (s *server) Attach(_ context.Context, req *rpcpb.AttachRequest) (*rpcpb.Att
 	if s.network != nil {
 		return nil, ErrAlreadyBootstrapped
 	}
-	var err error
+	usr, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		logLevel:     s.cfg.LogLevel,
 		snapshotsDir: s.cfg.SnapshotsDir,
+		pluginDir:    usr.HomeDir + "/.avalanche-network-runner/pluginDir/",
 	})
 	if err != nil {
 		return nil, err
@@ -1538,14 +1543,18 @@ func getNetworkBlockchainSpec(
 
 	// there is no default plugindir from the ANR point of view, will not check if not given
 	if pluginDir != "" {
-		if err := utils.CheckPluginPath(
-			filepath.Join(pluginDir, vmID.String()),
-		); err != nil {
-			return network.BlockchainSpec{}, err
+		vmPath := filepath.Join(pluginDir, vmID.String())
+		if err := utils.CheckPluginPath(vmPath); err != nil {
+			log.Error("vm binary file not found locally", zap.String("path", vmPath))
+			return network.BlockchainSpec{}, fmt.Errorf("vm binary file not found locally %q %w", vmPath, err)
 		}
 	}
 
-	genesisBytes := readFileOrString(spec.Genesis)
+	genesisBytes, err := os.ReadFile(spec.Genesis)
+	if err != nil {
+		log.Error("could not read genesis file", zap.String("path", spec.Genesis))
+		return network.BlockchainSpec{}, err
+	}
 
 	var chainConfigBytes []byte
 	if spec.ChainConfig != "" {
