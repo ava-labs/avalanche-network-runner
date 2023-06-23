@@ -10,8 +10,6 @@ import (
 	"strings"
 	"syscall"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -368,46 +366,4 @@ func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
 		snapshots = append(snapshots, strings.TrimPrefix(filepath.Base(match), snapshotPrefix))
 	}
 	return snapshots, nil
-}
-
-func NewAttachedNetwork(
-	log logging.Logger,
-	avalancheOpsYaml string,
-) (network.Network, error) {
-	net, err := newNetwork(
-		log,
-		api.NewAPIClient,
-		&nodeProcessCreator{
-			colorPicker: utils.NewColorPicker(),
-			log:         log,
-			stdout:      os.Stdout,
-			stderr:      os.Stderr,
-		},
-		"",
-		"",
-		false,
-	)
-	if err != nil {
-		return net, err
-	}
-	err = net.attach(
-		context.Background(),
-		avalancheOpsYaml,
-	)
-	return net, err
-}
-
-func (ln *localNetwork) attach(
-	ctx context.Context,
-	avalancheOpsYaml string,
-) error {
-	ln.lock.Lock()
-	defer ln.lock.Unlock()
-	var avalancheOpsData map[string]interface{}
-	err := yaml.Unmarshal([]byte(avalancheOpsYaml), &avalancheOpsData)
-	if err != nil {
-		return err
-	}
-	fmt.Println(avalancheOpsData)
-	return nil
 }
