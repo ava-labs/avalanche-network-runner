@@ -50,7 +50,7 @@ func NewAttachedNetwork(
 }
 
 func (ln *localNetwork) attach(
-	ctx context.Context,
+	_ context.Context,
 	avalancheOpsYaml string,
 ) error {
 	ln.lock.Lock()
@@ -99,13 +99,13 @@ func (ln *localNetwork) attach(
 	}
 	for _, createdNode := range createdNodes {
 		nodeMap := createdNode.(map[string]interface{})
-		machineId := nodeMap["machineId"].(string)
+		machineID := nodeMap["machineId"].(string)
 		nodeIDStr := nodeMap["nodeId"].(string)
 		nodeID, err := ids.NodeIDFromString(nodeIDStr)
 		if err != nil {
 			return err
 		}
-		publicIp := nodeMap["publicIp"].(string)
+		publicIP := nodeMap["publicIp"].(string)
 		httpEndpoint := nodeMap["httpEndpoint"].(string)
 		apiPortStr := strings.Split(httpEndpoint, ":")[2]
 		apiPort64, err := strconv.ParseUint(apiPortStr, 10, 16)
@@ -113,13 +113,10 @@ func (ln *localNetwork) attach(
 			return err
 		}
 		apiPort := uint16(apiPort64)
-		nodeProcess, err := newFakeNodeProcess(machineId, ln.log)
-		if err != nil {
-			return err
-		}
-		ln.log.Info("getting config file for node", zap.String("name", machineId))
-		tmpPath := "/tmp/" + machineId + "_config.json"
-		if out, err := execScpCmd(sshCmds[publicIp], "/data/avalanche-configs/config.json", tmpPath, false); err != nil {
+		nodeProcess := newFakeNodeProcess(machineID, ln.log)
+		ln.log.Info("getting config file for node", zap.String("name", machineID))
+		tmpPath := "/tmp/" + machineID + "_config.json"
+		if out, err := execScpCmd(sshCmds[publicIP], "/data/avalanche-configs/config.json", tmpPath, false); err != nil {
 			ln.log.Debug(out)
 			return err
 		}
@@ -131,14 +128,14 @@ func (ln *localNetwork) attach(
 		if err := json.Unmarshal(bs, &flags); err != nil {
 			return err
 		}
-		ln.nodes[machineId] = &localNode{
-			name:    machineId,
+		ln.nodes[machineID] = &localNode{
+			name:    machineID,
 			nodeID:  nodeID,
-			client:  ln.newAPIClientF(publicIp, apiPort),
+			client:  ln.newAPIClientF(publicIP, apiPort),
 			apiPort: apiPort,
 			process: nodeProcess,
-			IP:      publicIp,
-			ssh:     sshCmds[publicIp],
+			IP:      publicIP,
+			ssh:     sshCmds[publicIP],
 			logsDir: "/var/log/avalanchego/",
 			config: node.Config{
 				Flags:      flags,
@@ -149,7 +146,7 @@ func (ln *localNetwork) attach(
 	return nil
 }
 
-func getBaseSshCmd(cmdLine string) (string, []string) {
+func getBaseSSHCmd(cmdLine string) (string, []string) {
 	cmd := ""
 	args := []string{}
 	for i, ws := range strings.Split(cmdLine, "\"") {
@@ -168,19 +165,19 @@ func getBaseSshCmd(cmdLine string) (string, []string) {
 	return cmd, args
 }
 
-func execSshCmd(baseSsh string, remoteCmd string) (string, error) {
-	cmd, args := getBaseSshCmd(baseSsh)
+func execSSHCmd(baseSSH string, remoteCmd string) (string, error) {
+	cmd, args := getBaseSSHCmd(baseSSH)
 	args = append(args, remoteCmd)
 	exeCmd := exec.Command(cmd, args...)
 	out, err := exeCmd.CombinedOutput()
 	return string(out), err
 }
 
-func execScpCmd(baseSsh string, remoteFilePath string, localFilePath string, isUpload bool) (string, error) {
-	cmd, args := getBaseSshCmd(baseSsh)
+func execScpCmd(baseSSH string, remoteFilePath string, localFilePath string, isUpload bool) (string, error) {
+	_, args := getBaseSSHCmd(baseSSH)
 	key := args[3]
 	userMachine := args[4]
-	cmd = "scp"
+	cmd := "scp"
 	if isUpload {
 		args = []string{"-i", key, localFilePath, userMachine + ":" + remoteFilePath}
 	} else {

@@ -228,13 +228,13 @@ func (ln *localNetwork) installCustomChains(
 		}
 		vmIDsList := vmIDsSet.List()
 		for _, vmID := range vmIDsList {
-			localVmPath := filepath.Join(ln.localPluginDir, vmID)
-			localVmPathGz := localVmPath + ".gz"
-			vmFname := filepath.Base(localVmPath)
-			vmFnameGz := filepath.Base(localVmPathGz)
+			localVMPath := filepath.Join(ln.localPluginDir, vmID)
+			localVMPathGz := localVMPath + ".gz"
+			vmFname := filepath.Base(localVMPath)
+			vmFnameGz := filepath.Base(localVMPathGz)
 			installed := false
 			for _, node := range ln.nodes {
-				if _, err := execSshCmd(node.ssh, "sudo ls /data/avalanche-plugins/"+vmFname); err == nil {
+				if _, err := execSSHCmd(node.ssh, "sudo ls /data/avalanche-plugins/"+vmFname); err == nil {
 					installed = true
 					break
 				}
@@ -243,19 +243,18 @@ func (ln *localNetwork) installCustomChains(
 				continue
 			}
 			ln.log.Info("uploading vm binary to s3", zap.String("id", vmID))
-			if _, err := os.Stat(localVmPathGz); err != nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					exeCmd := exec.Command("gzip", "-k", localVmPath)
-					out, err := exeCmd.CombinedOutput()
-					if err != nil {
-						fmt.Println(out)
-						return nil, err
-					}
-				} else {
+			if _, err := os.Stat(localVMPathGz); err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					return nil, err
+				}
+				exeCmd := exec.Command("gzip", "-k", localVMPath)
+				out, err := exeCmd.CombinedOutput()
+				if err != nil {
+					fmt.Println(out)
 					return nil, err
 				}
 			}
-			exeCmd := exec.Command("aws", "s3", "cp", localVmPathGz, "s3://"+ln.s3Bucket+"/"+ln.s3Key+"/")
+			exeCmd := exec.Command("aws", "s3", "cp", localVMPathGz, "s3://"+ln.s3Bucket+"/"+ln.s3Key+"/")
 			out, err := exeCmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -263,24 +262,24 @@ func (ln *localNetwork) installCustomChains(
 			}
 			for _, node := range ln.nodes {
 				ln.log.Info("downloading vm binary on node", zap.String("name", node.name))
-				out, err := execSshCmd(node.ssh, "aws s3 cp s3://"+ln.s3Bucket+"/"+ln.s3Key+"/"+vmFnameGz+" /tmp/"+vmFnameGz)
+				out, err := execSSHCmd(node.ssh, "aws s3 cp s3://"+ln.s3Bucket+"/"+ln.s3Key+"/"+vmFnameGz+" /tmp/"+vmFnameGz)
 				if err != nil {
-					fmt.Println(string(out))
+					fmt.Println(out)
 					return nil, err
 				}
-				out, err = execSshCmd(node.ssh, "gunzip -f /tmp/"+vmFnameGz)
+				out, err = execSSHCmd(node.ssh, "gunzip -f /tmp/"+vmFnameGz)
 				if err != nil {
-					fmt.Println(string(out))
+					fmt.Println(out)
 					return nil, err
 				}
-				out, err = execSshCmd(node.ssh, "sudo cp /tmp/"+vmFname+" /data/avalanche-plugins")
+				out, err = execSSHCmd(node.ssh, "sudo cp /tmp/"+vmFname+" /data/avalanche-plugins")
 				if err != nil {
-					fmt.Println(string(out))
+					fmt.Println(out)
 					return nil, err
 				}
-				out, err = execSshCmd(node.ssh, "sudo chmod +x /data/avalanche-plugins/"+vmFname)
+				out, err = execSSHCmd(node.ssh, "sudo chmod +x /data/avalanche-plugins/"+vmFname)
 				if err != nil {
-					fmt.Println(string(out))
+					fmt.Println(out)
 					return nil, err
 				}
 			}
@@ -595,7 +594,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 					}
 				} else {
 					ln.log.Info("checking log for attached node")
-					if _, err := execSshCmd(node.ssh, "sudo ls "+p); err == nil {
+					if _, err := execSSHCmd(node.ssh, "sudo ls "+p); err == nil {
 						ln.log.Info("found the log", zap.String("path", p))
 						break
 					}
@@ -700,14 +699,14 @@ func (ln *localNetwork) restartNodes(
 			}
 			nodeConfig.ConfigFile = string(bs)
 			tmpPath := "/tmp/" + node.name + "_config.json"
-			if err := os.WriteFile(tmpPath, bs, 0644); err != nil {
+			if err := os.WriteFile(tmpPath, bs, 0o644); err != nil { //nolint
 				return err
 			}
 			if out, err := execScpCmd(node.ssh, tmpPath, tmpPath, true); err != nil {
 				ln.log.Debug(out)
 				return err
 			}
-			out, err := execSshCmd(node.ssh, "sudo cp "+tmpPath+"  "+"/data/avalanche-configs/config.json")
+			out, err := execSSHCmd(node.ssh, "sudo cp "+tmpPath+"  "+"/data/avalanche-configs/config.json")
 			if err != nil {
 				ln.log.Debug(out)
 				return err

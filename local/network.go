@@ -848,7 +848,7 @@ func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
 		}
 	} else {
 		ln.log.Info("pausing attached node")
-		out, err := execSshCmd(node.ssh, "sudo systemctl stop avalanchego.service")
+		out, err := execSSHCmd(node.ssh, "sudo systemctl stop avalanchego.service")
 		if err != nil {
 			ln.log.Debug(out)
 			return err
@@ -896,7 +896,7 @@ func (ln *localNetwork) resumeNode(
 		}
 	} else {
 		ln.log.Info("resuming attached node")
-		out, err := execSshCmd(node.ssh, "sudo systemctl start avalanchego.service")
+		out, err := execSSHCmd(node.ssh, "sudo systemctl start avalanchego.service")
 		if err != nil {
 			ln.log.Debug(out)
 			return err
@@ -988,7 +988,7 @@ func (ln *localNetwork) restartNode(
 	} else {
 		// TODO: add all extra complexity. This changed mainly to enable subnet/blockchain creation.
 		ln.log.Info("restarting attached node")
-		out, err := execSshCmd(node.ssh, "sudo systemctl restart avalanchego.service")
+		out, err := execSSHCmd(node.ssh, "sudo systemctl restart avalanchego.service")
 		if err != nil {
 			ln.log.Debug(out)
 			return err

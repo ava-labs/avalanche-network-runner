@@ -224,18 +224,18 @@ type fakeNodeProcess struct {
 	log  logging.Logger
 }
 
-func newFakeNodeProcess(name string, log logging.Logger) (*fakeNodeProcess, error) {
+func newFakeNodeProcess(name string, log logging.Logger) *fakeNodeProcess {
 	np := &fakeNodeProcess{
 		name: name,
 		log:  log,
 	}
-	return np, nil
+	return np
 }
 
-func (p *fakeNodeProcess) Stop(ctx context.Context) int {
+func (*fakeNodeProcess) Stop(context.Context) int {
 	return 0
 }
 
-func (p *fakeNodeProcess) Status() status.Status {
+func (*fakeNodeProcess) Status() status.Status {
 	return status.Running
 }
