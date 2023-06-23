@@ -1544,11 +1544,7 @@ func getNetworkBlockchainSpec(
 		}
 	}
 
-	genesisBytes, err := os.ReadFile(spec.Genesis)
-	if err != nil {
-		log.Error("could not read genesis file", zap.String("path", spec.Genesis))
-		return network.BlockchainSpec{}, err
-	}
+	genesisBytes := readFileOrString(spec.Genesis)
 
 	var chainConfigBytes []byte
 	if spec.ChainConfig != "" {
