@@ -218,3 +218,24 @@ func (*nodeProcessCreator) GetNodeVersion(config node.Config) (string, error) {
 	}
 	return string(out), nil
 }
+
+type fakeNodeProcess struct {
+	name string
+	log  logging.Logger
+}
+
+func newFakeNodeProcess(name string, log logging.Logger) (*fakeNodeProcess, error) {
+	np := &fakeNodeProcess{
+		name: name,
+		log:  log,
+	}
+	return np, nil
+}
+
+func (p *fakeNodeProcess) Stop(ctx context.Context) int {
+	return 0
+}
+
+func (p *fakeNodeProcess) Status() status.Status {
+	return status.Running
+}

@@ -78,6 +78,7 @@ type localNode struct {
 	// signals that the process is stopped but the information is valid
 	// and can be resumed
 	paused bool
+	IP     string
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -199,6 +200,9 @@ func (node *localNode) GetAPIClient() api.Client {
 func (node *localNode) GetURL() string {
 	if node.httpHost == "0.0.0.0" || node.httpHost == "." {
 		return "0.0.0.0"
+	}
+	if node.IP != "" {
+		return node.IP
 	}
 	return "127.0.0.1"
 }
