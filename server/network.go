@@ -251,6 +251,32 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 	return nil
 }
 
+func (lc *localNetwork) Attach(ctx context.Context, avalancheOpsYaml string) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("attach to a network")))
+	nw, err := local.NewAttachedNetwork(lc.log, avalancheOpsYaml)
+	if err != nil {
+		return err
+	}
+	lc.nw = nw
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Creates the blockchains specified in [chainSpecs].
 // Assumes [lc.lock] isn't held.
 func (lc *localNetwork) CreateChains(

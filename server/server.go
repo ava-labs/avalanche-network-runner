@@ -389,6 +389,48 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	return &rpcpb.StartResponse{ClusterInfo: clusterInfo, ChainIds: strChainIDs}, nil
 }
 
+func (s *server) Attach(_ context.Context, req *rpcpb.AttachRequest) (*rpcpb.AttachResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.log.Debug("attach")
+	if s.network != nil {
+		return nil, ErrAlreadyBootstrapped
+	}
+	var err error
+	s.network, err = newLocalNetwork(localNetworkOptions{
+		logLevel:     s.cfg.LogLevel,
+		snapshotsDir: s.cfg.SnapshotsDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	pid := int32(os.Getpid())
+	s.log.Info("attach starting", zap.Int32("pid", pid))
+	s.clusterInfo = &rpcpb.ClusterInfo{
+		Pid: pid,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	if err := s.network.Attach(ctx, req.AvalancheOpsYaml); err != nil {
+		s.log.Warn("attach failed to complete", zap.Error(err))
+		s.stopAndRemoveNetwork(nil)
+		return nil, err
+	}
+	err = s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
+	if err != nil {
+		s.log.Warn("attach failed to complete", zap.Error(err))
+		s.stopAndRemoveNetwork(err)
+		return nil, err
+	}
+	s.updateClusterInfo()
+	s.log.Info("network healthy")
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AttachResponse{ClusterInfo: clusterInfo}, nil
+}
+
 // Asssumes [s.mu] is held.
 func (s *server) updateClusterInfo() {
 	if s.network == nil {
