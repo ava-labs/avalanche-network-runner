@@ -10,5 +10,11 @@
       "old_name": "whitelisted-subnets",
       "new_name": "track-subnets",
       "value_map": ""
+  },
+  {
+      "version": "v1.10.4",
+      "old_name": "genesis",
+      "new_name": "genesis-file",
+      "value_map": ""
   }
 ]
