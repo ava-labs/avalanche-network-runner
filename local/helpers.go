@@ -101,7 +101,7 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, genesisFileName),
 			path:      filepath.Join(nodeRootDir, genesisFileName),
-			pathKey:   config.GenesisConfigFileKey,
+			pathKey:   config.GenesisFileKey,
 			contents:  genesis,
 		})
 	}
