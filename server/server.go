@@ -1380,6 +1380,80 @@ func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesReques
 	return &rpcpb.GetSnapshotNamesResponse{SnapshotNames: snapshotNames}, nil
 }
 
+func (s *server) ListSubnets(context.Context, *rpcpb.ListSubnetsRequest) (*rpcpb.ListSubnetsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListSubnets")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	subnetIDs := maps.Keys(s.clusterInfo.Subnets)
+
+	return &rpcpb.ListSubnetsResponse{SubnetIds: subnetIDs}, nil
+}
+
+func (s *server) ListBlockchains(context.Context, *rpcpb.ListBlockchainsRequest) (*rpcpb.ListBlockchainsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListBlockchains")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	blockchains := maps.Values(s.clusterInfo.CustomChains)
+
+	return &rpcpb.ListBlockchainsResponse{Blockchains: blockchains}, nil
+}
+
+func (s *server) ListRpcs(context.Context, *rpcpb.ListRpcsRequest) (*rpcpb.ListRpcsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListRpcs")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	blockchainsRpcs := []*rpcpb.BlockchainRpcs{}
+	for _, chain := range s.clusterInfo.CustomChains {
+		rpcs := []*rpcpb.NodeRpc{}
+		nodeNames := s.clusterInfo.Subnets[chain.SubnetId].SubnetParticipants.NodeNames
+		sort.Strings(nodeNames)
+		for _, nodeName := range nodeNames {
+			rpc := fmt.Sprintf("%s/ext/bc/%s/rpc", s.clusterInfo.NodeInfos[nodeName].Uri, chain.ChainId)
+			nodeRPC := rpcpb.NodeRpc{
+				NodeName: nodeName,
+				Rpc:      rpc,
+			}
+			rpcs = append(rpcs, &nodeRPC)
+		}
+		blockchainRpcs := rpcpb.BlockchainRpcs{
+			BlockchainId: chain.ChainId,
+			Rpcs:         rpcs,
+		}
+		blockchainsRpcs = append(blockchainsRpcs, &blockchainRpcs)
+	}
+
+	return &rpcpb.ListRpcsResponse{BlockchainsRpcs: blockchainsRpcs}, nil
+}
+
+func (s *server) VMID(_ context.Context, req *rpcpb.VMIDRequest) (*rpcpb.VMIDResponse, error) {
+	s.log.Info("VMID")
+
+	vmID, err := utils.VMID(req.VmName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpcpb.VMIDResponse{VmId: vmID.String()}, nil
+}
+
 func isClientCanceled(ctxErr error, err error) bool {
 	if ctxErr != nil {
 		return true

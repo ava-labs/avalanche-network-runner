@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"syscall"
 	"time"
 
@@ -24,7 +23,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 )
 
 func init() {
@@ -1360,15 +1358,21 @@ func newVMIDCommand() *cobra.Command {
 }
 
 func VMIDFunc(_ *cobra.Command, args []string) error {
-	if setLogs() != nil {
-		return nil
-	}
 	vmName := args[0]
-	vmID, err := utils.VMID(vmName)
+	cli, err := newClient()
 	if err != nil {
 		return err
 	}
-	ux.Print(log, logging.Green.Wrap("VMID: %s"), vmID.String())
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	vmID, err := cli.VMID(ctx, vmName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("VMID: %s"), vmID)
 	return nil
 }
 
@@ -1390,17 +1394,16 @@ func listSubnetsFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.Status(ctx)
+	subnetIDs, err := cli.ListSubnets(ctx)
 	cancel()
 	if err != nil {
 		return err
 	}
 
-	if resp.ClusterInfo != nil && resp.ClusterInfo.Subnets != nil {
-		for _, subnetID := range maps.Keys(resp.ClusterInfo.Subnets) {
-			ux.Print(log, logging.Green.Wrap("Subnet ID: %s"), subnetID)
-		}
+	for _, subnetID := range subnetIDs {
+		ux.Print(log, logging.Green.Wrap("Subnet ID: %s"), subnetID)
 	}
+
 	return nil
 }
 
@@ -1422,22 +1425,21 @@ func listBlockchainsFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.Status(ctx)
+	resp, err := cli.ListBlockchains(ctx)
 	cancel()
 	if err != nil {
 		return err
 	}
 
-	if resp.ClusterInfo != nil && resp.ClusterInfo.CustomChains != nil {
+	ux.Print(log, "")
+	for _, blockchain := range resp {
+		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchain.ChainId)
+		ux.Print(log, logging.Green.Wrap("    VM Name: %s"), blockchain.ChainName)
+		ux.Print(log, logging.Green.Wrap("    VM ID: %s"), blockchain.VmId)
+		ux.Print(log, logging.Green.Wrap("    Subnet ID: %s"), blockchain.SubnetId)
 		ux.Print(log, "")
-		for blockchainID, blockchain := range resp.ClusterInfo.CustomChains {
-			ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchainID)
-			ux.Print(log, logging.Green.Wrap("    VM Name: %s"), blockchain.ChainName)
-			ux.Print(log, logging.Green.Wrap("    VM ID: %s"), blockchain.VmId)
-			ux.Print(log, logging.Green.Wrap("    Subnet ID: %s"), blockchain.SubnetId)
-			ux.Print(log, "")
-		}
 	}
+
 	return nil
 }
 
@@ -1459,24 +1461,19 @@ func listRPCsFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.Status(ctx)
+	resp, err := cli.ListRpcs(ctx)
 	cancel()
 	if err != nil {
 		return err
 	}
 
-	if resp.ClusterInfo != nil && resp.ClusterInfo.CustomChains != nil {
-		ux.Print(log, "")
-		for blockchainID := range resp.ClusterInfo.CustomChains {
-			ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchainID)
-			nodeNames := maps.Keys(resp.ClusterInfo.NodeInfos)
-			sort.Strings(nodeNames)
-			for _, nodeName := range nodeNames {
-				node := resp.ClusterInfo.NodeInfos[nodeName]
-				ux.Print(log, logging.Green.Wrap("    %s: %s/ext/bc/%s/rpc"), nodeName, node.Uri, blockchainID)
-			}
-			ux.Print(log, "")
+	ux.Print(log, "")
+	for _, blockchainRpcs := range resp {
+		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchainRpcs.BlockchainId)
+		for _, rpc := range blockchainRpcs.Rpcs {
+			ux.Print(log, logging.Green.Wrap("    %s: %s"), rpc.NodeName, rpc.Rpc)
 		}
+		ux.Print(log, "")
 	}
 	return nil
 }
