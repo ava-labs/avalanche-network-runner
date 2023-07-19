@@ -1422,11 +1422,19 @@ func (s *server) ListRpcs(context.Context, *rpcpb.ListRpcsRequest) (*rpcpb.ListR
 
 	blockchainsRpcs := []*rpcpb.BlockchainRpcs{}
 	for _, chain := range s.clusterInfo.CustomChains {
-		rpcs := []*rpcpb.NodeRpc{}
-		nodeNames := s.clusterInfo.Subnets[chain.SubnetId].SubnetParticipants.NodeNames
+		subnetInfo, ok := s.clusterInfo.Subnets[chain.SubnetId]
+		if !ok {
+			return nil, fmt.Errorf("subnet %q not found in subnet info", chain.SubnetId)
+		}
+		nodeNames := subnetInfo.SubnetParticipants.NodeNames
 		sort.Strings(nodeNames)
+		rpcs := []*rpcpb.NodeRpc{}
 		for _, nodeName := range nodeNames {
-			rpc := fmt.Sprintf("%s/ext/bc/%s/rpc", s.clusterInfo.NodeInfos[nodeName].Uri, chain.ChainId)
+			nodeInfo, ok := s.clusterInfo.NodeInfos[nodeName]
+			if !ok {
+				return nil, fmt.Errorf("node %q not found in node info", nodeName)
+			}
+			rpc := fmt.Sprintf("%s/ext/bc/%s/rpc", nodeInfo.Uri, chain.ChainId)
 			nodeRPC := rpcpb.NodeRpc{
 				NodeName: nodeName,
 				Rpc:      rpc,
