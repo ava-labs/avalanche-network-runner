@@ -480,6 +480,18 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 }
 
 // See network.Network
+func (ln *localNetwork) GetNetworkID() (uint32, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	if ln.stopCalled() {
+		return 0, network.ErrStopped
+	}
+
+	return ln.networkID, nil
+}
+
+// See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()

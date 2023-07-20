@@ -395,6 +395,7 @@ func (s *server) updateClusterInfo() {
 		// stop may have been called
 		return
 	}
+	s.clusterInfo.NetworkId = s.network.networkID
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	sort.Strings(s.clusterInfo.NodeNames)
