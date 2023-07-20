@@ -739,7 +739,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		}
 		proofOfPossession := signer.NewProofOfPossession(blsSk)
 		cctx, cancel = createDefaultCtx(ctx)
-		txID, err := w.pWallet.IssueAddPermissionlessValidatorTx(
+		tx, err := w.pWallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
 					NodeID: nodeID,
@@ -766,7 +766,7 @@ func (ln *localNetwork) addPrimaryValidators(
 		if err != nil {
 			return fmt.Errorf("P-Wallet Tx Error %s %w, node ID %s", "IssueAddPermissionlessValidatorTx", err, nodeID.String())
 		}
-		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", txID.String()))
+		ln.log.Info("added node as primary subnet validator", zap.String("node-name", nodeName), zap.String("node-ID", nodeID.String()), zap.String("tx-ID", tx.ID().String()))
 	}
 	return nil
 }
@@ -780,7 +780,7 @@ func getXChainAssetID(ctx context.Context, w *wallet, tokenName string, tokenSym
 	}
 	cctx, cancel := createDefaultCtx(ctx)
 	defer cancel()
-	return w.xWallet.IssueCreateAssetTx(
+	tx, err := w.xWallet.IssueCreateAssetTx(
 		tokenName,
 		tokenSymbol,
 		9, // denomination for UI purposes only in explorer
@@ -795,6 +795,10 @@ func getXChainAssetID(ctx context.Context, w *wallet, tokenName string, tokenSym
 		common.WithContext(cctx),
 		defaultPoll,
 	)
+	if err != nil {
+		return ids.Empty, err
+	}
+	return tx.ID(), nil
 }
 
 func exportXChainToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners, subnetAssetID ids.ID, assetAmount uint64) error {
@@ -885,7 +889,7 @@ func (ln *localNetwork) removeSubnetValidators(
 				return fmt.Errorf("node %s is currently not a subnet validator of subnet %s", nodeName, subnetID.String())
 			}
 			cctx, cancel := createDefaultCtx(ctx)
-			txID, err := w.pWallet.IssueRemoveSubnetValidatorTx(
+			tx, err := w.pWallet.IssueRemoveSubnetValidatorTx(
 				nodeID,
 				subnetID,
 				common.WithContext(cctx),
@@ -899,9 +903,9 @@ func (ln *localNetwork) removeSubnetValidators(
 				zap.String("node-name", nodeName),
 				zap.String("node-ID", nodeID.String()),
 				zap.String("subnet-ID", subnetID.String()),
-				zap.String("tx-ID", txID.String()),
+				zap.String("tx-ID", tx.ID().String()),
 			)
-			removeSubnetSpecIDs[i] = txID
+			removeSubnetSpecIDs[i] = tx.ID()
 		}
 	}
 	return ln.restartNodes(ctx, nil, nil, nil, removeSubnetSpecs, nil)
@@ -972,7 +976,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		} else {
 			endTime = uint64(delegatorSpec.StartTime.Add(delegatorSpec.StakeDuration).Unix())
 		}
-		txID, err := w.pWallet.IssueAddPermissionlessDelegatorTx(
+		tx, err := w.pWallet.IssueAddPermissionlessDelegatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
 					NodeID: validatorNodeID,
@@ -991,7 +995,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		if err != nil {
 			return err
 		}
-		ln.log.Info("Successfully delegated to a validator", zap.String("TX ID", txID.String()))
+		ln.log.Info("Successfully delegated to a validator", zap.String("TX ID", tx.ID().String()))
 	}
 	return nil
 }
@@ -1085,7 +1089,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 		} else {
 			endTime = uint64(validatorSpec.StartTime.Add(validatorSpec.StakeDuration).Unix())
 		}
-		txID, err := w.pWallet.IssueAddPermissionlessValidatorTx(
+		tx, err := w.pWallet.IssueAddPermissionlessValidatorTx(
 			&txs.SubnetValidator{
 				Validator: txs.Validator{
 					NodeID: validatorNodeID,
@@ -1107,7 +1111,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 		if err != nil {
 			return err
 		}
-		ln.log.Info("Validator successfully added as permissionless validator", zap.String("TX ID", txID.String()))
+		ln.log.Info("Validator successfully added as permissionless validator", zap.String("TX ID", tx.ID().String()))
 	}
 	return ln.restartNodes(ctx, nil, nil, validatorSpecs, nil, nil)
 }
@@ -1171,7 +1175,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 			return nil, nil, err
 		}
 		cctx, cancel := createDefaultCtx(ctx)
-		transformSubnetTxID, err := w.pWallet.IssueTransformSubnetTx(subnetID, subnetAssetID,
+		transformSubnetTx, err := w.pWallet.IssueTransformSubnetTx(subnetID, subnetAssetID,
 			elasticSubnetSpec.InitialSupply, elasticSubnetSpec.MaxSupply, elasticSubnetSpec.MinConsumptionRate,
 			elasticSubnetSpec.MaxConsumptionRate, elasticSubnetSpec.MinValidatorStake, elasticSubnetSpec.MaxValidatorStake,
 			elasticSubnetSpec.MinStakeDuration, elasticSubnetSpec.MaxStakeDuration, elasticSubnetSpec.MinDelegationFee,
@@ -1183,9 +1187,9 @@ func (ln *localNetwork) transformToElasticSubnets(
 		if err != nil {
 			return nil, nil, err
 		}
-		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTxID.String()))
-		elasticSubnetIDs[i] = transformSubnetTxID
-		ln.subnetID2ElasticSubnetID[subnetID] = transformSubnetTxID
+		ln.log.Info("Subnet transformed into elastic subnet", zap.String("TX ID", transformSubnetTx.ID().String()))
+		elasticSubnetIDs[i] = transformSubnetTx.ID()
+		ln.subnetID2ElasticSubnetID[subnetID] = transformSubnetTx.ID()
 	}
 	return elasticSubnetIDs, assetIDs, nil
 }
@@ -1210,7 +1214,7 @@ func createSubnets(
 	for i := uint32(0); i < numSubnets; i++ {
 		log.Info("creating subnet tx")
 		cctx, cancel := createDefaultCtx(ctx)
-		subnetID, err := w.pWallet.IssueCreateSubnetTx(
+		subnetTx, err := w.pWallet.IssueCreateSubnetTx(
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
 				Addrs:     []ids.ShortID{w.addr},
@@ -1222,8 +1226,8 @@ func createSubnets(
 		if err != nil {
 			return nil, fmt.Errorf("P-Wallet Tx Error %s %w", "IssueCreateSubnetTx", err)
 		}
-		log.Info("created subnet tx", zap.String("subnet-ID", subnetID.String()))
-		subnetIDs[i] = subnetID
+		log.Info("created subnet tx", zap.String("subnet-ID", subnetTx.ID().String()))
+		subnetIDs[i] = subnetTx.ID()
 	}
 	return subnetIDs, nil
 }
@@ -1271,7 +1275,7 @@ func (ln *localNetwork) addSubnetValidators(
 				continue
 			}
 			cctx, cancel := createDefaultCtx(ctx)
-			txID, err := w.pWallet.IssueAddSubnetValidatorTx(
+			tx, err := w.pWallet.IssueAddSubnetValidatorTx(
 				&txs.SubnetValidator{
 					Validator: txs.Validator{
 						NodeID: nodeID,
@@ -1293,7 +1297,7 @@ func (ln *localNetwork) addSubnetValidators(
 				zap.String("node-name", nodeName),
 				zap.String("node-ID", nodeID.String()),
 				zap.String("subnet-ID", subnetID.String()),
-				zap.String("tx-ID", txID.String()),
+				zap.String("tx-ID", tx.ID().String()),
 			)
 		}
 	}
@@ -1566,22 +1570,18 @@ func (*localNetwork) createBlockchains(
 		cctx, cancel := createDefaultCtx(ctx)
 		defer cancel()
 
-		blockchainID, err := w.pWallet.IssueTx(
+		if err := w.pWallet.IssueTx(
 			blockchainTxs[i],
 			common.WithContext(cctx),
 			defaultPoll,
-		)
-		if err != nil {
+		); err != nil {
 			return fmt.Errorf("P-Wallet Tx Error %s %w, blockchainID %s", "IssueCreateBlockchainTx", err, blockchainTxs[i].ID().String())
-		}
-		if blockchainID != blockchainTxs[i].ID() {
-			return fmt.Errorf("failure issuing create blockchain: txID differs from blockchainID")
 		}
 
 		log.Info("created a new blockchain",
 			zap.String("vm-name", vmName),
 			zap.String("vm-ID", vmID.String()),
-			zap.String("blockchain-ID", blockchainID.String()),
+			zap.String("blockchain-ID", blockchainTxs[i].ID().String()),
 		)
 	}
 
