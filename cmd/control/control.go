@@ -244,9 +244,6 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to assign dynamic ports",
 	)
-	if err := cmd.MarkPersistentFlagRequired("avalanchego-path"); err != nil {
-		panic(err)
-	}
 	return cmd
 }
 
