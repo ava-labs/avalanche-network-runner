@@ -9,8 +9,8 @@ if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   exit 255
 fi
 
-DEFAULT_VERSION_1=1.10.5
-DEFAULT_VERSION_2=1.10.4
+DEFAULT_VERSION_1=1.10.4
+DEFAULT_VERSION_2=1.10.3
 DEFAULT_SUBNET_EVM_VERSION=0.5.2
 
 if [ $# == 0 ]; then
