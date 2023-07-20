@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -156,7 +155,6 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	if err := ln.stop(ctx); err != nil {
 		return "", err
 	}
-	syscall.Sync()
 	// create main snapshot dirs
 	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	if err := os.MkdirAll(snapshotDBDir, os.ModePerm); err != nil {
