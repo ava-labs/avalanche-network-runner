@@ -105,8 +105,8 @@ avalanche-network-runner server \
 
 Note that the above command will run until you stop it with `CTRL + C`. You should run further commands in a separate terminal.
 
-Note: If you export the environment variables `AVALANCHEGO_EXEC_PATH` and `AVALANCHEGO_PLUGIN_PATH` previously to launching the server,
-they will be considered as default, and, used if the control command params are not provided.
+Note: If you set the environment variables `AVALANCHEGO_EXEC_PATH` and `AVALANCHEGO_PLUGIN_PATH` previously to launching the server,
+they will be considered as default, and, used when the control command params are not provided.
 
 
 To ping the server:
