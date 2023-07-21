@@ -53,6 +53,8 @@ type localNetwork struct {
 	lock sync.Mutex
 	log  logging.Logger
 
+	networkID uint32
+
 	execPath  string
 	pluginDir string
 
@@ -674,6 +676,12 @@ func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) er
 	}
 
 	if err := lc.updateSubnetInfo(ctx); err != nil {
+		return err
+	}
+
+	var err error
+	lc.networkID, err = lc.nw.GetNetworkID()
+	if err != nil {
 		return err
 	}
 
