@@ -245,6 +245,7 @@ message ClusterInfo {
   // The map of blockchain IDs in "ids.ID" format to its blockchain information.
   map<string, CustomChainInfo> custom_chains = 8;
   map<string, SubnetInfo> subnets          = 9;
+  uint32 network_id                         = 10;
 }
 
 message SubnetInfo {
