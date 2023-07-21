@@ -81,6 +81,10 @@ func NewCommand() *cobra.Command {
 		newLoadSnapshotCommand(),
 		newRemoveSnapshotCommand(),
 		newGetSnapshotNamesCommand(),
+		newVMIDCommand(),
+		newListSubnetsCommand(),
+		newListBlockchainsCommand(),
+		newListRPCsCommand(),
 	)
 
 	return cmd
@@ -1340,6 +1344,137 @@ func getSnapshotNamesFunc(*cobra.Command, []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("Snapshots: %s"), snapshotNames)
+	return nil
+}
+
+func newVMIDCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "vmid vm-name",
+		Short: "Returns the vm id associated to the given vm name.",
+		RunE:  VMIDFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
+func VMIDFunc(_ *cobra.Command, args []string) error {
+	vmName := args[0]
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	vmID, err := cli.VMID(ctx, vmName)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("VMID: %s"), vmID)
+	return nil
+}
+
+func newListSubnetsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-subnets",
+		Short: "Lists all subnet ids of the network.",
+		RunE:  listSubnetsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	return cmd
+}
+
+func listSubnetsFunc(*cobra.Command, []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	subnetIDs, err := cli.ListSubnets(ctx)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	for _, subnetID := range subnetIDs {
+		ux.Print(log, logging.Green.Wrap("Subnet ID: %s"), subnetID)
+	}
+
+	return nil
+}
+
+func newListBlockchainsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-blockchains",
+		Short: "Lists all blockchain ids of the network.",
+		RunE:  listBlockchainsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	return cmd
+}
+
+func listBlockchainsFunc(*cobra.Command, []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.ListBlockchains(ctx)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, "")
+	for _, blockchain := range resp {
+		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchain.ChainId)
+		ux.Print(log, logging.Green.Wrap("    VM Name: %s"), blockchain.ChainName)
+		ux.Print(log, logging.Green.Wrap("    VM ID: %s"), blockchain.VmId)
+		ux.Print(log, logging.Green.Wrap("    Subnet ID: %s"), blockchain.SubnetId)
+		ux.Print(log, "")
+	}
+
+	return nil
+}
+
+func newListRPCsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-rpcs",
+		Short: "Lists rpcs for all blockchain of the network.",
+		RunE:  listRPCsFunc,
+		Args:  cobra.ExactArgs(0),
+	}
+	return cmd
+}
+
+func listRPCsFunc(*cobra.Command, []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	resp, err := cli.ListRpcs(ctx)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, "")
+	for _, blockchainRpcs := range resp {
+		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchainRpcs.BlockchainId)
+		for _, rpc := range blockchainRpcs.Rpcs {
+			ux.Print(log, logging.Green.Wrap("    %s: %s"), rpc.NodeName, rpc.Rpc)
+		}
+		ux.Print(log, "")
+	}
 	return nil
 }
 
