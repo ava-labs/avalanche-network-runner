@@ -349,7 +349,7 @@ curl -X POST -k http://localhost:8081/v1/control/listsubnets
 avalanche-network-runner control list-subnets
 ```
 
-_Note: To create a blockchain, the vm binary for it should be present under AVALANCHEGO_PLUGIN_DIR, with a filename equal to the vm id.
+_Note: To create a blockchain, the vm binary for it should be present under `AVALANCHEGO_PLUGIN_DIR`, with a filename equal to the vm id.
 But, ANR receives a vm name as param, and uses it to generate a vm id to look for. So there is a need to get the expected
 vm id from a user given vm name._
 
