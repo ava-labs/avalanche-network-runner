@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -480,6 +479,18 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 }
 
 // See network.Network
+func (ln *localNetwork) GetNetworkID() (uint32, error) {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	if ln.stopCalled() {
+		return 0, network.ErrStopped
+	}
+
+	return ln.networkID, nil
+}
+
+// See network.Network
 func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -843,7 +854,6 @@ func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
 	if exitCode := node.process.Stop(ctx); exitCode != 0 {
 		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
-	syscall.Sync()
 	node.paused = true
 	return nil
 }
@@ -964,7 +974,6 @@ func (ln *localNetwork) restartNode(
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
 		}
-		syscall.Sync()
 	}
 
 	if _, err := ln.addNode(nodeConfig); err != nil {

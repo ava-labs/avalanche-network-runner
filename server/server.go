@@ -275,11 +275,13 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		return nil, ErrNotEnoughNodesForStart
 	}
 
-	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
+	execPath := applyDefaultExecPath(req.GetExecPath())
+	pluginDir := applyDefaultPluginDir(req.GetPluginDir())
+
+	if err := utils.CheckExecPath(execPath); err != nil {
 		return nil, err
 	}
 
-	pluginDir := req.GetPluginDir()
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		s.log.Info("plugin-dir:", zap.String("plugin-dir", pluginDir))
@@ -293,7 +295,6 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	}
 
 	var (
-		execPath          = req.GetExecPath()
 		numNodes          = req.GetNumNodes()
 		trackSubnets      = req.GetWhitelistedSubnets()
 		rootDataDir       = req.GetRootDataDir()
@@ -395,6 +396,7 @@ func (s *server) updateClusterInfo() {
 		// stop may have been called
 		return
 	}
+	s.clusterInfo.NetworkId = s.network.networkID
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
 	sort.Strings(s.clusterInfo.NodeNames)
@@ -1007,14 +1009,15 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		}
 	}
 
-	if req.GetPluginDir() != "" {
-		nodeFlags[config.PluginDirKey] = req.GetPluginDir()
+	pluginDir := applyDefaultPluginDir(req.GetPluginDir())
+	if pluginDir != "" {
+		nodeFlags[config.PluginDirKey] = pluginDir
 	}
 
 	nodeConfig := node.Config{
 		Name:               req.Name,
 		Flags:              nodeFlags,
-		BinaryPath:         req.GetExecPath(),
+		BinaryPath:         applyDefaultExecPath(req.GetExecPath()),
 		RedirectStdout:     s.cfg.RedirectNodesOutput,
 		RedirectStderr:     s.cfg.RedirectNodesOutput,
 		ChainConfigFiles:   req.ChainConfigs,
@@ -1083,8 +1086,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if err := s.network.nw.RestartNode(
 		ctx,
 		req.Name,
-		req.GetExecPath(),
-		req.GetPluginDir(),
+		applyDefaultExecPath(req.GetExecPath()),
+		applyDefaultPluginDir(req.GetPluginDir()),
 		req.GetWhitelistedSubnets(),
 		req.GetChainConfigs(),
 		req.GetUpgradeConfigs(),
@@ -1281,8 +1284,8 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:            req.GetExecPath(),
-		pluginDir:           req.GetPluginDir(),
+		execPath:            applyDefaultExecPath(req.GetExecPath()),
+		pluginDir:           applyDefaultPluginDir(req.GetPluginDir()),
 		rootDataDir:         rootDataDir,
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
@@ -1378,6 +1381,88 @@ func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesReques
 		return nil, err
 	}
 	return &rpcpb.GetSnapshotNamesResponse{SnapshotNames: snapshotNames}, nil
+}
+
+func (s *server) ListSubnets(context.Context, *rpcpb.ListSubnetsRequest) (*rpcpb.ListSubnetsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListSubnets")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	subnetIDs := maps.Keys(s.clusterInfo.Subnets)
+
+	return &rpcpb.ListSubnetsResponse{SubnetIds: subnetIDs}, nil
+}
+
+func (s *server) ListBlockchains(context.Context, *rpcpb.ListBlockchainsRequest) (*rpcpb.ListBlockchainsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListBlockchains")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	blockchains := maps.Values(s.clusterInfo.CustomChains)
+
+	return &rpcpb.ListBlockchainsResponse{Blockchains: blockchains}, nil
+}
+
+func (s *server) ListRpcs(context.Context, *rpcpb.ListRpcsRequest) (*rpcpb.ListRpcsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("ListRpcs")
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	blockchainsRpcs := []*rpcpb.BlockchainRpcs{}
+	for _, chain := range s.clusterInfo.CustomChains {
+		subnetInfo, ok := s.clusterInfo.Subnets[chain.SubnetId]
+		if !ok {
+			return nil, fmt.Errorf("subnet %q not found in subnet info", chain.SubnetId)
+		}
+		nodeNames := subnetInfo.SubnetParticipants.NodeNames
+		sort.Strings(nodeNames)
+		rpcs := []*rpcpb.NodeRpc{}
+		for _, nodeName := range nodeNames {
+			nodeInfo, ok := s.clusterInfo.NodeInfos[nodeName]
+			if !ok {
+				return nil, fmt.Errorf("node %q not found in node info", nodeName)
+			}
+			rpc := fmt.Sprintf("%s/ext/bc/%s/rpc", nodeInfo.Uri, chain.ChainId)
+			nodeRPC := rpcpb.NodeRpc{
+				NodeName: nodeName,
+				Rpc:      rpc,
+			}
+			rpcs = append(rpcs, &nodeRPC)
+		}
+		blockchainRpcs := rpcpb.BlockchainRpcs{
+			BlockchainId: chain.ChainId,
+			Rpcs:         rpcs,
+		}
+		blockchainsRpcs = append(blockchainsRpcs, &blockchainRpcs)
+	}
+
+	return &rpcpb.ListRpcsResponse{BlockchainsRpcs: blockchainsRpcs}, nil
+}
+
+func (s *server) VMID(_ context.Context, req *rpcpb.VMIDRequest) (*rpcpb.VMIDResponse, error) {
+	s.log.Info("VMID")
+
+	vmID, err := utils.VMID(req.VmName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpcpb.VMIDResponse{VmId: vmID.String()}, nil
 }
 
 func isClientCanceled(ctxErr error, err error) bool {
@@ -1580,4 +1665,24 @@ func readFileOrString(conf string) []byte {
 		return []byte(conf)
 	}
 	return confBytes
+}
+
+// if [userGivenExecPath] is non empty, returns it
+// otherwise if env var utils.DefaultExecPathEnvVar is
+// defined, returns its contents
+func applyDefaultExecPath(userGivenExecPath string) string {
+	if userGivenExecPath != "" {
+		return userGivenExecPath
+	}
+	return os.Getenv(constants.DefaultExecPathEnvVar)
+}
+
+// if [userGivenPluginDir] is non empty, returns it
+// otherwise if env var utils.DefaultPluginDirEnvVar is
+// defined, returns its contents
+func applyDefaultPluginDir(userGivenPluginDir string) string {
+	if userGivenPluginDir != "" {
+		return userGivenPluginDir
+	}
+	return os.Getenv(constants.DefaultPluginDirEnvVar)
 }

@@ -111,7 +111,7 @@ networks and creating blockchains if no command line flags are passed.
 To ping the server:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/ping -d ''
+curl -X POST -k http://localhost:8081/v1/ping
 
 # or
 avalanche-network-runner ping \
@@ -214,7 +214,7 @@ avalanche-network-runner control start \
 To wait for all the nodes in the cluster to become healthy:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/health -d ''
+curl -X POST -k http://localhost:8081/v1/control/health
 
 # or
 avalanche-network-runner control health \
@@ -225,7 +225,7 @@ avalanche-network-runner control health \
 To get the API endpoints of all nodes in the cluster:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/uris -d ''
+curl -X POST -k http://localhost:8081/v1/control/uris
 
 # or
 avalanche-network-runner control uris \
@@ -236,7 +236,7 @@ avalanche-network-runner control uris \
 To query the cluster status from the server:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/status -d ''
+curl -X POST -k http://localhost:8081/v1/control/status
 
 # or
 avalanche-network-runner control status \
@@ -258,7 +258,7 @@ stream-status \
 To save the network to a snapshot:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshot_name":"node5"}'
+curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshotName":"node5"}'
 
 # or
 avalanche-network-runner control save-snapshot snapshotName
@@ -267,7 +267,7 @@ avalanche-network-runner control save-snapshot snapshotName
 To load a network from a snapshot:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5"}'
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshotName":"node5"}'
 
 # or
 avalanche-network-runner control load-snapshot snapshotName
@@ -277,7 +277,7 @@ An avalanchego binary path and/or plugin dir can be specified when loading the s
 optional. If not specified, will use the paths saved with the snapshot:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshot_name":"node5","execPath":"'${AVALANCHEGO_EXEC_PATH}'","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'"}'
+curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshotName":"node5","execPath":"'${AVALANCHEGO_EXEC_PATH}'","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'"}'
 
 # or
 avalanche-network-runner control load-snapshot snapshotName --avalanchego-path ${AVALANCHEGO_EXEC_PATH} --plugin-dir ${AVALANCHEGO_PLUGIN_PATH}
@@ -295,7 +295,7 @@ avalanche-network-runner control get-snapshot-names
 To remove a snapshot:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshot_name":"node5"}'
+curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshotName":"node5"}'
 
 # or
 avalanche-network-runner control remove-snapshot snapshotName
@@ -304,7 +304,7 @@ avalanche-network-runner control remove-snapshot snapshotName
 To create 1 validated subnet, with all existing nodes as participants (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{}]'
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{}]}'
 
 # or
 avalanche-network-runner control create-subnets '[{}]'
@@ -313,7 +313,7 @@ avalanche-network-runner control create-subnets '[{}]'
 To create 1 validated subnet, with some of existing nodes as participants (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{"participants": ["node1", "node2"]}]'
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs:" [{"participants": ["node1", "node2"]}]}'
 
 # or
 avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2"]}]'
@@ -322,7 +322,7 @@ avalanche-network-runner control create-subnets '[{"participants": ["node1", "no
 To create 1 validated subnet, with some of existing nodes and another new node as participants (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{"participants": ["node1", "node2", "testNode"]}]'
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{"participants": ["node1", "node2", "testNode"]}]}'
 
 # or
 avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2", "testNode"]}]'
@@ -332,7 +332,7 @@ avalanche-network-runner control create-subnets '[{"participants": ["node1", "no
 To create N validated subnets (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '[{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]'
+curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]}'
 
 # or
 avalanche-network-runner control create-subnets '[{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]'
@@ -362,7 +362,7 @@ avalanche-network-runner control vmid ${VM_NAME}
 To create a blockchain without a subnet id (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]'
@@ -371,7 +371,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 Genesis can be given either as file path or file contents:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]'
@@ -380,7 +380,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 To create a blockchain with a subnet id (does not require restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetId":"'$SUBNET_ID'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'"}]'
@@ -389,7 +389,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 To create a blockchain with a subnet id, and chain config, network upgrade and subnet config file paths (requires network restart):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetId": "'$SUBNET_ID'","chainConfig": "'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
@@ -399,7 +399,7 @@ To create a blockchain with a new subnet id with select nodes as participants (r
 (New nodes will first be added as primary validators similar to the process in `create-subnets`)
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["node1", "node2", "testNode"]}"]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["node1", "node2", "testNode"]}"]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": "{"participants": ["node1", "node2", "testNode"]}]'
@@ -408,7 +408,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 To create two blockchains in two disjoint subnets (not shared validators), and where all validators have bls keys (participants new to the network):
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node1", "new_node2"]}},{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node3", "new_node4"]}}]'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["new_node1", "new_node2"]}},{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["new_node3", "new_node4"]}}]'
 
 # or
 go run main.go control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node1", "new_node2"]}},{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_spec": {"participants": ["new_node3", "new_node4"]}}]'
@@ -429,7 +429,7 @@ Chain config can also be defined on a per node basis. For that, a per node chain
 Then a blockchain with different chain configs per node can be created with this command:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginDir":"'$PLUGIN_DIR'","blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnetId": "'$SUBNET_ID'","perNodeChainConfig": "'$PER_NODE_CHAIN_CONFIG'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
@@ -584,7 +584,7 @@ avalanche-network-runner control send-outbound-message \
 To terminate the cluster:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/stop -d ''
+curl -X POST -k http://localhost:8081/v1/control/stop
 
 # or
 avalanche-network-runner control stop \
@@ -600,11 +600,11 @@ To transform permissioned Subnets into permissionless Subnets (NOTE: this action
 
 Values provided below are the default values on [Primary Network on Mainnet](https://docs.avax.network/subnets/reference-elastic-subnets-parameters#primary-network-parameters-on-mainnet).
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/elasticsubnets -d '[{"subnet_id":"'$SUBNET_ID'", "asset_name":"'$ASSET_NAME'", 
-"asset_symbol":"'$ASSET_SYMBOL'", "initial_supply": 240000000, "max_supply": 720000000, "min_consumption_rate": 100000, 
-"max_consumption_rate": 120000, "min_validator_stake": 2000, "max_validator_stake": 3000000, "min_stake_duration": 336, 
-"max_stake_duration": 8760, "min_delegation_fee": 20000, "min_delegator_stake": 25, "max_validator_weight_factor": 5, 
-"uptime_requirement": 800000}]'
+curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"elasticSubnetSpec": [{"subnetId":"'$SUBNET_ID'","assetName":"'$ASSET_NAME'", 
+"assetSymbol":"'$ASSET_SYMBOL'", "initialSupply": 240000000, "maxSupply": 720000000, "minConsumption_rate": 100000, 
+"maxConsumption_rate": 120000, "minValidatorStake": 2000, "maxValidatorStake": 3000000, "minStakeDuration": 336, 
+"maxStakeDuration": 8760, "minDelegationFee": 20000, "minDelegatorStake": 25, "maxValidatorWeightFactor": 5, 
+"uptimeRequirement": 800000}]}'
 
 # or
 avalanche-network-runner control elastic-subnets '[{"subnet_id":"'$SUBNET_ID'", "asset_name":"'$ASSET_NAME'", 
@@ -625,8 +625,8 @@ when the command was called and the node will be a validator until the node stop
 Note: Asset ID is returned by elastic-subnets command
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/addpermissionlessvalidator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", 
-"staked_token_amount": 2000, "asset_id": "'$ASSET_ID'", "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+curl -X POST -k http://localhost:8081/v1/control/addpermissionlessvalidator  -d '{"validatorSpec": [{"subnetId":"'$SUBNET_ID'","nodeName":"node1", 
+"stakedTokenAmount": 2000, "assetId": "'$ASSET_ID'", "startTime": "2023-05-25 21:00:00", "stakeDuration": 336}]}'
 
 # or
 avalanche-network-runner control add-permissionless-validator '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", 
@@ -636,10 +636,10 @@ avalanche-network-runner control add-permissionless-validator '[{"subnet_id": "'
 To remove a node as a permissioned validator from a Subnet:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
 
 # or
-avalanche-network-runner control remove-subnet-validator '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+avalanche-network-runner control remove-subnet-validator '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
 ```
 
 To delegate stake in a permissionless validator in an Elastic Subnet:
@@ -650,7 +650,7 @@ If `start_time` and `stake_duration` are omitted, the default value for validati
 when the command was called and the stake will be delegated until the node stops validating on the primary network.
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/addpermissionlessdelegator  -d '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", "asset_id": "'$ASSET_ID'", "staked_token_amount": 2000, "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
+curl -X POST -k http://localhost:8081/v1/control/addpermissionlessdelegator  -d '{"validatorSpec": [{"subnetId": "'$SUBNET_ID'", "nodeName":"node1", "assetId": "'$ASSET_ID'", "stakedTokenAmount": 2000, "startTime": "2023-05-25 21:00:00", "stakeDuration": 336}]}'
 
 # or
 avalanche-network-runner control ./bin/avalanche-network-runner control add-permissionless-delegator '[{"subnet_id": "'$SUBNET_ID'", "node_name":"node1", "asset_id": "'$ASSET_ID'", "staked_token_amount": 2000, "start_time": "2023-05-25 21:00:00", "stake_duration": 336}]'
@@ -667,7 +667,7 @@ avalanche-network-runner server \
 --grpc-gateway-port=":8081"
 
 # make sure network-runner server is up
-curl -X POST -k http://localhost:8081/v1/ping -d ''
+curl -X POST -k http://localhost:8081/v1/ping
 ```
 
 To start the cluster with custom chains:
@@ -767,13 +767,13 @@ avalanche-network-runner control start \
 
 ```bash
 # to get cluster information including blockchain ID
-curl -X POST -k http://localhost:8081/v1/control/status -d ''
+curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 Blockchain config file, network upgrade file, and subnet config file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'","subnet_config":"'$SUBNET_CONFIG_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chainConfig":"'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control start \
@@ -795,7 +795,7 @@ avalanche-network-runner server \
 --grpc-gateway-port=":8081"
 
 # make sure network-runner server is up
-curl -X POST -k http://localhost:8081/v1/ping -d ''
+curl -X POST -k http://localhost:8081/v1/ping
 ```
 
 To start the cluster with custom chains:
@@ -853,13 +853,13 @@ avalanche-network-runner control start \
 
 ```bash
 # to get cluster information including blockchain ID
-curl -X POST -k http://localhost:8081/v1/control/status -d ''
+curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
 
 ```bash
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chain_config":"'$CHAIN_CONFIG_PATH'","network_upgrade":"'$NETWORK_UPGRADE_PATH'","subnet_config":"'$SUBNET_CONFIG_PATH'"}]}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chainConfig":"'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
 avalanche-network-runner control start \
@@ -881,7 +881,7 @@ avalanche-network-runner server \
 --grpc-gateway-port=":8081"
 
 # make sure network-runner server is up
-curl -X POST -k http://localhost:8081/v1/ping -d ''
+curl -X POST -k http://localhost:8081/v1/ping
 ```
 
 To start the cluster with custom chains:
@@ -926,7 +926,7 @@ echo hello > /tmp/timestampvm.genesis.json
 AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
 
-curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vmName":"timestampvm","genesis":"/tmp/timestampvm.genesis.json","blockchain_alias":"timestamp"}]}'
+curl -X POST -k http://localhost:8081/v1/control/start -d '{"execPath":"'${AVALANCHEGO_EXEC_PATH}'","numNodes":5,"logLevel":"INFO","pluginDir":"'${AVALANCHEGO_PLUGIN_PATH}'","blockchainSpecs":[{"vmName":"timestampvm","genesis":"/tmp/timestampvm.genesis.json","blockchainAlias":"timestamp"}]}'
 
 # or
 avalanche-network-runner control start \
@@ -939,7 +939,7 @@ avalanche-network-runner control start \
 
 ```bash
 # to get cluster information including blockchain ID
-curl -X POST -k http://localhost:8081/v1/control/status -d ''
+curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 To call `timestampvm` APIs:

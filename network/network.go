@@ -65,6 +65,9 @@ type BlockchainSpec struct {
 
 // Network is an abstraction of an Avalanche network
 type Network interface {
+	// Returns the network ID for the currently running network
+	// Returns ErrStopped if Stop() was previously called.
+	GetNetworkID() (uint32, error)
 	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.

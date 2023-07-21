@@ -498,11 +498,11 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 	})
 
 	ginkgo.It("can start", func() {
-		ginkgo.By("start request with invalid exec path should fail", func() {
+		ginkgo.By("start request with empty exec path should fail", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			_, err := cli.Start(ctx, "")
 			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrInvalidExecPath.Error()))
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring(utils.ErrEmptyExecPath.Error()))
 		})
 
 		ginkgo.By("start request with invalid exec path should fail", func() {

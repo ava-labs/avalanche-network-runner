@@ -47,14 +47,14 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 }
 
 var (
-	ErrInvalidExecPath = errors.New("avalanche exec is invalid")
+	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
 	ErrNotExists       = errors.New("avalanche exec not exists")
 	ErrNotExistsPlugin = errors.New("plugin exec not exists")
 )
 
 func CheckExecPath(exec string) error {
 	if exec == "" {
-		return ErrInvalidExecPath
+		return ErrEmptyExecPath
 	}
 	_, err := os.Stat(exec)
 	if err != nil {
