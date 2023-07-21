@@ -196,6 +196,34 @@ service ControlService {
       body: "*"
     };
   }
+
+  rpc ListSubnets(ListSubnetsRequest) returns (ListSubnetsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/listsubnets"
+      body: "*"
+    };
+  }
+
+  rpc ListBlockchains(ListBlockchainsRequest) returns (ListBlockchainsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/listblockchains"
+      body: "*"
+    };
+  }
+
+  rpc ListRpcs(ListRpcsRequest) returns (ListRpcsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/listrpcs"
+      body: "*"
+    };
+  }
+
+  rpc VMID(VMIDRequest) returns (VMIDResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/vmid"
+      body: "*"
+    };
+  }
 }
 
 message SubnetParticipants {
@@ -636,3 +664,43 @@ message GetSnapshotNamesRequest {
 message GetSnapshotNamesResponse {
   repeated string snapshot_names = 1;
 }
+
+message ListSubnetsRequest {
+}
+
+message ListSubnetsResponse {
+  repeated string subnet_ids = 1;
+}
+
+message ListBlockchainsRequest {
+}
+
+message ListBlockchainsResponse {
+  repeated CustomChainInfo blockchains = 1;
+}
+
+message ListRpcsRequest {
+}
+
+message NodeRpc {
+  string node_name = 1;
+  string rpc = 2;
+}
+
+message BlockchainRpcs {
+  string blockchain_id = 1;
+  repeated NodeRpc rpcs = 2;
+}
+
+message ListRpcsResponse {
+  repeated BlockchainRpcs blockchains_rpcs = 1;
+}
+
+message VMIDRequest {
+  string vm_name = 1;
+}
+
+message VMIDResponse {
+  string vm_id = 1;
+}
+

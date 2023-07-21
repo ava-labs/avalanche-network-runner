@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -855,7 +854,6 @@ func (ln *localNetwork) pauseNode(ctx context.Context, nodeName string) error {
 	if exitCode := node.process.Stop(ctx); exitCode != 0 {
 		return fmt.Errorf("node %q exited with exit code: %d", nodeName, exitCode)
 	}
-	syscall.Sync()
 	node.paused = true
 	return nil
 }
@@ -976,7 +974,6 @@ func (ln *localNetwork) restartNode(
 		if err := ln.removeNode(ctx, nodeName); err != nil {
 			return err
 		}
-		syscall.Sync()
 	}
 
 	if _, err := ln.addNode(nodeConfig); err != nil {
