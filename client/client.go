@@ -55,6 +55,10 @@ type Client interface {
 	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
 	GetSnapshotNames(ctx context.Context) ([]string, error)
+	ListSubnets(ctx context.Context) ([]string, error)
+	ListBlockchains(ctx context.Context) ([]*rpcpb.CustomChainInfo, error)
+	ListRpcs(ctx context.Context) ([]*rpcpb.BlockchainRpcs, error)
+	VMID(ctx context.Context, vmName string) (string, error)
 }
 
 type client struct {
@@ -390,6 +394,42 @@ func (c *client) GetSnapshotNames(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	return resp.SnapshotNames, nil
+}
+
+func (c *client) ListSubnets(ctx context.Context) ([]string, error) {
+	c.log.Info("list subnets")
+	resp, err := c.controlc.ListSubnets(ctx, &rpcpb.ListSubnetsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.SubnetIds, nil
+}
+
+func (c *client) ListBlockchains(ctx context.Context) ([]*rpcpb.CustomChainInfo, error) {
+	c.log.Info("list blockchains")
+	resp, err := c.controlc.ListBlockchains(ctx, &rpcpb.ListBlockchainsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Blockchains, nil
+}
+
+func (c *client) ListRpcs(ctx context.Context) ([]*rpcpb.BlockchainRpcs, error) {
+	c.log.Info("list rpcs")
+	resp, err := c.controlc.ListRpcs(ctx, &rpcpb.ListRpcsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.BlockchainsRpcs, nil
+}
+
+func (c *client) VMID(ctx context.Context, vmName string) (string, error) {
+	c.log.Info("vmud")
+	resp, err := c.controlc.VMID(ctx, &rpcpb.VMIDRequest{VmName: vmName})
+	if err != nil {
+		return "", err
+	}
+	return resp.VmId, nil
 }
 
 func (c *client) Close() error {

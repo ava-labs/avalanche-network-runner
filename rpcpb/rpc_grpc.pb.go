@@ -134,6 +134,10 @@ const (
 	ControlService_LoadSnapshot_FullMethodName               = "/rpcpb.ControlService/LoadSnapshot"
 	ControlService_RemoveSnapshot_FullMethodName             = "/rpcpb.ControlService/RemoveSnapshot"
 	ControlService_GetSnapshotNames_FullMethodName           = "/rpcpb.ControlService/GetSnapshotNames"
+	ControlService_ListSubnets_FullMethodName                = "/rpcpb.ControlService/ListSubnets"
+	ControlService_ListBlockchains_FullMethodName            = "/rpcpb.ControlService/ListBlockchains"
+	ControlService_ListRpcs_FullMethodName                   = "/rpcpb.ControlService/ListRpcs"
+	ControlService_VMID_FullMethodName                       = "/rpcpb.ControlService/VMID"
 )
 
 // ControlServiceClient is the client API for ControlService service.
@@ -165,6 +169,10 @@ type ControlServiceClient interface {
 	LoadSnapshot(ctx context.Context, in *LoadSnapshotRequest, opts ...grpc.CallOption) (*LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, in *RemoveSnapshotRequest, opts ...grpc.CallOption) (*RemoveSnapshotResponse, error)
 	GetSnapshotNames(ctx context.Context, in *GetSnapshotNamesRequest, opts ...grpc.CallOption) (*GetSnapshotNamesResponse, error)
+	ListSubnets(ctx context.Context, in *ListSubnetsRequest, opts ...grpc.CallOption) (*ListSubnetsResponse, error)
+	ListBlockchains(ctx context.Context, in *ListBlockchainsRequest, opts ...grpc.CallOption) (*ListBlockchainsResponse, error)
+	ListRpcs(ctx context.Context, in *ListRpcsRequest, opts ...grpc.CallOption) (*ListRpcsResponse, error)
+	VMID(ctx context.Context, in *VMIDRequest, opts ...grpc.CallOption) (*VMIDResponse, error)
 }
 
 type controlServiceClient struct {
@@ -423,6 +431,42 @@ func (c *controlServiceClient) GetSnapshotNames(ctx context.Context, in *GetSnap
 	return out, nil
 }
 
+func (c *controlServiceClient) ListSubnets(ctx context.Context, in *ListSubnetsRequest, opts ...grpc.CallOption) (*ListSubnetsResponse, error) {
+	out := new(ListSubnetsResponse)
+	err := c.cc.Invoke(ctx, ControlService_ListSubnets_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) ListBlockchains(ctx context.Context, in *ListBlockchainsRequest, opts ...grpc.CallOption) (*ListBlockchainsResponse, error) {
+	out := new(ListBlockchainsResponse)
+	err := c.cc.Invoke(ctx, ControlService_ListBlockchains_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) ListRpcs(ctx context.Context, in *ListRpcsRequest, opts ...grpc.CallOption) (*ListRpcsResponse, error) {
+	out := new(ListRpcsResponse)
+	err := c.cc.Invoke(ctx, ControlService_ListRpcs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) VMID(ctx context.Context, in *VMIDRequest, opts ...grpc.CallOption) (*VMIDResponse, error) {
+	out := new(VMIDResponse)
+	err := c.cc.Invoke(ctx, ControlService_VMID_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlServiceServer is the server API for ControlService service.
 // All implementations must embed UnimplementedControlServiceServer
 // for forward compatibility
@@ -452,6 +496,10 @@ type ControlServiceServer interface {
 	LoadSnapshot(context.Context, *LoadSnapshotRequest) (*LoadSnapshotResponse, error)
 	RemoveSnapshot(context.Context, *RemoveSnapshotRequest) (*RemoveSnapshotResponse, error)
 	GetSnapshotNames(context.Context, *GetSnapshotNamesRequest) (*GetSnapshotNamesResponse, error)
+	ListSubnets(context.Context, *ListSubnetsRequest) (*ListSubnetsResponse, error)
+	ListBlockchains(context.Context, *ListBlockchainsRequest) (*ListBlockchainsResponse, error)
+	ListRpcs(context.Context, *ListRpcsRequest) (*ListRpcsResponse, error)
+	VMID(context.Context, *VMIDRequest) (*VMIDResponse, error)
 	mustEmbedUnimplementedControlServiceServer()
 }
 
@@ -533,6 +581,18 @@ func (UnimplementedControlServiceServer) RemoveSnapshot(context.Context, *Remove
 }
 func (UnimplementedControlServiceServer) GetSnapshotNames(context.Context, *GetSnapshotNamesRequest) (*GetSnapshotNamesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSnapshotNames not implemented")
+}
+func (UnimplementedControlServiceServer) ListSubnets(context.Context, *ListSubnetsRequest) (*ListSubnetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListSubnets not implemented")
+}
+func (UnimplementedControlServiceServer) ListBlockchains(context.Context, *ListBlockchainsRequest) (*ListBlockchainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBlockchains not implemented")
+}
+func (UnimplementedControlServiceServer) ListRpcs(context.Context, *ListRpcsRequest) (*ListRpcsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRpcs not implemented")
+}
+func (UnimplementedControlServiceServer) VMID(context.Context, *VMIDRequest) (*VMIDResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VMID not implemented")
 }
 func (UnimplementedControlServiceServer) mustEmbedUnimplementedControlServiceServer() {}
 
@@ -1000,6 +1060,78 @@ func _ControlService_GetSnapshotNames_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlService_ListSubnets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSubnetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).ListSubnets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_ListSubnets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).ListSubnets(ctx, req.(*ListSubnetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_ListBlockchains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBlockchainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).ListBlockchains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_ListBlockchains_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).ListBlockchains(ctx, req.(*ListBlockchainsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_ListRpcs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRpcsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).ListRpcs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_ListRpcs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).ListRpcs(ctx, req.(*ListRpcsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_VMID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VMIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).VMID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_VMID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).VMID(ctx, req.(*VMIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ControlService_ServiceDesc is the grpc.ServiceDesc for ControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1102,6 +1234,22 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSnapshotNames",
 			Handler:    _ControlService_GetSnapshotNames_Handler,
+		},
+		{
+			MethodName: "ListSubnets",
+			Handler:    _ControlService_ListSubnets_Handler,
+		},
+		{
+			MethodName: "ListBlockchains",
+			Handler:    _ControlService_ListBlockchains_Handler,
+		},
+		{
+			MethodName: "ListRpcs",
+			Handler:    _ControlService_ListRpcs_Handler,
+		},
+		{
+			MethodName: "VMID",
+			Handler:    _ControlService_VMID_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
