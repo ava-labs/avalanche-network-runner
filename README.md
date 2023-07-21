@@ -105,6 +105,9 @@ avalanche-network-runner server \
 
 Note that the above command will run until you stop it with `CTRL + C`. You should run further commands in a separate terminal.
 
+_Note: If the environment variables `AVALANCHEGO_EXEC_PATH` and `AVALANCHEGO_PLUGIN_PATH` are set, they will be used when starting
+networks and creating blockchains if no command line flags are passed.
+
 To ping the server:
 
 ```bash
@@ -336,6 +339,26 @@ avalanche-network-runner control create-subnets '[{}, {"participants": ["node1",
 
 ```
 
+To get a list of all the subnet ids:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/listsubnets
+
+# or
+avalanche-network-runner control list-subnets
+```
+
+_Note: To create a blockchain, the vm binary for it should be present under `AVALANCHEGO_PLUGIN_DIR`, with a filename equal to the vm id.
+
+The vm id can be derived from the vm name by using:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/vmid -d '{"vmName": "'${VM_NAME}'"}'
+
+# or
+avalanche-network-runner control vmid ${VM_NAME}
+```
+
 To create a blockchain without a subnet id (requires network restart):
 
 ```bash
@@ -410,6 +433,24 @@ curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"pluginD
 
 # or
 avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnet_id": "'$SUBNET_ID'", "per_node_chain_config": "'$PER_NODE_CHAIN_CONFIG'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
+```
+
+To get a list of all the blockchains (containing: blockchain id, subnet id, vm id, vm name):
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/listblockchains
+
+# or
+avalanche-network-runner control list-blockchains
+```
+
+To get a list of all the rpc urls given for all the blockchains and nodes:
+
+```bash
+curl -X POST -k http://localhost:8081/v1/control/listrpcs
+
+# or
+avalanche-network-runner control list-rpcs
 ```
 
 To remove (stop) a node:
