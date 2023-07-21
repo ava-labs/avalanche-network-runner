@@ -5,10 +5,12 @@ package constants
 import "path/filepath"
 
 const (
-	LogNameMain    = "main"
-	LogNameControl = "control"
-	LogNameTest    = "test"
-	RootDirPrefix  = "network-runner-root-data"
+	LogNameMain            = "main"
+	LogNameControl         = "control"
+	LogNameTest            = "test"
+	RootDirPrefix          = "network-runner-root-data"
+	DefaultExecPathEnvVar  = "AVALANCHEGO_EXEC_PATH"
+	DefaultPluginDirEnvVar = "AVALANCHEGO_PLUGIN_PATH"
 )
 
 var (

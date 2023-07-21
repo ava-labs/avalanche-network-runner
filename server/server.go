@@ -275,11 +275,13 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		return nil, ErrNotEnoughNodesForStart
 	}
 
-	if err := utils.CheckExecPath(req.GetExecPath()); err != nil {
+	execPath := applyDefaultExecPath(req.GetExecPath())
+	pluginDir := applyDefaultPluginDir(req.GetPluginDir())
+
+	if err := utils.CheckExecPath(execPath); err != nil {
 		return nil, err
 	}
 
-	pluginDir := req.GetPluginDir()
 	chainSpecs := []network.BlockchainSpec{}
 	if len(req.GetBlockchainSpecs()) > 0 {
 		s.log.Info("plugin-dir:", zap.String("plugin-dir", pluginDir))
@@ -293,7 +295,6 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	}
 
 	var (
-		execPath          = req.GetExecPath()
 		numNodes          = req.GetNumNodes()
 		trackSubnets      = req.GetWhitelistedSubnets()
 		rootDataDir       = req.GetRootDataDir()
@@ -1007,14 +1008,15 @@ func (s *server) AddNode(_ context.Context, req *rpcpb.AddNodeRequest) (*rpcpb.A
 		}
 	}
 
-	if req.GetPluginDir() != "" {
-		nodeFlags[config.PluginDirKey] = req.GetPluginDir()
+	pluginDir := applyDefaultPluginDir(req.GetPluginDir())
+	if pluginDir != "" {
+		nodeFlags[config.PluginDirKey] = pluginDir
 	}
 
 	nodeConfig := node.Config{
 		Name:               req.Name,
 		Flags:              nodeFlags,
-		BinaryPath:         req.GetExecPath(),
+		BinaryPath:         applyDefaultExecPath(req.GetExecPath()),
 		RedirectStdout:     s.cfg.RedirectNodesOutput,
 		RedirectStderr:     s.cfg.RedirectNodesOutput,
 		ChainConfigFiles:   req.ChainConfigs,
@@ -1083,8 +1085,8 @@ func (s *server) RestartNode(ctx context.Context, req *rpcpb.RestartNodeRequest)
 	if err := s.network.nw.RestartNode(
 		ctx,
 		req.Name,
-		req.GetExecPath(),
-		req.GetPluginDir(),
+		applyDefaultExecPath(req.GetExecPath()),
+		applyDefaultPluginDir(req.GetPluginDir()),
 		req.GetWhitelistedSubnets(),
 		req.GetChainConfigs(),
 		req.GetUpgradeConfigs(),
@@ -1281,8 +1283,8 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:            req.GetExecPath(),
-		pluginDir:           req.GetPluginDir(),
+		execPath:            applyDefaultExecPath(req.GetExecPath()),
+		pluginDir:           applyDefaultPluginDir(req.GetPluginDir()),
 		rootDataDir:         rootDataDir,
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
@@ -1662,4 +1664,24 @@ func readFileOrString(conf string) []byte {
 		return []byte(conf)
 	}
 	return confBytes
+}
+
+// if [userGivenExecPath] is non empty, returns it
+// otherwise if env var utils.DefaultExecPathEnvVar is
+// defined, returns its contents
+func applyDefaultExecPath(userGivenExecPath string) string {
+	if userGivenExecPath != "" {
+		return userGivenExecPath
+	}
+	return os.Getenv(constants.DefaultExecPathEnvVar)
+}
+
+// if [userGivenPluginDir] is non empty, returns it
+// otherwise if env var utils.DefaultPluginDirEnvVar is
+// defined, returns its contents
+func applyDefaultPluginDir(userGivenPluginDir string) string {
+	if userGivenPluginDir != "" {
+		return userGivenPluginDir
+	}
+	return os.Getenv(constants.DefaultPluginDirEnvVar)
 }
