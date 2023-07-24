@@ -1,8 +1,6 @@
 # Avalanche Network Runner
 
-## What is the Avalanche Network Runner?
-
-An Avalanche network is a collection of nodes utilizing the Avalanche consensus mechanism to come to agreement on the blockchains of the Primary Network and Subnets hosted on the network. The Avalanche Network Runner (ANR) is a tool to run and interact with a local Avalanche network.
+The Avalanche Network Runner (ANR) is a tool to run and interact with a local Avalanche network. An Avalanche network is a collection of nodes utilizing the Avalanche consensus mechanism to come to agreement on the blockchains of the Primary Network and Subnets hosted on the network.
 
 Each Avalanche network has its own Primary Network, which consists of the Contract (C), Platform (P), and Exchange (X) chain. Your local network is completely independent from the Mainnet or Fuji Testnet. You can even run your own Avalanche Network without being connected to the internet! Any local Avalanche network supports (but is not limited to) the following commands:
 
@@ -28,8 +26,6 @@ There are two ways you can interact with the Avalanche Network Runner:
 
 While the command line is handy for short commands (e.g. stopping the network), issuing more complex commands with more data, like adding a blockchain, can be hard from the command line. Therefore, we recommend using the HTTP endpoints for that. Both ways can be combined.
 
-## Delete me and below me
-
 ## Installation
 
 To download a binary for the latest release, run:
@@ -38,10 +34,10 @@ To download a binary for the latest release, run:
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
-To install a specific version, just append the desired version to the command (must be an existing github tag like v1.3.1)
+To install a specific version, just append the desired version to the command (must be an existing github tag like v1.7.1)
 
 ```zsh
-curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s v1.3.1
+curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s v1.7.1
 ```
 
 The binary will be installed inside the `~/bin` directory.
@@ -77,6 +73,14 @@ From inside the cloned directory:
 
 The binary will be installed inside the `./bin` directory.
 
+Pass in a path to have the binary installed in a different location than `./bin`.
+
+```zsh
+./scripts/build.sh build
+```
+
+In this example the binary will be installed inside the `./build` directory.
+
 To add the binary to your path, run
 
 ```zsh
@@ -106,24 +110,19 @@ To start it, execute inside the cloned directory:
 
 You can import this repository as a library in your Go program, but we recommend running `avalanche-network-runner` as a binary. This creates an RPC server that you can send requests to in order to start a network, add nodes to the network, remove nodes from the network, restart nodes, etc.. You can make requests through the `avalanche-network-runner` command or by making API calls. Requests are "translated" into gRPC and sent to the server. Requests can be made via curl or via a tool such as the [Avalanche Network Runner Postman Collection](https://github.com/ava-labs/avalanche-network-runner-postman-collection).
 
-**Why does `avalanche-network-runner` need an RPC server?** `avalanche-network-runner` needs to provide complex workflows such as replacing nodes, restarting nodes, injecting fail points, etc.. The RPC server exposes basic operations to enable a separation of concerns such that one team develops a test framework, and the other writes test cases and controlling logic.
-
-**Why gRPC?** The RPC server leads to more modular test components, and gRPC enables greater flexibility. The protocol buffer increases flexibility as we develop more complicated test cases. And gRPC opens up a variety of different approaches for how to write test controller (e.g., Rust). See [`rpcpb/rpc.proto`](./rpcpb/rpc.proto) for service definition.
-
-**Why gRPC gateway?** [gRPC gateway](https://grpc-ecosystem.github.io/grpc-gateway/) exposes gRPC API via HTTP, without us writing any code. Which can be useful if a test controller writer does not want to deal with gRPC.
-
 ## `avalanche-network-runner` Commands
+
+### Global Flags
+
+- `--dial-timeout duration`      server dial timeout (default 10s)
+- `--endpoint string`            server endpoint (default "0.0.0.0:8080")
+- `--log-dir string`             log directory
+- `--log-level string`           log level (default "INFO")
+- `--request-timeout duration`   client request timeout (default 3m0s)
 
 ### Ping
 
 Ping the server.
-
-#### Flags
-
-- `--dial-timeout duration` server dial timeout (default 10s)
-- `--endpoint string` server endpoint (default "0.0.0.0:8080")
-- `--log-level string` log level (default "INFO")
-- `--request-timeout duration` client request timeout (default 10s)
 
 #### Usage
 
@@ -137,15 +136,12 @@ cli
 
 ```zsh
 avalanche-network-runner ping
-[07-21|14:26:56.342] INFO client/client.go:103 ping
-[07-21|14:26:56.360] INFO ux/output.go:13 ping response: pid:4160
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/ping' \
---data ''
+curl --location --request POST 'http://localhost:8081/v1/ping'
 ```
 
 ### Server
@@ -159,7 +155,7 @@ Start a network runner server.
 #### Flags
 
 - `--dial-timeout duration` server dial timeout (default 10s)
-- `--disable-grpc-gateway`true to disable grpc-gateway server (overrides --grpc-gateway-port)
+- `--disable-grpc-gateway`true to disable grpc-gateway server (overrides `--grpc-gateway-port`)
 - `--disable-nodes-output` true to disable nodes stdout/stderr
 - `--grpc-gateway-port string` grpc-gateway server port (default ":8081")
 - `--log-dir string` log directory
@@ -173,9 +169,6 @@ cli
 
 ```zsh
 avalanche-network-runner server
-[07-21|14:38:46.653] INFO server/server.go:175 dialing gRPC server for gRPC gateway {"port": ":8080"}
-[07-21|14:38:46.653] INFO server/server.go:165 serving gRPC server {"port": ":8080"}
-[07-21|14:38:46.657] INFO server/server.go:199 serving gRPC gateway {"port": ":8081"}
 ```
 
 ### Control
@@ -188,7 +181,7 @@ Start a network runner controller.
 
 ### `add-node`
 
-Add a new node to the network
+Add a new node to the network.
 
 #### Flags
 
@@ -208,10 +201,7 @@ Add a new node to the network
 cli
 
 ```zsh
-avalanche-network-runner control add-node node99
-
-[07-21|17:19:00.874] INFO client/client.go:298 add node {"name": "node99"}
-[07-21|17:19:02.760] INFO ux/output.go:13 add node response: cluster_info:{node_names:"node1"  node_names:"node2"  node_names:"node3"  node_names:"node4"  node_names:"node5"  node_names:"node55"  node_names:"node99"
+avalanche-network-runner control add-node node6
 ```
 
 curl
@@ -220,12 +210,8 @@ curl
 curl --location 'http://localhost:8081/v1/control/addnode' \
 --header 'Content-Type: application/json' \
 --data '{
-  "name": "node55",
-  "logLevel": "INFO"
+  "name": "node6"
 }'
-
-
-{"clusterInfo":{"nodeNames":["node1", "node2", "node3", "node4", "node5", "node55"], "nodeInfos":{"node1":{"name":"node1",...}
 ```
 
 ### `add-permissionless-delegator`
@@ -241,6 +227,7 @@ Delegate to a permissionless validator in an elastic subnet
 cli
 
 ```zsh
+avalanche-network-runner control add-permissionless-delegator '{"validatorSpec":[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","node_name":"node5","asset_id":"U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK","staked_token_amount":2000,"start_time":"2023-09-25 21:00:00","stake_duration":336}]}'
 ```
 
 curl
@@ -249,12 +236,17 @@ curl
 curl --location 'http://localhost:8081/v1/control/addpermissionlessdelegator' \
 --header 'Content-Type: application/json' \
 --data '{
-    "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
-    "node_name": "node5",
-    "asset_id": "U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK",
-    "staked_token_amount": 2000,
-    "start_time": "2023-05-25 21:00:00",
-    "stake_duration": 336
+    "validatorSpec": [
+        {
+          "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
+          "node_name": "node5",
+          "asset_id": "U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK",
+          "staked_token_amount": 2000,
+          "start_time": "2023-09-25 21:00:00",
+          "stake_duration": 336
+        }
+    ]
+    
 }'
 ```
 
@@ -271,6 +263,7 @@ Add permissionless validator to elastic subnets.
 cli
 
 ```zsh
+avalanche-network-runner control add-permissionless-validator '[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","node_name":"node5","staked_token_amount":2000,"asset_id":"U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK","start_time":"2023-09-25 21:00:00","stake_duration":336}]'
 ```
 
 curl
@@ -279,14 +272,16 @@ curl
 curl --location 'http://localhost:8081/v1/control/addpermissionlessvalidator' \
 --header 'Content-Type: application/json' \
 --data '{
-    "subnet_id": "'\''p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
-    "node_name": "node5",
-    "staked_token_amount": 2000,
-    "asset_id": "Avalanche",
-    "start_time": "2023-05-25 21:00:00",
-    "stake_duration": 336  
-}
-'
+  "validatorSpec": [
+    {
+      "subnetId":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
+      "nodeName":"node1", 
+      "stakedTokenAmount": 2000, 
+      "assetId": "U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK", 
+      "startTime": "2023-05-25 21:00:00", 
+      "stakeDuration": 336
+    }
+]}'
 ```
 
 ### `attach-peer`
@@ -302,6 +297,7 @@ Attaches a peer to the node.
 cli
 
 ```zsh
+avalanche-network-runner control attach-peer node5
 ```
 
 curl
@@ -327,6 +323,7 @@ Create blockchains.
 cli
 
 ```zsh
+avalanche-network-runner control create-blockchains '[{"vm_name":"subnetevm","genesis":"/path/to/genesis.json", "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz"}]'
 ```
 
 curl
@@ -338,7 +335,7 @@ curl --location 'http://localhost:8081/v1/control/createblockchains' \
   "blockchainSpecs": [
     {
       "vm_name": "subnetevm",
-      "genesis": "/PATH/TO/genesis.json", 
+      "genesis": "/path/to/genesis.json", 
       "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz"
     }
   ]
@@ -358,6 +355,7 @@ Create subnets.
 cli
 
 ```zsh
+avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2", "node3", "node4", "node5"]}]'
 ```
 
 curl
@@ -392,30 +390,17 @@ avalanche-network-runner control elastic-subnets elastic_subnets_specs [options]
 cli
 
 ```zsh
+avalanche-network-runner control elastic-subnets '[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "asset_name":"Avalanche", 
+"asset_symbol":"AVAX", "initial_supply": 240000000, "max_supply": 720000000, "min_consumption_rate": 100000, 
+"max_consumption_rate": 120000, "min_validator_stake": 2000, "max_validator_stake": 3000000, "min_stake_duration": 336, 
+"max_stake_duration": 8760, "min_delegation_fee": 20000, "min_delegator_stake": 25, "max_validator_weight_factor": 5, 
+"uptime_requirement": 800000}]'
 ```
 
 curl
 
 ```zsh
-curl --location 'http://localhost:8081/v1/control/elasticsubnets' \
---header 'Content-Type: application/json' \
---data '{
-    "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
-    "asset_name": "Avalanche",
-    "asset_symbol": "AVAX",
-    "initial_supply": 240000000,
-    "max_supply": 720000000,
-    "min_consumption_rate": 100000,
-    "max_consumption_rate": 120000,
-    "min_validator_stake": 2000,
-    "max_validator_stake": 3000000,
-    "min_stake_duration": 336,
-    "max_stake_duration": 8760,
-    "min_delegation_fee": 20000,
-    "min_delegator_stake": 25,
-    "max_validator_weight_factor": 5,
-    "uptime_requirement": 800000
-}'
+curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"elasticSubnetSpec": [{"subnetId":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","assetName":"Avalanche", "assetSymbol":"AVAX", "initialSupply": 240000000, "maxSupply": 720000000, "minConsumption_rate": 100000, "maxConsumption_rate": 120000, "minValidatorStake": 2000, "maxValidatorStake": 3000000, "minStakeDuration": 336, "maxStakeDuration": 8760, "minDelegationFee": 20000, "minDelegatorStake": 25, "maxValidatorWeightFactor": 5, "uptimeRequirement": 800000}]}'
 ```
 
 ### `get-snapshot-names`
@@ -433,13 +418,13 @@ avalanche-network-runner control get-snapshot-names [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control get-snapshot-names
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/control/getsnapshotnames' \
---data ''
+curl --location --request POST 'http://localhost:8081/v1/control/getsnapshotnames' 
 ```
 
 ### `health`
@@ -458,17 +443,12 @@ cli
 
 ```zsh
 ./build/avalanche-network-runner control health
-
-[07-21|17:20:11.552] INFO client/client.go:206 health
-[07-21|17:20:11.567] INFO ux/output.go:13 health response: cluster_info:{node_names:"node1"  node_names:"node2"  node_names:"node3"  node_names:"node4"  node_names:"node5"  node_names:"node55"  node_names:"node99"
 ```
 
 curl
 
 ```zsh
 curl --location --request POST 'http://localhost:8081/v1/control/health'
-
-{"clusterInfo":{"nodeNames":["node1","node2","node3","node4","node5","node55","node99"]...}}
 ```
 
 ### `list-blockchains`
@@ -486,6 +466,7 @@ avalanche-network-runner control list-blockchains [flags]
 cli
 
 ```zsh
+avalanche-network-runner control list-blockchains
 ```
 
 curl
@@ -511,6 +492,7 @@ avalanche-network-runner control list-rpcs [flags]
 cli
 
 ```zsh
+avalanche-network-runner control list-rpcs
 ```
 
 curl
@@ -534,13 +516,13 @@ avalanche-network-runner control list-subnets [flags]
 cli
 
 ```zsh
+avalanche-network-runner control list-subnets
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/control/listsubnets' \
---data ''
+curl --location --request POST 'http://localhost:8081/v1/control/listsubnets'
 ```
 
 ### `load-snapshot`
@@ -549,14 +531,14 @@ Requests server to load network snapshot.
 
 #### Flags
 
-- `--avalanchego-path string``     avalanchego binary path
-- `--chain-configs string``        [optional] JSON string of map from chain id to its config file contents
-- `--global-node-config string``   [optional] global node config as JSON string, applied to all nodes
-- `--plugin-dir string``           plugin directory
-- `--reassign-ports-if-used``      true to reassign snapshot ports if already taken
-- `--root-data-dir string``        root data directory to store logs and configurations
-- `--subnet-configs string``       [optional] JSON string of map from subnet id to its config file contents
-- `--upgrade-configs string``      [optional] JSON string of map from chain id to its upgrade file contents
+- `--avalanchego-path string`     avalanchego binary path
+- `--chain-configs string`        [optional] JSON string of map from chain id to its config file contents
+- `--global-node-config string`   [optional] global node config as JSON string, applied to all nodes
+- `--plugin-dir string`           plugin directory
+- `--reassign-ports-if-used`      true to reassign snapshot ports if already taken
+- `--root-data-dir string`        root data directory to store logs and configurations
+- `--subnet-configs string`       [optional] JSON string of map from subnet id to its config file contents
+- `--upgrade-configs string`      [optional] JSON string of map from chain id to its upgrade file contents
 
 #### Usage
 
@@ -569,6 +551,7 @@ avalanche-network-runner control load-snapshot snapshot-name [flags]
 cli
 
 ```zsh
+avalanche-network-runner control load-snapshot snapshot
 ```
 
 curl
@@ -577,7 +560,7 @@ curl
 curl --location 'http://localhost:8081/v1/control/loadsnapshot' \
 --header 'Content-Type: application/json' \
 --data '{
-    "snapshot_name":"node5"
+    "snapshotName":"snapshot"
 }'
 ```
 
@@ -596,6 +579,7 @@ avalanche-network-runner control pause-node node-name [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control pause-node node5
 ```
 
 curl
@@ -604,8 +588,7 @@ curl
 curl --location 'http://localhost:8081/v1/control/pausenode' \
 --header 'Content-Type: application/json' \
 --data '{
-  "name": "node5",
-  "logLevel": "INFO"
+  "name": "node5"
 }'
 ```
 
@@ -624,6 +607,7 @@ avalanche-network-runner control remove-node node-name [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control remove-node node5
 ```
 
 curl
@@ -651,6 +635,7 @@ avalanche-network-runner control remove-snapshot snapshot-name [flags]
 cli
 
 ```zsh
+avalanche-network-runner control remove-snapshot node5
 ```
 
 curl
@@ -678,6 +663,7 @@ avalanche-network-runner control remove-subnet-validator removeValidatorSpec [op
 cli
 
 ```zsh
+avalanche-network-runner control remove-subnet-validator '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
 ```
 
 curl
@@ -685,12 +671,7 @@ curl
 ```zsh
 curl --location 'http://localhost:8081/v1/control/removesubnetvalidator' \
 --header 'Content-Type: application/json' \
---data '{
-    "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz",
-    "node_names": [
-      "node5"
-    ]
-}'
+--data '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
 ```
 
 ### `restart-node`
@@ -700,7 +681,7 @@ Restarts a node.
 #### Flags
 
 - `--avalanchego-path string`      avalanchego binary path
-- --chain-configs string`         [optional] JSON string of map from chain id to its config file contents
+- `--chain-configs string`         [optional] JSON string of map from chain id to its config file contents
 - `--plugin-dir string`            [optional] plugin directory
 - `--subnet-configs string`        [optional] JSON string of map from subnet id to its config file contents
 - `--upgrade-configs string`       [optional] JSON string of map from chain id to its upgrade file contents
@@ -717,6 +698,11 @@ avalanche-network-runner control restart-node node-name [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control restart-node \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+node1 
 ```
 
 curl
@@ -725,8 +711,7 @@ curl
 curl --location 'http://localhost:8081/v1/control/restartnode' \
 --header 'Content-Type: application/json' \
 --data '{
-  "name": "node5",
-  "logLevel": "INFO"
+  "name": "node5"
 }'
 ```
 
@@ -745,6 +730,7 @@ avalanche-network-runner control resume-node node-name [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control resume-node node5
 ```
 
 curl
@@ -753,8 +739,7 @@ curl
 curl --location 'http://localhost:8081/v1/control/resumenode' \
 --header 'Content-Type: application/json' \
 --data '{
-  "name": "node5",
-  "logLevel": "INFO"
+  "name": "node5"
 }'
 ```
 
@@ -774,18 +759,12 @@ cli
 
 ```zsh
 ./build/avalanche-network-runner control rpc_version
-
-[07-22|09:21:06.690] INFO client/client.go:111 rpc version
-[07-22|09:21:06.693] INFO ux/output.go:13 version response: version:1
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/control/rpcversion' \
---data ''
-
-{"version":1}
+curl --location --request POST 'http://localhost:8081/v1/control/rpcversion'
 ```
 
 ### `save-snapshot`
@@ -803,6 +782,7 @@ avalanche-network-runner control save-snapshot snapshot-name [flags]
 cli
 
 ```zsh
+avalanche-network-runner control save-snapshot snapshotName
 ```
 
 curl
@@ -836,19 +816,21 @@ avalanche-network-runner control send-outbound-message node-name [options] [flag
 cli
 
 ```zsh
+
+avalanche-network-runner control send-outbound-message \
+--request-timeout=3m \
+--log-level debug \
+--endpoint="0.0.0.0:8080" \
+--node-name node1 \
+--peer-id "7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
+--message-op=16 \
+--message-bytes-b64="EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="
 ```
 
 curl
 
 ```zsh
-curl --location 'http://localhost:8081/v1/control/sendoutboundmessage' \
---header 'Content-Type: application/json' \
---data '{
-  "nodeName": "node5",
-  "peerId": "7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
-  "op": 16,
-  "bytes": "EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="
-}'
+curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeName":"node1","peerId":"7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg","op":16,"bytes":"EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="}'
 ```
 
 ### `start`
@@ -896,7 +878,6 @@ curl --location 'http://localhost:8081/v1/control/start' \
 --header 'Content-Type: application/json' \
 --data '{
   "numNodes": 5,
-  "logLevel": "INFO",
   "blockchainSpecs": [
     {
       "vm_name": "subnetevm",
@@ -922,18 +903,12 @@ cli
 
 ```zsh
 ./build/avalanche-network-runner control status
-
-[07-21|17:41:11.286] INFO client/client.go:225 status
-[07-21|17:41:11.289] INFO ux/output.go:13 status response: cluster_info:{node_names:"node1"  node_names:"node2"  node_names:"node3"  node_names:"node4"  node_names:"node5"  node_names:"node55"  node_names:"node99"
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/control/status' \
---data ''
-
-{"clusterInfo":{"nodeNames":["node1", "node2", "node3", "node4", "node5", "node55"], "nodeInfos":{"node1":{"name":"node1",...}
+curl --location --request POST 'http://localhost:8081/v1/control/status'
 ```
 
 ### `stop`
@@ -952,21 +927,12 @@ cli
 
 ```zsh
 avalanche-network-runner control stop
-
-
-[07-21|17:46:47.432] INFO local/network.go:791 done stopping network
-[07-21|17:46:47.433] INFO ux/output.go:13 terminated network
 ```
 
 curl
 
 ```zsh
-curl --location --request POST 'http://localhost:8081/v1/control/stop' \
---data ''
-
-
-[07-21|17:46:47.432] INFO local/network.go:791 done stopping network
-[07-21|17:46:47.433] INFO ux/output.go:13 terminated network
+curl --location --request POST 'http://localhost:8081/v1/control/stop'
 ```
 
 ### `stream-status`
@@ -988,6 +954,7 @@ avalanche-network-runner control stream-status [options] [flags]
 cli
 
 ```zsh
+avalanche-network-runner control stream-status
 ```
 
 curl
@@ -1011,18 +978,13 @@ avalanche-network-runner control uris [options] [flags]
 cli
 
 ```zsh
-/build/avalanche-network-runner control uris
-
-[07-22|09:29:06.511] INFO client/client.go:216 uris
-[07-22|09:29:06.514] INFO ux/output.go:13 URIs: [http://127.0.0.1:9650 http://127.0.0.1:9652 http://127.0.0.1:9654 http://127.0.0.1:9656 http://127.0.0.1:9658]
+avalanche-network-runner control uris
 ```
 
 curl
 
 ```zsh
 curl --location --request POST 'http://localhost:8081/v1/control/uris'
-
-{"uris":["http://127.0.0.1:9650", "http://127.0.0.1:9652", "http://127.0.0.1:9654", "http://127.0.0.1:9656", "http://127.0.0.1:9658"]}
 ```
 
 ### `vmid`
@@ -1041,9 +1003,6 @@ cli
 
 ```zsh
 /build/avalanche-network-runner control vmid subnetevm
-
-[07-22|09:32:09.671] INFO client/client.go:427 vmud
-[07-22|09:32:09.673] INFO ux/output.go:13 VMID: srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
 ```
 
 curl
@@ -1054,13 +1013,11 @@ curl --location 'http://localhost:8081/v1/control/vmid' \
 --data '{
     "vmName": "subnetevm"
 }'
-
-{"vmId":"srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy"}
 ```
 
 ### `wait-for-healthy`
 
-Wait until local cluster + custom vms are ready.
+Wait until local cluster and custom vms are ready.
 
 #### Usage
 
@@ -1074,17 +1031,12 @@ cli
 
 ```zsh
 ./build/avalanche-network-runner control wait-for-healthy
-
-[07-22|09:36:02.087] INFO client/client.go:211 wait for healthy
-[07-22|09:36:02.091] INFO ux/output.go:13 wait for healthy response: cluster_info:{node_names:"node1"  node_names:"node2"  node_names:"node3"  node_names:"node4"...}
 ```
 
 curl
 
 ```zsh
 curl --location --request POST 'http://localhost:8081/v1/control/waitforhealthy'
-
-{"clusterInfo":{"nodeNames":["node1", "node2", "node3", "node4", "node5"]...}
 ```
 
 ## `avalanche-network-runner` RPC server: examples
@@ -1596,7 +1548,8 @@ avalanche-network-runner control stop \
 To transform permissioned Subnets into permissionless Subnets (NOTE: this action is irreversible):
 
 Values provided below are the default values on [Primary Network on Mainnet](https://docs.avax.network/subnets/reference-elastic-subnets-parameters#primary-network-parameters-on-mainnet).
-```bash
+
+```zsh
 curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"elasticSubnetSpec": [{"subnetId":"'$SUBNET_ID'","assetName":"'$ASSET_NAME'", 
 "assetSymbol":"'$ASSET_SYMBOL'", "initialSupply": 240000000, "maxSupply": 720000000, "minConsumption_rate": 100000, 
 "maxConsumption_rate": 120000, "minValidatorStake": 2000, "maxValidatorStake": 3000000, "minStakeDuration": 336, 
@@ -2200,3 +2153,11 @@ type Node interface {
   GetConfigFile() string
 }
 ```
+
+## FAQ
+
+**Why does `avalanche-network-runner` need an RPC server?** `avalanche-network-runner` needs to provide complex workflows such as replacing nodes, restarting nodes, injecting fail points, etc.. The RPC server exposes basic operations to enable a separation of concerns such that one team develops a test framework, and the other writes test cases and controlling logic.
+
+**Why gRPC?** The RPC server leads to more modular test components, and gRPC enables greater flexibility. The protocol buffer increases flexibility as we develop more complicated test cases. And gRPC opens up a variety of different approaches for how to write test controller (e.g., Rust). See [`rpcpb/rpc.proto`](./rpcpb/rpc.proto) for service definition.
+
+**Why gRPC gateway?** [gRPC gateway](https://grpc-ecosystem.github.io/grpc-gateway/) exposes gRPC API via HTTP, without us writing any code. Which can be useful if a test controller writer does not want to deal with gRPC.
