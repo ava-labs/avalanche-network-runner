@@ -132,7 +132,6 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	chainInfos []blockchainInfo,
 	chainSpecs []network.BlockchainSpec,
 ) error {
-	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("registering blockchain aliases")))
 	for i, chainSpec := range chainSpecs {
 		if chainSpec.BlockchainAlias == "" {
@@ -211,7 +210,6 @@ func (ln *localNetwork) installCustomChains(
 	ctx context.Context,
 	chainSpecs []network.BlockchainSpec,
 ) ([]blockchainInfo, error) {
-	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create and install custom chains")))
 
 	clientURI, err := ln.getClientURI()
@@ -256,6 +254,29 @@ func (ln *localNetwork) installCustomChains(
 		}
 	}
 
+	// fill subnet specs map with pre-existing subnets
+	subnetSpecsMap := map[string]network.SubnetSpec{}
+	for _, chainSpec := range chainSpecs {
+		if chainSpec.SubnetID != nil {
+			var subnetSpec network.SubnetSpec
+			if chainSpec.SubnetSpec == nil {
+				subnetSpec = network.SubnetSpec{}
+			} else {
+				subnetSpec = *chainSpec.SubnetSpec
+			}
+			subnetID, err := ids.FromString(*chainSpec.SubnetID)
+			if err != nil {
+				return nil, err
+			}
+			nodeNames, err := ln.getSubnetValidatorsNodenames(ctx, subnetID)
+			if err != nil {
+				return nil, err
+			}
+			subnetSpec.Participants = nodeNames
+			subnetSpecsMap[*chainSpec.SubnetID] = subnetSpec
+		}
+	}
+
 	// if no participants are given for a new subnet, assume all nodes should be participants
 	allNodeNames := maps.Keys(ln.nodes)
 	sort.Strings(allNodeNames)
@@ -292,7 +313,13 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err := ln.setSubnetConfigFiles(subnetIDs, subnetSpecs); err != nil {
+	// fill subnet specs map with new subnets
+	for i, subnetID := range subnetIDs {
+		subnetSpecsMap[subnetID.String()] = subnetSpecs[i]
+	}
+
+	nodesToRestartForSubnetConfigUpdate, err := ln.setSubnetConfigFiles(subnetSpecsMap)
+	if err != nil {
 		return nil, err
 	}
 
@@ -325,10 +352,13 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if len(subnetSpecs) > 0 || len(nodesToRestartForBlockchainConfigUpdate) > 0 {
+	nodesToRestartForConfigUpdate := nodesToRestartForSubnetConfigUpdate
+	nodesToRestartForConfigUpdate.Union(nodesToRestartForBlockchainConfigUpdate)
+
+	if len(subnetSpecs) > 0 || len(nodesToRestartForConfigUpdate) > 0 {
 		// we need to restart if there are new subnets or if there are new network config files
 		// add missing subnets, restarting network and waiting for subnet validation to start
-		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, nil, nodesToRestartForBlockchainConfigUpdate); err != nil {
+		if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, nil, nodesToRestartForConfigUpdate); err != nil {
 			return nil, err
 		}
 		clientURI, err = ln.getClientURI()
@@ -379,7 +409,6 @@ func (ln *localNetwork) installSubnets(
 	ctx context.Context,
 	subnetSpecs []network.SubnetSpec,
 ) ([]ids.ID, error) {
-	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create subnets")))
 
 	clientURI, err := ln.getClientURI()
@@ -428,7 +457,12 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err := ln.setSubnetConfigFiles(subnetIDs, subnetSpecs); err != nil {
+	subnetSpecsMap := map[string]network.SubnetSpec{}
+	for i, subnetID := range subnetIDs {
+		subnetSpecsMap[subnetID.String()] = subnetSpecs[i]
+	}
+
+	if _, err := ln.setSubnetConfigFiles(subnetSpecsMap); err != nil {
 		return nil, err
 	}
 
@@ -486,7 +520,6 @@ func (ln *localNetwork) waitForCustomChainsReady(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 ) error {
-	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("waiting for custom chains to report healthy...")))
 
 	if err := ln.healthy(ctx); err != nil {
@@ -533,10 +566,8 @@ func (ln *localNetwork) waitForCustomChainsReady(
 		}
 	}
 
-	fmt.Println()
 	ln.log.Info(logging.Green.Wrap("all custom chains are running!!!"))
 
-	fmt.Println()
 	ln.log.Info(logging.Green.Wrap(logging.Bold.Wrap("all custom chains are ready on RPC server-side -- network-runner RPC client can poll and query the cluster status")))
 
 	return nil
@@ -555,7 +586,6 @@ func (ln *localNetwork) restartNodes(
 		return errors.New("only one type of spec between subnet specs, add permissionless validator specs and " +
 			"remove validator specs can be supplied at one time")
 	}
-	fmt.Println()
 	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("restarting network")))
 
 	nodeNames := maps.Keys(ln.nodes)
@@ -1208,7 +1238,6 @@ func createSubnets(
 	w *wallet,
 	log logging.Logger,
 ) ([]ids.ID, error) {
-	fmt.Println()
 	log.Info(logging.Green.Wrap("creating subnets"), zap.Uint32("num-subnets", numSubnets))
 	subnetIDs := make([]ids.ID, numSubnets)
 	for i := uint32(0); i < numSubnets; i++ {
@@ -1418,7 +1447,6 @@ func createBlockchainTxs(
 	w *wallet,
 	log logging.Logger,
 ) ([]*txs.Tx, error) {
-	fmt.Println()
 	log.Info(logging.Green.Wrap("creating tx for each custom chain"))
 	blockchainTxs := make([]*txs.Tx, len(chainSpecs))
 	for i, chainSpec := range chainSpecs {
@@ -1473,7 +1501,6 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 	subnetSpecs []network.SubnetSpec,
 	log logging.Logger,
 ) (set.Set[string], error) {
-	fmt.Println()
 	log.Info(logging.Green.Wrap("creating config files for each custom chain"))
 	nodesToRestart := set.Set[string]{}
 	for i, chainSpec := range chainSpecs {
@@ -1528,23 +1555,24 @@ func (ln *localNetwork) setBlockchainConfigFiles(
 }
 
 func (ln *localNetwork) setSubnetConfigFiles(
-	subnetIDs []ids.ID,
-	subnetSpecs []network.SubnetSpec,
-) error {
-	for i, subnetID := range subnetIDs {
-		participants := subnetSpecs[i].Participants
-		subnetConfig := subnetSpecs[i].SubnetConfig
+	subnetSpecsMap map[string]network.SubnetSpec,
+) (set.Set[string], error) {
+	nodesToRestart := set.Set[string]{}
+	for subnetID, subnetSpec := range subnetSpecsMap {
+		participants := subnetSpec.Participants
+		subnetConfig := subnetSpec.SubnetConfig
 		if subnetConfig != nil {
 			for _, nodeName := range participants {
 				_, b := ln.nodes[nodeName]
 				if !b {
-					return fmt.Errorf("participant node %s is not in network nodes", nodeName)
+					return nil, fmt.Errorf("participant node %s is not in network nodes", nodeName)
 				}
-				ln.nodes[nodeName].config.SubnetConfigFiles[subnetID.String()] = string(subnetConfig)
+				ln.nodes[nodeName].config.SubnetConfigFiles[subnetID] = string(subnetConfig)
+				nodesToRestart.Add(nodeName)
 			}
 		}
 	}
-	return nil
+	return nodesToRestart, nil
 }
 
 func (*localNetwork) createBlockchains(
@@ -1554,7 +1582,6 @@ func (*localNetwork) createBlockchains(
 	w *wallet,
 	log logging.Logger,
 ) error {
-	fmt.Println()
 	log.Info(logging.Green.Wrap("creating each custom chain"))
 	for i, chainSpec := range chainSpecs {
 		vmName := chainSpec.VMName
