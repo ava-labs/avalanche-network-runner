@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: avalanche-network-runner
+  description: |
+    Service that runs a local Avalanche network for testing.
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: ava-labs/avalanche-network-runner
+spec:
+  type: service
+  owner: group:platform-tooling
+  lifecycle: production
+  dependsOn:
+    - component:avalanchego
+    - component:subnet-evm
+    - component:coreth

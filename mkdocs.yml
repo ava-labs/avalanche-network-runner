@@ -1,0 +1,6 @@
+site_name: avalanche-network-runner
+site_description: Service that runs a local Avalanche network for testing.
+nav:
+  - Introduction: index.md
+plugins:
+  - techdocs-core
