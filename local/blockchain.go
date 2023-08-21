@@ -689,10 +689,11 @@ func newWallet(
 	preloadTXs []ids.ID,
 ) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
-	pCTX, xCTX, utxos, err := primary.FetchState(ctx, uri, kc.Addresses())
+	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
+	pCTX, xCTX, utxos := primaryAVAXState.PCTX, primaryAVAXState.XCTX, primaryAVAXState.UTXOs
 	pClient := platformvm.NewClient(uri)
 	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, id := range preloadTXs {
