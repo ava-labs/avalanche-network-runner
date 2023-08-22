@@ -2,16 +2,17 @@
 set -e
 
 export RUN_E2E="true"
+
 # e.g.,
-# ./scripts/tests.e2e.sh $DEFAULT_VERSION1 $DEFAULT_VERSION2 $DEFAULT_SUBNET_EVM_VERSION
+# ./scripts/tests.e2e.sh $VERSON1 $VERSION2 $SUBNET_EVM_VERSION
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255
 fi
 
-DEFAULT_VERSION_1=1.10.4
-DEFAULT_VERSION_2=1.10.3
-DEFAULT_SUBNET_EVM_VERSION=0.5.2
+DEFAULT_VERSION_1=dev
+DEFAULT_VERSION_2=dev
+DEFAULT_SUBNET_EVM_VERSION=v0.5.3
 
 if [ $# == 0 ]; then
     VERSION_1=$DEFAULT_VERSION_1
@@ -43,95 +44,51 @@ echo VERSION_1: ${VERSION_1}
 echo VERSION_2: ${VERSION_2}
 echo SUBNET_EVM_VERSION: ${SUBNET_EVM_VERSION}
 
-if [ ! -f /tmp/avalanchego-v${VERSION_1}/avalanchego ]
+AVALANCHEGO_REPO=/tmp/avalanchego-repo/
+if [ ! -d $AVALANCHEGO_REPO ]
 then
-    ############################
-    # download avalanchego
-    # https://github.com/ava-labs/avalanchego/releases
-    GOARCH=$(go env GOARCH)
-    GOOS=$(go env GOOS)
-    DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_1}/avalanchego-linux-${GOARCH}-v${VERSION_1}.tar.gz
-    DOWNLOAD_PATH=/tmp/avalanchego.tar.gz
-    if [[ ${GOOS} == "darwin" ]]; then
-      DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_1}/avalanchego-macos-v${VERSION_1}.zip
-      DOWNLOAD_PATH=/tmp/avalanchego.zip
-    fi
-
-    rm -rf /tmp/avalanchego-v${VERSION_1}
-    rm -rf /tmp/avalanchego-build
-    rm -f ${DOWNLOAD_PATH}
-
-    echo "downloading avalanchego ${VERSION_1} at ${DOWNLOAD_URL}"
-    curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
-
-    echo "extracting downloaded avalanchego"
-    if [[ ${GOOS} == "linux" ]]; then
-      tar xzvf ${DOWNLOAD_PATH} -C /tmp
-    elif [[ ${GOOS} == "darwin" ]]; then
-      unzip ${DOWNLOAD_PATH} -d /tmp/avalanchego-build
-      mv /tmp/avalanchego-build/build /tmp/avalanchego-v${VERSION_1}
-    fi
-    find /tmp/avalanchego-v${VERSION_1}
+    git clone https://github.com/ava-labs/avalanchego/ $AVALANCHEGO_REPO
 fi
 
-if [ ! -f /tmp/avalanchego-v${VERSION_2}/avalanchego ]
+VERSION_1_DIR=/tmp/avalanchego-${VERSION_1}/
+if [ ! -f ${VERSION_1_DIR}/avalanchego ]
 then
-    ############################
-    # download avalanchego
-    # https://github.com/ava-labs/avalanchego/releases
-    GOARCH=$(go env GOARCH)
-    GOOS=$(go env GOOS)
-    DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_2}/avalanchego-linux-${GOARCH}-v${VERSION_2}.tar.gz
-    DOWNLOAD_PATH=/tmp/avalanchego.tar.gz
-    if [[ ${GOOS} == "darwin" ]]; then
-      DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION_2}/avalanchego-macos-v${VERSION_2}.zip
-      DOWNLOAD_PATH=/tmp/avalanchego.zip
-    fi
-
-    rm -rf /tmp/avalanchego-v${VERSION_2}
-    rm -rf /tmp/avalanchego-build
-    rm -f ${DOWNLOAD_PATH}
-
-    echo "downloading avalanchego ${VERSION_2} at ${DOWNLOAD_URL}"
-    curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
-
-    echo "extracting downloaded avalanchego"
-    if [[ ${GOOS} == "linux" ]]; then
-      tar xzvf ${DOWNLOAD_PATH} -C /tmp
-    elif [[ ${GOOS} == "darwin" ]]; then
-      unzip ${DOWNLOAD_PATH} -d /tmp/avalanchego-build
-      mv /tmp/avalanchego-build/build /tmp/avalanchego-v${VERSION_2}
-    fi
-    find /tmp/avalanchego-v${VERSION_2}
+    rm -rf ${VERSION_1_DIR}
+    mkdir -p ${VERSION_1_DIR}
+    cd $AVALANCHEGO_REPO
+    git checkout $VERSION_1
+    ./scripts/build.sh 
+    cp -r build/* ${VERSION_1_DIR}
 fi
 
-if [ ! -f /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm ]
+VERSION_2_DIR=/tmp/avalanchego-${VERSION_2}/
+if [ ! -f ${VERSION_2_DIR}/avalanchego ]
 then
-    ############################
-    # download subnet-evm 
-    # https://github.com/ava-labs/subnet-evm/releases
-    GOARCH=$(go env GOARCH)
-    GOOS=$(go env GOOS)
-    DOWNLOAD_URL=https://github.com/ava-labs/subnet-evm/releases/download/v${SUBNET_EVM_VERSION}/subnet-evm_${SUBNET_EVM_VERSION}_linux_${GOARCH}.tar.gz
-    DOWNLOAD_PATH=/tmp/subnet-evm.tar.gz
-    if [[ ${GOOS} == "darwin" ]]; then
-      DOWNLOAD_URL=https://github.com/ava-labs/subnet-evm/releases/download/v${SUBNET_EVM_VERSION}/subnet-evm_${SUBNET_EVM_VERSION}_darwin_${GOARCH}.tar.gz
-    fi
+    rm -rf ${VERSION_2_DIR}
+    mkdir -p ${VERSION_2_DIR}
+    cd $AVALANCHEGO_REPO
+    git checkout $VERSION_2
+    ./scripts/build.sh 
+    cp -r build/* ${VERSION_2_DIR}
+fi
 
-    rm -rf /tmp/subnet-evm-v${SUBNET_EVM_VERSION}
-    rm -f ${DOWNLOAD_PATH}
+SUBNET_EVM_REPO=/tmp/subnet-evm-repo/
+if [ ! -d $SUBNET_EVM_REPO ]
+then
+    git clone https://github.com/ava-labs/subnet-evm/ $SUBNET_EVM_REPO
+fi
 
-    echo "downloading subnet-evm ${SUBNET_EVM_VERSION} at ${DOWNLOAD_URL}"
-    curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
-
-    echo "extracting downloaded subnet-evm"
-    mkdir /tmp/subnet-evm-v${SUBNET_EVM_VERSION}
-    tar xzvf ${DOWNLOAD_PATH} -C /tmp/subnet-evm-v${SUBNET_EVM_VERSION}
+SUBNET_EVM_VERSION_DIR=/tmp/subnet-evm-${SUBNET_EVM_VERSION}/
+if [ ! -f $VERSION_1_DIR/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy ]
+then
+    rm -rf ${SUBNET_EVM_VERSION_DIR}
+    mkdir -p ${SUBNET_EVM_VERSION_DIR}
+    cd $SUBNET_EVM_REPO
+    git checkout $SUBNET_EVM_VERSION
     # NOTE: We are copying the subnet-evm binary here to a plugin hardcoded as srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy which corresponds to the VM name `subnetevm` used as such in the test
-    mkdir -p /tmp/avalanchego-v${VERSION_1}/plugins/
-    cp /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm /tmp/avalanchego-v${VERSION_1}/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
-    find /tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
+    ./scripts/build.sh $VERSION_1_DIR/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
 fi
+
 ############################
 echo "building runner"
 ./scripts/build.sh
@@ -177,6 +134,5 @@ echo "running e2e tests"
 --log-level debug \
 --grpc-endpoint="0.0.0.0:8080" \
 --grpc-gateway-endpoint="0.0.0.0:8081" \
---avalanchego-path-1=/tmp/avalanchego-v${VERSION_1}/avalanchego \
---avalanchego-path-2=/tmp/avalanchego-v${VERSION_2}/avalanchego \
---subnet-evm-path=/tmp/subnet-evm-v${SUBNET_EVM_VERSION}/subnet-evm
+--avalanchego-path-1=${VERSION_1_DIR}/avalanchego \
+--avalanchego-path-2=${VERSION_2_DIR}/avalanchego
