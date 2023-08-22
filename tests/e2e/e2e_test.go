@@ -78,8 +78,8 @@ var (
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
-		{"new_node1", "new_node2"},
-		{"new_node3", "new_node4"},
+		{"n0", "n1", "n2", "n3", "n4"},
+		{"n5", "n6", "n7", "n8", "n9"},
 	}
 	testElasticSubnetConfig = rpcpb.ElasticSubnetSpec{
 		SubnetId:                 "",
