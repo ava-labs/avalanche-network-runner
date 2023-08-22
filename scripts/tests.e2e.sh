@@ -43,6 +43,12 @@ echo "Running e2e tests with:"
 echo VERSION_1: ${VERSION_1}
 echo VERSION_2: ${VERSION_2}
 echo SUBNET_EVM_VERSION: ${SUBNET_EVM_VERSION}
+#
+# Set the CGO flags to use the portable version of BLST
+#
+# We use "export" here instead of just setting a bash variable because we need
+# to pass this flag to all child processes spawned by the shell.
+export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 
 AVALANCHEGO_REPO=/tmp/avalanchego-repo/
 if [ ! -d $AVALANCHEGO_REPO ]
@@ -92,12 +98,6 @@ fi
 ############################
 echo "building runner"
 ./scripts/build.sh
-
-# Set the CGO flags to use the portable version of BLST
-#
-# We use "export" here instead of just setting a bash variable because we need
-# to pass this flag to all child processes spawned by the shell.
-export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 
 echo "building e2e.test"
 # to install the ginkgo binary (required for test build and run)
