@@ -50,7 +50,6 @@ var (
 	gRPCGatewayEp   string
 	execPath1       string
 	execPath2       string
-	subnetEvmPath   string
 	genesisPath     string
 	genesisContents string
 
@@ -142,12 +141,6 @@ func init() {
 		"avalanchego-path-2",
 		"",
 		"avalanchego executable path (to upgrade to)",
-	)
-	flag.StringVar(
-		&subnetEvmPath,
-		"subnet-evm-path",
-		"",
-		"path to subnet-evm binary",
 	)
 }
 
