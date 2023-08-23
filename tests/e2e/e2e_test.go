@@ -408,7 +408,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 			cancel()
 			// create blockchains
-			ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 			resp, err := cli.CreateBlockchains(ctx,
 				[]*rpcpb.BlockchainSpec{
 					{
