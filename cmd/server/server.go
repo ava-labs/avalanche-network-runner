@@ -39,7 +39,7 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server [options]",
-		Short: "Start a network runner server.",
+		Short: "Starts a network runner server.",
 		RunE:  serverFunc,
 		Args:  cobra.ExactArgs(0),
 	}
