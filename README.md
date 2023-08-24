@@ -15,7 +15,7 @@ When we start a network, create a new Subnet, or add a blockchain to a Subnet, w
 
 To make managing the local Avalanche network less tedious, the Avalanche Network Runner introduces a gRPC server that manages the nodes for us. Therefore, we can just tell the gRPC what we would like to do, an example being to create a new Subnet, and it will coordinate the nodes accordingly. This way we can interact with one gRPC Server instead of managing all 5 nodes individually.
 
-![Architecture diagram](/assets/diagram.png)
+![Architecture diagram](/docs/assets/diagram.png)
 
 ## Usage
 
