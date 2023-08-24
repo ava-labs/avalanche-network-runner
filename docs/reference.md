@@ -61,7 +61,7 @@ avalanche-network-runner server
 
 ## Control
 
-Start a network runner controller.
+Network runner control commands.
 
 ### Usage
 
@@ -69,7 +69,7 @@ Start a network runner controller.
 
 ## `add-node`
 
-Add a new node to the network.
+Adds a new node to the network.
 
 ### Flags
 
@@ -104,7 +104,7 @@ curl --location 'http://localhost:8081/v1/control/addnode' \
 
 ## `add-permissionless-delegator`
 
-Delegate to a permissionless validator in an elastic subnet
+Delegates to a permissionless validator in an elastic subnet
 
 ### Usage
 
@@ -140,7 +140,7 @@ curl --location 'http://localhost:8081/v1/control/addpermissionlessdelegator' \
 
 ## `add-permissionless-validator`
 
-Add permissionless validator to elastic subnets.
+Adds a permissionless validator to elastic subnets.
 
 ### Usage
 
@@ -200,7 +200,7 @@ curl --location 'http://localhost:8081/v1/control/attachpeer' \
 
 ## `create-blockchains`
 
-Create blockchains.
+Creates blockchains.
 
 ### Usage
 
@@ -232,7 +232,7 @@ curl --location 'http://localhost:8081/v1/control/createblockchains' \
 
 ## `create-subnets`
 
-Create subnets.
+Creates subnets.
 
 ### Usage
 
@@ -265,7 +265,7 @@ curl --location 'http://localhost:8081/v1/control/createsubnets' \
 
 ## `elastic-subnets`
 
-Transform subnets to elastic subnets.
+Transforms subnets to elastic subnets.
 
 ### Usage
 
@@ -293,7 +293,7 @@ curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"e
 
 ## `get-snapshot-names`
 
-Requests server to get list of snapshot.
+Lists available snapshots.
 
 ### Usage
 
@@ -317,7 +317,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/getsnapshotname
 
 ## `health`
 
-Requests server health.
+Waits until local cluster is ready.
 
 ### Usage
 
@@ -341,7 +341,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/health'
 
 ## `list-blockchains`
 
-Lists all blockchain ids of the `network.
+Lists all blockchain ids of the network.
 
 ### Usage
 
@@ -415,7 +415,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/listsubnets'
 
 ## `load-snapshot`
 
-Requests server to load network snapshot.
+Loads a network snapshot.
 
 ### Flags
 
@@ -517,7 +517,7 @@ curl --location 'http://localhost:8081/v1/control/removenode' \
 
 ## `remove-snapshot`
 
-Requests server to remove network snapshot.
+Removes a network snapshot.
 
 ### Usage
 
@@ -545,7 +545,7 @@ curl --location 'http://localhost:8081/v1/control/removesnapshot' \
 
 ## `remove-subnet-validator`
 
-Remove subnet validator
+Removes a subnet validator
 
 ### Usage
 
@@ -640,7 +640,7 @@ curl --location 'http://localhost:8081/v1/control/resumenode' \
 
 ## `rpc_version`
 
-Requests RPC server version.
+Gets RPC server version.
 
 ### Usage
 
@@ -664,7 +664,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/rpcversion'
 
 ## `save-snapshot`
 
-Requests server to save network snapshot.
+Saves a network snapshot.
 
 ### Usage
 
@@ -730,7 +730,7 @@ curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeN
 
 ## `start`
 
-Starts the server.
+Starts a network.
 
 ### Flags
 
@@ -784,7 +784,7 @@ curl --location 'http://localhost:8081/v1/control/start' \
 
 ## `status`
 
-Requests server status.
+Gets network status.
 
 ### Usage
 
@@ -808,7 +808,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/status'
 
 ## `stop`
 
-Requests server stop.
+Stops the network.
 
 ### Usage
 
@@ -832,7 +832,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/stop'
 
 ## `stream-status`
 
-Requests server bootstrap status.
+Gets a stream of network status.
 
 ### Flags
 
@@ -860,7 +860,7 @@ curl --location --request POST 'http://localhost:8081/v1/control/streamstatus'
 
 ## `uris`
 
-Requests server uris.
+Lists network uris.
 
 ### Usage
 
@@ -912,7 +912,7 @@ curl --location 'http://localhost:8081/v1/control/vmid' \
 
 ## `wait-for-healthy`
 
-Wait until local cluster and custom vms are ready.
+Waits until local cluster and custom vms are ready.
 
 ### Usage
 
