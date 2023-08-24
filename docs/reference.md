@@ -10,7 +10,7 @@
 
 ## Ping
 
-Ping the server.
+Pings the server.
 
 ### Usage
 
@@ -34,7 +34,7 @@ curl --location --request POST 'http://localhost:8081/v1/ping'
 
 ## Server
 
-Start a network runner server.
+Starts a network runner server.
 
 ### Usage
 
