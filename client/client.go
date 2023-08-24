@@ -424,7 +424,7 @@ func (c *client) ListRpcs(ctx context.Context) ([]*rpcpb.BlockchainRpcs, error) 
 }
 
 func (c *client) VMID(ctx context.Context, vmName string) (string, error) {
-	c.log.Info("vmud")
+	c.log.Info("vmid")
 	resp, err := c.controlc.VMID(ctx, &rpcpb.VMIDRequest{VmName: vmName})
 	if err != nil {
 		return "", err
