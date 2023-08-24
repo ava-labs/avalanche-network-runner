@@ -24,7 +24,7 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ping [options]",
-		Short: "Ping the server.",
+		Short: "Pings the server.",
 		RunE:  pingFunc,
 	}
 

@@ -46,7 +46,7 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "control [options]",
-		Short: "Start a network runner controller.",
+		Short: "Network runner control commands.",
 	}
 
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
@@ -138,7 +138,7 @@ func setLogs() error {
 func newRPCVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rpc_version",
-		Short: "Requests RPC server version.",
+		Short: "Gets RPC server version.",
 		RunE:  RPCVersionFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -166,7 +166,7 @@ func RPCVersionFunc(*cobra.Command, []string) error {
 func newStartCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [options]",
-		Short: "Starts the server.",
+		Short: "Starts a network.",
 		RunE:  startFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -333,7 +333,7 @@ func startFunc(*cobra.Command, []string) error {
 func newCreateBlockchainsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-blockchains blockchain-specs [options]",
-		Short: "Create blockchains.",
+		Short: "Creates blockchains.",
 		RunE:  createBlockchainsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -371,7 +371,7 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 func newCreateSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-subnets [options]",
-		Short: "Create subnets.",
+		Short: "Creates subnets.",
 		RunE:  createSubnetsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -409,7 +409,7 @@ func createSubnetsFunc(_ *cobra.Command, args []string) error {
 func newTransformElasticSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "elastic-subnets elastic_subnets_specs [options]",
-		Short: "Transform subnets to elastic subnets.",
+		Short: "Transforms subnets to elastic subnets.",
 		RunE:  transformElasticSubnetsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -419,7 +419,7 @@ func newTransformElasticSubnetsCommand() *cobra.Command {
 func newAddPermissionlessDelegatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-permissionless-delegator permissionlessValidatorSpecs [options]",
-		Short: "Delegate to a permissionless validator in an elastic subnet",
+		Short: "Delegates to a permissionless validator in an elastic subnet",
 		RunE:  addPermissionlessDelegatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -429,7 +429,7 @@ func newAddPermissionlessDelegatorCommand() *cobra.Command {
 func newAddPermissionlessValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-permissionless-validator permissionlessValidatorSpecs [options]",
-		Short: "Add permissionless validator to elastic subnets.",
+		Short: "Adds a permissionless validator to elastic subnets.",
 		RunE:  addPermissionlessValidatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -439,7 +439,7 @@ func newAddPermissionlessValidatorCommand() *cobra.Command {
 func newRemoveSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-subnet-validator removeValidatorSpec [options]",
-		Short: "Remove subnet validator",
+		Short: "Removes a subnet validator",
 		RunE:  removeSubnetValidatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -561,7 +561,7 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 func newHealthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "health [options]",
-		Short: "Requests server health.",
+		Short: "Waits until local cluster is ready.",
 		RunE:  healthFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -589,7 +589,7 @@ func healthFunc(*cobra.Command, []string) error {
 func newWaitForHealthyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait-for-healthy [options]",
-		Short: "Wait until local cluster + custom vms are ready.",
+		Short: "Waits until local cluster and custom vms are ready.",
 		RunE:  waitForHealthy,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -617,7 +617,7 @@ func waitForHealthy(*cobra.Command, []string) error {
 func newURIsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uris [options]",
-		Short: "Requests server uris.",
+		Short: "Lists network uris.",
 		RunE:  urisFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -645,7 +645,7 @@ func urisFunc(*cobra.Command, []string) error {
 func newStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [options]",
-		Short: "Requests server status.",
+		Short: "Gets network status.",
 		RunE:  statusFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -675,7 +675,7 @@ var pushInterval time.Duration
 func newStreamStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stream-status [options]",
-		Short: "Requests server bootstrap status.",
+		Short: "Gets a stream of network status.",
 		RunE:  streamStatusFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -816,7 +816,7 @@ func resumeNodeFunc(_ *cobra.Command, args []string) error {
 func newAddNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-node node-name [options]",
-		Short: "Add a new node to the network",
+		Short: "Adds a new node to the network",
 		RunE:  addNodeFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -1120,7 +1120,7 @@ func sendOutboundMessageFunc(_ *cobra.Command, args []string) error {
 func newStopCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stop [options]",
-		Short: "Requests server stop.",
+		Short: "Stops the network.",
 		RunE:  stopFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -1148,7 +1148,7 @@ func stopFunc(*cobra.Command, []string) error {
 func newSaveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "save-snapshot snapshot-name",
-		Short: "Requests server to save network snapshot.",
+		Short: "Saves a network snapshot.",
 		RunE:  saveSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -1176,7 +1176,7 @@ func saveSnapshotFunc(_ *cobra.Command, args []string) error {
 func newLoadSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "load-snapshot snapshot-name",
-		Short: "Requests server to load network snapshot.",
+		Short: "Loads a network snapshot.",
 		RunE:  loadSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -1292,7 +1292,7 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 func newRemoveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-snapshot snapshot-name",
-		Short: "Requests server to remove network snapshot.",
+		Short: "Removes a network snapshot.",
 		RunE:  removeSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -1320,7 +1320,7 @@ func removeSnapshotFunc(_ *cobra.Command, args []string) error {
 func newGetSnapshotNamesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get-snapshot-names [options]",
-		Short: "Requests server to get list of snapshot.",
+		Short: "Lists available snapshots.",
 		RunE:  getSnapshotNamesFunc,
 		Args:  cobra.ExactArgs(0),
 	}
