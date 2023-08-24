@@ -22,11 +22,9 @@ To make managing the local Avalanche network less tedious, the Avalanche Network
 There are two ways you can interact with the Avalanche Network Runner:
 
 - **Command Line**: Command can be issued using the command line, e.g. `avalanche-network-runner control stop`
-- **HTTP**: You can also send command as HTTP Post requests to the Avalanche Network Runner.
+- **HTTP**: You can also send command as HTTP Post requests to the Avalanche Network Runner. Requests can be made via curl or via a tool such as the [Avalanche Network Runner Postman Collection](https://github.com/ava-labs/avalanche-network-runner-postman-collection).
 
 While the command line is handy for short commands (e.g. stopping the network), issuing more complex commands with more data, like adding a blockchain, can be hard from the command line. Therefore, we recommend using the HTTP endpoints for that. Both ways can be combined.
-
-HTTP requests can be made via curl or via a tool such as the [Avalanche Network Runner Postman Collection](https://github.com/ava-labs/avalanche-network-runner-postman-collection).
 
 ## Installation
 
