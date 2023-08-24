@@ -47,9 +47,9 @@ const (
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
 
-	stopTimeout           = 5 * time.Second
+	stopTimeout           = 30 * time.Second
 	defaultStartTimeout   = 5 * time.Minute
-	waitForHealthyTimeout = 3 * time.Minute
+	waitForHealthyTimeout = 5 * time.Minute
 
 	networkRootDirPrefix   = "network"
 	TimeParseLayout        = "2006-01-02 15:04:05"
@@ -461,7 +461,7 @@ func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequ
 }
 
 func (s *server) CreateBlockchains(
-	_ context.Context,
+	ctx context.Context,
 	req *rpcpb.CreateBlockchainsRequest,
 ) (*rpcpb.CreateBlockchainsResponse, error) {
 	s.mu.Lock()
@@ -500,8 +500,6 @@ func (s *server) CreateBlockchains(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
-	defer cancel()
 	chainIDs, err := s.network.CreateChains(ctx, chainSpecs)
 	if err != nil {
 		s.log.Error("failed to create blockchains", zap.Error(err))
