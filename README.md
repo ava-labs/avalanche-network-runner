@@ -155,15 +155,17 @@ avalanche-network-runner control start
 curl -X POST -k http://localhost:8081/v1/control/start 
 ```
 
-### Examples and references
+### Examples
 
-[Examples of different network control commands.](/docs/examples.md)
+[Examples of the different network control commands.](/docs/examples.md)
 
 [Complete examples of blockchain creation.](/docs/blockchain-examples.md)
 
-[Commands Reference.](/docs/reference.md)
+### References
 
-[Using ANR core golang lib.](/docs/lib.md)
+[Reference.](/docs/reference.md)
+
+[Using the core ANR golang lib.](/docs/lib.md)
 
 ### RPC FAQ
 
