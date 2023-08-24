@@ -22,21 +22,23 @@ To make managing the local Avalanche network less tedious, the Avalanche Network
 There are two ways you can interact with the Avalanche Network Runner:
 
 - **Command Line**: Command can be issued using the command line, e.g. `avalanche-network-runner control stop`
-- **HTTP**: You can also send command as HTTP Post requests to the Avalanche Network Runner
+- **HTTP**: You can also send command as HTTP Post requests to the Avalanche Network Runner.
 
 While the command line is handy for short commands (e.g. stopping the network), issuing more complex commands with more data, like adding a blockchain, can be hard from the command line. Therefore, we recommend using the HTTP endpoints for that. Both ways can be combined.
+
+HTTP requests can be made via curl or via a tool such as the [Avalanche Network Runner Postman Collection](https://github.com/ava-labs/avalanche-network-runner-postman-collection).
 
 ## Installation
 
 To download a binary for the latest release, run:
 
-```zsh
+```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s
 ```
 
 To install a specific version, just append the desired version to the command (must be an existing github tag like v1.7.1)
 
-```zsh
+```sh
 curl -sSfL https://raw.githubusercontent.com/ava-labs/avalanche-network-runner/main/scripts/install.sh | sh -s v1.7.1
 ```
 
@@ -44,11 +46,11 @@ The binary will be installed inside the `~/bin` directory.
 
 To add the binary to your path, run
 
-```zsh
+```sh
 export PATH=~/bin:$PATH
 ```
 
-To add it to your path permanently, add an export command to your shell initialization script (ex: .zshrc).
+To add it to your path permanently, add an export command to your shell initialization script (ex: .bashrc).
 
 ## Build from source code
 
@@ -58,7 +60,7 @@ Requires golang to be installed on the system ([https://go.dev/doc/install](http
 
 ### Clone the Repo
 
-```zsh
+```sh
 git clone https://github.com/ava-labs/avalanche-network-runner.git
 cd avalanche-network-runner/
 ```
@@ -67,31 +69,31 @@ cd avalanche-network-runner/
 
 From inside the cloned directory:
 
-```zsh
+```sh
 ./scripts/build.sh
 ```
 
 The binary will be installed inside the `./bin` directory.
 
+To add the binary to your path, run
+
+```sh
+export PATH=$PWD/bin:$PATH
+```
+
 Pass in a path to have the binary installed in a different location than `./bin`.
 
-```zsh
+```sh
 ./scripts/build.sh build
 ```
 
 In this example the binary will be installed inside the `./build` directory.
 
-To add the binary to your path, run
-
-```zsh
-export PATH=$PWD/bin:$PATH
-```
-
 ### Run Unit Tests
 
 Inside the directory cloned above:
 
-```zsh
+```sh
 go test ./...
 ```
 
@@ -102,7 +104,7 @@ server and executes a set of query and control operations on it.
 
 To start it, execute inside the cloned directory:
 
-```zsh
+```sh
 ./scripts/tests.e2e.sh
 ```
 
@@ -126,7 +128,7 @@ Ping the server.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner ping [options] [flags]
 ```
 
@@ -134,13 +136,13 @@ avalanche-network-runner ping [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner ping
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/ping'
 ```
 
@@ -167,7 +169,7 @@ Start a network runner server.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner server
 ```
 
@@ -200,13 +202,13 @@ Add a new node to the network.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control add-node node6
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/addnode' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -226,13 +228,13 @@ Delegate to a permissionless validator in an elastic subnet
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control add-permissionless-delegator '{"validatorSpec":[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","node_name":"node5","asset_id":"U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK","staked_token_amount":2000,"start_time":"2023-09-25 21:00:00","stake_duration":336}]}'
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/addpermissionlessdelegator' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -262,13 +264,13 @@ Add permissionless validator to elastic subnets.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control add-permissionless-validator '[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","node_name":"node5","staked_token_amount":2000,"asset_id":"U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK","start_time":"2023-09-25 21:00:00","stake_duration":336}]'
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/addpermissionlessvalidator' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -296,13 +298,13 @@ Attaches a peer to the node.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control attach-peer node5
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/attachpeer' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -322,13 +324,13 @@ Create blockchains.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control create-blockchains '[{"vm_name":"subnetevm","genesis":"/path/to/genesis.json", "subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz"}]'
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/createblockchains' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -354,13 +356,13 @@ Create subnets.
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control create-subnets '[{"participants": ["node1", "node2", "node3", "node4", "node5"]}]'
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/createsubnets' \
 --header 'Content-Type: application/json' \
 --data '
@@ -381,7 +383,7 @@ Transform subnets to elastic subnets.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control elastic-subnets elastic_subnets_specs [options] [flags]
 ```
 
@@ -389,7 +391,7 @@ avalanche-network-runner control elastic-subnets elastic_subnets_specs [options]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control elastic-subnets '[{"subnet_id":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "asset_name":"Avalanche", 
 "asset_symbol":"AVAX", "initial_supply": 240000000, "max_supply": 720000000, "min_consumption_rate": 100000, 
 "max_consumption_rate": 120000, "min_validator_stake": 2000, "max_validator_stake": 3000000, "min_stake_duration": 336, 
@@ -399,7 +401,7 @@ avalanche-network-runner control elastic-subnets '[{"subnet_id":"p433wpuXyJiDhya
 
 curl
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"elasticSubnetSpec": [{"subnetId":"p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz","assetName":"Avalanche", "assetSymbol":"AVAX", "initialSupply": 240000000, "maxSupply": 720000000, "minConsumption_rate": 100000, "maxConsumption_rate": 120000, "minValidatorStake": 2000, "maxValidatorStake": 3000000, "minStakeDuration": 336, "maxStakeDuration": 8760, "minDelegationFee": 20000, "minDelegatorStake": 25, "maxValidatorWeightFactor": 5, "uptimeRequirement": 800000}]}'
 ```
 
@@ -409,7 +411,7 @@ Requests server to get list of snapshot.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control get-snapshot-names [options] [flags]
 ```
 
@@ -417,13 +419,13 @@ avalanche-network-runner control get-snapshot-names [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control get-snapshot-names
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/getsnapshotnames' 
 ```
 
@@ -433,7 +435,7 @@ Requests server health.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control health [options] [flags]
 ```
 
@@ -441,13 +443,13 @@ avalanche-network-runner control health [options] [flags]
 
 cli
 
-```zsh
+```sh
 ./build/avalanche-network-runner control health
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/health'
 ```
 
@@ -457,7 +459,7 @@ Lists all blockchain ids of the `network.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control list-blockchains [flags]
 ```
 
@@ -465,13 +467,13 @@ avalanche-network-runner control list-blockchains [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control list-blockchains
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/listblockchains'
 ```
 
@@ -483,7 +485,7 @@ Lists rpcs for all blockchain of the network.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control list-rpcs [flags]
 ```
 
@@ -491,13 +493,13 @@ avalanche-network-runner control list-rpcs [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control list-rpcs
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/listrpcs'
 ```
 
@@ -507,7 +509,7 @@ Lists all subnet ids of the network.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control list-subnets [flags]
 ```
 
@@ -515,13 +517,13 @@ avalanche-network-runner control list-subnets [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control list-subnets
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/listsubnets'
 ```
 
@@ -542,7 +544,7 @@ Requests server to load network snapshot.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control load-snapshot snapshot-name [flags]
 
 # if the `AVALANCHEGO_EXEC_PATH` and `AVALANCHEGO_PLUGIN_PATH` env vars aren't set then you should pass them in as a flag
@@ -553,14 +555,14 @@ avalanche-network-runner control load-snapshot snapshotName --avalanchego-path /
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control load-snapshot snapshot
 
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/loadsnapshot' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -577,7 +579,7 @@ Pauses a node.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control pause-node node-name [options] [flags]
 ```
 
@@ -585,13 +587,13 @@ avalanche-network-runner control pause-node node-name [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control pause-node node5
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/pausenode' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -605,7 +607,7 @@ Removes a node.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control remove-node node-name [options] [flags]
 ```
 
@@ -613,13 +615,13 @@ avalanche-network-runner control remove-node node-name [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control remove-node node5
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/removenode' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -633,7 +635,7 @@ Requests server to remove network snapshot.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control remove-snapshot snapshot-name [flags]
 ```
 
@@ -641,13 +643,13 @@ avalanche-network-runner control remove-snapshot snapshot-name [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control remove-snapshot node5
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/removesnapshot' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -661,7 +663,7 @@ Remove subnet validator
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control remove-subnet-validator removeValidatorSpec [options] [flags]
 ```
 
@@ -669,13 +671,13 @@ avalanche-network-runner control remove-subnet-validator removeValidatorSpec [op
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control remove-subnet-validator '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/removesubnetvalidator' \
 --header 'Content-Type: application/json' \
 --data '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
@@ -696,7 +698,7 @@ Restarts a node.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control restart-node node-name [options] [flags]
 ```
 
@@ -704,7 +706,7 @@ avalanche-network-runner control restart-node node-name [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control restart-node \
 --request-timeout=3m \
 --log-level debug \
@@ -714,7 +716,7 @@ node1
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/restartnode' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -728,7 +730,7 @@ Resumes a node.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control resume-node node-name [options] [flags]
 ```
 
@@ -736,13 +738,13 @@ avalanche-network-runner control resume-node node-name [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control resume-node node5
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/resumenode' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -756,7 +758,7 @@ Requests RPC server version.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control rpc_version [flags]
 ```
 
@@ -764,13 +766,13 @@ avalanche-network-runner control rpc_version [flags]
 
 cli
 
-```zsh
+```sh
 ./build/avalanche-network-runner control rpc_version
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/rpcversion'
 ```
 
@@ -780,7 +782,7 @@ Requests server to save network snapshot.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control save-snapshot snapshot-name [flags]
 ```
 
@@ -788,13 +790,13 @@ avalanche-network-runner control save-snapshot snapshot-name [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control save-snapshot snapshotName
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/savesnapshot' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -814,7 +816,7 @@ Sends an outbound message to an attached peer.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control send-outbound-message node-name [options] [flags]
 ```
 
@@ -822,7 +824,7 @@ avalanche-network-runner control send-outbound-message node-name [options] [flag
 
 cli
 
-```zsh
+```sh
 
 avalanche-network-runner control send-outbound-message \
 --request-timeout=3m \
@@ -836,7 +838,7 @@ avalanche-network-runner control send-outbound-message \
 
 curl
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeName":"node1","peerId":"7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg","op":16,"bytes":"EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="}'
 ```
 
@@ -862,7 +864,7 @@ Starts the server.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control start [options] [flags]
 ```
 
@@ -870,7 +872,7 @@ avalanche-network-runner control start [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control start \
   --log-level debug \
   --endpoint="0.0.0.0:8080" \
@@ -880,7 +882,7 @@ avalanche-network-runner control start \
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/start' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -900,7 +902,7 @@ Requests server status.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control status [options] [flags]
 ```
 
@@ -908,13 +910,13 @@ avalanche-network-runner control status [options] [flags]
 
 cli
 
-```zsh
+```sh
 ./build/avalanche-network-runner control status
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/status'
 ```
 
@@ -924,7 +926,7 @@ Requests server stop.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control stop [options] [flags]
 ```
 
@@ -932,13 +934,13 @@ avalanche-network-runner control stop [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control stop
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/stop'
 ```
 
@@ -952,7 +954,7 @@ Requests server bootstrap status.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control stream-status [options] [flags]
 ```
 
@@ -960,13 +962,13 @@ avalanche-network-runner control stream-status [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control stream-status
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/streamstatus'
 ```
 
@@ -976,7 +978,7 @@ Requests server uris.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control uris [options] [flags]
 ```
 
@@ -984,13 +986,13 @@ avalanche-network-runner control uris [options] [flags]
 
 cli
 
-```zsh
+```sh
 avalanche-network-runner control uris
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/uris'
 ```
 
@@ -1000,7 +1002,7 @@ Returns the vm id associated to the given vm name.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control vmid vm-name [flags]
 ```
 
@@ -1008,13 +1010,13 @@ avalanche-network-runner control vmid vm-name [flags]
 
 cli
 
-```zsh
+```sh
 /build/avalanche-network-runner control vmid subnetevm
 ```
 
 curl
 
-```zsh
+```sh
 curl --location 'http://localhost:8081/v1/control/vmid' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -1028,7 +1030,7 @@ Wait until local cluster and custom vms are ready.
 
 #### Usage
 
-```zsh
+```sh
 avalanche-network-runner control wait-for-healthy [options] [flags]
 ```
 
@@ -1036,13 +1038,13 @@ avalanche-network-runner control wait-for-healthy [options] [flags]
 
 cli
 
-```zsh
+```sh
 ./build/avalanche-network-runner control wait-for-healthy
 ```
 
 curl
 
-```zsh
+```sh
 curl --location --request POST 'http://localhost:8081/v1/control/waitforhealthy'
 ```
 
@@ -1050,14 +1052,14 @@ curl --location --request POST 'http://localhost:8081/v1/control/waitforhealthy'
 
 The ANR depends on the following 2 environment variables. It's critical that you export them in your environment. They will be used when starting networks and creating blockchains if no command line flags are passed.
 
-```zsh
+```sh
 export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
 ```
 
 To start the server:
 
-```zsh
+```sh
 avalanche-network-runner server \
 --log-level debug
 ```
@@ -1066,7 +1068,7 @@ avalanche-network-runner server \
 
 To ping the server:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/ping
 
 # or
@@ -1075,7 +1077,7 @@ avalanche-network-runner ping
 
 To start a new Avalanche network with five nodes (a cluster):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/start 
 
 # or
@@ -1084,7 +1086,7 @@ avalanche-network-runner control start
 
 Additional optional parameters which can be passed to the start command:
 
-```zsh
+```sh
 --blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}]'
 --global-node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
 --custom-node-configs '{"node1":{"log-level":"debug","api-admin-enabled":false},"node2":{...},...}'
@@ -1092,7 +1094,7 @@ Additional optional parameters which can be passed to the start command:
 
 For example, to set `avalanchego --http-host` flag for all nodes:
 
-```zsh
+```sh
 # to expose local RPC server to all traffic
 # (e.g., run network runner within cloud instance)
 curl -X POST -k http://localhost:8081/v1/control/start -d '{"globalNodeConfig":"{\"http-host\":\"0.0.0.0\"}"}'
@@ -1128,7 +1130,7 @@ The network-runner supports avalanchego node configuration at different levels.
 
 Example usage of `--custom-node-configs` to get deterministic API port numbers:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/start -d\ '{"customNodeConfigs": { "node1":"{\"http-port\":9650}", "node2":"{\"http-port\":9652}", "node3":"{\"http-port\":9654}", "node4":"{\"http-port\":9656}", "node5":"{\"http-port\":9658}" }}'
 
 # or
@@ -1147,7 +1149,7 @@ avalanche-network-runner control start \
 
 To wait for all the nodes in the cluster to become healthy:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/health
 
 # or
@@ -1156,7 +1158,7 @@ avalanche-network-runner control health
 
 To get the API endpoints of all nodes in the cluster:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/uris
 
 # or
@@ -1165,7 +1167,7 @@ avalanche-network-runner control uris
 
 To query the cluster status from the server:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/status
 
 # or
@@ -1174,13 +1176,13 @@ avalanche-network-runner control status
 
 To stream cluster status:
 
-```zsh
+```sh
 avalanche-network-runner control stream-status
 ```
 
 To save the network to a snapshot:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/savesnapshot -d '{"snapshotName":"node5"}'
 
 # or
@@ -1189,7 +1191,7 @@ avalanche-network-runner control save-snapshot snapshotName
 
 To load a network from a snapshot:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshotName":"node5"}'
 
 # or
@@ -1199,7 +1201,7 @@ avalanche-network-runner control load-snapshot snapshotName
 An avalanchego binary path and/or plugin dir can be specified when loading the snapshot. This is
 optional. If not specified, will use the paths saved with the snapshot:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/loadsnapshot -d '{"snapshotName":"node5"}'
 
 # or
@@ -1208,7 +1210,7 @@ avalanche-network-runner control load-snapshot snapshotName
 
 To get the list of snapshots:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/getsnapshotnames
 
 # or
@@ -1217,7 +1219,7 @@ avalanche-network-runner control get-snapshot-names
 
 To remove a snapshot:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/removesnapshot -d '{"snapshotName":"node5"}'
 
 # or
@@ -1226,7 +1228,7 @@ avalanche-network-runner control remove-snapshot snapshotName
 
 To create 1 validated subnet, with all existing nodes as participants (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{}]}'
 
 # or
@@ -1235,7 +1237,7 @@ avalanche-network-runner control create-subnets '[{}]'
 
 To create 1 validated subnet, with some of existing nodes as participants (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs:" [{"participants": ["node1", "node2"]}]}'
 
 # or
@@ -1244,7 +1246,7 @@ avalanche-network-runner control create-subnets '[{"participants": ["node1", "no
 
 To create 1 validated subnet, with some of existing nodes and another new node as participants (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{"participants": ["node1", "node2", "testNode"]}]}'
 
 # or
@@ -1254,7 +1256,7 @@ avalanche-network-runner control create-subnets '[{"participants": ["node1", "no
 
 To create N validated subnets (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createsubnets -d '{"subnetSpecs": [{}, {"participants": ["node1", "node2", "node3"]}, {"participants": ["node1", "node2", "testNode"]}]}'
 
 # or
@@ -1264,7 +1266,7 @@ avalanche-network-runner control create-subnets '[{}, {"participants": ["node1",
 
 To get a list of all the subnet ids:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/listsubnets
 
 # or
@@ -1275,7 +1277,7 @@ avalanche-network-runner control list-subnets
 
 The vm id can be derived from the vm name by using:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/vmid -d '{"vmName": "'${VM_NAME}'"}'
 
 # or
@@ -1284,7 +1286,7 @@ avalanche-network-runner control vmid ${VM_NAME}
 
 To create a blockchain without a subnet id (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'"}]}'
 
 # or
@@ -1293,7 +1295,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 
 Genesis can be given either as file path or file contents:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_CONTENTS'"}]}'
 
 # or
@@ -1302,7 +1304,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 
 To create a blockchain with a subnet id (does not require restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetId":"'$SUBNET_ID'"}]}'
 
 # or
@@ -1311,7 +1313,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 
 To create a blockchain with a subnet id, and chain config, network upgrade and subnet config file paths (requires network restart):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetId": "'$SUBNET_ID'","chainConfig": "'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
@@ -1321,7 +1323,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 To create a blockchain with a new subnet id with select nodes as participants (requires network restart):
 (New nodes will first be added as primary validators similar to the process in `create-subnets`)
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["node1", "node2", "testNode"]}"]}'
 
 # or
@@ -1330,7 +1332,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 
 To create two blockchains in two disjoint subnets (not shared validators), and where all validators have bls keys (participants new to the network):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{hainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["new_node1", "new_node2"]}},{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'","subnetSpec": {"participants": ["new_node3", "new_node4"]}}]'
 
 # or
@@ -1351,7 +1353,7 @@ Chain config can also be defined on a per node basis. For that, a per node chain
 
 Then a blockchain with different chain configs per node can be created with this command:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/createblockchains -d '{"blockchainSpecs":[{"vmName":"'$VM_NAME'","genesis":"'$GENESIS_PATH'", "subnetId": "'$SUBNET_ID'","perNodeChainConfig": "'$PER_NODE_CHAIN_CONFIG'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
@@ -1360,7 +1362,7 @@ avalanche-network-runner control create-blockchains '[{"vm_name":"'$VM_NAME'","g
 
 To get a list of all the blockchains (containing: blockchain id, subnet id, vm id, vm name):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/listblockchains
 
 # or
@@ -1369,7 +1371,7 @@ avalanche-network-runner control list-blockchains
 
 To get a list of all the rpc urls given for all the blockchains and nodes:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/listrpcs
 
 # or
@@ -1378,7 +1380,7 @@ avalanche-network-runner control list-rpcs
 
 To remove (stop) a node:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/removenode -d '{"name":"node5"}'
 
 # or
@@ -1391,7 +1393,7 @@ node5
 
 To restart a node (in this case, the one named `node1`):
 
-```zsh
+```sh
 # Note that you can restart the node with a different binary by providing
 # a different execPath
 curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1","logLevel":"INFO"}'
@@ -1406,7 +1408,7 @@ node1
 
 To add a node (in this case, a new node named `node99`):
 
-```zsh
+```sh
 # Note that you can add the new node with a different binary by providing
 # a different execPath
 curl -X POST -k http://localhost:8081/v1/control/addnode -d '{"name":"node99","logLevel":"INFO"}'
@@ -1421,7 +1423,7 @@ node99
 
 To pause a node (in this case, node named `node99`):
 
-```zsh
+```sh
 # e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
 
 curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99","logLevel":"INFO"}'
@@ -1436,7 +1438,7 @@ node99
 
 To resume a paused node (in this case, node named `node99`):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/resumenode -d '{"name":"node99","logLevel":"INFO"}'
 
 # or
@@ -1449,7 +1451,7 @@ node99
 
 You can also provide additional flags that specify the node's config:
 
-```zsh
+```sh
   --node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
 ```
 
@@ -1465,7 +1467,7 @@ You can send messages through the test peer to the node it is attached to.
 
 To attach a test peer to a node (in this case, `node1`):
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/attachpeer -d '{"nodeName":"node1"}'
 
 # or
@@ -1478,7 +1480,7 @@ avalanche-network-runner control attach-peer \
 
 To send a chit message to the node through the test peer:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeName":"node1","peerId":"7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg","op":16,"bytes":"EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKgAAAAPpAqmoZkC/2xzQ42wMyYK4Pldl+tX2u+ar3M57WufXx0oXcgXfXCmSnQbbnZQfg9XqmF3jAgFemSUtFkaaZhDbX6Ke1DVpA9rCNkcTxg9X2EcsfdpKXgjYioitjqca7WA="}'
 
 # or
@@ -1494,7 +1496,7 @@ avalanche-network-runner control send-outbound-message \
 
 To terminate the cluster:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/stop
 
 # or
@@ -1511,7 +1513,7 @@ To transform permissioned Subnets into permissionless Subnets (NOTE: this action
 
 Values provided below are the default values on [Primary Network on Mainnet](https://docs.avax.network/subnets/reference-elastic-subnets-parameters#primary-network-parameters-on-mainnet).
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/transformelasticsubnets -d '{"elasticSubnetSpec": [{"subnetId":"'$SUBNET_ID'","assetName":"'$ASSET_NAME'", 
 "assetSymbol":"'$ASSET_SYMBOL'", "initialSupply": 240000000, "maxSupply": 720000000, "minConsumption_rate": 100000, 
 "maxConsumption_rate": 120000, "minValidatorStake": 2000, "maxValidatorStake": 3000000, "minStakeDuration": 336, 
@@ -1536,7 +1538,7 @@ when the command was called and the node will be a validator until the node stop
 
 **Note**: Asset ID is returned by elastic-subnets command
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/addpermissionlessvalidator  -d '{"validatorSpec": [{"subnetId":"'$SUBNET_ID'","nodeName":"node1", 
 "stakedTokenAmount": 2000, "assetId": "'$ASSET_ID'", "startTime": "2023-05-25 21:00:00", "stakeDuration": 336}]}'
 
@@ -1547,7 +1549,7 @@ avalanche-network-runner control add-permissionless-validator '[{"subnet_id": "'
 
 To remove a node as a permissioned validator from a Subnet:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
 
 # or
@@ -1561,7 +1563,7 @@ Amount that can be delegated to a validator is detailed [here](https://docs.avax
 If `start_time` and `stake_duration` are omitted, the default value for validation start time will be 30 seconds ahead from
 when the command was called and the stake will be delegated until the node stops validating on the primary network.
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/addpermissionlessdelegator  -d '{"validatorSpec": [{"subnetId": "'$SUBNET_ID'", "nodeName":"node1", "assetId": "'$ASSET_ID'", "stakedTokenAmount": 2000, "startTime": "2023-05-25 21:00:00", "stakeDuration": 336}]}'
 
 # or
@@ -1572,7 +1574,7 @@ avalanche-network-runner control ./bin/avalanche-network-runner control add-perm
 
 To start the server:
 
-```zsh
+```sh
 avalanche-network-runner server \
 --log-level debug \
 --port=":8080" \
@@ -1584,7 +1586,7 @@ curl -X POST -k http://localhost:8081/v1/ping
 
 To start the cluster with custom chains:
 
-```zsh
+```sh
 # or download from https://github.com/ava-labs/subnet-cli/releases
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
@@ -1661,7 +1663,7 @@ EOF
 cat /tmp/subnet-evm.genesis.json
 ```
 
-```zsh
+```sh
 # replace execPath with the path to AvalancheGo on your machine
 export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
@@ -1675,14 +1677,14 @@ avalanche-network-runner control start \
 --blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}]'
 ```
 
-```zsh
+```sh
 # to get cluster information including blockchain ID
 curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 Blockchain config file, network upgrade file, and subnet config file paths can be optionally specified at network start, eg:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLevel":"INFO","blockchainSpecs":[{"vm_name":"subnetevm","genesis":"/tmp/subnet-evm.genesis.json","chainConfig":"'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
@@ -1696,7 +1698,7 @@ avalanche-network-runner control start \
 
 To start the server:
 
-```zsh
+```sh
 avalanche-network-runner server \
 --log-level debug \
 --port=":8080" \
@@ -1708,7 +1710,7 @@ curl -X POST -k http://localhost:8081/v1/ping
 
 To start the cluster with custom chains:
 
-```zsh
+```sh
 # or download from https://github.com/ava-labs/subnet-cli/releases
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
@@ -1743,7 +1745,7 @@ blob-cli genesis 1 /tmp/alloc.json --genesis-file /tmp/blobvm.genesis.json
 cat /tmp/blobvm.genesis.json
 ```
 
-```zsh
+```sh
 # replace execPath with the path to AvalancheGo on your machine
 export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
@@ -1757,14 +1759,14 @@ avalanche-network-runner control start \
 --blockchain-specs '[{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json"}]'
 ```
 
-```zsh
+```sh
 # to get cluster information including blockchain ID
 curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 Blockchain config file and network upgrade file paths can be optionally specified at network start, eg:
 
-```zsh
+```sh
 curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLevel":"INFO","blockchainSpecs":[{"vm_name":"blobvm","genesis":"/tmp/blobvm.json","chainConfig":"'$CHAIN_CONFIG_PATH'","networkUpgrade":"'$NETWORK_UPGRADE_PATH'","subnetConfig":"'$SUBNET_CONFIG_PATH'"}]}'
 
 # or
@@ -1778,7 +1780,7 @@ avalanche-network-runner control start \
 
 To start the server:
 
-```zsh
+```sh
 avalanche-network-runner server \
 --log-level debug \
 --port=":8080" \
@@ -1790,7 +1792,7 @@ curl -X POST -k http://localhost:8081/v1/ping
 
 To start the cluster with custom chains:
 
-```zsh
+```sh
 # or download from https://github.com/ava-labs/subnet-cli/releases
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
@@ -1825,7 +1827,7 @@ find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
 echo hello > /tmp/timestampvm.genesis.json
 ```
 
-```zsh
+```sh
 # replace execPath with the path to AvalancheGo on your machine
 export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
 export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
@@ -1839,14 +1841,14 @@ avalanche-network-runner control start \
 --blockchain-specs '[{"vm_name":"timestampvm","genesis":"/tmp/timestampvm.genesis.json","blockchain_alias":"timestamp"}]'
 ```
 
-```zsh
+```sh
 # to get cluster information including blockchain ID
 curl -X POST -k http://localhost:8081/v1/control/status
 ```
 
 To call `timestampvm` APIs:
 
-```zsh
+```sh
 # in this example,
 # "tGas3T58KzdjcJ2iKSyiYsWiqYctRXaPTqBCA11BqEkNg8kPc" is the Vm Id for the static service
 curl -X POST --data '{
@@ -1873,7 +1875,7 @@ curl -X POST --data '{
 }' -H 'content-type:application/json;' 127.0.0.1:9650/ext/bc/timestamp
 ```
 
-```zsh
+```sh
 curl -X POST --data '{
     "jsonrpc": "2.0",
     "method": "timestampvm.getBlock",
