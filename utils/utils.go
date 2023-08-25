@@ -21,11 +21,12 @@ const (
 )
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
-	cert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
+	tlsCert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
 		return ids.EmptyNodeID, err
 	}
-	nodeID := ids.NodeIDFromCert(cert.Leaf)
+	cert := staking.CertificateFromX509(tlsCert.Leaf)
+	nodeID := ids.NodeIDFromCert(cert)
 	return nodeID, nil
 }
 

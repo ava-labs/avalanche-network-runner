@@ -29,7 +29,8 @@ const bitmaskCodec = uint32(1 << 31)
 
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert, nil)
-	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
+	counter := prometheus.NewCounter(prometheus.CounterOpts{})
+	upgrader := peer.NewTLSServerUpgrader(tlsConfig, counter)
 	// this will block until the ssh handshake is done
 	peerID, tlsConn, _, err := upgrader.Upgrade(conn)
 	return peerID, tlsConn, err
