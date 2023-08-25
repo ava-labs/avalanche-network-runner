@@ -1090,7 +1090,6 @@ func TestGetPort(t *testing.T) {
 		map[string]interface{}{},
 		map[string]interface{}{"flag": float64(10013)},
 		"flag",
-		false,
 	)
 	require.NoError(err)
 	require.Equal(uint16(10013), port)
@@ -1100,7 +1099,6 @@ func TestGetPort(t *testing.T) {
 		map[string]interface{}{"flag": 10013},
 		map[string]interface{}{},
 		"flag",
-		false,
 	)
 	require.NoError(err)
 	require.Equal(uint16(10013), port)
@@ -1110,7 +1108,6 @@ func TestGetPort(t *testing.T) {
 		map[string]interface{}{"flag": 10013},
 		map[string]interface{}{"flag": float64(14)},
 		"flag",
-		false,
 	)
 	require.NoError(err)
 	require.Equal(uint16(10013), port)
@@ -1120,7 +1117,6 @@ func TestGetPort(t *testing.T) {
 		map[string]interface{}{},
 		map[string]interface{}{},
 		"flag",
-		false,
 	)
 	require.NoError(err)
 }

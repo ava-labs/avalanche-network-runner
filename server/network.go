@@ -542,13 +542,13 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	minAPIPortNumber := uint16(local.MaxPort)
+	minAPIPortNumber := uint16(0)
 	var node node.Node
 	for _, n := range nodes {
 		if n.GetPaused() {
 			continue
 		}
-		if n.GetAPIPort() < minAPIPortNumber {
+		if minAPIPortNumber == 0 || n.GetAPIPort() < minAPIPortNumber {
 			minAPIPortNumber = n.GetAPIPort()
 			node = n
 		}
