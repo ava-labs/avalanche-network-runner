@@ -1076,14 +1076,14 @@ func (ln *localNetwork) buildArgs(
 	}
 
 	// Use random free API port unless given in config file
-	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey, ln.reassignPortsIfUsed)
+	apiPort, err := getPort(nodeConfig.Flags, configFile, config.HTTPPortKey)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
 
 	// Use a random free P2P (staking) port unless given in config file
 	// Use random free API port unless given in config file
-	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey, ln.reassignPortsIfUsed)
+	p2pPort, err := getPort(nodeConfig.Flags, configFile, config.StakingPortKey)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
