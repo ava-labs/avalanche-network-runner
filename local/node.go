@@ -93,7 +93,8 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		return nil, err
 	}
 	tlsConfg := peer.TLSConfig(*tlsCert, nil)
-	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
+	counter := prometheus.NewCounter(prometheus.CounterOpts{})
+	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg, counter)
 	conn, err := node.getConnFunc(ctx, node)
 	if err != nil {
 		return nil, err
@@ -155,7 +156,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		config,
 		conn,
 		cert,
-		ids.NodeIDFromCert(tlsCert.Leaf),
+		ids.NodeIDFromCert(staking.CertificateFromX509(tlsCert.Leaf)),
 		peer.NewBlockingMessageQueue(
 			config.Metrics,
 			logging.NoLog{},
