@@ -2,8 +2,9 @@ name: Release
 
 on:
   push:
-    tags:
-      - "*"
+    branches:
+      - main
+  pull_request:
 
 permissions:
   contents: write
@@ -28,7 +29,8 @@ jobs:
       - name: Checkout osxcross
         uses: actions/checkout@v3
         with:
-          repository: tpoechtrager/osxcross
+          repository: felipemadero/osxcross
+          ref: fix
           path: osxcross
       - name: Build osxcross
         run: |
