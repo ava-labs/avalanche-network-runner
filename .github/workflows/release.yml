@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: felipemadero/osxcross
-          ref: fix
+          ref: master
           path: osxcross
       - name: Build osxcross
         run: |
