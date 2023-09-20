@@ -21,7 +21,7 @@ fi
 TESTS=${TESTS:-"golangci_lint"}
 
 function test_golangci_lint {
-  go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
+  go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
   golangci-lint run --config .golangci.yml
 }
 
@@ -29,14 +29,14 @@ function test_golangci_lint {
 # all go files except generated ones
 function find_go_files {
   local target="${1}"
-  go fmt -n "${target}"  | grep -Eo "([^ ]*)$" | grep -vE "(\\.pb\\.go|\\.pb\\.gw.go)"
+  go fmt -n "${target}" | grep -Eo "([^ ]*)$" | grep -vE "(\\.pb\\.go|\\.pb\\.gw.go)"
 }
 
 function run {
   local test="${1}"
   shift 1
   echo "START: '${test}' at $(date)"
-  if "test_${test}" "$@" ; then
+  if "test_${test}" "$@"; then
     echo "SUCCESS: '${test}' completed at $(date)"
   else
     echo "FAIL: '${test}' failed at $(date)"
