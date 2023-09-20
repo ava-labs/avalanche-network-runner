@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.19
 
 require (
-	github.com/ava-labs/avalanchego v1.10.9
-	github.com/ava-labs/coreth v0.12.5-rc.3
+	github.com/ava-labs/avalanchego v1.10.10
+	github.com/ava-labs/coreth v0.12.5-rc.6
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/onsi/ginkgo/v2 v2.8.1
