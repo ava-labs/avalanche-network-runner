@@ -34,11 +34,11 @@ const (
 scrape_configs:
   - job_name: prometheus
     static_configs:
-      - targets: 
+      - targets:
         - localhost:9090
   - job_name: avalanchego-machine
     static_configs:
-     - targets: 
+     - targets:
        - localhost:9100
        labels:
          alias: machine
@@ -608,7 +608,7 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 
 		isElastic := false
 		elasticSubnetID := ids.Empty
-		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+		if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
 			isElastic = true
 			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
 			if err != nil {

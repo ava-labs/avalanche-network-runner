@@ -27,3 +27,5 @@ bin/
 
 # Ignore Markdown linting configuration for VSCode
 .markdownlint.json
+
+build/
