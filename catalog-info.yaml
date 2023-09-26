@@ -11,6 +11,7 @@ spec:
   type: service
   owner: group:platform-tooling
   lifecycle: production
+  system: platform
   dependsOn:
     - component:avalanchego
     - component:subnet-evm
