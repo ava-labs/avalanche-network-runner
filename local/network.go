@@ -115,6 +115,10 @@ type localNetwork struct {
 	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
+	// if true, direct this node's Stdout to os.Stdout
+	redirectStdout bool
+	// if true, direct this node's Stderr to os.Stderr
+	redirectStderr bool
 	// map from subnet id to elastic subnet tx id
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 }
@@ -265,6 +269,8 @@ func NewNetwork(
 	rootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
+	redirectStdout bool,
+	redirectStderr bool,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -278,6 +284,8 @@ func NewNetwork(
 		rootDir,
 		snapshotsDir,
 		reassignPortsIfUsed,
+		redirectStdout,
+		redirectStderr,
 	)
 	if err != nil {
 		return net, err
@@ -295,6 +303,8 @@ func newNetwork(
 	rootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
+	redirectStdout bool,
+	redirectStderr bool,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -329,6 +339,8 @@ func newNetwork(
 		rootDir:                  rootDir,
 		snapshotsDir:             snapshotsDir,
 		reassignPortsIfUsed:      reassignPortsIfUsed,
+		redirectStdout:           redirectStdout,
+		redirectStderr:           redirectStderr,
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 	}
 	return net, nil
@@ -357,9 +369,11 @@ func NewDefaultNetwork(
 	log logging.Logger,
 	binaryPath string,
 	reassignPortsIfUsed bool,
+	redirectStdout bool,
+	redirectStderr bool,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return NewNetwork(log, config, "", "", reassignPortsIfUsed)
+	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
 // NewDefaultConfig creates a new default network config
