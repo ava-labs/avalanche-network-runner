@@ -292,7 +292,7 @@ func (ln *localNetwork) installCustomChains(
 			_, ok := ln.nodes[nodeName]
 			if !ok {
 				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
-				if _, err := ln.addNode(node.Config{Name: nodeName}); err != nil {
+				if _, err := ln.addNode(node.Config{Name: nodeName, RedirectStdout: true, RedirectStderr: true}); err != nil {
 					return nil, err
 				}
 			}
