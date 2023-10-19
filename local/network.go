@@ -115,8 +115,10 @@ type localNetwork struct {
 	subnetConfigFiles map[string]string
 	// if true, for ports given in conf that are already taken, assign new random ones
 	reassignPortsIfUsed bool
-	redirectStdout      bool
-	redirectStderr      bool
+	// if true, direct this node's Stdout to os.Stdout
+	redirectStdout bool
+	// if true, direct this node's Stderr to os.Stderr
+	redirectStderr bool
 	// map from subnet id to elastic subnet tx id
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 }
