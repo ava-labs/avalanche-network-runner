@@ -292,7 +292,11 @@ func (ln *localNetwork) installCustomChains(
 			_, ok := ln.nodes[nodeName]
 			if !ok {
 				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
-				if _, err := ln.addNode(node.Config{Name: nodeName, RedirectStdout: true, RedirectStderr: true}); err != nil {
+				if _, err := ln.addNode(node.Config{
+					Name:           nodeName,
+					RedirectStdout: ln.redirectStdout,
+					RedirectStderr: ln.redirectStderr,
+				}); err != nil {
 					return nil, err
 				}
 			}
@@ -437,7 +441,11 @@ func (ln *localNetwork) installSubnets(
 			_, ok := ln.nodes[nodeName]
 			if !ok {
 				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
-				if _, err := ln.addNode(node.Config{Name: nodeName}); err != nil {
+				if _, err := ln.addNode(node.Config{
+					Name:           nodeName,
+					RedirectStdout: ln.redirectStdout,
+					RedirectStderr: ln.redirectStderr,
+				}); err != nil {
 					return nil, err
 				}
 			}
@@ -1065,7 +1073,11 @@ func (ln *localNetwork) addPermissionlessValidators(
 		_, ok := ln.nodes[validatorSpec.NodeName]
 		if !ok {
 			ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", validatorSpec.NodeName)))
-			if _, err := ln.addNode(node.Config{Name: validatorSpec.NodeName}); err != nil {
+			if _, err := ln.addNode(node.Config{
+				Name:           validatorSpec.NodeName,
+				RedirectStdout: ln.redirectStdout,
+				RedirectStderr: ln.redirectStderr,
+			}); err != nil {
 				return err
 			}
 		}
