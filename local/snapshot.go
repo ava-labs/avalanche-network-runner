@@ -70,6 +70,8 @@ func NewNetworkFromSnapshot(
 	subnetConfigs map[string]string,
 	flags map[string]interface{},
 	reassignPortsIfUsed bool,
+	redirectStdout bool,
+	redirectStderr bool,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -83,6 +85,8 @@ func NewNetworkFromSnapshot(
 		rootDir,
 		snapshotsDir,
 		reassignPortsIfUsed,
+		redirectStdout,
+		redirectStderr,
 	)
 	if err != nil {
 		return net, err
