@@ -138,7 +138,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(node.networkID),
 		MySubnets:            set.Set[ids.ID]{},
-		Beacons:              validators.NewSet(),
+		Beacons:              validators.NewManager(),
 		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
