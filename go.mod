@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.20
 
 require (
-	github.com/ava-labs/avalanchego v1.10.13
-	github.com/ava-labs/coreth v0.12.6-rc.2
+	github.com/ava-labs/avalanchego v1.10.14
+	github.com/ava-labs/coreth v0.12.7-rc.1
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/onsi/ginkgo/v2 v2.8.1
@@ -16,8 +16,8 @@ require (
 	github.com/stretchr/testify v1.8.3
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
-	golang.org/x/mod v0.10.0
+	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
+	golang.org/x/mod v0.11.0
 	golang.org/x/sync v0.3.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98
 	google.golang.org/grpc v1.58.3
@@ -97,7 +97,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
