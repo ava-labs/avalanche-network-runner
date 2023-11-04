@@ -47,6 +47,20 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 	return uint32(networkID), nil
 }
 
+func SetGenesisNetworkID(genesis []byte, networkID uint32) ([]byte, error) {
+	genesisMap := map[string]interface{}{}
+	if err := json.Unmarshal(genesis, &genesisMap); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshal genesis: %w", err)
+	}
+	genesisMap[genesisNetworkIDKey] = networkID
+	var err error
+	genesis, err = json.Marshal(genesisMap)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't marshal genesis: %w", err)
+	}
+	return genesis, nil
+}
+
 var (
 	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
 	ErrNotExists       = errors.New("avalanche exec not exists")

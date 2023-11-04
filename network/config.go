@@ -50,7 +50,8 @@ type AddrAndBalance struct {
 // Config that defines a network when it is created.
 type Config struct {
 	// Must not be empty
-	Genesis string `json:"genesis"`
+	Genesis   string  `json:"genesis"`
+	NetworkID *uint32 `json:"networkID"`
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config `json:"nodeConfigs"`

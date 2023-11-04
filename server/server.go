@@ -328,6 +328,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 	}
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
+		networkID:           req.NetworkId,
 		execPath:            execPath,
 		rootDataDir:         rootDataDir,
 		numNodes:            numNodes,
