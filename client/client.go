@@ -472,9 +472,9 @@ func WithGlobalNodeConfig(nodeConfig string) OpOption {
 	}
 }
 
-func WithNetworkID(networkId uint32) OpOption {
+func WithNetworkID(networkID uint32) OpOption {
 	return func(op *Op) {
-		op.networkID = networkId
+		op.networkID = networkID
 	}
 }
 

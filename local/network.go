@@ -28,6 +28,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
+	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -445,12 +446,17 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.genesis = []byte(networkConfig.Genesis)
 
 	// Set network ID
-	ln.networkID = constants.DefaultNetworkID
+	var err error
+	ln.networkID, err = utils.NetworkIDFromGenesis(ln.genesis)
+	if err != nil {
+		return err
+	}
 	if networkConfig.NetworkID != 0 {
-		if networkConfig.NetworkID < 11 {
-			return fmt.Errorf("network IDs < 11 are reserved ones")
-		}
 		ln.networkID = networkConfig.NetworkID
+	}
+	switch ln.networkID {
+	case avagoconstants.TestnetID, avagoconstants.MainnetID:
+		return errors.New("network ID can't be mainnet or testnet")
 	}
 	genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
 	if err != nil {

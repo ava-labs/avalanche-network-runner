@@ -104,7 +104,7 @@ var (
 	subnetConfigs       string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
-	networkId           uint32
+	networkID           uint32
 )
 
 func setLogs() error {
@@ -178,7 +178,7 @@ func newStartCommand() *cobra.Command {
 		"avalanchego binary path",
 	)
 	cmd.PersistentFlags().Uint32Var(
-		&networkId,
+		&networkID,
 		"network-id",
 		0,
 		"network id to assign to the network",
@@ -272,10 +272,7 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
-	}
-
-	if networkId != 0 {
-		opts = append(opts, client.WithNetworkID(networkId))
+		client.WithNetworkID(networkID),
 	}
 
 	if globalNodeConfig != "" {

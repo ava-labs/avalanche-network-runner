@@ -21,9 +21,10 @@ const (
 )
 
 var (
-	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
-	ErrNotExists       = errors.New("avalanche exec not exists")
-	ErrNotExistsPlugin = errors.New("plugin exec not exists")
+	ErrEmptyExecPath    = errors.New("avalanche exec is not defined")
+	ErrNotExists        = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin  = errors.New("plugin exec not exists")
+	ErrorNoNetworkIDKey = fmt.Errorf("couldn't find key %q in genesis", genesisNetworkIDKey)
 )
 
 func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {

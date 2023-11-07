@@ -89,6 +89,9 @@ func (c *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
+	if c.NetworkID != 0 {
+		networkID = c.NetworkID
+	}
 
 	var someNodeIsBeacon bool
 	for i, nodeConfig := range c.NodeConfigs {
