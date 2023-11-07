@@ -351,7 +351,8 @@ message StartRequest {
   // the contents provided here.
   map<string, string> subnet_configs = 13;
 
-  optional uint32 network_id = 14;
+  // Network id to assign to the network, instead of default one
+  uint32 network_id = 14;
 }
 
 message RPCVersionRequest {}

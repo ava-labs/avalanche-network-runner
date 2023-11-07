@@ -444,20 +444,19 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	ln.genesis = []byte(networkConfig.Genesis)
 
-	if networkConfig.NetworkID != nil {
-		ln.networkID = *networkConfig.NetworkID
-		genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
-		if err != nil {
-			return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+	// Set network ID
+	ln.networkID = constants.DefaultNetworkID
+	if networkConfig.NetworkID != 0 {
+		if networkConfig.NetworkID < 11 {
+			return fmt.Errorf("network IDs < 11 are reserved ones")
 		}
-		ln.genesis = genesis
-	} else {
-		var err error
-		ln.networkID, err = utils.NetworkIDFromGenesis(ln.genesis)
-		if err != nil {
-			return fmt.Errorf("couldn't get network ID from genesis: %w", err)
-		}
+		ln.networkID = networkConfig.NetworkID
 	}
+	genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
+	if err != nil {
+		return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+	}
+	ln.genesis = genesis
 
 	// save node defaults
 	ln.flags = networkConfig.Flags

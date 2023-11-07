@@ -455,7 +455,7 @@ type Op struct {
 	subnetConfigs       map[string]string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
-	networkID           *uint32
+	networkID           uint32
 }
 
 type OpOption func(*Op)
@@ -474,7 +474,7 @@ func WithGlobalNodeConfig(nodeConfig string) OpOption {
 
 func WithNetworkID(networkId uint32) OpOption {
 	return func(op *Op) {
-		op.networkID = &networkId
+		op.networkID = networkId
 	}
 }
 

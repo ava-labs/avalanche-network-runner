@@ -20,6 +20,12 @@ const (
 	dirTimestampFormat  = "20060102_150405"
 )
 
+var (
+	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
+	ErrNotExists       = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin = errors.New("plugin exec not exists")
+)
+
 func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	tlsCert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
@@ -60,12 +66,6 @@ func SetGenesisNetworkID(genesis []byte, networkID uint32) ([]byte, error) {
 	}
 	return genesis, nil
 }
-
-var (
-	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
-	ErrNotExists       = errors.New("avalanche exec not exists")
-	ErrNotExistsPlugin = errors.New("plugin exec not exists")
-)
 
 func CheckExecPath(exec string) error {
 	if exec == "" {
