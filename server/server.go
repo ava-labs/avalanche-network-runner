@@ -638,6 +638,64 @@ func (s *server) AddPermissionlessValidator(
 	return &rpcpb.AddPermissionlessValidatorResponse{ClusterInfo: clusterInfo}, nil
 }
 
+func (s *server) AddSubnetValidators(
+	_ context.Context,
+	req *rpcpb.AddSubnetValidatorsRequest,
+) (*rpcpb.AddSubnetValidatorsResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	s.log.Debug("AddSubnetValidators")
+
+	if len(req.GetValidatorsSpec()) == 0 {
+		return nil, ErrNoValidatorSpec
+	}
+
+	validatorSpecList := []network.SubnetValidatorsSpec{}
+	for _, spec := range req.GetValidatorsSpec() {
+		validatorSpec := getSubnetValidatorSpec(spec)
+		validatorSpecList = append(validatorSpecList, validatorSpec)
+	}
+
+	// check that the given subnets exist
+	subnetsSet := set.Set[string]{}
+	subnetsSet.Add(maps.Keys(s.clusterInfo.Subnets)...)
+
+	for _, validatorSpec := range validatorSpecList {
+		if validatorSpec.SubnetID == "" {
+			return nil, ErrNoSubnetID
+		} else if !subnetsSet.Contains(validatorSpec.SubnetID) {
+			return nil, fmt.Errorf("subnet id %q does not exist", validatorSpec.SubnetID)
+		}
+	}
+
+	s.clusterInfo.Healthy = false
+	s.clusterInfo.CustomChainsHealthy = false
+
+	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	defer cancel()
+	err := s.network.AddSubnetValidators(ctx, validatorSpecList)
+
+	s.updateClusterInfo()
+
+	if err != nil {
+		s.log.Error("failed to add subnet validators", zap.Error(err))
+		return nil, err
+	}
+
+	s.log.Info("successfully added subnet validators")
+
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.AddSubnetValidatorsResponse{ClusterInfo: clusterInfo}, nil
+}
+
 func (s *server) RemoveSubnetValidator(
 	_ context.Context,
 	req *rpcpb.RemoveSubnetValidatorRequest,
@@ -655,7 +713,7 @@ func (s *server) RemoveSubnetValidator(
 		return nil, ErrNoValidatorSpec
 	}
 
-	validatorSpecList := []network.RemoveSubnetValidatorSpec{}
+	validatorSpecList := []network.SubnetValidatorsSpec{}
 	for _, spec := range req.GetValidatorSpec() {
 		validatorSpec := getRemoveSubnetValidatorSpec(spec)
 		validatorSpecList = append(validatorSpecList, validatorSpec)
@@ -1550,14 +1608,22 @@ func getPermissionlessValidatorSpec(
 	return validatorSpec, nil
 }
 
-func getRemoveSubnetValidatorSpec(
-	spec *rpcpb.RemoveSubnetValidatorSpec,
-) network.RemoveSubnetValidatorSpec {
-	validatorSpec := network.RemoveSubnetValidatorSpec{
+func getSubnetValidatorSpec(
+	spec *rpcpb.SubnetValidatorsSpec,
+) network.SubnetValidatorsSpec {
+	return network.SubnetValidatorsSpec{
 		SubnetID:  spec.SubnetId,
 		NodeNames: spec.GetNodeNames(),
 	}
-	return validatorSpec
+}
+
+func getRemoveSubnetValidatorSpec(
+	spec *rpcpb.RemoveSubnetValidatorSpec,
+) network.SubnetValidatorsSpec {
+	return network.SubnetValidatorsSpec{
+		SubnetID:  spec.SubnetId,
+		NodeNames: spec.GetNodeNames(),
+	}
 }
 
 func getNetworkBlockchainSpec(

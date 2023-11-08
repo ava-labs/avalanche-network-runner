@@ -377,7 +377,46 @@ func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validat
 	return nil
 }
 
-func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) error {
+func (lc *localNetwork) AddSubnetValidators(ctx context.Context, validatorSpecs []network.SubnetValidatorsSpec) error {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	if len(validatorSpecs) == 0 {
+		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		select {
+		case <-lc.stopCh:
+			// The network is stopped; return from method calls below.
+			cancel()
+		case <-ctx.Done():
+			// This method is done. Don't leak [ctx].
+		}
+	}(ctx)
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	err := lc.nw.AddSubnetValidators(ctx, validatorSpecs)
+	if err != nil {
+		return err
+	}
+
+	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return err
+	}
+
+	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnet validators")))
+	return nil
+}
+
+func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.SubnetValidatorsSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 

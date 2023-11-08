@@ -185,6 +185,25 @@ curl -X POST -k http://localhost:8081/v1/control/listsubnets
 avalanche-network-runner control list-subnets
 ```
 
+To add a node as a validator to a Subnet:
+
+```sh
+curl -X POST -k http://localhost:8081/v1/control/addsubnetvalidators  -d '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
+
+# or
+avalanche-network-runner control add-subnet-validators '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+```
+
+To remove a node as a validator from a Subnet:
+
+```sh
+curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
+
+# or
+avalanche-network-runner control remove-subnet-validator '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
+```
+
+
 ## Operating with blockchains
 
 **Note**: To create a blockchain, the vm binary for it should be present under the plugin dir, with a filename equal to the vm id. The plugin dir

@@ -8,7 +8,6 @@ package rpcpb
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -116,6 +115,7 @@ const (
 	ControlService_TransformElasticSubnets_FullMethodName    = "/rpcpb.ControlService/TransformElasticSubnets"
 	ControlService_AddPermissionlessDelegator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessDelegator"
 	ControlService_AddPermissionlessValidator_FullMethodName = "/rpcpb.ControlService/AddPermissionlessValidator"
+	ControlService_AddSubnetValidators_FullMethodName        = "/rpcpb.ControlService/AddSubnetValidators"
 	ControlService_RemoveSubnetValidator_FullMethodName      = "/rpcpb.ControlService/RemoveSubnetValidator"
 	ControlService_CreateSubnets_FullMethodName              = "/rpcpb.ControlService/CreateSubnets"
 	ControlService_Health_FullMethodName                     = "/rpcpb.ControlService/Health"
@@ -151,6 +151,7 @@ type ControlServiceClient interface {
 	TransformElasticSubnets(ctx context.Context, in *TransformElasticSubnetsRequest, opts ...grpc.CallOption) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessDelegator(ctx context.Context, in *AddPermissionlessDelegatorRequest, opts ...grpc.CallOption) (*AddPermissionlessDelegatorResponse, error)
 	AddPermissionlessValidator(ctx context.Context, in *AddPermissionlessValidatorRequest, opts ...grpc.CallOption) (*AddPermissionlessValidatorResponse, error)
+	AddSubnetValidators(ctx context.Context, in *AddSubnetValidatorsRequest, opts ...grpc.CallOption) (*AddSubnetValidatorsResponse, error)
 	RemoveSubnetValidator(ctx context.Context, in *RemoveSubnetValidatorRequest, opts ...grpc.CallOption) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
@@ -232,6 +233,15 @@ func (c *controlServiceClient) AddPermissionlessDelegator(ctx context.Context, i
 func (c *controlServiceClient) AddPermissionlessValidator(ctx context.Context, in *AddPermissionlessValidatorRequest, opts ...grpc.CallOption) (*AddPermissionlessValidatorResponse, error) {
 	out := new(AddPermissionlessValidatorResponse)
 	err := c.cc.Invoke(ctx, ControlService_AddPermissionlessValidator_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) AddSubnetValidators(ctx context.Context, in *AddSubnetValidatorsRequest, opts ...grpc.CallOption) (*AddSubnetValidatorsResponse, error) {
+	out := new(AddSubnetValidatorsResponse)
+	err := c.cc.Invoke(ctx, ControlService_AddSubnetValidators_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -478,6 +488,7 @@ type ControlServiceServer interface {
 	TransformElasticSubnets(context.Context, *TransformElasticSubnetsRequest) (*TransformElasticSubnetsResponse, error)
 	AddPermissionlessDelegator(context.Context, *AddPermissionlessDelegatorRequest) (*AddPermissionlessDelegatorResponse, error)
 	AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error)
+	AddSubnetValidators(context.Context, *AddSubnetValidatorsRequest) (*AddSubnetValidatorsResponse, error)
 	RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
@@ -525,6 +536,9 @@ func (UnimplementedControlServiceServer) AddPermissionlessDelegator(context.Cont
 }
 func (UnimplementedControlServiceServer) AddPermissionlessValidator(context.Context, *AddPermissionlessValidatorRequest) (*AddPermissionlessValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPermissionlessValidator not implemented")
+}
+func (UnimplementedControlServiceServer) AddSubnetValidators(context.Context, *AddSubnetValidatorsRequest) (*AddSubnetValidatorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddSubnetValidators not implemented")
 }
 func (UnimplementedControlServiceServer) RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveSubnetValidator not implemented")
@@ -712,6 +726,24 @@ func _ControlService_AddPermissionlessValidator_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).AddPermissionlessValidator(ctx, req.(*AddPermissionlessValidatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_AddSubnetValidators_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddSubnetValidatorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).AddSubnetValidators(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_AddSubnetValidators_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).AddSubnetValidators(ctx, req.(*AddSubnetValidatorsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1163,6 +1195,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddPermissionlessValidator",
 			Handler:    _ControlService_AddPermissionlessValidator_Handler,
+		},
+		{
+			MethodName: "AddSubnetValidators",
+			Handler:    _ControlService_AddSubnetValidators_Handler,
 		},
 		{
 			MethodName: "RemoveSubnetValidator",

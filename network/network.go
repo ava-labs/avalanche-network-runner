@@ -47,7 +47,7 @@ type SubnetSpec struct {
 	SubnetConfig []byte
 }
 
-type RemoveSubnetValidatorSpec struct {
+type SubnetValidatorsSpec struct {
 	NodeNames []string
 	SubnetID  string
 }
@@ -120,7 +120,9 @@ type Network interface {
 	// Add a validator into an elastic subnet
 	AddPermissionlessValidators(context.Context, []PermissionlessStakerSpec) error
 	// Remove a validator from a subnet
-	RemoveSubnetValidators(context.Context, []RemoveSubnetValidatorSpec) error
+	RemoveSubnetValidators(context.Context, []SubnetValidatorsSpec) error
+	// Add a validator toa subnet
+	AddSubnetValidators(context.Context, []SubnetValidatorsSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
 }
