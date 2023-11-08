@@ -172,6 +172,32 @@ curl --location 'http://localhost:8081/v1/control/addpermissionlessvalidator' \
 ]}'
 ```
 
+## `add-subnet-validators`
+
+Adds subnet validators
+
+### Usage
+
+```sh
+avalanche-network-runner control add-subnet-validators validatorsSpec [options] [flags]
+```
+
+### Example
+
+cli
+
+```sh
+avalanche-network-runner control add-subnet-validators '[{"subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "node_names":["node1"]}]'
+```
+
+curl
+
+```sh
+curl --location 'http://localhost:8081/v1/control/addsubnetvalidators' \
+--header 'Content-Type: application/json' \
+--data '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
+
+
 ## `attach-peer`
 
 Attaches a peer to the node.
