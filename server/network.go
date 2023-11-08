@@ -377,7 +377,7 @@ func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validat
 	return nil
 }
 
-func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) error {
+func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.SubnetValidatorsSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 

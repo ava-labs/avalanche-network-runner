@@ -655,7 +655,7 @@ func (s *server) RemoveSubnetValidator(
 		return nil, ErrNoValidatorSpec
 	}
 
-	validatorSpecList := []network.RemoveSubnetValidatorSpec{}
+	validatorSpecList := []network.SubnetValidatorsSpec{}
 	for _, spec := range req.GetValidatorSpec() {
 		validatorSpec := getRemoveSubnetValidatorSpec(spec)
 		validatorSpecList = append(validatorSpecList, validatorSpec)
@@ -1552,12 +1552,11 @@ func getPermissionlessValidatorSpec(
 
 func getRemoveSubnetValidatorSpec(
 	spec *rpcpb.RemoveSubnetValidatorSpec,
-) network.RemoveSubnetValidatorSpec {
-	validatorSpec := network.RemoveSubnetValidatorSpec{
+) network.SubnetValidatorsSpec {
+	return network.SubnetValidatorsSpec{
 		SubnetID:  spec.SubnetId,
 		NodeNames: spec.GetNodeNames(),
 	}
-	return validatorSpec
 }
 
 func getNetworkBlockchainSpec(

@@ -154,14 +154,26 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
-func (ln *localNetwork) RemoveSubnetValidators(
+/*
+func (ln *localNetwork) AddSubnetValidators(
 	ctx context.Context,
-	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
+	subnetSpecs []network.SubnetValidatorsSpec,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.removeSubnetValidators(ctx, removeSubnetSpecs)
+	return ln.addSubnetValidators(ctx, subnetSpecs)
+}
+*/
+
+func (ln *localNetwork) RemoveSubnetValidators(
+	ctx context.Context,
+	subnetSpecs []network.SubnetValidatorsSpec,
+) error {
+	ln.lock.Lock()
+	defer ln.lock.Unlock()
+
+	return ln.removeSubnetValidators(ctx, subnetSpecs)
 }
 
 func (ln *localNetwork) AddPermissionlessValidators(
@@ -586,7 +598,7 @@ func (ln *localNetwork) restartNodes(
 	subnetIDs []ids.ID,
 	subnetSpecs []network.SubnetSpec,
 	validatorSpecs []network.PermissionlessStakerSpec,
-	removeValidatorSpecs []network.RemoveSubnetValidatorSpec,
+	removeValidatorSpecs []network.SubnetValidatorsSpec,
 	nodesToRestartForBlockchainConfigUpdate set.Set[string],
 ) (err error) {
 	if (subnetSpecs != nil && validatorSpecs != nil) || (subnetSpecs != nil && removeValidatorSpecs != nil) ||
@@ -879,7 +891,7 @@ func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.O
 
 func (ln *localNetwork) removeSubnetValidators(
 	ctx context.Context,
-	removeSubnetSpecs []network.RemoveSubnetValidatorSpec,
+	removeSubnetSpecs []network.SubnetValidatorsSpec,
 ) error {
 	ln.log.Info("removing subnet validator tx")
 	removeSubnetSpecIDs := make([]ids.ID, len(removeSubnetSpecs))
