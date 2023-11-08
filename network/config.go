@@ -51,6 +51,8 @@ type AddrAndBalance struct {
 type Config struct {
 	// Must not be empty
 	Genesis string `json:"genesis"`
+	// If 0, will use default network ID
+	NetworkID uint32 `json:"networkID"`
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config `json:"nodeConfigs"`
@@ -86,6 +88,9 @@ func (c *Config) Validate() error {
 	networkID, err := utils.NetworkIDFromGenesis([]byte(c.Genesis))
 	if err != nil {
 		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
+	}
+	if c.NetworkID != 0 {
+		networkID = c.NetworkID
 	}
 
 	var someNodeIsBeacon bool

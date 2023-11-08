@@ -11,9 +11,7 @@ const (
 	RootDirPrefix          = "network-runner-root-data"
 	DefaultExecPathEnvVar  = "AVALANCHEGO_EXEC_PATH"
 	DefaultPluginDirEnvVar = "AVALANCHEGO_PLUGIN_PATH"
+	LocalGenesisFile       = "genesis.json"
 )
 
-var (
-	LocalConfigDir   = filepath.Join("local", "default")
-	LocalGenesisFile = "genesis.json"
-)
+var LocalConfigDir = filepath.Join("local", "default")

@@ -28,6 +28,7 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
+	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -444,11 +445,24 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	ln.genesis = []byte(networkConfig.Genesis)
 
+	// Set network ID
 	var err error
-	ln.networkID, err = utils.NetworkIDFromGenesis([]byte(networkConfig.Genesis))
+	ln.networkID, err = utils.NetworkIDFromGenesis(ln.genesis)
 	if err != nil {
-		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
+		return err
 	}
+	if networkConfig.NetworkID != 0 {
+		ln.networkID = networkConfig.NetworkID
+	}
+	switch ln.networkID {
+	case avagoconstants.TestnetID, avagoconstants.MainnetID:
+		return errors.New("network ID can't be mainnet or testnet")
+	}
+	genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
+	if err != nil {
+		return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+	}
+	ln.genesis = genesis
 
 	// save node defaults
 	ln.flags = networkConfig.Flags

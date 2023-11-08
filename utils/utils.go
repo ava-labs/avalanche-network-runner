@@ -20,6 +20,13 @@ const (
 	dirTimestampFormat  = "20060102_150405"
 )
 
+var (
+	ErrEmptyExecPath    = errors.New("avalanche exec is not defined")
+	ErrNotExists        = errors.New("avalanche exec not exists")
+	ErrNotExistsPlugin  = errors.New("plugin exec not exists")
+	ErrorNoNetworkIDKey = fmt.Errorf("couldn't find key %q in genesis", genesisNetworkIDKey)
+)
+
 func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	tlsCert, err := staking.LoadTLSCertFromBytes(stakingKey, stakingCert)
 	if err != nil {
@@ -47,11 +54,19 @@ func NetworkIDFromGenesis(genesis []byte) (uint32, error) {
 	return uint32(networkID), nil
 }
 
-var (
-	ErrEmptyExecPath   = errors.New("avalanche exec is not defined")
-	ErrNotExists       = errors.New("avalanche exec not exists")
-	ErrNotExistsPlugin = errors.New("plugin exec not exists")
-)
+func SetGenesisNetworkID(genesis []byte, networkID uint32) ([]byte, error) {
+	genesisMap := map[string]interface{}{}
+	if err := json.Unmarshal(genesis, &genesisMap); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshal genesis: %w", err)
+	}
+	genesisMap[genesisNetworkIDKey] = networkID
+	var err error
+	genesis, err = json.Marshal(genesisMap)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't marshal genesis: %w", err)
+	}
+	return genesis, nil
+}
 
 func CheckExecPath(exec string) error {
 	if exec == "" {

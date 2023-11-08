@@ -117,6 +117,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
+		NetworkId:      ret.networkID,
 		ExecPath:       execPath,
 		NumNodes:       &ret.numNodes,
 		ChainConfigs:   ret.chainConfigs,
@@ -454,6 +455,7 @@ type Op struct {
 	subnetConfigs       map[string]string
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
+	networkID           uint32
 }
 
 type OpOption func(*Op)
@@ -467,6 +469,12 @@ func (op *Op) applyOpts(opts []OpOption) {
 func WithGlobalNodeConfig(nodeConfig string) OpOption {
 	return func(op *Op) {
 		op.globalNodeConfig = nodeConfig
+	}
+}
+
+func WithNetworkID(networkID uint32) OpOption {
+	return func(op *Op) {
+		op.networkID = networkID
 	}
 }
 

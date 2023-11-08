@@ -109,6 +109,8 @@ type localNetworkOptions struct {
 	reassignPortsIfUsed bool
 
 	dynamicPorts bool
+
+	networkID uint32
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -160,6 +162,8 @@ func (lc *localNetwork) createConfig() error {
 	if lc.pluginDir != "" {
 		cfg.Flags[config.PluginDirKey] = lc.pluginDir
 	}
+
+	cfg.NetworkID = lc.options.networkID
 
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
