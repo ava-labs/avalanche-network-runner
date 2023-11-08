@@ -1053,15 +1053,28 @@ func (ln *localNetwork) addPermissionlessDelegators(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
-	preloadTXs := make([]ids.ID, len(delegatorSpecs))
+	subnetIDs := make([]ids.ID, len(delegatorSpecs))
 	for i, delegatorSpec := range delegatorSpecs {
 		subnetID, err := ids.FromString(delegatorSpec.SubnetID)
 		if err != nil {
 			return err
 		}
-		preloadTXs[i] = subnetID
+		subnetIDs[i] = subnetID
 	}
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	// check for all subnets to be permissionless
+	for _, subnetID := range subnetIDs {
+		b, err := subnetIsPermissionless(ctx, platformCli, subnetID)
+		if err != nil {
+			return err
+		}
+		if !b {
+			msg := fmt.Sprintf("subnet %s is not permissionless", subnetID)
+			ln.log.Info(logging.Red.Wrap(msg))
+			return errors.New(msg)
+		}
+	}
+	// wallet needs txs for all existent subnets
+	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return err
 	}
@@ -1141,16 +1154,28 @@ func (ln *localNetwork) addPermissionlessValidators(
 		return err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	// wallet needs txs for all previously created subnets
-	preloadTXs := make([]ids.ID, len(validatorSpecs))
+	subnetIDs := make([]ids.ID, len(validatorSpecs))
 	for i, validatorSpec := range validatorSpecs {
 		subnetID, err := ids.FromString(validatorSpec.SubnetID)
 		if err != nil {
 			return err
 		}
-		preloadTXs[i] = subnetID
+		subnetIDs[i] = subnetID
 	}
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	// check for all subnets to be permissionless
+	for _, subnetID := range subnetIDs {
+		b, err := subnetIsPermissionless(ctx, platformCli, subnetID)
+		if err != nil {
+			return err
+		}
+		if !b {
+			msg := fmt.Sprintf("subnet %s is not permissionless", subnetID)
+			ln.log.Info(logging.Red.Wrap(msg))
+			return errors.New(msg)
+		}
+	}
+	// wallet needs txs for all existent subnets
+	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return err
 	}
@@ -1262,20 +1287,32 @@ func (ln *localNetwork) transformToElasticSubnets(
 	if err != nil {
 		return nil, nil, err
 	}
-	// wallet needs txs for all previously created subnets
-	var preloadTXs []ids.ID
-	for _, elasticSubnetSpec := range elasticSubnetSpecs {
+	platformCli := platformvm.NewClient(clientURI)
+	subnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
+	for i, elasticSubnetSpec := range elasticSubnetSpecs {
 		if elasticSubnetSpec.SubnetID == nil {
 			return nil, nil, errors.New("elastic subnet spec has no subnet ID")
-		} else {
-			subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
-			if err != nil {
-				return nil, nil, err
-			}
-			preloadTXs = append(preloadTXs, subnetID)
+		}
+		subnetID, err := ids.FromString(*elasticSubnetSpec.SubnetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		subnetIDs[i] = subnetID
+	}
+	// check for all subnets to be not permissionless
+	for _, subnetID := range subnetIDs {
+		b, err := subnetIsPermissionless(ctx, platformCli, subnetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if b {
+			msg := fmt.Sprintf("subnet %s is already permissionless", subnetID)
+			ln.log.Info(logging.Red.Wrap(msg))
+			return nil, nil, errors.New(msg)
 		}
 	}
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	// wallet needs txs for all existent subnets
+	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1725,4 +1762,18 @@ func createDefaultCtx(ctx context.Context) (context.Context, context.CancelFunc)
 		ctx = context.Background()
 	}
 	return context.WithTimeout(ctx, defaultTimeout)
+}
+
+func subnetIsPermissionless(
+	ctx context.Context,
+	platformCli platformvm.Client,
+	subnetID ids.ID,
+) (bool, error) {
+	if _, _, err := platformCli.GetCurrentSupply(ctx, subnetID); err != nil {
+		if strings.Contains(err.Error(), "fetching current supply failed: not found") {
+			return false, nil
+		}
+		return false, fmt.Errorf("failure checking if subnet %s is permissionles: %w", subnetID, err)
+	}
+	return true, nil
 }

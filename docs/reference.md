@@ -584,7 +584,7 @@ avalanche-network-runner control remove-subnet-validator removeValidatorSpec [op
 cli
 
 ```sh
-avalanche-network-runner control remove-subnet-validator '[{"subnetId": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "nodeNames":["node1"]}]'
+avalanche-network-runner control remove-subnet-validator '[{"subnet_id": "p433wpuXyJiDhyazPYyZMJeaoPSW76CBZ2x7wrVPLgvokotXz", "node_names":["node1"]}]'
 ```
 
 curl
