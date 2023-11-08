@@ -4,7 +4,6 @@
   "public-ip":"127.0.0.1",
   "health-check-frequency":"2s",
   "api-admin-enabled":true,
-  "api-ipcs-enabled":true,
   "index-enabled":true,
   "log-display-level":"ERROR",
   "log-level": "DEBUG"

@@ -13,7 +13,6 @@ The network-runner supports avalanchego node configuration at different levels.
         "public-ip":"127.0.0.1",
         "health-check-frequency":"2s",
         "api-admin-enabled":true,
-        "api-ipcs-enabled":true,
         "index-enabled":true
         }
     ```
