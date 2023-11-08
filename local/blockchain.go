@@ -154,7 +154,6 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 	return nil
 }
 
-/*
 func (ln *localNetwork) AddSubnetValidators(
 	ctx context.Context,
 	subnetSpecs []network.SubnetValidatorsSpec,
@@ -164,7 +163,6 @@ func (ln *localNetwork) AddSubnetValidators(
 
 	return ln.addSubnetValidators(ctx, subnetSpecs)
 }
-*/
 
 func (ln *localNetwork) RemoveSubnetValidators(
 	ctx context.Context,
@@ -354,7 +352,7 @@ func (ln *localNetwork) installCustomChains(
 		return nil, err
 	}
 
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+	if err = ln.issueSubnetValidatorTxs(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -419,6 +417,88 @@ func (ln *localNetwork) installCustomChains(
 	}
 
 	return chainInfos, nil
+}
+
+func (ln *localNetwork) addSubnetValidators(
+	ctx context.Context,
+	subnetValidatorsSpecs []network.SubnetValidatorsSpec,
+) error {
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("add subnet validators")))
+
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+
+	// wallet needs txs for all previously created subnets
+	subnetIDs := make([]ids.ID, len(subnetValidatorsSpecs))
+	for i, spec := range subnetValidatorsSpecs {
+		subnetID, err := ids.FromString(spec.SubnetID)
+		if err != nil {
+			return err
+		}
+		subnetIDs[i] = subnetID
+	}
+	w, err := newWallet(ctx, clientURI, subnetIDs)
+	if err != nil {
+		return err
+	}
+
+	for _, spec := range subnetValidatorsSpecs {
+		if len(spec.NodeNames) == 0 {
+			return fmt.Errorf("no validators provided for subnet %s", spec.SubnetID)
+		}
+	}
+
+	// create new nodes
+	for _, spec := range subnetValidatorsSpecs {
+		for _, nodeName := range spec.NodeNames {
+			_, ok := ln.nodes[nodeName]
+			if !ok {
+				ln.log.Info(logging.Green.Wrap(fmt.Sprintf("adding new participant %s", nodeName)))
+				if _, err := ln.addNode(node.Config{
+					Name:           nodeName,
+					RedirectStdout: ln.redirectStdout,
+					RedirectStderr: ln.redirectStderr,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
+	}
+
+	// just ensure all nodes are primary validators (so can be subnet validators)
+	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
+		return err
+	}
+
+	// wait for nodes to be primary validators before trying to add them as subnet ones
+	if err = ln.waitPrimaryValidators(ctx, platformCli); err != nil {
+		return err
+	}
+
+	subnetSpecs := []network.SubnetSpec{}
+	for _, spec := range subnetValidatorsSpecs {
+		subnetSpecs = append(subnetSpecs, network.SubnetSpec{Participants: spec.NodeNames})
+	}
+
+	if err = ln.issueSubnetValidatorTxs(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+		return err
+	}
+
+	if err := ln.restartNodes(ctx, subnetIDs, subnetSpecs, nil, nil, nil); err != nil {
+		return err
+	}
+
+	if err = ln.waitSubnetValidators(ctx, platformCli, subnetIDs, subnetSpecs); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ln *localNetwork) installSubnets(
@@ -491,7 +571,7 @@ func (ln *localNetwork) installSubnets(
 		return nil, err
 	}
 
-	if err = ln.addSubnetValidators(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
+	if err = ln.issueSubnetValidatorTxs(ctx, platformCli, w, subnetIDs, subnetSpecs); err != nil {
 		return nil, err
 	}
 
@@ -1289,7 +1369,7 @@ func createSubnets(
 // add the nodes in subnet participant as validators of the given subnets, in case they are not
 // the validation starts as soon as possible and its duration is as long as possible, that is,
 // it ends at the time the primary network validation ends for the node
-func (ln *localNetwork) addSubnetValidators(
+func (ln *localNetwork) issueSubnetValidatorTxs(
 	ctx context.Context,
 	platformCli platformvm.Client,
 	w *wallet,
