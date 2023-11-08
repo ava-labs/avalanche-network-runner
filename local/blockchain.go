@@ -981,7 +981,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 			return errors.New(msg)
 		}
 	}
-	// wallet needs txs for all existant subnets
+	// wallet needs txs for all existent subnets
 	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return err
@@ -1082,7 +1082,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 			return errors.New(msg)
 		}
 	}
-	// wallet needs txs for all existant subnets
+	// wallet needs txs for all existent subnets
 	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return err
@@ -1196,7 +1196,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 		return nil, nil, err
 	}
 	platformCli := platformvm.NewClient(clientURI)
-	var subnetIDs []ids.ID
+	subnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
 	for _, elasticSubnetSpec := range elasticSubnetSpecs {
 		if elasticSubnetSpec.SubnetID == nil {
 			return nil, nil, errors.New("elastic subnet spec has no subnet ID")
@@ -1219,7 +1219,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 			return nil, nil, errors.New(msg)
 		}
 	}
-	// wallet needs txs for all existant subnets
+	// wallet needs txs for all existent subnets
 	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return nil, nil, err
