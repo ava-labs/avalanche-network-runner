@@ -477,7 +477,7 @@ To remove a node as a permissioned validator from a Subnet:
 curl -X POST -k http://localhost:8081/v1/control/removesubnetvalidator  -d '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
 
 # or
-avalanche-network-runner control remove-subnet-validator '[{"subnetId": "'$SUBNET_ID'", "nodeNames":["node1"]}]'
+avalanche-network-runner control remove-subnet-validator '[{"subnet_id": "'$SUBNET_ID'", "node_names":["node1"]}]'
 ```
 
 To delegate stake in a permissionless validator in an Elastic Subnet:
