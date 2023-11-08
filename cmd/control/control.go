@@ -63,6 +63,7 @@ func NewCommand() *cobra.Command {
 		newTransformElasticSubnetsCommand(),
 		newAddPermissionlessValidatorCommand(),
 		newAddPermissionlessDelegatorCommand(),
+		newAddSubnetValidatorsCommand(),
 		newRemoveSubnetValidatorCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
@@ -444,6 +445,16 @@ func newAddPermissionlessValidatorCommand() *cobra.Command {
 	return cmd
 }
 
+func newAddSubnetValidatorsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-subnet-validators validatorsSpec [options]",
+		Short: "Adds subnet validators",
+		RunE:  addSubnetValidatorsFunc,
+		Args:  cobra.ExactArgs(1),
+	}
+	return cmd
+}
+
 func newRemoveSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-subnet-validator removeValidatorSpec [options]",
@@ -535,6 +546,34 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 
 	ux.Print(log, logging.Green.Wrap("add-permissionless-validator response: %+v"), info)
+	return nil
+}
+
+func addSubnetValidatorsFunc(_ *cobra.Command, args []string) error {
+	cli, err := newClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	validatorSpecsStr := args[0]
+
+	validatorSpecs := []*rpcpb.SubnetValidatorsSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
+		return err
+	}
+
+	ctx := getAsyncContext()
+
+	info, err := cli.AddSubnetValidators(
+		ctx,
+		validatorSpecs,
+	)
+	if err != nil {
+		return err
+	}
+
+	ux.Print(log, logging.Green.Wrap("add-subnet-validators response: %+v"), info)
 	return nil
 }
 
