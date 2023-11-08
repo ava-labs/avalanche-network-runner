@@ -64,6 +64,13 @@ service ControlService {
     };
   }
 
+  rpc AddSubnetValidators(AddSubnetValidatorsRequest) returns (AddSubnetValidatorsResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/addsubnetvalidators"
+      body: "*"
+    };
+  }
+
   rpc RemoveSubnetValidator(RemoveSubnetValidatorRequest) returns (RemoveSubnetValidatorResponse) {
     option (google.api.http) = {
       post: "/v1/control/removesubnetvalidator"
@@ -438,6 +445,20 @@ message RemoveSubnetValidatorRequest {
 message RemoveSubnetValidatorResponse {
   ClusterInfo cluster_info = 1;
 }
+
+message SubnetValidatorsSpec {
+  string subnet_id = 1;
+  repeated string node_names = 2;
+}
+
+message AddSubnetValidatorsRequest {
+  repeated SubnetValidatorsSpec validators_spec = 1;
+}
+
+message AddSubnetValidatorsResponse {
+  ClusterInfo cluster_info = 1;
+}
+
 
 message BlockchainSpec {
   string vm_name = 1;
