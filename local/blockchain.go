@@ -1197,7 +1197,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	subnetIDs := make([]ids.ID, len(elasticSubnetSpecs))
-	for _, elasticSubnetSpec := range elasticSubnetSpecs {
+	for i, elasticSubnetSpec := range elasticSubnetSpecs {
 		if elasticSubnetSpec.SubnetID == nil {
 			return nil, nil, errors.New("elastic subnet spec has no subnet ID")
 		}
@@ -1205,7 +1205,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 		if err != nil {
 			return nil, nil, err
 		}
-		subnetIDs = append(subnetIDs, subnetID)
+		subnetIDs[i] = subnetID
 	}
 	// check for all subnets to be not permissionless
 	for _, subnetID := range subnetIDs {
