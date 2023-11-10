@@ -434,6 +434,9 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	if int(numNodes) < len(netConfig.NodeConfigs) {
 		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
 	}
+	if int(numNodes) == 1 {
+		netConfig.Flags[config.SybilProtectionEnabledKey] = false
+	}
 	return netConfig, nil
 }
 
