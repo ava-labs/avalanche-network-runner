@@ -659,7 +659,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		name:          nodeConfig.Name,
 		nodeID:        nodeID,
 		networkID:     ln.networkID,
-		client:        ln.newAPIClientF("localhost", nodeData.apiPort),
+		client:        ln.newAPIClientF(nodeData.publicIP, nodeData.apiPort),
 		process:       nodeProcess,
 		apiPort:       nodeData.apiPort,
 		p2pPort:       nodeData.p2pPort,
@@ -678,7 +678,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// so this node won't try to use itself as a beacon.
 	if !isPausedNode && nodeConfig.IsBeacon {
 		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
-			IP:   net.IPv6loopback,
+			IP:   net.ParseIP(nodeData.publicIP),
 			Port: nodeData.p2pPort,
 		}))
 	}
@@ -1054,6 +1054,7 @@ func (ln *localNetwork) setNodeName(nodeConfig *node.Config) error {
 
 type buildArgsReturn struct {
 	args      []string
+	publicIP  string
 	apiPort   uint16
 	p2pPort   uint16
 	dataDir   string
@@ -1119,12 +1120,19 @@ func (ln *localNetwork) buildArgs(
 		return buildArgsReturn{}, err
 	}
 
+	// publicIP from all configs for node
+	publicIP, err := getConfigEntry(nodeConfig.Flags, configFile, config.PublicIPKey, constants.IPv4Lookback)
+	if err != nil {
+		return buildArgsReturn{}, err
+	}
+
 	// Flags for AvalancheGo
 	flags := map[string]string{
 		config.NetworkNameKey:  fmt.Sprintf("%d", ln.networkID),
 		config.DataDirKey:      dataDir,
 		config.DBPathKey:       dbDir,
 		config.LogsDirKey:      logsDir,
+		config.PublicIPKey:     publicIP,
 		config.HTTPPortKey:     fmt.Sprintf("%d", apiPort),
 		config.StakingPortKey:  fmt.Sprintf("%d", p2pPort),
 		config.BootstrapIPsKey: ln.bootstraps.IPsArg(),
@@ -1171,6 +1179,7 @@ func (ln *localNetwork) buildArgs(
 
 	return buildArgsReturn{
 		args:      args,
+		publicIP:  publicIP,
 		apiPort:   apiPort,
 		p2pPort:   p2pPort,
 		dataDir:   dataDir,
