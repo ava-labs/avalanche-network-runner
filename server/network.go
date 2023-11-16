@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/config"
@@ -165,21 +166,28 @@ func (lc *localNetwork) createConfig() error {
 
 	cfg.NetworkID = lc.options.networkID
 
+	for k, v := range lc.options.chainConfigs {
+		ov, ok := cfg.ChainConfigFiles[k]
+		if ok {
+			v, err = utils.CombineJSONs(ov, v)
+			if err != nil {
+				return err
+			}
+		}
+		cfg.ChainConfigFiles[k] = v
+	}
+	for k, v := range lc.options.upgradeConfigs {
+		cfg.UpgradeConfigFiles[k] = v
+	}
+	for k, v := range lc.options.subnetConfigs {
+		cfg.SubnetConfigFiles[k] = v
+	}
+
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 		nodeName := fmt.Sprintf("node%d", i+1)
 
 		cfg.NodeConfigs[i].Name = nodeName
-
-		for k, v := range lc.options.chainConfigs {
-			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
-		}
-		for k, v := range lc.options.upgradeConfigs {
-			cfg.NodeConfigs[i].UpgradeConfigFiles[k] = v
-		}
-		for k, v := range lc.options.subnetConfigs {
-			cfg.NodeConfigs[i].SubnetConfigFiles[k] = v
-		}
 
 		if cfg.NodeConfigs[i].Flags == nil {
 			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
