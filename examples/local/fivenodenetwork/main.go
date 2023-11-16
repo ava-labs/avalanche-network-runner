@@ -68,7 +68,7 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewDefaultNetwork(log, binaryPath, true, true, true)
+	nw, err := local.NewDefaultNetwork(context.Background(), log, binaryPath, false, true, true, true)
 	if err != nil {
 		return err
 	}
