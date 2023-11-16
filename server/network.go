@@ -112,6 +112,8 @@ type localNetworkOptions struct {
 	dynamicPorts bool
 
 	networkID uint32
+
+	blsGenesisValidators bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -246,8 +248,20 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		return err
 	}
 
+	lc.options.blsGenesisValidators = true
+
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput)
+	nw, err := local.NewNetwork(
+		ctx,
+		lc.log,
+		lc.cfg,
+		lc.options.blsGenesisValidators,
+		lc.options.rootDataDir,
+		lc.options.snapshotsDir,
+		lc.options.reassignPortsIfUsed,
+		lc.options.redirectNodesOutput,
+		lc.options.redirectNodesOutput,
+	)
 	if err != nil {
 		return err
 	}

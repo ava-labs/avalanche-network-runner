@@ -850,10 +850,26 @@ func (ln *localNetwork) addPrimaryValidators(
 	for _, v := range vdrs {
 		curValidators.Add(v.NodeID)
 	}
+	cctx, cancel = createDefaultCtx(ctx)
+	pendVdrs, _, err := platformCli.GetPendingValidators(cctx, constants.PrimaryNetworkID, nil)
+	cancel()
+	if err != nil {
+		return err
+	}
+	pendValidators := set.Set[ids.NodeID]{}
+	for _, vI := range pendVdrs {
+		vMap := vI.(map[string]interface{})
+		nodeIDStr := vMap["nodeID"].(string)
+		nodeID, err := ids.NodeIDFromString(nodeIDStr)
+		if err != nil {
+			return err
+		}
+		pendValidators.Add(nodeID)
+	}
 	for nodeName, node := range ln.nodes {
 		nodeID := node.GetNodeID()
 
-		if curValidators.Contains(nodeID) {
+		if curValidators.Contains(nodeID) || pendValidators.Contains(nodeID) {
 			continue
 		}
 
@@ -1016,7 +1032,7 @@ func (ln *localNetwork) removeSubnetValidators(
 				return fmt.Errorf("node %s is not in network nodes", nodeName)
 			}
 			nodeID := node.GetNodeID()
-			if isValidator := subnetValidators.Contains(nodeID); !isValidator {
+			if !subnetValidators.Contains(nodeID) {
 				return fmt.Errorf("node %s is currently not a subnet validator of subnet %s", nodeName, subnetID.String())
 			}
 			cctx, cancel := createDefaultCtx(ctx)
@@ -1435,6 +1451,22 @@ func (ln *localNetwork) issueSubnetValidatorTxs(
 		for _, v := range vs {
 			subnetValidators.Add(v.NodeID)
 		}
+		cctx, cancel = createDefaultCtx(ctx)
+		pendVs, _, err := platformCli.GetPendingValidators(cctx, subnetID, nil)
+		cancel()
+		if err != nil {
+			return err
+		}
+		pendSubnetValidators := set.Set[ids.NodeID]{}
+		for _, vI := range pendVs {
+			vMap := vI.(map[string]interface{})
+			nodeIDStr := vMap["nodeID"].(string)
+			nodeID, err := ids.NodeIDFromString(nodeIDStr)
+			if err != nil {
+				return err
+			}
+			pendSubnetValidators.Add(nodeID)
+		}
 		participants := subnetSpecs[i].Participants
 		for _, nodeName := range participants {
 			node, b := ln.nodes[nodeName]
@@ -1442,7 +1474,7 @@ func (ln *localNetwork) issueSubnetValidatorTxs(
 				return fmt.Errorf("participant node %s is not in network nodes", nodeName)
 			}
 			nodeID := node.GetNodeID()
-			if isValidator := subnetValidators.Contains(nodeID); isValidator {
+			if subnetValidators.Contains(nodeID) || pendSubnetValidators.Contains(nodeID) {
 				continue
 			}
 			cctx, cancel := createDefaultCtx(ctx)
@@ -1495,7 +1527,7 @@ func (ln *localNetwork) waitPrimaryValidators(
 		}
 		for _, node := range ln.nodes {
 			nodeID := node.GetNodeID()
-			if isValidator := primaryValidators.Contains(nodeID); !isValidator {
+			if !primaryValidators.Contains(nodeID) {
 				ready = false
 			}
 		}
@@ -1540,7 +1572,7 @@ func (ln *localNetwork) waitSubnetValidators(
 					return fmt.Errorf("participant node %s is not in network nodes", nodeName)
 				}
 				nodeID := node.GetNodeID()
-				if isValidator := subnetValidators.Contains(nodeID); !isValidator {
+				if !subnetValidators.Contains(nodeID) {
 					ready = false
 				}
 			}

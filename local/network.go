@@ -24,9 +24,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
@@ -265,8 +267,10 @@ func init() {
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
 // Snapshots are saved to snapshotsDir, defaults to defaultSnapshotsDir if not given
 func NewNetwork(
+	ctx context.Context,
 	log logging.Logger,
 	networkConfig network.Config,
+	blsGenesisValidators bool,
 	rootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
@@ -291,7 +295,7 @@ func NewNetwork(
 	if err != nil {
 		return net, err
 	}
-	return net, net.loadConfig(context.Background(), networkConfig)
+	return net, net.loadConfig(ctx, networkConfig, blsGenesisValidators)
 }
 
 // See NewNetwork.
@@ -367,14 +371,16 @@ func newNetwork(
 // * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
 // * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
 func NewDefaultNetwork(
+	ctx context.Context,
 	log logging.Logger,
 	binaryPath string,
+	blsGenesisValidators bool,
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
 	config := NewDefaultConfig(binaryPath)
-	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+	return NewNetwork(ctx, log, config, blsGenesisValidators, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
 // NewDefaultConfig creates a new default network config
@@ -440,13 +446,48 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	return netConfig, nil
 }
 
-func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
+// updates the genesis so as the validators end shortly after network start
+func genesisForBlsValidators(genesisBytes []byte) ([]byte, error) {
+	var genesisMap map[string]interface{}
+	if err := json.Unmarshal(genesisBytes, &genesisMap); err != nil {
+		return nil, err
+	}
+	currentTime := time.Now().Unix()
+	// assumes 20 secs is enough
+	timeForNetworkToStart := int64(20)
+	// validators will be ending staking period every 30 seconds
+	stakeOffset := int64(20)
+	minStakeDuration := int64(genesis.LocalParams.StakingConfig.MinStakeDuration.Seconds())
+	stakeDuration := minStakeDuration + stakeOffset*int64(DefaultNumNodes-1)
+	genesisMap["startTime"] = currentTime - minStakeDuration + timeForNetworkToStart
+	genesisMap["initialStakeDuration"] = stakeDuration
+	genesisMap["initialStakeDurationOffset"] = stakeOffset
+	genesisBytes, err := json.MarshalIndent(genesisMap, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return genesisBytes, nil
+}
+
+func (ln *localNetwork) loadConfig(
+	ctx context.Context,
+	networkConfig network.Config,
+	blsGenesisValidators bool,
+) error {
 	if err := networkConfig.Validate(); err != nil {
 		return fmt.Errorf("config failed validation: %w", err)
 	}
 	ln.log.Info("creating network", zap.Int("node-num", len(networkConfig.NodeConfigs)))
 
 	ln.genesis = []byte(networkConfig.Genesis)
+
+	if blsGenesisValidators {
+		newGenesis, err := genesisForBlsValidators(ln.genesis)
+		if err != nil {
+			return err
+		}
+		ln.genesis = newGenesis
+	}
 
 	// Set network ID
 	var err error
@@ -506,6 +547,62 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
+	if blsGenesisValidators {
+		numNodes := len(networkConfig.NodeConfigs)
+		if numNodes > DefaultNumNodes {
+			numNodes = DefaultNumNodes
+		}
+		if err := ln.setBlsGenesisValidators(ctx, numNodes); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ln *localNetwork) setBlsGenesisValidators(ctx context.Context, numNodes int) error {
+	ln.log.Info(logging.Green.Wrap("waiting for healthy network status"))
+	for err := ln.healthy(ctx); err != nil; {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(1*time.Second):
+		}
+	}
+	ln.log.Info(logging.Green.Wrap("setting the genesis nodes as bls enabled primary network validators"))
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+	w, err := newWallet(ctx, clientURI, nil)
+	if err != nil {
+		return err
+	}
+	for {
+		vs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+		if err != nil {
+			return err
+		}
+		blsEnabledValidators := 0
+		for _, v := range vs {
+			if v.Signer != nil {
+				blsEnabledValidators++
+			}
+		}
+		if blsEnabledValidators == numNodes {
+			return nil
+		}
+		err = ln.addPrimaryValidators(ctx, platformCli, w)
+		if err != nil {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(1*time.Second):
+		}
+	}
 	return nil
 }
 

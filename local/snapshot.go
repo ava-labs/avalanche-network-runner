@@ -329,7 +329,7 @@ func (ln *localNetwork) loadSnapshot(
 			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
 	}
-	return ln.loadConfig(ctx, networkConfig)
+	return ln.loadConfig(ctx, networkConfig, false)
 }
 
 // Remove network snapshot
