@@ -19,13 +19,12 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
-	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
@@ -36,6 +35,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	"golang.org/x/mod/semver"
@@ -343,58 +343,14 @@ func NewDefaultNetwork(
 	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
-// update start times in default genesis
-func getUpdatedGenesis() ([]byte, error) {
-	genesisMap, err := network.LoadLocalGenesis()
-	if err != nil {
-		panic(err)
-	}
-	currentTime := time.Now().Unix()
-	lockTime := currentTime + genesisLocktimeStartimeDelta
-	// set genesis validators to end staking period right now
-	timeForNetworkToStart := int64(20)
-	stakeOffset := int64(30)
-	minStakeDuration := int64(genesis.LocalParams.StakingConfig.MinStakeDuration.Seconds())
-	stakeDuration := minStakeDuration + stakeOffset*int64(DefaultNumNodes-1)
-	genesisMap["startTime"] = currentTime - minStakeDuration + timeForNetworkToStart
-	genesisMap["initialStakeDuration"] = stakeDuration
-	// set genesis validators to end staking period with 30 sec difference
-	genesisMap["initialStakeDurationOffset"] = stakeOffset
-	//genesisMap["startTime"] = float64(startTime)
-	allocations, ok := genesisMap["allocations"].([]interface{})
-	if !ok {
-		panic(errors.New("could not get allocations in genesis"))
-	}
-	for _, allocIntf := range allocations {
-		alloc, ok := allocIntf.(map[string]interface{})
-		if !ok {
-			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
-		}
-		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
-		if !ok {
-			panic(errors.New("could not get unlockSchedule in allocation"))
-		}
-		for _, schedIntf := range unlockSchedule {
-			sched, ok := schedIntf.(map[string]interface{})
-			if !ok {
-				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
-			}
-			if _, ok := sched["locktime"]; ok {
-				sched["locktime"] = float64(lockTime)
-			}
-		}
-	}
-	return json.Marshal(genesisMap)
-}
-
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) (network.Config, error) {
 	config := defaultNetworkConfig
-	updatedGenesis, err := getUpdatedGenesis()
+	genesis, err := generateGenesis()
 	if err != nil {
 		return config, err
 	}
-	config.Genesis = string(updatedGenesis)
+	config.Genesis = string(genesis)
 	config.BinaryPath = binaryPath
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
@@ -457,6 +413,51 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	}
 	return netConfig, nil
 }
+
+// update start times in default genesis
+func generateGenesis() ([]byte, error) {
+	genesisMap, err := network.LoadLocalGenesis()
+	if err != nil {
+		return nil, err
+	}
+	currentTime := time.Now().Unix()
+	lockTime := currentTime + genesisLocktimeStartimeDelta
+	// set genesis validators to end staking period right now
+	timeForNetworkToStart := int64(20)
+	stakeOffset := int64(30)
+	minStakeDuration := int64(genesis.LocalParams.StakingConfig.MinStakeDuration.Seconds())
+	stakeDuration := minStakeDuration + stakeOffset*int64(DefaultNumNodes-1)
+	genesisMap["startTime"] = currentTime - minStakeDuration + timeForNetworkToStart
+	genesisMap["initialStakeDuration"] = stakeDuration
+	// set genesis validators to end staking period with 30 sec difference
+	genesisMap["initialStakeDurationOffset"] = stakeOffset
+	//genesisMap["startTime"] = float64(startTime)
+	allocations, ok := genesisMap["allocations"].([]interface{})
+	if !ok {
+		return nil, errors.New("could not get allocations in genesis")
+	}
+	for _, allocIntf := range allocations {
+		alloc, ok := allocIntf.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf)
+		}
+		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
+		if !ok {
+			return nil, errors.New("could not get unlockSchedule in allocation")
+		}
+		for _, schedIntf := range unlockSchedule {
+			sched, ok := schedIntf.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf)
+			}
+			if _, ok := sched["locktime"]; ok {
+				sched["locktime"] = float64(lockTime)
+			}
+		}
+	}
+	return json.Marshal(genesisMap)
+}
+
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
 	t0 := time.Now()
@@ -525,10 +526,9 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		}
 	}
 
-	for err := ln.healthy(ctx); err != nil;  {
-		time.Sleep(1*time.Second)
+	for err := ln.healthy(ctx); err != nil; {
+		time.Sleep(1 * time.Second)
 	}
-
 
 	clientURI, err := ln.getClientURI()
 	if err != nil {
@@ -558,7 +558,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 			return nil
 		}
 		fmt.Println()
-		time.Sleep(1*time.Second)
+		time.Sleep(1 * time.Second)
 		err = ln.addPrimaryValidators(ctx, platformCli, w)
 		if err != nil {
 			return err
