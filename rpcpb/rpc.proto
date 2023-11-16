@@ -360,6 +360,9 @@ message StartRequest {
 
   // Network id to assign to the network, instead of default one
   uint32 network_id = 14;
+
+  // Will start a procedure so as genesis validators are also bls enabled validators
+  bool bls_genesis_validators = 15;
 }
 
 message RPCVersionRequest {}

@@ -248,8 +248,6 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		return err
 	}
 
-	lc.options.blsGenesisValidators = true
-
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
 	nw, err := local.NewNetwork(
 		ctx,

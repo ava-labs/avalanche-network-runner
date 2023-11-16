@@ -154,7 +154,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	// Assert that GetNodeNames() returns an empty list
 	names, err := net.GetNodeNames()
@@ -219,7 +219,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 
 	// Assert that GetNodeNames() includes only the 1 node's name
@@ -249,7 +249,7 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.Error(err)
 }
 
@@ -485,7 +485,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 			require.NoError(err)
-			err = net.loadConfig(context.Background(), tt.config)
+			err = net.loadConfig(context.Background(), tt.config, false)
 			require.Error(err)
 		})
 	}
@@ -499,7 +499,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPIUnhealthy, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	require.Error(awaitNetworkHealthy(net, defaultHealthyTimeout))
 }
@@ -514,7 +514,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 	}
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	nodeNameMap := make(map[string]bool)
 	nodeNames, err := net.GetNodeNames()
@@ -534,7 +534,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	networkConfig := NewDefaultConfig(binaryPath)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	require.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	names, err := net.GetNodeNames()
@@ -584,7 +584,7 @@ func TestNetworkFromConfig(t *testing.T) {
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	require.NoError(awaitNetworkHealthy(net, defaultHealthyTimeout))
 	runningNodes := make(map[string]struct{})
@@ -608,7 +608,7 @@ func TestNetworkNodeOps(t *testing.T) {
 	require.NoError(err)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), emptyNetworkConfig)
+	err = net.loadConfig(context.Background(), emptyNetworkConfig, false)
 	require.NoError(err)
 	runningNodes := make(map[string]struct{})
 
@@ -646,7 +646,7 @@ func TestNodeNotFound(t *testing.T) {
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), emptyNetworkConfig)
+	err = net.loadConfig(context.Background(), emptyNetworkConfig, false)
 	require.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	require.NoError(err)
@@ -679,7 +679,7 @@ func TestStoppedNetwork(t *testing.T) {
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), emptyNetworkConfig)
+	err = net.loadConfig(context.Background(), emptyNetworkConfig, false)
 	require.NoError(err)
 	_, err = net.AddNode(networkConfig.NodeConfigs[0])
 	require.NoError(err)
@@ -712,7 +712,7 @@ func TestGetAllNodes(t *testing.T) {
 	networkConfig := testNetworkConfig(t)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 
 	nodes, err := net.GetAllNodes()
@@ -766,7 +766,7 @@ func TestFlags(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = nw.loadConfig(context.Background(), networkConfig)
+	err = nw.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	err = nw.Stop(context.Background())
 	require.NoError(err)
@@ -797,7 +797,7 @@ func TestFlags(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = nw.loadConfig(context.Background(), networkConfig)
+	err = nw.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	err = nw.Stop(context.Background())
 	require.NoError(err)
@@ -827,7 +827,7 @@ func TestFlags(t *testing.T) {
 		false,
 	)
 	require.NoError(err)
-	err = nw.loadConfig(context.Background(), networkConfig)
+	err = nw.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 	err = nw.Stop(context.Background())
 	require.NoError(err)
@@ -1283,7 +1283,7 @@ func TestRemoveBeacon(t *testing.T) {
 	require.NoError(err)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), emptyNetworkConfig)
+	err = net.loadConfig(context.Background(), emptyNetworkConfig, false)
 	require.NoError(err)
 
 	// a network config for a 3 node staking network, and add the bootstrapper
@@ -1334,7 +1334,7 @@ func TestHealthyDuringNetworkStop(t *testing.T) {
 	// Calls to a node's Healthy() function blocks until context cancelled
 	net, err := newNetwork(logging.NoLog{}, newMockAPIHealthyBlocks, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
-	err = net.loadConfig(context.Background(), networkConfig)
+	err = net.loadConfig(context.Background(), networkConfig, false)
 	require.NoError(err)
 
 	healthyChan := make(chan error)

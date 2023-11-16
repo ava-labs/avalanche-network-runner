@@ -118,12 +118,13 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
-		NetworkId:      ret.networkID,
-		ExecPath:       execPath,
-		NumNodes:       &ret.numNodes,
-		ChainConfigs:   ret.chainConfigs,
-		UpgradeConfigs: ret.upgradeConfigs,
-		SubnetConfigs:  ret.subnetConfigs,
+		NetworkId:            ret.networkID,
+		ExecPath:             execPath,
+		BlsGenesisValidators: ret.blsGenesisValidators,
+		NumNodes:             &ret.numNodes,
+		ChainConfigs:         ret.chainConfigs,
+		UpgradeConfigs:       ret.upgradeConfigs,
+		SubnetConfigs:        ret.subnetConfigs,
 	}
 	if ret.trackSubnets != "" {
 		req.WhitelistedSubnets = &ret.trackSubnets
@@ -451,21 +452,22 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes            uint32
-	execPath            string
-	trackSubnets        string
-	globalNodeConfig    string
-	rootDataDir         string
-	pluginDir           string
-	blockchainSpecs     []*rpcpb.BlockchainSpec
-	customNodeConfigs   map[string]string
-	numSubnets          uint32
-	chainConfigs        map[string]string
-	upgradeConfigs      map[string]string
-	subnetConfigs       map[string]string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
+	numNodes             uint32
+	execPath             string
+	blsGenesisValidators bool
+	trackSubnets         string
+	globalNodeConfig     string
+	rootDataDir          string
+	pluginDir            string
+	blockchainSpecs      []*rpcpb.BlockchainSpec
+	customNodeConfigs    map[string]string
+	numSubnets           uint32
+	chainConfigs         map[string]string
+	upgradeConfigs       map[string]string
+	subnetConfigs        map[string]string
+	reassignPortsIfUsed  bool
+	dynamicPorts         bool
+	networkID            uint32
 }
 
 type OpOption func(*Op)
@@ -473,6 +475,12 @@ type OpOption func(*Op)
 func (op *Op) applyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
+	}
+}
+
+func WithBlsGenesisValidators(blsGenesisValidators bool) OpOption {
+	return func(op *Op) {
+		op.blsGenesisValidators = blsGenesisValidators
 	}
 }
 

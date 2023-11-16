@@ -92,20 +92,21 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath  string
-	numNodes            uint32
-	pluginDir           string
-	globalNodeConfig    string
-	addNodeConfig       string
-	blockchainSpecsStr  string
-	customNodeConfigs   string
-	rootDataDir         string
-	chainConfigs        string
-	upgradeConfigs      string
-	subnetConfigs       string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
+	avalancheGoBinPath   string
+	numNodes             uint32
+	pluginDir            string
+	globalNodeConfig     string
+	addNodeConfig        string
+	blockchainSpecsStr   string
+	customNodeConfigs    string
+	rootDataDir          string
+	chainConfigs         string
+	upgradeConfigs       string
+	subnetConfigs        string
+	reassignPortsIfUsed  bool
+	dynamicPorts         bool
+	networkID            uint32
+	blsGenesisValidators bool
 )
 
 func setLogs() error {
@@ -256,6 +257,12 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to assign dynamic ports",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&blsGenesisValidators,
+		"bls-validators",
+		false,
+		"set all validators as bls enables",
+	)
 	return cmd
 }
 
@@ -274,6 +281,7 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
 		client.WithNetworkID(networkID),
+		client.WithBlsGenesisValidators(blsGenesisValidators),
 	}
 
 	if globalNodeConfig != "" {

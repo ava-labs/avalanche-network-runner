@@ -607,7 +607,6 @@ func (ln *localNetwork) setBlsGenesisValidators(ctx context.Context, numNodes in
 		case <-time.After(1 * time.Second):
 		}
 	}
-	return nil
 }
 
 // See network.Network
