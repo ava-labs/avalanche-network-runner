@@ -308,6 +308,7 @@ func startFunc(*cobra.Command, []string) error {
 			return err
 		}
 		opts = append(opts, client.WithChainConfigs(chainConfigsMap))
+		fmt.Println(chainConfigsMap)
 	}
 	if upgradeConfigs != "" {
 		upgradeConfigsMap := make(map[string]string)

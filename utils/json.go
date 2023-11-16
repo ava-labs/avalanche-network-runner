@@ -26,3 +26,22 @@ func SetJSONKey(jsonBody string, k string, v string) (string, error) {
 	}
 	return string(updatedJSON), nil
 }
+
+func CombineJSONs(baseJson string, addedJson string) (string, error) {
+	var baseConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(baseJson), &baseConfig); err != nil {
+		return "", err
+	}
+	var addedConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(addedJson), &addedConfig); err != nil {
+		return "", err
+	}
+	for k, v := range addedConfig {
+		baseConfig[k] = v
+	}
+	updatedJSON, err := json.Marshal(baseConfig)
+	if err != nil {
+		return "", err
+	}
+	return string(updatedJSON), nil
+}
