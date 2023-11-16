@@ -28,7 +28,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
@@ -36,6 +35,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	"golang.org/x/mod/semver"
@@ -452,13 +452,17 @@ func genesisForBlsValidators(genesisBytes []byte) ([]byte, error) {
 	if err := json.Unmarshal(genesisBytes, &genesisMap); err != nil {
 		return nil, err
 	}
+	// just two validators on genesis so the other 3 can be added as soon as network is healthy
+	initialStakers := genesisMap["initialStakers"].([]interface{})
+	genesisMap["initialStakers"] = initialStakers[:2]
+	// current time assumed to be just before starting the first node
 	currentTime := time.Now().Unix()
-	// assumes 20 secs is enough
+	// assumes this is enough
 	timeForNetworkToStart := int64(20)
-	// validators will be ending staking period every 30 seconds
+	// validators will be ending staking period every stakeOffset secs
 	stakeOffset := int64(20)
 	minStakeDuration := int64(genesis.LocalParams.StakingConfig.MinStakeDuration.Seconds())
-	stakeDuration := minStakeDuration + stakeOffset*int64(DefaultNumNodes-1)
+	stakeDuration := minStakeDuration + stakeOffset
 	genesisMap["startTime"] = currentTime - minStakeDuration + timeForNetworkToStart
 	genesisMap["initialStakeDuration"] = stakeDuration
 	genesisMap["initialStakeDurationOffset"] = stakeOffset
@@ -566,7 +570,7 @@ func (ln *localNetwork) setBlsGenesisValidators(ctx context.Context, numNodes in
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(1*time.Second):
+		case <-time.After(1 * time.Second):
 		}
 	}
 	ln.log.Info(logging.Green.Wrap("setting the genesis nodes as bls enabled primary network validators"))
@@ -600,7 +604,7 @@ func (ln *localNetwork) setBlsGenesisValidators(ctx context.Context, numNodes in
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(1*time.Second):
+		case <-time.After(1 * time.Second):
 		}
 	}
 	return nil
