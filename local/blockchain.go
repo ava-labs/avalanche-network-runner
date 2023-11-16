@@ -850,10 +850,26 @@ func (ln *localNetwork) addPrimaryValidators(
 	for _, v := range vdrs {
 		curValidators.Add(v.NodeID)
 	}
+	cctx, cancel = createDefaultCtx(ctx)
+	pendVdrs, _, err := platformCli.GetPendingValidators(cctx, constants.PrimaryNetworkID, nil)
+	cancel()
+	if err != nil {
+		return err
+	}
+	pendValidators := set.Set[ids.NodeID]{}
+	for _, vI := range pendVdrs {
+		vMap := vI.(map[string]interface {})
+		nodeIDStr := vMap["nodeID"].(string)
+		nodeID, err := ids.NodeIDFromString(nodeIDStr)
+		if err != nil {
+			return err
+		}
+		pendValidators.Add(nodeID)
+	}
 	for nodeName, node := range ln.nodes {
 		nodeID := node.GetNodeID()
 
-		if curValidators.Contains(nodeID) {
+		if curValidators.Contains(nodeID) || pendValidators.Contains(nodeID) {
 			continue
 		}
 

@@ -19,10 +19,12 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/api"
 	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/network/node/status"
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
+	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
@@ -148,46 +150,8 @@ var (
 
 // populate default network config from embedded default directory
 func init() {
-	// load genesis, updating validation start time
-	genesisMap, err := network.LoadLocalGenesis()
-	if err != nil {
-		panic(err)
-	}
 	// load deprecated avago flags support information
-	if err = json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
-		panic(err)
-	}
-
-	startTime := time.Now().Unix()
-	lockTime := startTime + genesisLocktimeStartimeDelta
-	genesisMap["startTime"] = float64(startTime)
-	allocations, ok := genesisMap["allocations"].([]interface{})
-	if !ok {
-		panic(errors.New("could not get allocations in genesis"))
-	}
-	for _, allocIntf := range allocations {
-		alloc, ok := allocIntf.(map[string]interface{})
-		if !ok {
-			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
-		}
-		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
-		if !ok {
-			panic(errors.New("could not get unlockSchedule in allocation"))
-		}
-		for _, schedIntf := range unlockSchedule {
-			sched, ok := schedIntf.(map[string]interface{})
-			if !ok {
-				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
-			}
-			if _, ok := sched["locktime"]; ok {
-				sched["locktime"] = float64(lockTime)
-			}
-		}
-	}
-
-	// now we can marshal the *whole* thing into bytes
-	updatedGenesis, err := json.Marshal(genesisMap)
-	if err != nil {
+	if err := json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
 		panic(err)
 	}
 
@@ -214,7 +178,6 @@ func init() {
 	defaultNetworkConfig = network.Config{
 		NodeConfigs: make([]node.Config, DefaultNumNodes),
 		Flags:       flags,
-		Genesis:     string(updatedGenesis),
 		ChainConfigFiles: map[string]string{
 			"C": string(cChainConfig),
 		},
@@ -373,13 +336,65 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config := NewDefaultConfig(binaryPath)
+	config, err := NewDefaultConfig(binaryPath)
+	if err != nil {
+		return &localNetwork{}, err
+	}
 	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
+// update start times in default genesis
+func getUpdatedGenesis() ([]byte, error) {
+	genesisMap, err := network.LoadLocalGenesis()
+	if err != nil {
+		panic(err)
+	}
+	currentTime := time.Now().Unix()
+	lockTime := currentTime + genesisLocktimeStartimeDelta
+	// set genesis validators to end staking period right now
+	timeForNetworkToStart := int64(20)
+	stakeOffset := int64(30)
+	minStakeDuration := int64(genesis.LocalParams.StakingConfig.MinStakeDuration.Seconds())
+	stakeDuration := minStakeDuration + stakeOffset*int64(DefaultNumNodes-1)
+	genesisMap["startTime"] = currentTime - minStakeDuration + timeForNetworkToStart
+	genesisMap["initialStakeDuration"] = stakeDuration
+	// set genesis validators to end staking period with 30 sec difference
+	genesisMap["initialStakeDurationOffset"] = stakeOffset
+	//genesisMap["startTime"] = float64(startTime)
+	allocations, ok := genesisMap["allocations"].([]interface{})
+	if !ok {
+		panic(errors.New("could not get allocations in genesis"))
+	}
+	for _, allocIntf := range allocations {
+		alloc, ok := allocIntf.(map[string]interface{})
+		if !ok {
+			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
+		}
+		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
+		if !ok {
+			panic(errors.New("could not get unlockSchedule in allocation"))
+		}
+		for _, schedIntf := range unlockSchedule {
+			sched, ok := schedIntf.(map[string]interface{})
+			if !ok {
+				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
+			}
+			if _, ok := sched["locktime"]; ok {
+				sched["locktime"] = float64(lockTime)
+			}
+		}
+	}
+	return json.Marshal(genesisMap)
+}
+
 // NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string) network.Config {
+func NewDefaultConfig(binaryPath string) (network.Config, error) {
 	config := defaultNetworkConfig
+	updatedGenesis, err := getUpdatedGenesis()
+	if err != nil {
+		return config, err
+	}
+	config.Genesis = string(updatedGenesis)
 	config.BinaryPath = binaryPath
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
@@ -390,12 +405,15 @@ func NewDefaultConfig(binaryPath string) network.Config {
 	for i := range config.NodeConfigs {
 		config.NodeConfigs[i].Flags = maps.Clone(config.NodeConfigs[i].Flags)
 	}
-	return config
+	return config, nil
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
 func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
-	netConfig := NewDefaultConfig(binaryPath)
+	netConfig, err := NewDefaultConfig(binaryPath)
+	if err != nil {
+		return netConfig, err
+	}
 	if int(numNodes) > len(netConfig.NodeConfigs) {
 		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
 		refNodeConfig := netConfig.NodeConfigs[len(netConfig.NodeConfigs)-1]
@@ -441,6 +459,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
+	t0 := time.Now()
 	if err := networkConfig.Validate(); err != nil {
 		return fmt.Errorf("config failed validation: %w", err)
 	}
@@ -503,6 +522,46 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 				ln.log.Debug("error stopping network", zap.Error(err))
 			}
 			return fmt.Errorf("error adding node %s: %w", nodeConfig.Name, err)
+		}
+	}
+
+	for err := ln.healthy(ctx); err != nil;  {
+		time.Sleep(1*time.Second)
+	}
+
+
+	clientURI, err := ln.getClientURI()
+	if err != nil {
+		return err
+	}
+	platformCli := platformvm.NewClient(clientURI)
+
+	w, err := newWallet(ctx, clientURI, nil)
+	if err != nil {
+		return err
+	}
+
+	for {
+		fmt.Println(time.Now(), time.Since(t0))
+		vs, err := platformCli.GetCurrentValidators(ctx, ids.Empty, nil)
+		if err != nil {
+			return err
+		}
+		blsEnabledValidators := 0
+		for i, v := range vs {
+			fmt.Println(i, v.NodeID, time.Unix(int64(v.StartTime), 0), time.Unix(int64(v.EndTime), 0), v.Signer)
+			if v.Signer != nil {
+				blsEnabledValidators++
+			}
+		}
+		if blsEnabledValidators == len(ln.nodes) {
+			return nil
+		}
+		fmt.Println()
+		time.Sleep(1*time.Second)
+		err = ln.addPrimaryValidators(ctx, platformCli, w)
+		if err != nil {
+			return err
 		}
 	}
 
