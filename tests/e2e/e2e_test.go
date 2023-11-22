@@ -121,13 +121,13 @@ func init() {
 	flag.StringVar(
 		&gRPCEp,
 		"grpc-endpoint",
-		"0.0.0.0:8080",
+		"localhost:8080",
 		"gRPC server endpoint",
 	)
 	flag.StringVar(
 		&gRPCGatewayEp,
 		"grpc-gateway-endpoint",
-		"0.0.0.0:8081",
+		"localhost:8081",
 		"gRPC gateway endpoint",
 	)
 	flag.StringVar(

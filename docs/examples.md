@@ -323,7 +323,7 @@ curl -X POST -k http://localhost:8081/v1/control/removenode -d '{"name":"node5"}
 avalanche-network-runner control remove-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node5
 ```
 
@@ -338,7 +338,7 @@ curl -X POST -k http://localhost:8081/v1/control/restartnode -d '{"name":"node1"
 avalanche-network-runner control restart-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node1 
 ```
 
@@ -353,7 +353,7 @@ curl -X POST -k http://localhost:8081/v1/control/addnode -d '{"name":"node99","l
 avalanche-network-runner control add-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node99 
 ```
 
@@ -368,7 +368,7 @@ curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99",
 avalanche-network-runner control pause-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node99 
 ```
 
@@ -381,7 +381,7 @@ curl -X POST -k http://localhost:8081/v1/control/resumenode -d '{"name":"node99"
 avalanche-network-runner control resume-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node99 
 ```
 
@@ -412,7 +412,7 @@ curl -X POST -k http://localhost:8081/v1/control/attachpeer -d '{"nodeName":"nod
 avalanche-network-runner control attach-peer \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --node-name node1
 ```
 
@@ -425,7 +425,7 @@ curl -X POST -k http://localhost:8081/v1/control/sendoutboundmessage -d '{"nodeN
 avalanche-network-runner control send-outbound-message \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --node-name node1 \
 --peer-id "7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
 --message-op=16 \
@@ -442,7 +442,7 @@ curl -X POST -k http://localhost:8081/v1/control/stop
 # or
 avalanche-network-runner control stop \
 --log-level debug \
---endpoint="0.0.0.0:8080"
+--endpoint="localhost:8080"
 ```
 
 Note: this does not stops the server.
