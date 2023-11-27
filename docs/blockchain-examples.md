@@ -102,7 +102,7 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLev
 # or
 avalanche-network-runner control start \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json"}]'
 ```
 
@@ -119,7 +119,7 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLev
 # or
 avalanche-network-runner control start \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --blockchain-specs '[{"vm_name": "subnetevm", "genesis": "/tmp/subnet-evm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
 ```
 
@@ -183,7 +183,7 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLev
 # or
 avalanche-network-runner control start \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --blockchain-specs '[{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json"}]'
 ```
 
@@ -200,7 +200,7 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLev
 # or
 avalanche-network-runner control start \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --blockchain-specs '[{"vm_name": "blobvm", "genesis": "/tmp/blobvm.genesis.json", "chain_config": "'$CHAIN_CONFIG_PATH'", "network_upgrade": "'$NETWORK_UPGRADE_PATH'", "subnet_config": "'$SUBNET_CONFIG_PATH'"}]'
 ```
 
@@ -264,7 +264,7 @@ curl -X POST -k http://localhost:8081/v1/control/start -d '{"numNodes":5,"logLev
 # or
 avalanche-network-runner control start \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --blockchain-specs '[{"vm_name":"timestampvm","genesis":"/tmp/timestampvm.genesis.json","blockchain_alias":"timestamp"}]'
 ```
 

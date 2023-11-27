@@ -176,7 +176,7 @@ func (s *server) Run(rootCtx context.Context) (err error) {
 			ctx, cancel := context.WithTimeout(rootCtx, s.cfg.DialTimeout)
 			gwConn, err := grpc.DialContext(
 				ctx,
-				"0.0.0.0"+s.cfg.Port,
+				"localhost"+s.cfg.Port,
 				grpc.WithBlock(),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)

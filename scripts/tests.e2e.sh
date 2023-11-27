@@ -146,7 +146,7 @@ echo "running e2e tests"
 --ginkgo.v \
 --ginkgo.fail-fast \
 --log-level debug \
---grpc-endpoint="0.0.0.0:8080" \
---grpc-gateway-endpoint="0.0.0.0:8081" \
+--grpc-endpoint="localhost:8080" \
+--grpc-gateway-endpoint="localhost:8081" \
 --avalanchego-path-1=${VERSION_1_DIR}/avalanchego \
 --avalanchego-path-2=${VERSION_2_DIR}/avalanchego

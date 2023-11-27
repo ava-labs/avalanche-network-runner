@@ -3,7 +3,7 @@
 ## Global Flags
 
 - `--dial-timeout duration`      server dial timeout (default 10s)
-- `--endpoint string`            server endpoint (default "0.0.0.0:8080")
+- `--endpoint string`            server endpoint (default "localhost:8080")
 - `--log-dir string`             log directory
 - `--log-level string`           log level (default "INFO")
 - `--request-timeout duration`   client request timeout (default 3m0s)
@@ -622,7 +622,7 @@ cli
 avalanche-network-runner control restart-node \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 node1 
 ```
 
@@ -741,7 +741,7 @@ cli
 avalanche-network-runner control send-outbound-message \
 --request-timeout=3m \
 --log-level debug \
---endpoint="0.0.0.0:8080" \
+--endpoint="localhost:8080" \
 --node-name node1 \
 --peer-id "7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
 --message-op=16 \
@@ -787,7 +787,7 @@ cli
 ```sh
 avalanche-network-runner control start \
   --log-level debug \
-  --endpoint="0.0.0.0:8080" \
+  --endpoint="localhost:8080" \
   --number-of-nodes=5 \
   --blockchain-specs '[{"vm_name": "subnetevm", "genesis": "./path/to/config.json"}]'
 ```
