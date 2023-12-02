@@ -145,6 +145,9 @@ func VerifySubnetHasCorrectParticipants(
 func InsideDockerContainer() (bool, error) {
 	_, err := os.Stat(dockerEnvPath)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
 		return false, err
 	}
 	return true, nil
