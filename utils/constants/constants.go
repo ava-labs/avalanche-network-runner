@@ -13,6 +13,7 @@ const (
 	DefaultPluginDirEnvVar = "AVALANCHEGO_PLUGIN_PATH"
 	LocalGenesisFile       = "genesis.json"
 	IPv4Lookback           = "127.0.0.1"
+	DefaultNetworkID       = 1337
 )
 
 var LocalConfigDir = filepath.Join("local", "default")

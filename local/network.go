@@ -380,6 +380,7 @@ func NewDefaultNetwork(
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) network.Config {
 	config := defaultNetworkConfig
+	config.NetworkID = constants.DefaultNetworkID
 	config.BinaryPath = binaryPath
 	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
 	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
@@ -438,13 +439,18 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	if int(numNodes) == 1 {
 		netConfig.Flags[config.SybilProtectionEnabledKey] = false
 	}
+	genesis, err := utils.GenerateCustomGenesis(netConfig)
+	if err != nil {
+		return netConfig, err
+	}
+	netConfig.Genesis = string(genesis)
 	return netConfig, nil
 }
 
 type nodeKeys struct {
-	stakingKey string
+	stakingKey  string
 	stakingCert string
-	blsKey string
+	blsKey      string
 }
 
 func getNodeKeys() (*nodeKeys, error) {

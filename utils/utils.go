@@ -61,7 +61,7 @@ func SetGenesisNetworkID(genesis []byte, networkID uint32) ([]byte, error) {
 	}
 	genesisMap[genesisNetworkIDKey] = networkID
 	var err error
-	genesis, err = json.Marshal(genesisMap)
+	genesis, err = json.MarshalIndent(genesisMap, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't marshal genesis: %w", err)
 	}

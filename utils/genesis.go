@@ -3,9 +3,15 @@
 package utils
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	"github.com/ava-labs/avalanche-network-runner/network"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	coreth_params "github.com/ava-labs/coreth/params"
 )
 
@@ -16,6 +22,8 @@ const (
 	defaultLocalCChainFundedAddress = "8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
 	defaultLocalCChainFundedBalance = "0x295BE96E64066972000000"
 	allocationCommonEthAddress      = "0xb3d82b1367d362de99ab59a658165aff520cbd4d"
+	stakingAddr                     = "X-custom1g65uqn6t77p656w64023nh8nd9updzmxwd59gh"
+	walletAddr                      = "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
 )
 
 func generateCustomCchainGenesis() ([]byte, error) {
@@ -39,11 +47,8 @@ func generateCustomCchainGenesis() ([]byte, error) {
 	return json.Marshal(cChainGenesisMap)
 }
 
-func generateCustomGenesis(
-	networkID uint32,
-	walletAddr string,
-	stakingAddr string,
-	nodeIDs []string,
+func GenerateCustomGenesis(
+	netConfig network.Config,
 ) ([]byte, error) {
 	genesisMap := map[string]interface{}{}
 
@@ -55,18 +60,45 @@ func generateCustomGenesis(
 	genesisMap["cChainGenesis"] = string(cChainGenesisBytes)
 
 	// pchain genesis
-	genesisMap["networkID"] = networkID
+	genesisMap["networkID"] = netConfig.NetworkID
 	startTime := time.Now().Unix()
 	genesisMap["startTime"] = startTime
 	initialStakers := []map[string]interface{}{}
-	for _, nodeID := range nodeIDs {
+
+	for _, nodeConfig := range netConfig.NodeConfigs {
+		nodeID, err := ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get node ID: %w", err)
+		}
+		blsKeyBytes, err := base64.StdEncoding.DecodeString(nodeConfig.StakingSigningKey)
+		if err != nil {
+			return nil, err
+		}
+		blsSk, err := bls.SecretKeyFromBytes(blsKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+		p := signer.NewProofOfPossession(blsSk)
+		pk, err := formatting.Encode(formatting.HexNC, p.PublicKey[:])
+		if err != nil {
+			return nil, err
+		}
+		pop, err := formatting.Encode(formatting.HexNC, p.ProofOfPossession[:])
+		if err != nil {
+			return nil, err
+		}
 		initialStaker := map[string]interface{}{
 			"nodeID":        nodeID,
 			"rewardAddress": walletAddr,
 			"delegationFee": 1000000,
+			"signer": map[string]interface{}{
+				"publicKey":         pk,
+				"proofOfPossession": pop,
+			},
 		}
 		initialStakers = append(initialStakers, initialStaker)
 	}
+
 	genesisMap["initialStakeDuration"] = 31536000
 	genesisMap["initialStakeDurationOffset"] = 5400
 	genesisMap["initialStakers"] = initialStakers
