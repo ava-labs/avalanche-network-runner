@@ -1172,7 +1172,7 @@ func (ln *localNetwork) buildArgs(
 	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, flags)
 
 	// create config file
-	configFilePath := filepath.Join(nodeDir, "config.json")
+	configFilePath := filepath.Join(nodeDir, configFileName)
 	configFileBytes, err := json.MarshalIndent(flagsForAvagoVersion, "", "  ")
 	if err != nil {
 		return buildArgsReturn{}, err
@@ -1182,7 +1182,7 @@ func (ln *localNetwork) buildArgs(
 	}
 
 	// create args
-	args := []string{config.ConfigFileKey, configFilePath}
+	args := []string{fmt.Sprintf("--%s", config.ConfigFileKey), configFilePath}
 
 	return buildArgsReturn{
 		args:      args,
