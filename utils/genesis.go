@@ -39,7 +39,12 @@ func generateCustomCchainGenesis() ([]byte, error) {
 	return json.Marshal(cChainGenesisMap)
 }
 
-func generateCustomGenesis(networkID uint32, walletAddr string, stakingAddr string, nodeIDs []string) ([]byte, error) {
+func generateCustomGenesis(
+	networkID uint32,
+	walletAddr string,
+	stakingAddr string,
+	nodeIDs []string,
+) ([]byte, error) {
 	genesisMap := map[string]interface{}{}
 
 	// cchain
