@@ -415,21 +415,15 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 		if !ok {
 			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refStakingPortIntf)
 		}
+		nodesKeys, err := getNodesKeys(toAdd)
+		if err != nil {
+			return netConfig, err
+		}
 		for i := 0; i < toAdd; i++ {
 			nodeConfig := refNodeConfig
-			stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-			if err != nil {
-				return netConfig, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
-			}
-			nodeConfig.StakingKey = string(stakingKey)
-			nodeConfig.StakingCert = string(stakingCert)
-			key, err := bls.NewSecretKey()
-			if err != nil {
-				return netConfig, fmt.Errorf("couldn't generate new signing key: %w", err)
-			}
-			keyBytes := bls.SecretKeyToBytes(key)
-			encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
-			nodeConfig.StakingSigningKey = encodedKey
+			nodeConfig.StakingKey = nodesKeys[i].stakingKey
+			nodeConfig.StakingCert = nodesKeys[i].stakingCert
+			nodeConfig.StakingSigningKey = nodesKeys[i].blsKey
 			// replace ports
 			nodeConfig.Flags = map[string]interface{}{
 				config.HTTPPortKey:    int(refAPIPort) + (i+1)*2,
@@ -445,6 +439,49 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 		netConfig.Flags[config.SybilProtectionEnabledKey] = false
 	}
 	return netConfig, nil
+}
+
+type nodeKeys struct {
+	stakingKey string
+	stakingCert string
+	blsKey string
+}
+
+func getNodeKeys() (*nodeKeys, error) {
+	keys := nodeKeys{}
+	stakingCertBytes, stakingKeyBytes, err := staking.NewCertAndKeyBytes()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+	}
+	keys.stakingKey = string(stakingKeyBytes)
+	keys.stakingCert = string(stakingCertBytes)
+	key, err := bls.NewSecretKey()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
+	}
+	blsKeyBytes := bls.SecretKeyToBytes(key)
+	keys.blsKey = base64.StdEncoding.EncodeToString(blsKeyBytes)
+	return &keys, nil
+}
+
+func getNodesKeys(num int) ([]*nodeKeys, error) {
+	nodesKeys := []*nodeKeys{}
+	lock := sync.Mutex{}
+	eg := errgroup.Group{}
+	for i := 0; i < num; i++ {
+		eg.Go(func() error {
+			keys, err := getNodeKeys()
+			if err != nil {
+				return err
+			}
+			lock.Lock()
+			nodesKeys = append(nodesKeys, keys)
+			lock.Unlock()
+			return nil
+		})
+	}
+	err := eg.Wait()
+	return nodesKeys, err
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
