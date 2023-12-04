@@ -186,7 +186,7 @@ func init() {
 	}
 
 	// now we can marshal the *whole* thing into bytes
-	updatedGenesis, err := json.Marshal(genesisMap)
+	updatedGenesis, err := json.MarshalIndent(genesisMap, "", "  ")
 	if err != nil {
 		panic(err)
 	}
