@@ -1139,7 +1139,7 @@ func (ln *localNetwork) buildArgs(
 		config.BootstrapIDsKey: ln.bootstraps.IDsArg(),
 	}
 
-	insideContainer, err := utils.InsideDockerContainer()
+	insideContainer, err := utils.IsInsideDockerContainer()
 	if err != nil {
 		return buildArgsReturn{}, err
 	}

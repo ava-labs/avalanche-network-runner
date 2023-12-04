@@ -142,8 +142,12 @@ func VerifySubnetHasCorrectParticipants(
 	return false
 }
 
-func InsideDockerContainer() (bool, error) {
-	_, err := os.Stat(dockerEnvPath)
+func IsInsideDockerContainer() (bool, error) {
+	return PathExists(dockerEnvPath)
+}
+
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return false, nil
