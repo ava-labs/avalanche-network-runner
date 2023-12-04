@@ -88,12 +88,12 @@ func GenerateCustomGenesis(
 			return nil, err
 		}
 		initialStaker := map[string]interface{}{
+			"delegationFee": 1000000,
 			"nodeID":        nodeID,
 			"rewardAddress": walletAddr,
-			"delegationFee": 1000000,
 			"signer": map[string]interface{}{
-				"publicKey":         pk,
 				"proofOfPossession": pop,
+				"publicKey":         pk,
 			},
 		}
 		initialStakers = append(initialStakers, initialStaker)
