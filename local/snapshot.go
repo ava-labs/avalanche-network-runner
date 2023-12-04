@@ -189,7 +189,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 
 	// no need to save this, will be generated automatically on snapshot load
 	networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, maps.Values(nodesConfig)...)
-	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
+	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "  ")
 	if err != nil {
 		return "", err
 	}
@@ -204,7 +204,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	networkState := NetworkState{
 		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
 	}
-	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
+	networkStateJSON, err := json.MarshalIndent(networkState, "", "  ")
 	if err != nil {
 		return "", err
 	}
