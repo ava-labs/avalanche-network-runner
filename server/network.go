@@ -146,6 +146,7 @@ func (lc *localNetwork) createConfig() error {
 	if err != nil {
 		return err
 	}
+	return fmt.Errorf("PEPE")
 
 	var globalConfig map[string]interface{}
 

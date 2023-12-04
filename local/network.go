@@ -423,6 +423,13 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 			}
 			nodeConfig.StakingKey = string(stakingKey)
 			nodeConfig.StakingCert = string(stakingCert)
+			key, err := bls.NewSecretKey()
+			if err != nil {
+				return netConfig, fmt.Errorf("couldn't generate new signing key: %w", err)
+			}
+			keyBytes := bls.SecretKeyToBytes(key)
+			encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+			nodeConfig.StakingSigningKey = encodedKey
 			// replace ports
 			nodeConfig.Flags = map[string]interface{}{
 				config.HTTPPortKey:    int(refAPIPort) + (i+1)*2,
