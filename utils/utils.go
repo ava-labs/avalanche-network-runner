@@ -18,6 +18,7 @@ import (
 const (
 	genesisNetworkIDKey = "networkID"
 	dirTimestampFormat  = "20060102_150405"
+	dockerEnvPath       = "/.dockerenv"
 )
 
 var (
@@ -139,4 +140,19 @@ func VerifySubnetHasCorrectParticipants(
 		ux.Print(log, logging.Red.Wrap("VerifySubnetHasCorrectParticipants: cluster is nil"))
 	}
 	return false
+}
+
+func IsInsideDockerContainer() (bool, error) {
+	return PathExists(dockerEnvPath)
+}
+
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
