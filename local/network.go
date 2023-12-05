@@ -1189,6 +1189,16 @@ func (ln *localNetwork) buildArgs(
 		config.BootstrapIDsKey: ln.bootstraps.IDsArg(),
 	}
 
+	insideContainer, err := utils.IsInsideDockerContainer()
+	if err != nil {
+		return buildArgsReturn{}, err
+	}
+	if insideContainer {
+		// mapped localhost requests (eg using -p flag of docker run) are seen as coming from an external IP like 172.17.0.1
+		// so inside docker container just accept all requests
+		flags[config.HTTPHostKey] = ""
+	}
+
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
 	fileFlags, err := writeFiles(ln.networkID, ln.genesis, dataDir, nodeConfig)
