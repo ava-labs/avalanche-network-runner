@@ -3,12 +3,10 @@
 package utils
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
@@ -48,7 +46,8 @@ func generateCchainGenesis() ([]byte, error) {
 }
 
 func GenerateGenesis(
-	netConfig network.Config,
+	networkID uint32,
+	nodeKeys []*NodeKeys,
 ) ([]byte, error) {
 	genesisMap := map[string]interface{}{}
 
@@ -60,21 +59,17 @@ func GenerateGenesis(
 	genesisMap["cChainGenesis"] = string(cChainGenesisBytes)
 
 	// pchain genesis
-	genesisMap["networkID"] = netConfig.NetworkID
+	genesisMap["networkID"] = networkID
 	startTime := time.Now().Unix()
 	genesisMap["startTime"] = startTime
 	initialStakers := []map[string]interface{}{}
 
-	for _, nodeConfig := range netConfig.NodeConfigs {
-		nodeID, err := ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
+	for _, keys := range nodeKeys {
+		nodeID, err := ToNodeID(keys.StakingKey, keys.StakingCert)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't get node ID: %w", err)
 		}
-		blsKeyBytes, err := base64.StdEncoding.DecodeString(nodeConfig.StakingSigningKey)
-		if err != nil {
-			return nil, err
-		}
-		blsSk, err := bls.SecretKeyFromBytes(blsKeyBytes)
+		blsSk, err := bls.SecretKeyFromBytes(keys.BlsKey)
 		if err != nil {
 			return nil, err
 		}

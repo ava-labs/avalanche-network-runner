@@ -274,162 +274,106 @@ func NewDefaultNetwork(
 // * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
 // * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
 // * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
-func loadDefaultNetworkConfig() (network.Config, error) {
+func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
 	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
 	if err != nil {
-		return network.Config{}, err
+		return nil, nil, nil, err
 	}
 	// network flags
 	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
 	if err != nil {
-		return network.Config{}, err
+		return nil, nil, nil, err
 	}
 	flags := map[string]interface{}{}
 	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
-		return network.Config{}, err
+		return nil, nil, nil, err
 	}
 	// c-chain config
 	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
 	if err != nil {
+		return nil, nil, nil, err
+	}
+	nodeKeys := []*utils.NodeKeys{}
+	for i := 0; i < constants.DefaultNumNodes; i++ {
+		nodeDir := fmt.Sprintf("node%d", i+1)
+		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.key"))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.crt"))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "signer.key"))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		nodeKeys = append(nodeKeys, &utils.NodeKeys{
+			StakingKey:  stakingKey,
+			StakingCert: stakingCert,
+			BlsKey:      blsKey,
+		})
+	}
+	return flags, cChainConfig, nodeKeys, nil
+}
+
+// NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
+	flags, cChainConfig, nodeKeys, err := loadDefaultNetworkFiles()
+	if err != nil {
 		return network.Config{}, err
 	}
-	defaultNetworkConfig := network.Config{
+	if int(numNodes) > constants.DefaultNumNodes {
+		toAdd := int(numNodes) - constants.DefaultNumNodes
+		newNodeKeys, err := utils.GenerateNNodeKeys(toAdd)
+		if err != nil {
+			return network.Config{}, err
+		}
+		nodeKeys = append(nodeKeys, newNodeKeys...)
+	}
+	if int(numNodes) < constants.DefaultNumNodes {
+		nodeKeys = nodeKeys[:numNodes]
+	}
+	nodeConfigs := []node.Config{}
+	port := constants.FirstAPIPort
+	for _, keys := range nodeKeys {
+		encodedKeys := utils.EncodeNodeKeys(keys)
+		nodeConfigs = append(nodeConfigs, node.Config{
+			StakingKey:        encodedKeys.StakingKey,
+			StakingCert:       encodedKeys.StakingCert,
+			StakingSigningKey: encodedKeys.BlsKey,
+			Flags: map[string]interface{}{
+				config.HTTPPortKey:    port,
+				config.StakingPortKey: port + 1,
+			},
+			IsBeacon: true,
+		})
+		port += 2
+	}
+	if int(numNodes) == 1 {
+		flags[config.SybilProtectionEnabledKey] = false
+	}
+	genesis, err := utils.GenerateGenesis(constants.DefaultNetworkID, nodeKeys)
+	if err != nil {
+		return network.Config{}, err
+	}
+	return network.Config{
 		NetworkID:   constants.DefaultNetworkID,
-		NodeConfigs: make([]node.Config, constants.DefaultNumNodes),
 		Flags:       flags,
+		Genesis:     string(genesis),
+		NodeConfigs: nodeConfigs,
+		BinaryPath:  binaryPath,
 		ChainConfigFiles: map[string]string{
 			"C": string(cChainConfig),
 		},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
-	}
-	for i := 0; i < constants.DefaultNumNodes; i++ {
-		nodeDir := fmt.Sprintf("node%d", i+1)
-		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.key"))
-		if err != nil {
-			return network.Config{}, err
-		}
-		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.crt"))
-		if err != nil {
-			return network.Config{}, err
-		}
-		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "signer.key"))
-		if err != nil {
-			return network.Config{}, err
-		}
-		defaultNetworkConfig.NodeConfigs[i] = node.Config{
-			StakingKey:        string(stakingKey),
-			StakingCert:       string(stakingCert),
-			StakingSigningKey: base64.StdEncoding.EncodeToString(blsKey),
-			IsBeacon:          true,
-		}
-	}
-	return defaultNetworkConfig, nil
-}
-
-// NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
-	netConfig, err := loadDefaultNetworkConfig()
-	if err != nil {
-		return netConfig, err
-	}
-	netConfig.BinaryPath = binaryPath
-	if int(numNodes) > constants.DefaultNumNodes {
-		toAdd := int(numNodes) - constants.DefaultNumNodes
-		keys, err := generateNNodeKeys(toAdd)
-		if err != nil {
-			return netConfig, err
-		}
-		for i := 0; i < toAdd; i++ {
-			netConfig.NodeConfigs = append(netConfig.NodeConfigs, node.Config{
-				StakingKey:        string(keys[i].StakingKey),
-				StakingCert:       string(keys[i].StakingCert),
-				StakingSigningKey: base64.StdEncoding.EncodeToString(keys[i].BlsKey),
-				IsBeacon:          true,
-			})
-		}
-	}
-	if int(numNodes) < constants.DefaultNumNodes {
-		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
-	}
-	port := constants.FirstAPIPort
-	for i := 0; i < int(numNodes); i++ {
-		netConfig.NodeConfigs[i].Flags = map[string]interface{}{
-			config.HTTPPortKey:    port,
-			config.StakingPortKey: port + 1,
-		}
-		port += 2
-	}
-	if int(numNodes) == 1 {
-		netConfig.Flags[config.SybilProtectionEnabledKey] = false
-	}
-	genesis, err := utils.GenerateGenesis(netConfig)
-	if err != nil {
-		return netConfig, err
-	}
-	netConfig.Genesis = string(genesis)
-	return netConfig, nil
+	}, nil
 }
 
 // NewDefaultConfig creates a new default network config
 func NewDefaultConfig(binaryPath string) (network.Config, error) {
 	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes)
-}
-
-type EncodedNodeKeys struct {
-	StakingKey  string
-	StakingCert string
-	BlsKey      string
-}
-
-type NodeKeys struct {
-	StakingKey  []byte
-	StakingCert []byte
-	BlsKey      []byte
-}
-
-func encodeNodeKeys(key *NodeKeys) *EncodedNodeKeys {
-	return &EncodedNodeKeys{
-		StakingKey:  string(key.StakingKey),
-		StakingCert: string(key.StakingCert),
-		BlsKey:      base64.StdEncoding.EncodeToString(key.BlsKey),
-	}
-}
-
-func generateNodeKeys() (*NodeKeys, error) {
-	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
-	}
-	key, err := bls.NewSecretKey()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
-	}
-	return &NodeKeys{
-		StakingKey:  stakingKey,
-		StakingCert: stakingCert,
-		BlsKey:      bls.SecretKeyToBytes(key),
-	}, nil
-}
-
-func generateNNodeKeys(num int) ([]*NodeKeys, error) {
-	nodesKeys := []*NodeKeys{}
-	lock := sync.Mutex{}
-	eg := errgroup.Group{}
-	for i := 0; i < num; i++ {
-		eg.Go(func() error {
-			keys, err := generateNodeKeys()
-			if err != nil {
-				return err
-			}
-			lock.Lock()
-			nodesKeys = append(nodesKeys, keys)
-			lock.Unlock()
-			return nil
-		})
-	}
-	err := eg.Wait()
-	return nodesKeys, err
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
