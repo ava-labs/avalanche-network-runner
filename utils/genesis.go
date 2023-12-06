@@ -26,7 +26,7 @@ const (
 	walletAddr                      = "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
 )
 
-func generateCustomCchainGenesis() ([]byte, error) {
+func generateCchainGenesis() ([]byte, error) {
 	cChainGenesisMap := map[string]interface{}{}
 	cChainGenesisMap["config"] = coreth_params.AvalancheLocalChainConfig
 	cChainGenesisMap["nonce"] = hexa0Str
@@ -47,13 +47,13 @@ func generateCustomCchainGenesis() ([]byte, error) {
 	return json.Marshal(cChainGenesisMap)
 }
 
-func GenerateCustomGenesis(
+func GenerateGenesis(
 	netConfig network.Config,
 ) ([]byte, error) {
 	genesisMap := map[string]interface{}{}
 
 	// cchain
-	cChainGenesisBytes, err := generateCustomCchainGenesis()
+	cChainGenesisBytes, err := generateCchainGenesis()
 	if err != nil {
 		return nil, err
 	}

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -114,7 +114,7 @@ func (c *client) RPCVersion(ctx context.Context) (*rpcpb.RPCVersionResponse, err
 }
 
 func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (*rpcpb.StartResponse, error) {
-	ret := &Op{numNodes: local.DefaultNumNodes}
+	ret := &Op{numNodes: constants.DefaultNumNodes}
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{

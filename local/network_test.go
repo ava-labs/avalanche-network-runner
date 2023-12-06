@@ -531,7 +531,8 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	binaryPath := "pepito"
-	networkConfig := NewDefaultConfig(binaryPath)
+	networkConfig, err := NewDefaultConfig(binaryPath)
+	require.NoError(err)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)

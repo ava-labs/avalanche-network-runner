@@ -14,31 +14,9 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
-	"golang.org/x/exp/maps"
 )
 
-var cChainConfig map[string]interface{}
-
-const (
-	validatorStake = units.MegaAvax
-)
-
-func init() {
-	var err error
-	genesisMap, err := LoadLocalGenesis()
-	if err != nil {
-		panic(err)
-	}
-	cChainConfigStr, ok := genesisMap["cChainGenesis"].(string)
-	if !ok {
-		panic(fmt.Errorf("expected cChainGenesis to be a string, but got %T", genesisMap["cChainGenesis"]))
-	}
-	cChainConfigBytes := []byte(cChainConfigStr)
-	err = json.Unmarshal(cChainConfigBytes, &cChainConfig)
-	if err != nil {
-		panic(err)
-	}
-}
+const validatorStake = units.MegaAvax
 
 // AddrAndBalance holds both an address and its balance
 type AddrAndBalance struct {
@@ -183,10 +161,10 @@ func NewAvalancheGoGenesis(
 		}
 	}
 	// avoid modifying original cChainConfig
-	localCChainConfig := maps.Clone(cChainConfig)
-	localCChainConfig["alloc"] = cChainAllocs
-	cChainConfigBytes, _ := json.Marshal(localCChainConfig)
-	config.CChainGenesis = string(cChainConfigBytes)
+	// localCChainConfig := maps.Clone(cChainConfig)
+	// localCChainConfig["alloc"] = cChainAllocs
+	// cChainConfigBytes, _ := json.Marshal(localCChainConfig)
+	// config.CChainGenesis = string(cChainConfigBytes)
 
 	// Set initial validators.
 	// Give staking rewards to random address.

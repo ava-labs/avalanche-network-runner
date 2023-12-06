@@ -50,13 +50,10 @@ const (
 	genesisFileName           = "genesis.json"
 	stopTimeout               = 30 * time.Second
 	healthCheckFreq           = 3 * time.Second
-	DefaultNumNodes           = 5
 	snapshotPrefix            = "anr-snapshot-"
 	networkRootDirPrefix      = "network"
 	defaultDBSubdir           = "db"
 	defaultLogsSubdir         = "logs"
-	// difference between unlock schedule locktime and startime in original genesis
-	genesisLocktimeStartimeDelta = 2836800
 )
 
 // interface compliance
@@ -137,120 +134,16 @@ var (
 	//go:embed deprecatedFlagsSupport.json
 	deprecatedFlagsSupportBytes []byte
 	deprecatedFlagsSupport      []deprecatedFlagEsp
-	// Pre-defined network configuration.
-	// [defaultNetworkConfig] should not be modified.
-	// TODO add method Copy() to network.Config to prevent
-	// accidental overwriting
-	defaultNetworkConfig network.Config
 	// snapshots directory
 	defaultSnapshotsDir string
 )
 
 // populate default network config from embedded default directory
 func init() {
-	// load genesis, updating validation start time
-	genesisMap, err := network.LoadLocalGenesis()
-	if err != nil {
-		panic(err)
-	}
 	// load deprecated avago flags support information
-	if err = json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
+	if err := json.Unmarshal(deprecatedFlagsSupportBytes, &deprecatedFlagsSupport); err != nil {
 		panic(err)
 	}
-
-	startTime := time.Now().Unix()
-	lockTime := startTime + genesisLocktimeStartimeDelta
-	genesisMap["startTime"] = float64(startTime)
-	allocations, ok := genesisMap["allocations"].([]interface{})
-	if !ok {
-		panic(errors.New("could not get allocations in genesis"))
-	}
-	for _, allocIntf := range allocations {
-		alloc, ok := allocIntf.(map[string]interface{})
-		if !ok {
-			panic(fmt.Errorf("unexpected type for allocation in genesis. got %T", allocIntf))
-		}
-		unlockSchedule, ok := alloc["unlockSchedule"].([]interface{})
-		if !ok {
-			panic(errors.New("could not get unlockSchedule in allocation"))
-		}
-		for _, schedIntf := range unlockSchedule {
-			sched, ok := schedIntf.(map[string]interface{})
-			if !ok {
-				panic(fmt.Errorf("unexpected type for unlockSchedule elem in genesis. got %T", schedIntf))
-			}
-			if _, ok := sched["locktime"]; ok {
-				sched["locktime"] = float64(lockTime)
-			}
-		}
-	}
-
-	// now we can marshal the *whole* thing into bytes
-	updatedGenesis, err := json.Marshal(genesisMap)
-	if err != nil {
-		panic(err)
-	}
-
-	// load network flags
-	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
-	if err != nil {
-		panic(err)
-	}
-	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
-	if err != nil {
-		panic(err)
-	}
-	flags := map[string]interface{}{}
-	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
-		panic(err)
-	}
-
-	// load chain config
-	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
-	if err != nil {
-		panic(err)
-	}
-
-	defaultNetworkConfig = network.Config{
-		NodeConfigs: make([]node.Config, DefaultNumNodes),
-		Flags:       flags,
-		Genesis:     string(updatedGenesis),
-		ChainConfigFiles: map[string]string{
-			"C": string(cChainConfig),
-		},
-		UpgradeConfigFiles: map[string]string{},
-		SubnetConfigFiles:  map[string]string{},
-	}
-
-	for i := 0; i < len(defaultNetworkConfig.NodeConfigs); i++ {
-		flagsBytes, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/flags.json", i+1))
-		if err != nil {
-			panic(err)
-		}
-		flags := map[string]interface{}{}
-		if err = json.Unmarshal(flagsBytes, &flags); err != nil {
-			panic(err)
-		}
-		defaultNetworkConfig.NodeConfigs[i].Flags = flags
-		stakingKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.key", i+1))
-		if err != nil {
-			panic(err)
-		}
-		defaultNetworkConfig.NodeConfigs[i].StakingKey = string(stakingKey)
-		stakingCert, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/staking.crt", i+1))
-		if err != nil {
-			panic(err)
-		}
-		defaultNetworkConfig.NodeConfigs[i].StakingCert = string(stakingCert)
-		stakingSigningKey, err := fs.ReadFile(configsDir, fmt.Sprintf("node%d/signer.key", i+1))
-		if err != nil {
-			panic(err)
-		}
-		encodedStakingSigningKey := base64.StdEncoding.EncodeToString(stakingSigningKey)
-		defaultNetworkConfig.NodeConfigs[i].StakingSigningKey = encodedStakingSigningKey
-		defaultNetworkConfig.NodeConfigs[i].IsBeacon = true
-	}
-
 	// create default snapshots dir
 	usr, err := user.Current()
 	if err != nil {
@@ -349,6 +242,21 @@ func newNetwork(
 
 // NewDefaultNetwork returns a new network using a pre-defined
 // network configuration.
+func NewDefaultNetwork(
+	log logging.Logger,
+	binaryPath string,
+	reassignPortsIfUsed bool,
+	redirectStdout bool,
+	redirectStderr bool,
+) (network.Network, error) {
+	config, err := NewDefaultConfig(binaryPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+}
+
+// loads a pre-defined network configuration
 // The following addresses are pre-funded:
 // X-Chain Address 1:     X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p
 // X-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
@@ -366,80 +274,96 @@ func newNetwork(
 // * NodeID-NFBbbJ4qCmNaCzeW7sxErhvWqvEQMnYcN
 // * NodeID-GWPcbFJZFfZreETSoWjPimr846mXEKCtu
 // * NodeID-P7oB2McjBGgW2NXXWVYjV8JEDFoW9xDE5
-func NewDefaultNetwork(
-	log logging.Logger,
-	binaryPath string,
-	reassignPortsIfUsed bool,
-	redirectStdout bool,
-	redirectStderr bool,
-) (network.Network, error) {
-	config := NewDefaultConfig(binaryPath)
-	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
-}
-
-// NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string) network.Config {
-	config := defaultNetworkConfig
-	config.NetworkID = constants.DefaultNetworkID
-	config.BinaryPath = binaryPath
-	// Don't overwrite [DefaultNetworkConfig.NodeConfigs]
-	config.NodeConfigs = make([]node.Config, len(defaultNetworkConfig.NodeConfigs))
-	copy(config.NodeConfigs, defaultNetworkConfig.NodeConfigs)
-	// copy maps
-	config.ChainConfigFiles = maps.Clone(config.ChainConfigFiles)
-	config.Flags = maps.Clone(config.Flags)
-	for i := range config.NodeConfigs {
-		config.NodeConfigs[i].Flags = maps.Clone(config.NodeConfigs[i].Flags)
+func loadDefaultNetworkConfig() (network.Config, error) {
+	configsDir, err := fs.Sub(embeddedDefaultNetworkConfigDir, "default")
+	if err != nil {
+		return network.Config{}, err
 	}
-	return config
+	// network flags
+	flagsBytes, err := fs.ReadFile(configsDir, "flags.json")
+	if err != nil {
+		return network.Config{}, err
+	}
+	flags := map[string]interface{}{}
+	if err = json.Unmarshal(flagsBytes, &flags); err != nil {
+		return network.Config{}, err
+	}
+	// c-chain config
+	cChainConfig, err := fs.ReadFile(configsDir, "cchain_config.json")
+	if err != nil {
+		return network.Config{}, err
+	}
+	defaultNetworkConfig := network.Config{
+		NetworkID:   constants.DefaultNetworkID,
+		NodeConfigs: make([]node.Config, constants.DefaultNumNodes),
+		Flags:       flags,
+		ChainConfigFiles: map[string]string{
+			"C": string(cChainConfig),
+		},
+		UpgradeConfigFiles: map[string]string{},
+		SubnetConfigFiles:  map[string]string{},
+	}
+	for i := 0; i < constants.DefaultNumNodes; i++ {
+		nodeDir := fmt.Sprintf("node%d", i+1)
+		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.key"))
+		if err != nil {
+			return network.Config{}, err
+		}
+		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.crt"))
+		if err != nil {
+			return network.Config{}, err
+		}
+		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "signer.key"))
+		if err != nil {
+			return network.Config{}, err
+		}
+		defaultNetworkConfig.NodeConfigs[i] = node.Config{
+			StakingKey:        string(stakingKey),
+			StakingCert:       string(stakingCert),
+			StakingSigningKey: base64.StdEncoding.EncodeToString(blsKey),
+			IsBeacon:          true,
+		}
+	}
+	return defaultNetworkConfig, nil
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
 func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
-	netConfig := NewDefaultConfig(binaryPath)
-	if int(numNodes) > len(netConfig.NodeConfigs) {
-		toAdd := int(numNodes) - len(netConfig.NodeConfigs)
-		refNodeConfig := netConfig.NodeConfigs[len(netConfig.NodeConfigs)-1]
-		refAPIPortIntf, ok := refNodeConfig.Flags[config.HTTPPortKey]
-		if !ok {
-			return netConfig, fmt.Errorf("could not get last standard api port from config")
-		}
-		refAPIPort, ok := refAPIPortIntf.(float64)
-		if !ok {
-			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refAPIPortIntf)
-		}
-		refStakingPortIntf, ok := refNodeConfig.Flags[config.StakingPortKey]
-		if !ok {
-			return netConfig, fmt.Errorf("could not get last standard staking port from config")
-		}
-		refStakingPort, ok := refStakingPortIntf.(float64)
-		if !ok {
-			return netConfig, fmt.Errorf("expected float64 for last standard api port, got %T", refStakingPortIntf)
-		}
-		nodesKeys, err := getNodesKeys(toAdd)
+	netConfig, err := loadDefaultNetworkConfig()
+	if err != nil {
+		return netConfig, err
+	}
+	netConfig.BinaryPath = binaryPath
+	if int(numNodes) > constants.DefaultNumNodes {
+		toAdd := int(numNodes) - constants.DefaultNumNodes
+		keys, err := getNNodeKeys(toAdd)
 		if err != nil {
 			return netConfig, err
 		}
 		for i := 0; i < toAdd; i++ {
-			nodeConfig := refNodeConfig
-			nodeConfig.StakingKey = nodesKeys[i].stakingKey
-			nodeConfig.StakingCert = nodesKeys[i].stakingCert
-			nodeConfig.StakingSigningKey = nodesKeys[i].blsKey
-			// replace ports
-			nodeConfig.Flags = map[string]interface{}{
-				config.HTTPPortKey:    int(refAPIPort) + (i+1)*2,
-				config.StakingPortKey: int(refStakingPort) + (i+1)*2,
-			}
-			netConfig.NodeConfigs = append(netConfig.NodeConfigs, nodeConfig)
+			netConfig.NodeConfigs = append(netConfig.NodeConfigs, node.Config{
+				StakingKey:        string(keys[i].stakingKey),
+				StakingCert:       string(keys[i].stakingCert),
+				StakingSigningKey: base64.StdEncoding.EncodeToString(keys[i].blsKey),
+				IsBeacon:          true,
+			})
 		}
 	}
-	if int(numNodes) < len(netConfig.NodeConfigs) {
+	if int(numNodes) < constants.DefaultNumNodes {
 		netConfig.NodeConfigs = netConfig.NodeConfigs[:numNodes]
+	}
+	port := constants.FirstAPIPort
+	for i := 0; i < int(numNodes); i++ {
+		netConfig.NodeConfigs[i].Flags = map[string]interface{}{
+			config.HTTPPortKey:    port,
+			config.StakingPortKey: port + 1,
+		}
+		port += 2
 	}
 	if int(numNodes) == 1 {
 		netConfig.Flags[config.SybilProtectionEnabledKey] = false
 	}
-	genesis, err := utils.GenerateCustomGenesis(netConfig)
+	genesis, err := utils.GenerateGenesis(netConfig)
 	if err != nil {
 		return netConfig, err
 	}
@@ -447,30 +371,34 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	return netConfig, nil
 }
 
+// NewDefaultConfig creates a new default network config
+func NewDefaultConfig(binaryPath string) (network.Config, error) {
+	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes)
+}
+
 type nodeKeys struct {
-	stakingKey  string
-	stakingCert string
-	blsKey      string
+	stakingKey  []byte
+	stakingCert []byte
+	blsKey      []byte
 }
 
 func getNodeKeys() (*nodeKeys, error) {
 	keys := nodeKeys{}
-	stakingCertBytes, stakingKeyBytes, err := staking.NewCertAndKeyBytes()
+	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
-	keys.stakingKey = string(stakingKeyBytes)
-	keys.stakingCert = string(stakingCertBytes)
+	keys.stakingKey = stakingKey
+	keys.stakingCert = stakingCert
 	key, err := bls.NewSecretKey()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
 	}
-	blsKeyBytes := bls.SecretKeyToBytes(key)
-	keys.blsKey = base64.StdEncoding.EncodeToString(blsKeyBytes)
+	keys.blsKey = bls.SecretKeyToBytes(key)
 	return &keys, nil
 }
 
-func getNodesKeys(num int) ([]*nodeKeys, error) {
+func getNNodeKeys(num int) ([]*nodeKeys, error) {
 	nodesKeys := []*nodeKeys{}
 	lock := sync.Mutex{}
 	eg := errgroup.Group{}
