@@ -336,15 +336,15 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	netConfig.BinaryPath = binaryPath
 	if int(numNodes) > constants.DefaultNumNodes {
 		toAdd := int(numNodes) - constants.DefaultNumNodes
-		keys, err := getNNodeKeys(toAdd)
+		keys, err := generateNNodeKeys(toAdd)
 		if err != nil {
 			return netConfig, err
 		}
 		for i := 0; i < toAdd; i++ {
 			netConfig.NodeConfigs = append(netConfig.NodeConfigs, node.Config{
-				StakingKey:        string(keys[i].stakingKey),
-				StakingCert:       string(keys[i].stakingCert),
-				StakingSigningKey: base64.StdEncoding.EncodeToString(keys[i].blsKey),
+				StakingKey:        string(keys[i].StakingKey),
+				StakingCert:       string(keys[i].StakingCert),
+				StakingSigningKey: base64.StdEncoding.EncodeToString(keys[i].BlsKey),
 				IsBeacon:          true,
 			})
 		}
@@ -376,35 +376,49 @@ func NewDefaultConfig(binaryPath string) (network.Config, error) {
 	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes)
 }
 
-type nodeKeys struct {
-	stakingKey  []byte
-	stakingCert []byte
-	blsKey      []byte
+type EncodedNodeKeys struct {
+	StakingKey  string
+	StakingCert string
+	BlsKey      string
 }
 
-func getNodeKeys() (*nodeKeys, error) {
-	keys := nodeKeys{}
+type NodeKeys struct {
+	StakingKey  []byte
+	StakingCert []byte
+	BlsKey      []byte
+}
+
+func encodeNodeKeys(key *NodeKeys) *EncodedNodeKeys {
+	return &EncodedNodeKeys{
+		StakingKey:  string(key.StakingKey),
+		StakingCert: string(key.StakingCert),
+		BlsKey:      base64.StdEncoding.EncodeToString(key.BlsKey),
+	}
+}
+
+func generateNodeKeys() (*NodeKeys, error) {
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
 	}
-	keys.stakingKey = stakingKey
-	keys.stakingCert = stakingCert
 	key, err := bls.NewSecretKey()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
 	}
-	keys.blsKey = bls.SecretKeyToBytes(key)
-	return &keys, nil
+	return &NodeKeys{
+		StakingKey:  stakingKey,
+		StakingCert: stakingCert,
+		BlsKey:      bls.SecretKeyToBytes(key),
+	}, nil
 }
 
-func getNNodeKeys(num int) ([]*nodeKeys, error) {
-	nodesKeys := []*nodeKeys{}
+func generateNNodeKeys(num int) ([]*NodeKeys, error) {
+	nodesKeys := []*NodeKeys{}
 	lock := sync.Mutex{}
 	eg := errgroup.Group{}
 	for i := 0; i < num; i++ {
 		eg.Go(func() error {
-			keys, err := getNodeKeys()
+			keys, err := generateNodeKeys()
 			if err != nil {
 				return err
 			}
