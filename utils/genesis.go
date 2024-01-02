@@ -13,8 +13,8 @@ import (
 	coreth_params "github.com/ava-labs/coreth/params"
 )
 
-// difference between unlock schedule locktime and startime in original genesis
 const (
+	// difference between unlock schedule locktime and startime in original genesis
 	genesisLocktimeStartimeDelta    = 2836800
 	hexa0Str                        = "0x0"
 	defaultLocalCChainFundedAddress = "8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
