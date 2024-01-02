@@ -385,18 +385,18 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	if err != nil {
 		return err
 	}
-	if networkConfig.NetworkID != 0 {
+	if networkConfig.NetworkID != ln.networkID {
 		ln.networkID = networkConfig.NetworkID
+		genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
+		if err != nil {
+			return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+		}
+		ln.genesis = genesis
 	}
 	switch ln.networkID {
 	case avagoconstants.TestnetID, avagoconstants.MainnetID:
 		return errors.New("network ID can't be mainnet or testnet")
 	}
-	genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
-	if err != nil {
-		return fmt.Errorf("couldn't set network ID to genesis: %w", err)
-	}
-	ln.genesis = genesis
 
 	// save node defaults
 	ln.flags = networkConfig.Flags

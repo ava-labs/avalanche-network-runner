@@ -229,7 +229,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	require.Len(names, 1)
 
 	// Assert that the network's genesis was set
-	require.EqualValues(networkConfig.Genesis, net.genesis)
+	require.EqualValues(networkConfig.Genesis, string(net.genesis))
 }
 
 // Test that NewNetwork returns an error when
