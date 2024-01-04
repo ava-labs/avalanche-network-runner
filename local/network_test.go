@@ -229,7 +229,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	require.Len(names, 1)
 
 	// Assert that the network's genesis was set
-	require.EqualValues(networkConfig.Genesis, net.genesis)
+	require.EqualValues(networkConfig.Genesis, string(net.genesis))
 }
 
 // Test that NewNetwork returns an error when
@@ -531,7 +531,8 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	binaryPath := "pepito"
-	networkConfig := NewDefaultConfig(binaryPath)
+	networkConfig, err := NewDefaultConfig(binaryPath)
+	require.NoError(err)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)

@@ -9,37 +9,14 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
-	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
-	"golang.org/x/exp/maps"
 )
 
-var cChainConfig map[string]interface{}
-
-const (
-	validatorStake = units.MegaAvax
-)
-
-func init() {
-	var err error
-	genesisMap, err := LoadLocalGenesis()
-	if err != nil {
-		panic(err)
-	}
-	cChainConfigStr, ok := genesisMap["cChainGenesis"].(string)
-	if !ok {
-		panic(fmt.Errorf("expected cChainGenesis to be a string, but got %T", genesisMap["cChainGenesis"]))
-	}
-	cChainConfigBytes := []byte(cChainConfigStr)
-	err = json.Unmarshal(cChainConfigBytes, &cChainConfig)
-	if err != nil {
-		panic(err)
-	}
-}
+const validatorStake = units.MegaAvax
 
 // AddrAndBalance holds both an address and its balance
 type AddrAndBalance struct {
@@ -85,17 +62,9 @@ func (c *Config) Validate() error {
 		return errors.New("no genesis given")
 	}
 
-	networkID, err := utils.NetworkIDFromGenesis([]byte(c.Genesis))
-	if err != nil {
-		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
-	}
-	if c.NetworkID != 0 {
-		networkID = c.NetworkID
-	}
-
 	var someNodeIsBeacon bool
 	for i, nodeConfig := range c.NodeConfigs {
-		if err := nodeConfig.Validate(networkID); err != nil {
+		if err := nodeConfig.Validate(c.NetworkID); err != nil {
 			var nodeName string
 			if len(nodeConfig.Name) > 0 {
 				nodeName = nodeConfig.Name
@@ -192,10 +161,10 @@ func NewAvalancheGoGenesis(
 		}
 	}
 	// avoid modifying original cChainConfig
-	localCChainConfig := maps.Clone(cChainConfig)
-	localCChainConfig["alloc"] = cChainAllocs
-	cChainConfigBytes, _ := json.Marshal(localCChainConfig)
-	config.CChainGenesis = string(cChainConfigBytes)
+	// localCChainConfig := maps.Clone(cChainConfig)
+	// localCChainConfig["alloc"] = cChainAllocs
+	// cChainConfigBytes, _ := json.Marshal(localCChainConfig)
+	// config.CChainGenesis = string(cChainConfigBytes)
 
 	// Set initial validators.
 	// Give staking rewards to random address.

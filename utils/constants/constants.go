@@ -2,8 +2,6 @@
 // See the file LICENSE for licensing terms.
 package constants
 
-import "path/filepath"
-
 const (
 	LogNameMain            = "main"
 	LogNameControl         = "control"
@@ -11,8 +9,8 @@ const (
 	RootDirPrefix          = "network-runner-root-data"
 	DefaultExecPathEnvVar  = "AVALANCHEGO_EXEC_PATH"
 	DefaultPluginDirEnvVar = "AVALANCHEGO_PLUGIN_PATH"
-	LocalGenesisFile       = "genesis.json"
 	IPv4Lookback           = "127.0.0.1"
+	DefaultNetworkID       = 1337
+	DefaultNumNodes        = 5
+	FirstAPIPort           = 9650
 )
-
-var LocalConfigDir = filepath.Join("local", "default")
