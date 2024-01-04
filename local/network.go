@@ -320,7 +320,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	}
 	if int(numNodes) > constants.DefaultNumNodes {
 		toAdd := int(numNodes) - constants.DefaultNumNodes
-		newNodeKeys, err := utils.GenerateNNodeKeys(toAdd)
+		newNodeKeys, err := utils.GenerateKeysForNodes(toAdd)
 		if err != nil {
 			return network.Config{}, err
 		}

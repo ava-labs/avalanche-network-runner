@@ -30,10 +30,10 @@ func EncodeNodeKeys(key *NodeKeys) *EncodedNodeKeys {
 	}
 }
 
-func GenerateNodeKeys() (*NodeKeys, error) {
+func generateNodeKeys() (*NodeKeys, error) {
 	stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+		return nil, fmt.Errorf("couldn't generate staking cert/key: %w", err)
 	}
 	key, err := bls.NewSecretKey()
 	if err != nil {
@@ -46,13 +46,13 @@ func GenerateNodeKeys() (*NodeKeys, error) {
 	}, nil
 }
 
-func GenerateNNodeKeys(num int) ([]*NodeKeys, error) {
+func GenerateKeysForNodes(num int) ([]*NodeKeys, error) {
 	nodesKeys := []*NodeKeys{}
 	lock := sync.Mutex{}
 	eg := errgroup.Group{}
 	for i := 0; i < num; i++ {
 		eg.Go(func() error {
-			keys, err := GenerateNodeKeys()
+			keys, err := generateNodeKeys()
 			if err != nil {
 				return err
 			}
