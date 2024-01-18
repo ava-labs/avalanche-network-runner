@@ -94,7 +94,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 	tlsConfg := peer.TLSConfig(*tlsCert, nil)
 	counter := prometheus.NewCounter(prometheus.CounterOpts{})
-	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg, counter)
+	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg, counter, time.Time{})
 	conn, err := node.getConnFunc(ctx, node)
 	if err != nil {
 		return nil, err
@@ -146,6 +146,8 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		ResourceTracker:      resourceTracker,
 		UptimeCalculator:     uptime.NoOpCalculator,
 		IPSigner:             peer.NewIPSigner(signerIP, tls),
+		SupportedACPs:        []uint32{},
+		ObjectedACPs:         []uint32{},
 	}
 	_, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
