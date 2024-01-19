@@ -204,6 +204,7 @@ func TestAttachPeer(t *testing.T) {
 	node := localNode{
 		nodeID:    ids.GenerateTestNodeID(),
 		networkID: constants.MainnetID,
+		p2pPort:   1,
 		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
 			return peerConn, nil
 		},

@@ -93,9 +93,16 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		return nil, err
 	}
 	tlsConfg := peer.TLSConfig(*tlsCert, nil)
-	counter := prometheus.NewCounter(prometheus.CounterOpts{})
-	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg, counter, time.Time{})
+	clientUpgrader := peer.NewTLSClientUpgrader(
+		tlsConfg,
+		prometheus.NewCounter(prometheus.CounterOpts{}),
+		version.GetDurangoTime(node.networkID),
+	)
 	conn, err := node.getConnFunc(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +134,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 0)
+	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 1)
 	tls := tlsCert.PrivateKey.(crypto.Signer)
 	config := &peer.Config{
 		Metrics:              metrics,
@@ -149,16 +156,12 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		SupportedACPs:        []uint32{},
 		ObjectedACPs:         []uint32{},
 	}
-	_, conn, cert, err := clientUpgrader.Upgrade(conn)
-	if err != nil {
-		return nil, err
-	}
 
 	p := peer.Start(
 		config,
 		conn,
 		cert,
-		ids.NodeIDFromCert(staking.CertificateFromX509(tlsCert.Leaf)),
+		peerID,
 		peer.NewBlockingMessageQueue(
 			config.Metrics,
 			logging.NoLog{},
