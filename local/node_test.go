@@ -16,6 +16,7 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/bloom"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -89,6 +90,11 @@ func verifyProtocol(
 		Minor: version.Current.Minor,
 		Patch: version.Current.Patch,
 	}
+	filter, err := bloom.New(5, 1000)
+	if err != nil {
+		errCh <- err
+		return
+	}
 	verMsg, err := mc.Handshake(
 		constants.MainnetID,
 		now,
@@ -103,8 +109,8 @@ func verifyProtocol(
 		[]ids.ID{},
 		[]uint32{},
 		[]uint32{},
-		[]byte{},
-		[]byte{},
+		filter.Marshal(),
+		make([]byte, 16),
 	)
 	if err != nil {
 		errCh <- err
