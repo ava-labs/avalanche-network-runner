@@ -30,7 +30,7 @@ const bitmaskCodec = uint32(1 << 31)
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert, nil)
 	counter := prometheus.NewCounter(prometheus.CounterOpts{})
-	upgrader := peer.NewTLSServerUpgrader(tlsConfig, counter)
+	upgrader := peer.NewTLSServerUpgrader(tlsConfig, counter, time.Time{})
 	// this will block until the ssh handshake is done
 	peerID, tlsConn, _, err := upgrader.Upgrade(conn)
 	return peerID, tlsConn, err
@@ -83,14 +83,28 @@ func verifyProtocol(
 		errCh <- err
 		return
 	}
-	verMsg, err := mc.Version(
+	legacyApplication := &version.Application{
+		Name:  version.LegacyAppName,
+		Major: version.Current.Major,
+		Minor: version.Current.Minor,
+		Patch: version.Current.Patch,
+	}
+	verMsg, err := mc.Handshake(
 		constants.MainnetID,
 		now,
 		myIP,
-		version.CurrentApp.String(),
+		legacyApplication.String(),
+		version.CurrentApp.Name,
+		uint32(version.CurrentApp.Major),
+		uint32(version.CurrentApp.Minor),
+		uint32(version.CurrentApp.Patch),
 		now,
 		signedIP.Signature,
 		[]ids.ID{},
+		[]uint32{},
+		[]uint32{},
+		[]byte{},
+		[]byte{},
 	)
 	if err != nil {
 		errCh <- err
@@ -98,7 +112,7 @@ func verifyProtocol(
 	}
 
 	// create the PeerList message
-	plMsg, err := mc.PeerList([]ips.ClaimedIPPort{}, true)
+	plMsg, err := mc.PeerList([]*ips.ClaimedIPPort{}, true)
 	if err != nil {
 		errCh <- err
 		return
@@ -209,7 +223,7 @@ func TestAttachPeer(t *testing.T) {
 
 	// Expect the peer to send these messages in this order.
 	expectedMessages := []message.Op{
-		message.VersionOp,
+		message.HandshakeOp,
 		message.PeerListOp,
 		message.ChitsOp,
 	}
