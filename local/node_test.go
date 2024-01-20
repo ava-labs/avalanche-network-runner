@@ -70,7 +70,7 @@ func verifyProtocol(
 	// create the version message
 	myIP := ips.IPPort{
 		IP:   net.IPv6zero,
-		Port: 0,
+		Port: 1,
 	}
 	now := uint64(time.Now().Unix())
 	unsignedIP := peer.UnsignedIP{
