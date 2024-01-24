@@ -385,7 +385,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	if err != nil {
 		return err
 	}
-	if networkConfig.NetworkID != ln.networkID {
+	if networkConfig.NetworkID != 0 && networkConfig.NetworkID != ln.networkID {
 		ln.networkID = networkConfig.NetworkID
 		genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
 		if err != nil {
