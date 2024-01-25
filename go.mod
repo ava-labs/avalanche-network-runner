@@ -3,7 +3,7 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.20
 
 require (
-	github.com/ava-labs/avalanchego v1.10.19-legacy-upgrade-times.0.20240124223315-b39ac98e2910
+	github.com/ava-labs/avalanchego v1.10.19-legacy-upgrade-times.0.20240125122037-a9bc73ad40f6
 	github.com/ava-labs/coreth v0.12.10-wip-bloom-metrics
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
