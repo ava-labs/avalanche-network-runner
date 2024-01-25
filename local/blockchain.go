@@ -812,7 +812,10 @@ func newWallet(
 	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
-	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
+	w.pBackend, err = p.NewBackend(pCTX, pUTXOs, pTXs)
+	if err != nil {
+		return nil, err
+	}
 	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
