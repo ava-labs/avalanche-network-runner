@@ -33,6 +33,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/fx"
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
@@ -795,24 +796,26 @@ func newWallet(
 	}
 	pCTX, xCTX, utxos := primaryAVAXState.PCTX, primaryAVAXState.XCTX, primaryAVAXState.UTXOs
 	pClient := platformvm.NewClient(uri)
-	pTXs := make(map[ids.ID]*txs.Tx)
+	subnetOwner := map[ids.ID]fx.Owner{}
 	for _, id := range preloadTXs {
-		txBytes, err := pClient.GetTx(ctx, id)
+		subnetInfo, err := pClient.GetSubnet(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		tx, err := txs.Parse(txs.Codec, txBytes)
-		if err != nil {
-			return nil, err
+		if !subnetInfo.IsPermissioned {
+			return nil, fmt.Errorf("subnet %s is not permissioned", id)
 		}
-		pTXs[id] = tx
+		subnetOwner[id] = &secp256k1fx.OutputOwners{
+			Threshold: subnetInfo.Threshold,
+			Addrs:     subnetInfo.ControlKeys,
+		}
 	}
 	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
 	xChainID := xCTX.BlockchainID()
 	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
-	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
+	w.pBackend = p.NewBackend(pCTX, pUTXOs, subnetOwner)
 	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
 	w.pSigner = p.NewSigner(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
