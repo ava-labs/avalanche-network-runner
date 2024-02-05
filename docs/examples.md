@@ -8,7 +8,6 @@ The network-runner supports avalanchego node configuration at different levels.
 
     ```json
         {
-        "network-peer-list-gossip-frequency":"250ms",
         "network-max-reconnect-delay":"1s",
         "public-ip":"127.0.0.1",
         "health-check-frequency":"2s",
@@ -388,7 +387,7 @@ node99
 You can also provide additional flags that specify the node's config:
 
 ```sh
-  --node-config '{"index-enabled":false, "api-admin-enabled":true,"network-peer-list-gossip-frequency":"300ms"}'
+  --node-config '{"index-enabled":false, "api-admin-enabled":true}'
 ```
 
 `--node-config` allows to specify specific avalanchego config parameters to the new node. See [here](https://docs.avax.network/build/references/avalanchego-config-flags) for the reference of supported flags.
