@@ -482,7 +482,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 	require := require.New(t)
 	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func(*testing.T) {
 			net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 			require.NoError(err)
 			err = net.loadConfig(context.Background(), tt.config)
@@ -1164,11 +1164,11 @@ func TestWriteFiles(t *testing.T) {
 
 	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
-        stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
+	stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
 	genesisPath := filepath.Join(tmpDir, genesisFileName)
 	configFilePath := filepath.Join(tmpDir, configFileName)
-        chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
-        subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
+	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
+	subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
 	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
 
 	type test struct {
@@ -1239,6 +1239,7 @@ func TestWriteFiles(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
 			flags, err := writeFiles(0, tt.genesis, tmpDir, &tt.nodeConfig)

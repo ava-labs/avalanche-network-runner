@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: '~1.20.10'
+          go-version: '~1.21.7'
           check-latest: true
       - name: Run static analysis tests
         shell: bash
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: '~1.20.10'
+          go-version: '~1.21.7'
       - run: go test -v -timeout 10m -race ./...
         env:
           CGO_CFLAGS: "-O -D__BLST_PORTABLE__" # Set the CGO flags to use the portable version of BLST
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: '~1.20.10'
+          go-version: '~1.21.7'
       - name: Run e2e tests
         shell: bash
         run: scripts/tests.e2e.sh

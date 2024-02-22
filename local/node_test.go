@@ -213,7 +213,7 @@ func TestAttachPeer(t *testing.T) {
 		nodeID:    ids.GenerateTestNodeID(),
 		networkID: constants.MainnetID,
 		p2pPort:   1,
-		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
+		getConnFunc: func(context.Context, node.Node) (net.Conn, error) {
 			return peerConn, nil
 		},
 		attachedPeers: map[string]peer.Peer{},
