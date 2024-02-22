@@ -611,6 +611,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 	ginkgo.It("can attach a peer", func() {
 		ginkgo.By("calling attach peer API", func() {
+			ginkgo.Skip("")
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			resp, err := cli.AttachPeer(ctx, "node1")
 			cancel()

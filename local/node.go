@@ -21,6 +21,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/math/meter"
@@ -136,6 +137,10 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 1)
 	tls := tlsCert.PrivateKey.(crypto.Signer)
+	bls0, err := bls.NewSecretKey()
+	if err != nil {
+		return nil, err
+	}
 	config := &peer.Config{
 		Metrics:              metrics,
 		MessageCreator:       mc,
@@ -152,7 +157,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		MaxClockDifference:   time.Minute,
 		ResourceTracker:      resourceTracker,
 		UptimeCalculator:     uptime.NoOpCalculator,
-		IPSigner:             peer.NewIPSigner(signerIP, tls),
+		IPSigner:             peer.NewIPSigner(signerIP, tls, bls0),
 		SupportedACPs:        []uint32{},
 		ObjectedACPs:         []uint32{},
 	}

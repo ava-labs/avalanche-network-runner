@@ -482,7 +482,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 	}
 	require := require.New(t)
 	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func(*testing.T) {
 			net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", false, false, false)
 			require.NoError(err)
 			err = net.loadConfig(context.Background(), tt.config)
@@ -1161,6 +1161,7 @@ func TestWriteFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
 	stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
@@ -1238,6 +1239,7 @@ func TestWriteFiles(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
 			flags, err := writeFiles(0, tt.genesis, tmpDir, &tt.nodeConfig)
