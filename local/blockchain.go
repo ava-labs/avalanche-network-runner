@@ -807,9 +807,9 @@ func newWallet(
 		}
 		pTXs[id] = tx
 	}
-	pUTXOs := primary.NewChainUTXOs(constants.PlatformChainID, utxos)
+	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
 	xChainID := xCTX.BlockchainID()
-	xUTXOs := primary.NewChainUTXOs(xChainID, utxos)
+	xUTXOs := common.NewChainUTXOs(xChainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
@@ -1620,7 +1620,7 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
 		}
-		tx, err := w.pSigner.SignUnsigned(cctx, utx)
+		tx, err := p.SignUnsigned(cctx, w.pSigner, utx)
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}
