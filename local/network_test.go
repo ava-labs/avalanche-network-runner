@@ -1163,11 +1163,8 @@ func TestWriteFiles(t *testing.T) {
 	}
 	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
 	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
-	stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
 	genesisPath := filepath.Join(tmpDir, genesisFileName)
 	configFilePath := filepath.Join(tmpDir, configFileName)
-	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
-	subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
 	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
 
 	type test struct {

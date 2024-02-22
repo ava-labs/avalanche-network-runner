@@ -1092,8 +1092,8 @@ func (ln *localNetwork) buildArgs(
 
 	// avoid given these again, as apiPort/p2pPort can be dynamic even if given in nodeConfig
 	portFlags := set.Set[string]{
-		config.HTTPPortKey:    {},
-		config.StakingPortKey: {},
+		config.HTTPPortKey:    struct{}{},
+		config.StakingPortKey: struct{}{},
 	}
 
 	// Add flags given in node config.

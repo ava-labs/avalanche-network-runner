@@ -2,8 +2,6 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.21
 
-toolchain go1.22.0
-
 require (
 	github.com/ava-labs/avalanchego v1.11.0
 	github.com/ava-labs/coreth v0.13.0-rc.0
