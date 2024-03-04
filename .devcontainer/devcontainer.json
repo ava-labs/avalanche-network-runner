@@ -7,5 +7,7 @@
 
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/bin"
-	}
+	},
+
+	"postCreateCommand": "scripts/build.sh"
 }
