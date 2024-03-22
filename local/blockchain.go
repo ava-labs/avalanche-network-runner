@@ -814,8 +814,7 @@ func newWallet(
 		pTXs[id] = tx
 	}
 	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
-	xChainID := xCTX.BlockchainID
-	xUTXOs := common.NewChainUTXOs(xChainID, utxos)
+	xUTXOs := common.NewChainUTXOs(xCTX.BlockchainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pCTX = pCTX
@@ -966,9 +965,8 @@ func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.O
 	pWallet := w.pWallet
 	cctx, cancel := createDefaultCtx(ctx)
 	defer cancel()
-	xChainID := w.xCTX.BlockchainID
 	_, err := pWallet.IssueImportTx(
-		xChainID,
+		w.xCTX.BlockchainID,
 		owner,
 		common.WithContext(cctx),
 		defaultPoll,
