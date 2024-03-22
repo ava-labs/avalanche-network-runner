@@ -20,6 +20,8 @@ import (
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
 	"github.com/ava-labs/avalanchego/wallet/chain/x"
+	xbuilder "github.com/ava-labs/avalanchego/wallet/chain/x/builder"
+	xsigner "github.com/ava-labs/avalanchego/wallet/chain/x/signer"
 
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
@@ -37,6 +39,8 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/avalanchego/wallet/chain/p"
+	pbuilder "github.com/ava-labs/avalanchego/wallet/chain/p/builder"
+	psigner "github.com/ava-labs/avalanchego/wallet/chain/p/signer"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
@@ -776,10 +780,12 @@ func (ln *localNetwork) restartNodes(
 
 type wallet struct {
 	addr     ids.ShortID
+	pCTX     *pbuilder.Context
 	pWallet  p.Wallet
 	pBackend p.Backend
-	pBuilder p.Builder
-	pSigner  p.Signer
+	pBuilder pbuilder.Builder
+	pSigner  psigner.Signer
+	xCTX     *xbuilder.Context
 	xWallet  x.Wallet
 }
 
@@ -808,19 +814,20 @@ func newWallet(
 		pTXs[id] = tx
 	}
 	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
-	xChainID := xCTX.BlockchainID()
-	xUTXOs := common.NewChainUTXOs(xChainID, utxos)
+	xUTXOs := common.NewChainUTXOs(xCTX.BlockchainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
+	w.pCTX = pCTX
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
-	w.pBuilder = p.NewBuilder(kc.Addresses(), w.pBackend)
-	w.pSigner = p.NewSigner(kc, w.pBackend)
+	w.pBuilder = pbuilder.New(kc.Addresses(), pCTX, w.pBackend)
+	w.pSigner = psigner.New(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
 	xBackend := x.NewBackend(xCTX, xUTXOs)
-	xBuilder := x.NewBuilder(kc.Addresses(), xBackend)
-	xSigner := x.NewSigner(kc, xBackend)
+	xBuilder := xbuilder.New(kc.Addresses(), xCTX, xBackend)
+	xSigner := xsigner.New(kc, xBackend)
 	xClient := avm.NewClient(uri, "X")
+	w.xCTX = xCTX
 	w.xWallet = x.NewWallet(xBuilder, xSigner, xClient, xBackend)
 	return &w, nil
 }
@@ -881,7 +888,7 @@ func (ln *localNetwork) addPrimaryValidators(
 				Subnet: ids.Empty,
 			},
 			proofOfPossession,
-			w.pWallet.AVAXAssetID(),
+			w.pCTX.AVAXAssetID,
 			&secp256k1fx.OutputOwners{
 				Threshold: 1,
 				Addrs:     []ids.ShortID{w.addr},
@@ -955,13 +962,11 @@ func exportXChainToPChain(ctx context.Context, w *wallet, owner *secp256k1fx.Out
 }
 
 func importPChainFromXChain(ctx context.Context, w *wallet, owner *secp256k1fx.OutputOwners) error {
-	xWallet := w.xWallet
 	pWallet := w.pWallet
 	cctx, cancel := createDefaultCtx(ctx)
 	defer cancel()
-	xChainID := xWallet.BlockchainID()
 	_, err := pWallet.IssueImportTx(
-		xChainID,
+		w.xCTX.BlockchainID,
 		owner,
 		common.WithContext(cctx),
 		defaultPoll,
@@ -1620,7 +1625,7 @@ func createBlockchainTxs(
 		if err != nil {
 			return nil, fmt.Errorf("failure generating create blockchain tx: %w", err)
 		}
-		tx, err := p.SignUnsigned(cctx, w.pSigner, utx)
+		tx, err := psigner.SignUnsigned(cctx, w.pSigner, utx)
 		if err != nil {
 			return nil, fmt.Errorf("failure signing create blockchain tx: %w", err)
 		}

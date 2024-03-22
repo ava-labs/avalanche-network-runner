@@ -33,7 +33,10 @@ func ToNodeID(stakingKey, stakingCert []byte) (ids.NodeID, error) {
 	if err != nil {
 		return ids.EmptyNodeID, err
 	}
-	cert := staking.CertificateFromX509(tlsCert.Leaf)
+	cert, err := staking.ParseCertificate(tlsCert.Leaf.Raw)
+	if err != nil {
+		return ids.EmptyNodeID, err
+	}
 	nodeID := ids.NodeIDFromCert(cert)
 	return nodeID, nil
 }

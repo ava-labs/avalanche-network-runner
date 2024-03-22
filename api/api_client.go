@@ -6,7 +6,6 @@ import (
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
-	"github.com/ava-labs/avalanchego/api/ipcs"
 	"github.com/ava-labs/avalanchego/api/keystore"
 	"github.com/ava-labs/avalanchego/indexer"
 	"github.com/ava-labs/avalanchego/vms/avm"
@@ -29,7 +28,6 @@ type APIClient struct {
 	cChainEth    EthClient
 	info         info.Client
 	health       health.Client
-	ipcs         ipcs.Client
 	keystore     keystore.Client
 	admin        admin.Client
 	pindex       indexer.Client
@@ -50,7 +48,6 @@ func NewAPIClient(ipAddr string, port uint16) Client {
 		cChainEth:    NewEthClient(ipAddr, uint(port)), // wrapper over ethclient.Client
 		info:         info.NewClient(uri),
 		health:       health.NewClient(uri),
-		ipcs:         ipcs.NewClient(uri),
 		keystore:     keystore.NewClient(uri),
 		admin:        admin.NewClient(uri),
 		pindex:       indexer.NewClient(uri + "/ext/index/P/block"),
@@ -84,10 +81,6 @@ func (c APIClient) InfoAPI() info.Client {
 
 func (c APIClient) HealthAPI() health.Client {
 	return c.health
-}
-
-func (c APIClient) IpcsAPI() ipcs.Client {
-	return c.ipcs
 }
 
 func (c APIClient) KeystoreAPI() keystore.Client {
