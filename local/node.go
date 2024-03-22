@@ -97,7 +97,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	clientUpgrader := peer.NewTLSClientUpgrader(
 		tlsConfg,
 		prometheus.NewCounter(prometheus.CounterOpts{}),
-		version.GetDurangoTime(node.networkID),
 	)
 	conn, err := node.getConnFunc(ctx, node)
 	if err != nil {
