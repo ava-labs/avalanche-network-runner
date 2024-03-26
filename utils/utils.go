@@ -22,9 +22,9 @@ const (
 )
 
 var (
-	ErrEmptyExecPath    = errors.New("avalanche exec is not defined")
-	ErrNotExists        = errors.New("avalanche exec not exists")
-	ErrNotExistsPlugin  = errors.New("plugin exec not exists")
+	ErrEmptyExecPath    = errors.New("the path to the avalanchego executable is not defined. please make sure to either set the AVALANCHEGO_EXEC_PATH environment variable or pass the path with the --avalanchego-path flag")
+	ErrNotExists        = errors.New("the avalanchego executable does not exists at the provided path")
+	ErrNotExistsPlugin  = errors.New("the vm plugin does not exists at the provided path. please check if the plugin path is set correctly in the AVALANCHEGO_PLUGIN_PATH environment variable or the --plugin-dir flag and if the plugin binary is located there")
 	ErrorNoNetworkIDKey = fmt.Errorf("couldn't find key %q in genesis", genesisNetworkIDKey)
 )
 
