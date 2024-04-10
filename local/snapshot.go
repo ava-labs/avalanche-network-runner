@@ -329,7 +329,28 @@ func (ln *localNetwork) loadSnapshot(
 			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
 	}
-	return ln.loadConfig(ctx, networkConfig)
+	if err := ln.loadConfig(ctx, networkConfig); err != nil {
+		return err
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
+	}
+	node := ln.getNode()
+	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+	if err != nil {
+		return err
+	}
+	for _, blockchain := range blockchains {
+		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+			continue
+		}
+		for nodeName, node := range ln.nodes {
+			if err := node.client.AdminAPI().AliasChain(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
+				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchain.Name, nodeName, err)
+			}
+		}
+	}
+	return nil
 }
 
 // Remove network snapshot
