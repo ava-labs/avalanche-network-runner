@@ -334,7 +334,16 @@ func (ln *localNetwork) loadSnapshot(
 
 // Remove network snapshot
 func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	return RemoveSnapshot(ln.snapshotsDir, snapshotName)
+}
+
+// Get network snapshots
+func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
+	return GetSnapshotNames(ln.snapshotsDir)
+}
+
+func RemoveSnapshot(snapshotsDir string, snapshotName string) error {
+	snapshotDir := filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -349,17 +358,16 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	return nil
 }
 
-// Get network snapshots
-func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
-	_, err := os.Stat(ln.snapshotsDir)
+func GetSnapshotNames(snapshotsDir string) ([]string, error) {
+	_, err := os.Stat(snapshotsDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
+			return nil, fmt.Errorf("snapshots dir %q does not exists", snapshotsDir)
 		} else {
-			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", ln.snapshotsDir, err)
+			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", snapshotsDir, err)
 		}
 	}
-	matches, err := filepath.Glob(filepath.Join(ln.snapshotsDir, snapshotPrefix+"*"))
+	matches, err := filepath.Glob(filepath.Join(snapshotsDir, snapshotPrefix+"*"))
 	if err != nil {
 		return nil, err
 	}
