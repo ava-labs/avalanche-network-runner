@@ -30,6 +30,8 @@ const (
 type NetworkState struct {
 	// Map from subnet id to elastic subnet tx id
 	SubnetID2ElasticSubnetID map[string]string `json:"subnetID2ElasticSubnetID"`
+	// Map from blockchain id to blockchain aliases
+	BlockchainAliases map[string][]string `json:"blockchainAliases"`
 }
 
 // snapshots generated using older ANR versions may contain deprecated avago flags
@@ -203,6 +205,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	networkState := NetworkState{
 		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
+		BlockchainAliases:        ln.blockchainAliases,
 	}
 	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
 	if err != nil {
@@ -328,6 +331,7 @@ func (ln *localNetwork) loadSnapshot(
 			}
 			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
+		ln.blockchainAliases = networkState.BlockchainAliases
 	}
 	if err := ln.loadConfig(ctx, networkConfig); err != nil {
 		return err
@@ -335,6 +339,15 @@ func (ln *localNetwork) loadSnapshot(
 	if err := ln.healthy(ctx); err != nil {
 		return err
 	}
+	// add aliases included in the snapshot state
+	for blockchainID, blockchainAliases := range ln.blockchainAliases {
+		for _, blockchainAlias := range blockchainAliases {
+			if err := ln.setBlockchainAlias(ctx, blockchainID, blockchainAlias); err != nil {
+				return err
+			}
+		}
+	}
+	// add aliases for blockchain names
 	node := ln.getNode()
 	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 	if err != nil {
@@ -344,10 +357,9 @@ func (ln *localNetwork) loadSnapshot(
 		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
 			continue
 		}
-		for nodeName, node := range ln.nodes {
-			if err := node.client.AdminAPI().AliasChain(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
-				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchain.Name, nodeName, err)
-			}
+		if err := ln.setBlockchainAlias(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
+			// non fatal error: not required by user
+			ln.log.Warn(err.Error())
 		}
 	}
 	return nil

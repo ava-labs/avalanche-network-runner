@@ -142,17 +142,31 @@ func (ln *localNetwork) RegisterBlockchainAliases(
 			continue
 		}
 		blockchainAlias := chainSpec.BlockchainAlias
-		chainID := chainInfos[i].blockchainID.String()
+		blockchainID := chainInfos[i].blockchainID.String()
 		ln.log.Info("registering blockchain alias",
 			zap.String("alias", blockchainAlias),
-			zap.String("chain-id", chainID))
-		for nodeName, node := range ln.nodes {
-			if node.paused {
-				continue
-			}
-			if err := node.client.AdminAPI().AliasChain(ctx, chainID, blockchainAlias); err != nil {
-				return fmt.Errorf("failure to register blockchain alias %v on node %v: %w", blockchainAlias, nodeName, err)
-			}
+			zap.String("chain-id", blockchainID))
+		if err := ln.setBlockchainAlias(ctx, blockchainID, blockchainAlias); err != nil {
+			return err
+		}
+		ln.blockchainAliases[blockchainID] = append(ln.blockchainAliases[blockchainID], blockchainAlias)
+	}
+	return nil
+}
+
+func (ln *localNetwork) setBlockchainAlias(ctx context.Context, blockchainID string, blockchainAlias string) error {
+	for nodeName, node := range ln.nodes {
+		if node.paused {
+			continue
+		}
+		if err := node.client.AdminAPI().AliasChain(ctx, blockchainID, blockchainAlias); err != nil {
+			return fmt.Errorf(
+				"failure to register blockchain alias %s for blockchain ID %s on node %s: %w",
+				blockchainAlias,
+				blockchainID,
+				nodeName,
+				err,
+			)
 		}
 	}
 	return nil

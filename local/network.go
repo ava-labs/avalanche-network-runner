@@ -119,6 +119,8 @@ type localNetwork struct {
 	redirectStderr bool
 	// map from subnet id to elastic subnet tx id
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
+	// map from blockchain id to blockchain aliases
+	blockchainAliases map[string][]string
 }
 
 type deprecatedFlagEsp struct {
@@ -236,6 +238,7 @@ func newNetwork(
 		redirectStdout:           redirectStdout,
 		redirectStderr:           redirectStderr,
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
+		blockchainAliases:        map[string][]string{},
 	}
 	return net, nil
 }
