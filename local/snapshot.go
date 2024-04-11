@@ -331,7 +331,9 @@ func (ln *localNetwork) loadSnapshot(
 			}
 			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
-		ln.blockchainAliases = networkState.BlockchainAliases
+		for k, v := range networkState.BlockchainAliases {
+			ln.blockchainAliases[k] = v
+		}
 	}
 	if err := ln.loadConfig(ctx, networkConfig); err != nil {
 		return err
