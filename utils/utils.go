@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
 	rpcb "github.com/ava-labs/avalanche-network-runner/rpcpb"
@@ -91,7 +90,7 @@ func CheckPluginPath(pluginExec string) error {
 	var err error
 	if _, err = os.Stat(pluginExec); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("%s: %w", filepath.Base(pluginExec), ErrNotExistsPlugin)
+			return ErrNotExistsPlugin
 		}
 		return fmt.Errorf("failed to stat plugin exec %q (%w)", pluginExec, err)
 	}
