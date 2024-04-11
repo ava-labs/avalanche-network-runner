@@ -30,6 +30,8 @@ const (
 type NetworkState struct {
 	// Map from subnet id to elastic subnet tx id
 	SubnetID2ElasticSubnetID map[string]string `json:"subnetID2ElasticSubnetID"`
+	// Map from blockchain id to blockchain aliases
+	BlockchainAliases map[string][]string `json:"blockchainAliases"`
 }
 
 // snapshots generated using older ANR versions may contain deprecated avago flags
@@ -203,6 +205,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	networkState := NetworkState{
 		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
+		BlockchainAliases:        ln.blockchainAliases,
 	}
 	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
 	if err != nil {
@@ -328,13 +331,54 @@ func (ln *localNetwork) loadSnapshot(
 			}
 			ln.subnetID2ElasticSubnetID[subnetID] = elasticSubnetID
 		}
+		for k, v := range networkState.BlockchainAliases {
+			ln.blockchainAliases[k] = v
+		}
 	}
-	return ln.loadConfig(ctx, networkConfig)
+	if err := ln.loadConfig(ctx, networkConfig); err != nil {
+		return err
+	}
+	if err := ln.healthy(ctx); err != nil {
+		return err
+	}
+	// add aliases included in the snapshot state
+	for blockchainID, blockchainAliases := range ln.blockchainAliases {
+		for _, blockchainAlias := range blockchainAliases {
+			if err := ln.setBlockchainAlias(ctx, blockchainID, blockchainAlias); err != nil {
+				return err
+			}
+		}
+	}
+	// add aliases for blockchain names
+	node := ln.getNode()
+	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+	if err != nil {
+		return err
+	}
+	for _, blockchain := range blockchains {
+		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+			continue
+		}
+		if err := ln.setBlockchainAlias(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
+			// non fatal error: not required by user
+			ln.log.Warn(err.Error())
+		}
+	}
+	return nil
 }
 
 // Remove network snapshot
 func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	return RemoveSnapshot(ln.snapshotsDir, snapshotName)
+}
+
+// Get network snapshots
+func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
+	return GetSnapshotNames(ln.snapshotsDir)
+}
+
+func RemoveSnapshot(snapshotsDir string, snapshotName string) error {
+	snapshotDir := filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -349,17 +393,16 @@ func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
 	return nil
 }
 
-// Get network snapshots
-func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
-	_, err := os.Stat(ln.snapshotsDir)
+func GetSnapshotNames(snapshotsDir string) ([]string, error) {
+	_, err := os.Stat(snapshotsDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("snapshots dir %q does not exists", ln.snapshotsDir)
+			return nil, fmt.Errorf("snapshots dir %q does not exists", snapshotsDir)
 		} else {
-			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", ln.snapshotsDir, err)
+			return nil, fmt.Errorf("failure accessing snapshots dir %q: %w", snapshotsDir, err)
 		}
 	}
-	matches, err := filepath.Glob(filepath.Join(ln.snapshotsDir, snapshotPrefix+"*"))
+	matches, err := filepath.Glob(filepath.Join(snapshotsDir, snapshotPrefix+"*"))
 	if err != nil {
 		return nil, err
 	}

@@ -21,6 +21,7 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/rpcpb"
@@ -131,6 +132,10 @@ func New(cfg Config, log logging.Logger) (Server, error) {
 	listener, err := net.Listen("tcp", cfg.Port)
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.SnapshotsDir == "" {
+		cfg.SnapshotsDir = local.DefaultSnapshotsDir
 	}
 
 	s := &server{
@@ -1412,11 +1417,7 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
-	if s.network == nil {
-		return nil, ErrNotBootstrapped
-	}
-
-	if err := s.network.nw.RemoveSnapshot(req.SnapshotName); err != nil {
+	if err := local.RemoveSnapshot(s.cfg.SnapshotsDir, req.SnapshotName); err != nil {
 		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
@@ -1429,11 +1430,7 @@ func (s *server) GetSnapshotNames(context.Context, *rpcpb.GetSnapshotNamesReques
 
 	s.log.Info("GetSnapshotNames")
 
-	if s.network == nil {
-		return nil, ErrNotBootstrapped
-	}
-
-	snapshotNames, err := s.network.nw.GetSnapshotNames()
+	snapshotNames, err := local.GetSnapshotNames(s.cfg.SnapshotsDir)
 	if err != nil {
 		return nil, err
 	}

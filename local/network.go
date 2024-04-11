@@ -119,6 +119,8 @@ type localNetwork struct {
 	redirectStderr bool
 	// map from subnet id to elastic subnet tx id
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
+	// map from blockchain id to blockchain aliases
+	blockchainAliases map[string][]string
 }
 
 type deprecatedFlagEsp struct {
@@ -135,7 +137,7 @@ var (
 	deprecatedFlagsSupportBytes []byte
 	deprecatedFlagsSupport      []deprecatedFlagEsp
 	// snapshots directory
-	defaultSnapshotsDir string
+	DefaultSnapshotsDir string
 )
 
 // populate default network config from embedded default directory
@@ -149,14 +151,14 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	defaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
+	DefaultSnapshotsDir = filepath.Join(usr.HomeDir, snapshotsRelPath)
 }
 
 // NewNetwork returns a new network that uses the given log.
 // Files (e.g. logs, databases) default to being written at directory [rootDir].
 // If there isn't a directory at [dir] one will be created.
 // If len([dir]) == 0, files will be written underneath a new temporary directory.
-// Snapshots are saved to snapshotsDir, defaults to defaultSnapshotsDir if not given
+// Snapshots are saved to snapshotsDir, defaults to DefaultSnapshotsDir if not given
 func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
@@ -214,7 +216,7 @@ func newNetwork(
 		}
 	}
 	if snapshotsDir == "" {
-		snapshotsDir = defaultSnapshotsDir
+		snapshotsDir = DefaultSnapshotsDir
 	}
 	// create the snapshots dir if not present
 	err = os.MkdirAll(snapshotsDir, os.ModePerm)
@@ -236,6 +238,7 @@ func newNetwork(
 		redirectStdout:           redirectStdout,
 		redirectStderr:           redirectStderr,
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
+		blockchainAliases:        map[string][]string{},
 	}
 	return net, nil
 }
