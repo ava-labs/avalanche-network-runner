@@ -464,7 +464,11 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, network.ErrStopped
 	}
 
-	return ln.addNode(nodeConfig)
+	node, err := ln.addNode(nodeConfig)
+	if err != nil {
+		return node, err
+	}
+	return node, ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held and [ln.Stop] hasn't been called.
@@ -765,7 +769,10 @@ func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
-	return ln.removeNode(ctx, nodeName)
+	if err := ln.removeNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -800,7 +807,10 @@ func (ln *localNetwork) PauseNode(ctx context.Context, nodeName string) error {
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
-	return ln.pauseNode(ctx, nodeName)
+	if err := ln.pauseNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -831,10 +841,10 @@ func (ln *localNetwork) ResumeNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.resumeNode(
-		ctx,
-		nodeName,
-	)
+	if err := ln.resumeNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -876,7 +886,7 @@ func (ln *localNetwork) RestartNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.restartNode(
+	if err := ln.restartNode(
 		ctx,
 		nodeName,
 		binaryPath,
@@ -885,7 +895,10 @@ func (ln *localNetwork) RestartNode(
 		chainConfigs,
 		upgradeConfigs,
 		subnetConfigs,
-	)
+	); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) restartNode(

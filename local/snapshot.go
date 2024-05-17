@@ -105,6 +105,72 @@ func NewNetworkFromSnapshot(
 	return net, err
 }
 
+// Save network conf + state into json at root dir
+func (ln *localNetwork) persistNetwork() error {
+	// clone network flags
+	networkConfigFlags := maps.Clone(ln.flags)
+	// remove data dir, log dir references
+	delete(networkConfigFlags, config.DataDirKey)
+	delete(networkConfigFlags, config.LogsDirKey)
+	// clone node info
+	nodeConfigs := []node.Config{}
+	for nodeName, node := range ln.nodes {
+		nodeConfig := node.config
+		// depending on how the user generated the config, different nodes config flags
+		// may point to the same map, so we made a copy to avoid always modifying the same value
+		nodeConfig.Flags = maps.Clone(nodeConfig.Flags)
+		// preserve the current node ports
+		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
+		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
+		// remove data dir, log dir references
+		if nodeConfig.ConfigFile != "" {
+			var err error
+			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
+			if err != nil {
+				return err
+			}
+			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.DataDirKey, "")
+			if err != nil {
+				return err
+			}
+		}
+		delete(nodeConfig.Flags, config.LogsDirKey)
+		delete(nodeConfig.Flags, config.DataDirKey)
+		nodeConfigs = append(nodeConfigs, nodeConfig)
+	}
+	// save network conf
+	networkConfig := network.Config{
+		Genesis:            string(ln.genesis),
+		Flags:              networkConfigFlags,
+		NodeConfigs:        nodeConfigs,
+		BinaryPath:         ln.binaryPath,
+		ChainConfigFiles:   ln.chainConfigFiles,
+		UpgradeConfigFiles: ln.upgradeConfigFiles,
+		SubnetConfigFiles:  ln.subnetConfigFiles,
+	}
+	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
+	if err != nil {
+		return err
+	}
+	if err := createFileAndWrite(filepath.Join(ln.rootDir, "network.json"), networkConfigJSON); err != nil {
+		return err
+	}
+	// save dynamic part of network not available on blockchain
+	subnetID2ElasticSubnetID := map[string]string{}
+	for subnetID, elasticSubnetID := range ln.subnetID2ElasticSubnetID {
+		subnetID2ElasticSubnetID[subnetID.String()] = elasticSubnetID.String()
+	}
+	networkState := NetworkState{
+		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
+		BlockchainAliases:        ln.blockchainAliases,
+	}
+	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
+	if err != nil {
+		return err
+	}
+	return createFileAndWrite(filepath.Join(ln.rootDir, "state.json"), networkStateJSON)
+}
+
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
 func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
@@ -122,89 +188,16 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	if _, err := os.Stat(snapshotDir); err == nil {
 		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
-	// keep copy of node info that will be removed by stop
-	nodesConfig := map[string]node.Config{}
-	nodesDataDir := map[string]string{}
-	for nodeName, node := range ln.nodes {
-		nodeConfig := node.config
-		// depending on how the user generated the config, different nodes config flags
-		// may point to the same map, so we made a copy to avoid always modifying the same value
-		nodeConfig.Flags = maps.Clone(nodeConfig.Flags)
-		nodesConfig[nodeName] = nodeConfig
-		nodesDataDir[nodeName] = node.GetDataDir()
+	if err := ln.persistNetwork(); err != nil {
+		return "", err
 	}
-	// we change nodeConfig.Flags so as to preserve in snapshot the current node ports
-	for nodeName, nodeConfig := range nodesConfig {
-		nodeConfig.Flags[config.HTTPPortKey] = ln.nodes[nodeName].GetAPIPort()
-		nodeConfig.Flags[config.StakingPortKey] = ln.nodes[nodeName].GetP2PPort()
-	}
-	// make copy of network flags
-	networkConfigFlags := maps.Clone(ln.flags)
-	// remove all data dir, log dir references
-	delete(networkConfigFlags, config.DataDirKey)
-	delete(networkConfigFlags, config.LogsDirKey)
-	for nodeName, nodeConfig := range nodesConfig {
-		if nodeConfig.ConfigFile != "" {
-			var err error
-			nodeConfig.ConfigFile, err = utils.SetJSONKey(nodeConfig.ConfigFile, config.LogsDirKey, "")
-			if err != nil {
-				return "", err
-			}
-		}
-		delete(nodeConfig.Flags, config.DataDirKey)
-		delete(nodeConfig.Flags, config.LogsDirKey)
-		nodesConfig[nodeName] = nodeConfig
-	}
-
 	// stop network to safely save snapshot
 	if err := ln.stop(ctx); err != nil {
 		return "", err
 	}
-	// create main snapshot dirs
-	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
-		return "", err
-	}
-	// save data dir
-	for nodeName, nodeDataDir := range nodesDataDir {
-		if err := dircopy.Copy(nodeDataDir, filepath.Join(snapshotDir, nodeName)); err != nil {
-			return "", fmt.Errorf("failure saving node %q data dir: %w", nodeName, err)
-		}
-	}
-	// save network conf
-	networkConfig := network.Config{
-		Genesis:            string(ln.genesis),
-		Flags:              networkConfigFlags,
-		NodeConfigs:        []node.Config{},
-		BinaryPath:         ln.binaryPath,
-		ChainConfigFiles:   ln.chainConfigFiles,
-		UpgradeConfigFiles: ln.upgradeConfigFiles,
-		SubnetConfigFiles:  ln.subnetConfigFiles,
-	}
-
-	// no need to save this, will be generated automatically on snapshot load
-	networkConfig.NodeConfigs = append(networkConfig.NodeConfigs, maps.Values(nodesConfig)...)
-	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
-	if err != nil {
-		return "", err
-	}
-	if err := createFileAndWrite(filepath.Join(snapshotDir, "network.json"), networkConfigJSON); err != nil {
-		return "", err
-	}
-	// save dynamic part of network not available on blockchain
-	subnetID2ElasticSubnetID := map[string]string{}
-	for subnetID, elasticSubnetID := range ln.subnetID2ElasticSubnetID {
-		subnetID2ElasticSubnetID[subnetID.String()] = elasticSubnetID.String()
-	}
-	networkState := NetworkState{
-		SubnetID2ElasticSubnetID: subnetID2ElasticSubnetID,
-		BlockchainAliases:        ln.blockchainAliases,
-	}
-	networkStateJSON, err := json.MarshalIndent(networkState, "", "    ")
-	if err != nil {
-		return "", err
-	}
-	if err := createFileAndWrite(filepath.Join(snapshotDir, "state.json"), networkStateJSON); err != nil {
-		return "", err
+	// copy all info
+	if err := dircopy.Copy(ln.rootDir, snapshotDir); err != nil {
+		return "", fmt.Errorf("failure saving data dir %s: %w", ln.rootDir, err)
 	}
 	return snapshotDir, nil
 }
@@ -375,7 +368,7 @@ func (ln *localNetwork) loadSnapshot(
 			ln.log.Warn(err.Error())
 		}
 	}
-	return nil
+	return ln.persistNetwork()
 }
 
 // Remove network snapshot
