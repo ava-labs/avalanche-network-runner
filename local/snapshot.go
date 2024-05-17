@@ -281,15 +281,14 @@ func (ln *localNetwork) loadSnapshot(
 			return err
 		}
 	}
-	return fmt.Errorf("PEPE")
 	// load data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDBDir := filepath.Join(v0SnapshotDBDir, nodeConfig.Name)
-		targetDBDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDBSubdir)
-		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
-			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
+		sourceDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
+		targetDataDir := filepath.Join(ln.rootDir, nodeConfig.Name)
+		if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
+			return fmt.Errorf("failure loading node %q data dir: %w", nodeConfig.Name, err)
 		}
-		nodeConfig.Flags[config.DBPathKey] = targetDBDir
+		nodeConfig.Flags[config.DataDirKey] = targetDataDir
 	}
 	// replace binary path
 	if binaryPath != "" {
