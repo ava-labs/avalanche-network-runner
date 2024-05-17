@@ -165,14 +165,9 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		return "", err
 	}
 	// save data dir
-	for _, nodeConfig := range nodesConfig {
-		sourceDataDir, ok := nodesDataDir[nodeConfig.Name]
-		if !ok {
-			return "", fmt.Errorf("failure obtaining data dir path for node %q", nodeConfig.Name)
-		}
-		targetDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
-		if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
-			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
+	for nodeName, nodeDataDir := range nodesDataDir {
+		if err := dircopy.Copy(nodeDataDir, filepath.Join(snapshotDir, nodeName)); err != nil {
+			return "", fmt.Errorf("failure saving node %q data dir: %w", nodeName, err)
 		}
 	}
 	// save network conf
