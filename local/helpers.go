@@ -14,7 +14,6 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -194,7 +193,7 @@ func getPort(
 	return port, nil
 }
 
-func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
+func setNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	if rootDir == "" {
 		log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
 	}
@@ -202,18 +201,13 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
-	nodeRootDir := getNodeDir(rootDir, nodeName)
+	nodeRootDir := filepath.Join(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		if !os.IsExist(err) {
-			return "", fmt.Errorf("error creating temp dir %w", err)
+			return "", fmt.Errorf("error creating node %s dir: %w", nodeRootDir, err)
 		}
-		log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
 	}
 	return nodeRootDir, nil
-}
-
-func getNodeDir(rootDir string, nodeName string) string {
-	return filepath.Join(rootDir, nodeName)
 }
 
 // createFileAndWrite creates a file with the given path and

@@ -532,7 +532,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	isPausedNode := ln.isPausedNode(&nodeConfig)
 
-	nodeDir, err := makeNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
+	nodeDir, err := setNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
 	if err != nil {
 		return nil, err
 	}
