@@ -620,7 +620,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			Port: nodeData.p2pPort,
 		}))
 	}
-	return node, err
+	return node, ln.persistNetwork()
 }
 
 // See network.Network
