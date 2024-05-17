@@ -164,11 +164,11 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
 		return "", err
 	}
-	// save db
+	// save data dir
 	for _, nodeConfig := range nodesConfig {
 		sourceDataDir, ok := nodesDataDir[nodeConfig.Name]
 		if !ok {
-			return "", fmt.Errorf("failure obtaining datadir path for node %q", nodeConfig.Name)
+			return "", fmt.Errorf("failure obtaining data dir path for node %q", nodeConfig.Name)
 		}
 		targetDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
 		if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
@@ -229,7 +229,6 @@ func (ln *localNetwork) loadSnapshot(
 	defer ln.lock.Unlock()
 
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
-	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -262,9 +261,30 @@ func (ln *localNetwork) loadSnapshot(
 			networkConfig.NodeConfigs[i].Flags[k] = v
 		}
 	}
-	// load db
+	// auto migrate v0 to v1
+	v0SnapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
+	if isV0, err := utils.PathExists(v0SnapshotDBDir); err != nil {
+		return err
+	} else if isV0 {
+		for _, nodeConfig := range networkConfig.NodeConfigs {
+			sourceDBDir := filepath.Join(v0SnapshotDBDir, nodeConfig.Name)
+			targetDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
+			if err := os.MkdirAll(targetDataDir, os.ModePerm); err != nil {
+				return err
+			}
+			targetDBDir := filepath.Join(targetDataDir, defaultDBSubdir)
+			if err := os.Rename(sourceDBDir, targetDBDir); err != nil {
+				return err
+			}
+		}
+		if err := os.RemoveAll(v0SnapshotDBDir); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("PEPE")
+	// load data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDBDir := filepath.Join(snapshotDBDir, nodeConfig.Name)
+		sourceDBDir := filepath.Join(v0SnapshotDBDir, nodeConfig.Name)
 		targetDBDir := filepath.Join(filepath.Join(ln.rootDir, nodeConfig.Name), defaultDBSubdir)
 		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
 			return fmt.Errorf("failure loading node %q db dir: %w", nodeConfig.Name, err)
