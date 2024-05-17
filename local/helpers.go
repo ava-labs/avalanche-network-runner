@@ -2,6 +2,7 @@ package local
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -45,38 +46,30 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 	}
 	files := []file{
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
-			path:      filepath.Join(nodeRootDir, stakingKeyFileName),
+			flagValue: filepath.Join(nodeRootDir, "staking", stakingKeyFileName),
+			path:      filepath.Join(nodeRootDir, "staking", stakingKeyFileName),
 			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingCertFileName),
-			path:      filepath.Join(nodeRootDir, stakingCertFileName),
+			flagValue: filepath.Join(nodeRootDir, "staking", stakingCertFileName),
+			path:      filepath.Join(nodeRootDir, "staking", stakingCertFileName),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingSigningKeyFileName),
-			path:      filepath.Join(nodeRootDir, stakingSigningKeyFileName),
+			flagValue: filepath.Join(nodeRootDir, "staking", stakingSigningKeyFileName),
+			path:      filepath.Join(nodeRootDir, "staking", stakingSigningKeyFileName),
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
 	}
 	if networkID != constants.LocalID {
 		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, genesisFileName),
-			path:      filepath.Join(nodeRootDir, genesisFileName),
+			flagValue: filepath.Join(nodeRootDir, "configs", genesisFileName),
+			path:      filepath.Join(nodeRootDir, "configs", genesisFileName),
 			pathKey:   config.GenesisFileKey,
 			contents:  genesis,
-		})
-	}
-	if len(nodeConfig.ConfigFile) != 0 {
-		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, configFileName),
-			path:      filepath.Join(nodeRootDir, configFileName),
-			pathKey:   config.ConfigFileKey,
-			contents:  []byte(nodeConfig.ConfigFile),
 		})
 	}
 	flags := map[string]string{}
@@ -120,6 +113,31 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 		}
 	}
 	return flags, nil
+}
+
+func writeConfigFile(nodeRootDir string, nodeConfig *node.Config, flags map[string]string) (string, error) {
+	if len(nodeConfig.ConfigFile) != 0 {
+		newFlags := map[string]interface{}{}
+		if err := json.Unmarshal([]byte(nodeConfig.ConfigFile), &newFlags); err != nil {
+			return "", err
+		}
+		for k, vI := range newFlags {
+			v, ok := vI.(string)
+			if !ok {
+				return "", fmt.Errorf("expected string for key %q, found %T", k, vI)
+			}
+			flags[k] = v
+		}
+	}
+	configFileBytes, err := json.MarshalIndent(flags, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	configFilePath := filepath.Join(nodeRootDir, "configs", configFileName)
+	if err := createFileAndWrite(configFilePath, configFileBytes); err != nil {
+		return "", err
+	}
+	return configFilePath, nil
 }
 
 // getConfigEntry returns an entry in the config file if it is found, otherwise returns the default value

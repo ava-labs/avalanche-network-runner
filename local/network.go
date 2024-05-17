@@ -1115,10 +1115,14 @@ func (ln *localNetwork) buildArgs(
 	// old avago versions
 	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, flags)
 
+	configFilePath, err := writeConfigFile(dataDir, nodeConfig, flagsForAvagoVersion)
+	if err != nil {
+		return buildArgsReturn{}, err
+	}
+
 	// create args
-	args := []string{}
-	for k, v := range flagsForAvagoVersion {
-		args = append(args, fmt.Sprintf("--%s=%s", k, v))
+	args := []string{
+		fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath),
 	}
 
 	return buildArgsReturn{

@@ -15,7 +15,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	dircopy "github.com/otiai10/copy"
 	"golang.org/x/exp/maps"
@@ -125,14 +124,14 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// keep copy of node info that will be removed by stop
 	nodesConfig := map[string]node.Config{}
-	nodesDBDir := map[string]string{}
+	nodesDataDir := map[string]string{}
 	for nodeName, node := range ln.nodes {
 		nodeConfig := node.config
 		// depending on how the user generated the config, different nodes config flags
 		// may point to the same map, so we made a copy to avoid always modifying the same value
 		nodeConfig.Flags = maps.Clone(nodeConfig.Flags)
 		nodesConfig[nodeName] = nodeConfig
-		nodesDBDir[nodeName] = node.GetDbDir()
+		nodesDataDir[nodeName] = node.GetDataDir()
 	}
 	// we change nodeConfig.Flags so as to preserve in snapshot the current node ports
 	for nodeName, nodeConfig := range nodesConfig {
@@ -162,19 +161,17 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 		return "", err
 	}
 	// create main snapshot dirs
-	snapshotDBDir := filepath.Join(snapshotDir, defaultDBSubdir)
-	if err := os.MkdirAll(snapshotDBDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
 		return "", err
 	}
 	// save db
 	for _, nodeConfig := range nodesConfig {
-		sourceDBDir, ok := nodesDBDir[nodeConfig.Name]
+		sourceDataDir, ok := nodesDataDir[nodeConfig.Name]
 		if !ok {
-			return "", fmt.Errorf("failure obtaining db path for node %q", nodeConfig.Name)
+			return "", fmt.Errorf("failure obtaining datadir path for node %q", nodeConfig.Name)
 		}
-		sourceDBDir = filepath.Join(sourceDBDir, constants.NetworkName(ln.networkID))
-		targetDBDir := filepath.Join(filepath.Join(snapshotDBDir, nodeConfig.Name), constants.NetworkName(ln.networkID))
-		if err := dircopy.Copy(sourceDBDir, targetDBDir); err != nil {
+		targetDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
+		if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
 			return "", fmt.Errorf("failure saving node %q db dir: %w", nodeConfig.Name, err)
 		}
 	}
