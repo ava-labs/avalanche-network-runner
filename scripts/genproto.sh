@@ -12,6 +12,7 @@ go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 # https://docs.buf.build/installation
 # https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/introduction/
+buf mod update
 buf lint
 buf generate
 

@@ -45,19 +45,19 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 	}
 	files := []file{
 		{
-			flagValue: filepath.Join(nodeRootDir, "staking", stakingKeyFileName),
+			flagValue: "",
 			path:      filepath.Join(nodeRootDir, "staking", stakingKeyFileName),
 			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, "staking", stakingCertFileName),
+			flagValue: "",
 			path:      filepath.Join(nodeRootDir, "staking", stakingCertFileName),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, "staking", stakingSigningKeyFileName),
+			flagValue: "",
 			path:      filepath.Join(nodeRootDir, "staking", stakingSigningKeyFileName),
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
@@ -73,7 +73,9 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 	}
 	flags := map[string]string{}
 	for _, f := range files {
-		flags[f.pathKey] = f.flagValue
+		if f.flagValue != "" {
+			flags[f.pathKey] = f.flagValue
+		}
 		if err := createFileAndWrite(f.path, f.contents); err != nil {
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}

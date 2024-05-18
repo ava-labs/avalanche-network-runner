@@ -173,7 +173,7 @@ func (ln *localNetwork) persistNetwork() error {
 
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
-func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (string, error) {
+func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, force bool) (string, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
@@ -185,7 +185,11 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	}
 	// check if snapshot already exists
 	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	exists := false
 	if _, err := os.Stat(snapshotDir); err == nil {
+		exists = true
+	}
+	if !force && exists {
 		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
 	if err := ln.persistNetwork(); err != nil {
@@ -194,6 +198,10 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string) (
 	// stop network to safely save snapshot
 	if err := ln.stop(ctx); err != nil {
 		return "", err
+	}
+	// remove if force save
+	if force && exists {
+		ln.RemoveSnapshot(snapshotName)
 	}
 	// copy all info
 	if err := dircopy.Copy(ln.rootDir, snapshotDir); err != nil {
@@ -269,14 +277,20 @@ func (ln *localNetwork) loadSnapshot(
 			return err
 		}
 	}
-	// load data dir
+	// load snapshot dir
+	if err := dircopy.Copy(snapshotDir, ln.rootDir); err != nil {
+		return fmt.Errorf("failure loading snapshot root dir: %w", err)
+	}
+	// configure each node data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		sourceDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
-		targetDataDir := filepath.Join(ln.rootDir, nodeConfig.Name)
-		if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
-			return fmt.Errorf("failure loading node %q data dir: %w", nodeConfig.Name, err)
-		}
-		nodeConfig.Flags[config.DataDirKey] = targetDataDir
+		/*
+			sourceDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
+			targetDataDir := filepath.Join(ln.rootDir, nodeConfig.Name)
+			if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
+				return fmt.Errorf("failure loading node %q data dir: %w", nodeConfig.Name, err)
+			}
+		*/
+		nodeConfig.Flags[config.DataDirKey] = filepath.Join(ln.rootDir, nodeConfig.Name)
 	}
 	// replace binary path
 	if binaryPath != "" {

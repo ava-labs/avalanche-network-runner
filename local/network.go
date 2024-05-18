@@ -44,8 +44,8 @@ const (
 	defaultNodeNamePrefix     = "node"
 	configFileName            = "config.json"
 	upgradeConfigFileName     = "upgrade.json"
-	stakingKeyFileName        = "staking.key"
-	stakingCertFileName       = "staking.crt"
+	stakingKeyFileName        = "staker.key"
+	stakingCertFileName       = "staker.crt"
 	stakingSigningKeyFileName = "signer.key"
 	genesisFileName           = "genesis.json"
 	stopTimeout               = 30 * time.Second
@@ -294,15 +294,15 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 	nodeKeys := []*utils.NodeKeys{}
 	for i := 0; i < constants.DefaultNumNodes; i++ {
 		nodeDir := fmt.Sprintf("node%d", i+1)
-		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.key"))
+		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.crt"))
+		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingCertFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "signer.key"))
+		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingSigningKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}

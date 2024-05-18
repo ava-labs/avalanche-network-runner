@@ -80,7 +80,7 @@ func NewCommand() *cobra.Command {
 		newSaveSnapshotCommand(),
 		newLoadSnapshotCommand(),
 		newRemoveSnapshotCommand(),
-		newGetSnapshotNamesCommand(),
+		newListSnapshotsCommand(),
 		newVMIDCommand(),
 		newListSubnetsCommand(),
 		newListBlockchainsCommand(),
@@ -105,6 +105,7 @@ var (
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
 	networkID           uint32
+	force               bool
 )
 
 func setLogs() error {
@@ -1198,6 +1199,12 @@ func newSaveSnapshotCommand() *cobra.Command {
 		RunE:  saveSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
+	cmd.PersistentFlags().BoolVar(
+		&force,
+		"force",
+		false,
+		"overwrite snapshot if it already exists",
+	)
 	return cmd
 }
 
@@ -1209,7 +1216,7 @@ func saveSnapshotFunc(_ *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.SaveSnapshot(ctx, args[0])
+	resp, err := cli.SaveSnapshot(ctx, args[0], force)
 	cancel()
 	if err != nil {
 		return err
@@ -1363,16 +1370,16 @@ func removeSnapshotFunc(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func newGetSnapshotNamesCommand() *cobra.Command {
+func newListSnapshotsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-snapshot-names [options]",
+		Use:   "list-snapshots [options]",
 		Short: "Lists available snapshots.",
-		RunE:  getSnapshotNamesFunc,
+		RunE:  listSnapshotsFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 }
 
-func getSnapshotNamesFunc(*cobra.Command, []string) error {
+func listSnapshotsFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -1380,7 +1387,7 @@ func getSnapshotNamesFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	snapshotNames, err := cli.GetSnapshotNames(ctx)
+	snapshotNames, err := cli.ListSnapshots(ctx)
 	cancel()
 	if err != nil {
 		return err

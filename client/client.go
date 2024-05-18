@@ -52,10 +52,10 @@ type Client interface {
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
-	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
+	SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error)
 	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
-	GetSnapshotNames(ctx context.Context) ([]string, error)
+	ListSnapshots(ctx context.Context) ([]string, error)
 	ListSubnets(ctx context.Context) ([]string, error)
 	ListBlockchains(ctx context.Context) ([]*rpcpb.CustomChainInfo, error)
 	ListRpcs(ctx context.Context) ([]*rpcpb.BlockchainRpcs, error)
@@ -362,9 +362,9 @@ func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerI
 	})
 }
 
-func (c *client) SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error) {
+func (c *client) SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error) {
 	c.log.Info("save snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName})
+	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName, Force: force})
 }
 
 func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
@@ -398,8 +398,8 @@ func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcp
 	return c.controlc.RemoveSnapshot(ctx, &rpcpb.RemoveSnapshotRequest{SnapshotName: snapshotName})
 }
 
-func (c *client) GetSnapshotNames(ctx context.Context) ([]string, error) {
-	c.log.Info("get snapshot names")
+func (c *client) ListSnapshots(ctx context.Context) ([]string, error) {
+	c.log.Info("list snapshots")
 	resp, err := c.controlc.GetSnapshotNames(ctx, &rpcpb.GetSnapshotNamesRequest{})
 	if err != nil {
 		return nil, err

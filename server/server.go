@@ -1400,7 +1400,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, ErrNotBootstrapped
 	}
 
-	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
+	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName, req.Force)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err

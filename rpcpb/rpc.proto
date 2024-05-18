@@ -653,6 +653,7 @@ message SendOutboundMessageResponse {
 
 message SaveSnapshotRequest {
   string snapshot_name = 1;
+  bool force = 2;
 }
 
 message SaveSnapshotResponse {
