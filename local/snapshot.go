@@ -300,6 +300,7 @@ func (ln *localNetwork) loadSnapshot(
 	}
 	// configure each node data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
+		delete(nodeConfig.Flags, config.DBPathKey)
 		nodeConfig.Flags[config.DataDirKey] = filepath.Join(ln.rootDir, nodeConfig.Name)
 	}
 	// replace binary path

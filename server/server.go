@@ -315,11 +315,11 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		if err != nil {
 			return nil, err
 		}
-	}
-	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
-	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
-	if err != nil {
-		return nil, err
+		rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
+		rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(customNodeConfigs) > 0 {
@@ -1335,11 +1335,11 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		if err != nil {
 			return nil, err
 		}
-	}
-	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
-	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
-	if err != nil {
-		return nil, err
+		rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
+		rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pid := int32(os.Getpid())
