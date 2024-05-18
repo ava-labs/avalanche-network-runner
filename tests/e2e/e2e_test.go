@@ -278,14 +278,14 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 
 		ginkgo.By("can save snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "test")
+			_, err := cli.SaveSnapshot(ctx, "test", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
 		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "test")
+			_, err := cli.LoadSnapshot(ctx, "test", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -977,13 +977,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("save snapshot with elastic info", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "elastic_snapshot")
+			_, err := cli.SaveSnapshot(ctx, "elastic_snapshot", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 		ginkgo.By("load snapshot with elastic info", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "elastic_snapshot")
+			_, err := cli.LoadSnapshot(ctx, "elastic_snapshot", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -1051,14 +1051,14 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("check there are no snapshots", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			snapshotNames, err := cli.ListSnapshots(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(snapshotNames).Should(gomega.Equal([]string(nil)))
 		})
 		ginkgo.By("can save snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "pepe")
+			_, err := cli.SaveSnapshot(ctx, "pepe", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -1070,13 +1070,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("load fail for unknown snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "papa")
+			_, err := cli.LoadSnapshot(ctx, "papa", false)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot not found"))
 		})
 		ginkgo.By("can load snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "pepe")
+			_, err := cli.LoadSnapshot(ctx, "pepe", false)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
@@ -1100,13 +1100,13 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("save fail for already saved snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "pepe")
+			_, err := cli.SaveSnapshot(ctx, "pepe", false)
 			cancel()
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("snapshot \"pepe\" already exists"))
 		})
 		ginkgo.By("check there is a snapshot", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			snapshotNames, err := cli.ListSnapshots(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(snapshotNames).Should(gomega.Equal([]string{"pepe"}))
@@ -1119,7 +1119,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 		ginkgo.By("check there are no snapshots", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			snapshotNames, err := cli.GetSnapshotNames(ctx)
+			snapshotNames, err := cli.ListSnapshots(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(snapshotNames).Should(gomega.Equal([]string(nil)))

@@ -73,6 +73,7 @@ func NewNetworkFromSnapshot(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
+	inPlace bool,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -101,6 +102,7 @@ func NewNetworkFromSnapshot(
 		upgradeConfigs,
 		subnetConfigs,
 		flags,
+		inPlace,
 	)
 	return net, err
 }
@@ -189,6 +191,10 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 	if _, err := os.Stat(snapshotDir); err == nil {
 		exists = true
 	}
+	// check is network was loaded in place from the given snapshot
+	if ln.rootDir == snapshotDir {
+		return "", fmt.Errorf("already auto saving into the specified snapshot %q", snapshotName)
+	}
 	if !force && exists {
 		return "", fmt.Errorf("snapshot %q already exists", snapshotName)
 	}
@@ -201,7 +207,9 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 	}
 	// remove if force save
 	if force && exists {
-		ln.RemoveSnapshot(snapshotName)
+		if err := ln.RemoveSnapshot(snapshotName); err != nil {
+			return "", err
+		}
 	}
 	// copy all info
 	if err := dircopy.Copy(ln.rootDir, snapshotDir); err != nil {
@@ -220,6 +228,7 @@ func (ln *localNetwork) loadSnapshot(
 	upgradeConfigs map[string]string,
 	subnetConfigs map[string]string,
 	flags map[string]interface{},
+	inPlace bool,
 ) error {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
@@ -278,18 +287,19 @@ func (ln *localNetwork) loadSnapshot(
 		}
 	}
 	// load snapshot dir
-	if err := dircopy.Copy(snapshotDir, ln.rootDir); err != nil {
-		return fmt.Errorf("failure loading snapshot root dir: %w", err)
+	if !inPlace {
+		if err := dircopy.Copy(snapshotDir, ln.rootDir); err != nil {
+			return fmt.Errorf("failure loading snapshot root dir: %w", err)
+		}
+	} else {
+		for _, nodeConfig := range networkConfig.NodeConfigs {
+			// logs will be stored outside of the snapshot dir
+			nodeConfig.Flags[config.LogsDirKey] = filepath.Join(ln.rootDir, nodeConfig.Name, "logs")
+		}
+		ln.rootDir = snapshotDir
 	}
 	// configure each node data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
-		/*
-			sourceDataDir := filepath.Join(snapshotDir, nodeConfig.Name)
-			targetDataDir := filepath.Join(ln.rootDir, nodeConfig.Name)
-			if err := dircopy.Copy(sourceDataDir, targetDataDir); err != nil {
-				return fmt.Errorf("failure loading node %q data dir: %w", nodeConfig.Name, err)
-			}
-		*/
 		nodeConfig.Flags[config.DataDirKey] = filepath.Join(ln.rootDir, nodeConfig.Name)
 	}
 	// replace binary path

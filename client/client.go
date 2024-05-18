@@ -53,7 +53,7 @@ type Client interface {
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
 	SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error)
-	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
+	LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
 	ListSnapshots(ctx context.Context) ([]string, error)
 	ListSubnets(ctx context.Context) ([]string, error)
@@ -367,7 +367,7 @@ func (c *client) SaveSnapshot(ctx context.Context, snapshotName string, force bo
 	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName, Force: force})
 }
 
-func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
+func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
 	c.log.Info("load snapshot", zap.String("snapshot-name", snapshotName))
 	ret := &Op{}
 	ret.applyOpts(opts)
@@ -376,6 +376,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 		ChainConfigs:   ret.chainConfigs,
 		UpgradeConfigs: ret.upgradeConfigs,
 		SubnetConfigs:  ret.subnetConfigs,
+		InPlace:        inPlace,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath

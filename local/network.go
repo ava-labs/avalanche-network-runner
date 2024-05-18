@@ -566,6 +566,18 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, fmt.Errorf("couldn't get node ID: %w", err)
 	}
 
+	// If this node is a beacon, add its IP/ID to the beacon lists.
+	// Note that we do this *after* we set this node's bootstrap IPs/IDs
+	// so this node won't try to use itself as a beacon.
+	if !isPausedNode && nodeConfig.IsBeacon {
+		if err := ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
+			IP:   net.ParseIP(nodeData.publicIP),
+			Port: nodeData.p2pPort,
+		})); err != nil {
+			return nil, err
+		}
+	}
+
 	// Start the AvalancheGo node and pass it the flags defined above
 	nodeProcess, err := ln.nodeProcessCreator.NewNodeProcess(nodeConfig, nodeData.args...)
 	if err != nil {
@@ -611,15 +623,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		attachedPeers: map[string]peer.Peer{},
 	}
 	ln.nodes[node.name] = node
-	// If this node is a beacon, add its IP/ID to the beacon lists.
-	// Note that we do this *after* we set this node's bootstrap IPs/IDs
-	// so this node won't try to use itself as a beacon.
-	if !isPausedNode && nodeConfig.IsBeacon {
-		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
-			IP:   net.ParseIP(nodeData.publicIP),
-			Port: nodeData.p2pPort,
-		}))
-	}
 	return node, ln.persistNetwork()
 }
 

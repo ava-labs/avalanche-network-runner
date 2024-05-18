@@ -106,6 +106,7 @@ var (
 	dynamicPorts        bool
 	networkID           uint32
 	force               bool
+	inPlace             bool
 )
 
 func setLogs() error {
@@ -1281,6 +1282,12 @@ func newLoadSnapshotCommand() *cobra.Command {
 		false,
 		"true to reassign snapshot ports if already taken",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&inPlace,
+		"in-place",
+		false,
+		"load snapshot in place, so as it always auto save",
+	)
 	return cmd
 }
 
@@ -1333,7 +1340,7 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 
 	ctx := getAsyncContext()
 
-	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
+	resp, err := cli.LoadSnapshot(ctx, args[0], inPlace, opts...)
 	if err != nil {
 		return err
 	}

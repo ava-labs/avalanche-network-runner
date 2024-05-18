@@ -545,7 +545,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
+func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -572,6 +572,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 		lc.options.reassignPortsIfUsed,
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
+		inPlace,
 	)
 	if err != nil {
 		return err

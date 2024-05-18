@@ -1366,7 +1366,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
+	if err := s.network.LoadSnapshot(req.SnapshotName, req.InPlace); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
 		return nil, err
