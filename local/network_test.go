@@ -1162,11 +1162,9 @@ func TestWriteFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stakingKeyPath := filepath.Join(tmpDir, stakingKeyFileName)
-	stakingCertPath := filepath.Join(tmpDir, stakingCertFileName)
-	stakingSigningKeyPath := filepath.Join(tmpDir, stakingSigningKeyFileName)
-	genesisPath := filepath.Join(tmpDir, genesisFileName)
-	configFilePath := filepath.Join(tmpDir, configFileName)
+	stakingKeyPath := filepath.Join(tmpDir, "staking", stakingKeyFileName)
+	stakingCertPath := filepath.Join(tmpDir, "staking", stakingCertFileName)
+	genesisPath := filepath.Join(tmpDir, "configs", genesisFileName)
 	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
 	subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
 	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
@@ -1189,12 +1187,9 @@ func TestWriteFiles(t *testing.T) {
 				StakingCert: stakingCert,
 			},
 			expectedFlags: map[string]string{
-				config.StakingTLSKeyPathKey:    stakingKeyPath,
-				config.StakingCertPathKey:      stakingCertPath,
-				config.StakingSignerKeyPathKey: stakingSigningKeyPath,
-				config.GenesisFileKey:          genesisPath,
-				config.ChainConfigDirKey:       chainConfigDir,
-				config.SubnetConfigDirKey:      subnetConfigDir,
+				config.GenesisFileKey:     genesisPath,
+				config.ChainConfigDirKey:  chainConfigDir,
+				config.SubnetConfigDirKey: subnetConfigDir,
 			},
 		},
 		{
@@ -1207,13 +1202,9 @@ func TestWriteFiles(t *testing.T) {
 				ConfigFile:  configFile,
 			},
 			expectedFlags: map[string]string{
-				config.StakingTLSKeyPathKey:    stakingKeyPath,
-				config.StakingCertPathKey:      stakingCertPath,
-				config.StakingSignerKeyPathKey: stakingSigningKeyPath,
-				config.GenesisFileKey:          genesisPath,
-				config.ChainConfigDirKey:       chainConfigDir,
-				config.SubnetConfigDirKey:      subnetConfigDir,
-				config.ConfigFileKey:           configFilePath,
+				config.GenesisFileKey:     genesisPath,
+				config.ChainConfigDirKey:  chainConfigDir,
+				config.SubnetConfigDirKey: subnetConfigDir,
 			},
 		},
 		{
@@ -1227,13 +1218,9 @@ func TestWriteFiles(t *testing.T) {
 				ChainConfigFiles: chainConfigFiles,
 			},
 			expectedFlags: map[string]string{
-				config.StakingTLSKeyPathKey:    stakingKeyPath,
-				config.StakingCertPathKey:      stakingCertPath,
-				config.StakingSignerKeyPathKey: stakingSigningKeyPath,
-				config.GenesisFileKey:          genesisPath,
-				config.ChainConfigDirKey:       chainConfigDir,
-				config.SubnetConfigDirKey:      subnetConfigDir,
-				config.ConfigFileKey:           configFilePath,
+				config.GenesisFileKey:     genesisPath,
+				config.ChainConfigDirKey:  chainConfigDir,
+				config.SubnetConfigDirKey: subnetConfigDir,
 			},
 		},
 	}
@@ -1263,11 +1250,6 @@ func TestWriteFiles(t *testing.T) {
 			gotGenesis, err := os.ReadFile(genesisPath)
 			require.NoError(err)
 			require.Equal(tt.genesis, gotGenesis)
-			if len(tt.nodeConfig.ConfigFile) > 0 {
-				gotConfigFile, err := os.ReadFile(configFilePath)
-				require.NoError(err)
-				require.Equal([]byte(configFile), gotConfigFile)
-			}
 			if tt.nodeConfig.ChainConfigFiles != nil {
 				gotCChainConfigFile, err := os.ReadFile(cChainConfigPath)
 				require.NoError(err)
