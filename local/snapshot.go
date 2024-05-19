@@ -63,6 +63,7 @@ func NewNetworkFromSnapshot(
 	log logging.Logger,
 	snapshotName string,
 	rootDir string,
+	logRootDir string,
 	snapshotsDir string,
 	binaryPath string,
 	pluginDir string,
@@ -75,6 +76,12 @@ func NewNetworkFromSnapshot(
 	redirectStderr bool,
 	inPlace bool,
 ) (network.Network, error) {
+	if inPlace {
+		if rootDir != "" {
+			return nil, fmt.Errorf("root dir must be empty when using in place snapshot load")
+		}
+		rootDir = getSnapshotDir(snapshotsDir, snapshotName)
+	}
 	net, err := newNetwork(
 		log,
 		api.NewAPIClient,
@@ -85,6 +92,7 @@ func NewNetworkFromSnapshot(
 			stderr:      os.Stderr,
 		},
 		rootDir,
+		logRootDir,
 		snapshotsDir,
 		reassignPortsIfUsed,
 		redirectStdout,
@@ -186,7 +194,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 		return "", fmt.Errorf("invalid snapshotName %q", snapshotName)
 	}
 	// check if snapshot already exists
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName)
 	exists := false
 	if _, err := os.Stat(snapshotDir); err == nil {
 		exists = true
@@ -233,7 +241,7 @@ func (ln *localNetwork) loadSnapshot(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	snapshotDir := filepath.Join(ln.snapshotsDir, snapshotPrefix+snapshotName)
+	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -288,15 +296,14 @@ func (ln *localNetwork) loadSnapshot(
 	}
 	// load snapshot dir
 	if !inPlace {
+		if snapshotDir == ln.rootDir {
+			return fmt.Errorf("root dir should differ from snapshot dir for not in place load")
+		}
 		if err := dircopy.Copy(snapshotDir, ln.rootDir); err != nil {
 			return fmt.Errorf("failure loading snapshot root dir: %w", err)
 		}
-	} else {
-		for _, nodeConfig := range networkConfig.NodeConfigs {
-			// logs will be stored outside of the snapshot dir
-			nodeConfig.Flags[config.LogsDirKey] = filepath.Join(ln.rootDir, nodeConfig.Name, "logs")
-		}
-		ln.rootDir = snapshotDir
+	} else if snapshotDir != ln.rootDir {
+		return fmt.Errorf("root dir should equal snapshot dir for not in place load")
 	}
 	// configure each node data dir
 	for _, nodeConfig := range networkConfig.NodeConfigs {
@@ -406,8 +413,15 @@ func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
 	return GetSnapshotNames(ln.snapshotsDir)
 }
 
+func getSnapshotDir(snapshotsDir string, snapshotName string) string {
+	if snapshotsDir == "" {
+		snapshotsDir = DefaultSnapshotsDir
+	}
+	return filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
+}
+
 func RemoveSnapshot(snapshotsDir string, snapshotName string) error {
-	snapshotDir := filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
+	snapshotDir := getSnapshotDir(snapshotsDir, snapshotName)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

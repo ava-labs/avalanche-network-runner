@@ -131,6 +131,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
 	}
+	if ret.logRootDir != "" {
+		req.LogRootDir = &ret.logRootDir
+	}
 	if ret.pluginDir != "" {
 		req.PluginDir = ret.pluginDir
 	}
@@ -387,6 +390,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
 	}
+	if ret.logRootDir != "" {
+		req.LogRootDir = &ret.logRootDir
+	}
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
 	}
@@ -457,6 +463,7 @@ type Op struct {
 	trackSubnets        string
 	globalNodeConfig    string
 	rootDataDir         string
+	logRootDir          string
 	pluginDir           string
 	blockchainSpecs     []*rpcpb.BlockchainSpec
 	customNodeConfigs   map[string]string
@@ -516,6 +523,12 @@ func WithTrackSubnets(trackSubnets string) OpOption {
 func WithRootDataDir(rootDataDir string) OpOption {
 	return func(op *Op) {
 		op.rootDataDir = rootDataDir
+	}
+}
+
+func WithLogRootDir(logRootDir string) OpOption {
+	return func(op *Op) {
+		op.logRootDir = logRootDir
 	}
 }
 

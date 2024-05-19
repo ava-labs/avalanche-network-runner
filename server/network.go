@@ -88,6 +88,7 @@ type chainInfo struct {
 type localNetworkOptions struct {
 	execPath            string
 	rootDataDir         string
+	logRootDir          string
 	numNodes            uint32
 	trackSubnets        string
 	redirectNodesOutput bool
@@ -115,9 +116,12 @@ type localNetworkOptions struct {
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
+	if opts.logRootDir == "" {
+		opts.logRootDir = opts.rootDataDir
+	}
 	logFactory := logging.NewFactory(logging.Config{
 		RotatingWriterConfig: logging.RotatingWriterConfig{
-			Directory: opts.rootDataDir,
+			Directory: opts.logRootDir,
 		},
 		LogLevel:     opts.logLevel,
 		DisplayLevel: opts.logLevel,
@@ -247,7 +251,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput)
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.logRootDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput)
 	if err != nil {
 		return err
 	}
@@ -562,6 +566,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		lc.log,
 		snapshotName,
 		lc.options.rootDataDir,
+		lc.options.logRootDir,
 		lc.options.snapshotsDir,
 		lc.execPath,
 		lc.pluginDir,
@@ -802,7 +807,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 func (lc *localNetwork) generatePrometheusConf() error {
 	if lc.prometheusConfPath == "" {
-		lc.prometheusConfPath = filepath.Join(lc.options.rootDataDir, prometheusConfFname)
+		lc.prometheusConfPath = filepath.Join(lc.nw.GetRootDir(), prometheusConfFname)
 		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("prometheus conf file %s"), lc.prometheusConfPath))
 	}
 	prometheusConf := prometheusConfCommon

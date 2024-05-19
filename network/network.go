@@ -125,4 +125,8 @@ type Network interface {
 	AddSubnetValidators(context.Context, []SubnetValidatorsSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
+	// Get the root dir of the Network
+	GetRootDir() string
+	// Get the root log dir of the Network
+	GetLogRootDir() string
 }

@@ -97,8 +97,10 @@ type localNetwork struct {
 	// Set of nodes that new nodes will bootstrap from.
 	bootstraps beacon.Set
 	// rootDir is the root directory under which we write all node
-	// logs, databases, etc.
+	// databases, etc
 	rootDir string
+	// logRootDir is the root directory under which we write all node logs
+	logRootDir string
 	// directory where networks can be persistently saved
 	snapshotsDir string
 	// flags to apply to all nodes per default
@@ -163,6 +165,7 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	rootDir string,
+	logRootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
@@ -178,6 +181,7 @@ func NewNetwork(
 			stderr:      os.Stderr,
 		},
 		rootDir,
+		logRootDir,
 		snapshotsDir,
 		reassignPortsIfUsed,
 		redirectStdout,
@@ -197,6 +201,7 @@ func newNetwork(
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
 	rootDir string,
+	logRootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
@@ -214,6 +219,9 @@ func newNetwork(
 		if err != nil {
 			return nil, err
 		}
+	}
+	if logRootDir == "" {
+		logRootDir = rootDir
 	}
 	if snapshotsDir == "" {
 		snapshotsDir = DefaultSnapshotsDir
@@ -233,6 +241,7 @@ func newNetwork(
 		newAPIClientF:            newAPIClientF,
 		nodeProcessCreator:       nodeProcessCreator,
 		rootDir:                  rootDir,
+		logRootDir:               logRootDir,
 		snapshotsDir:             snapshotsDir,
 		reassignPortsIfUsed:      reassignPortsIfUsed,
 		redirectStdout:           redirectStdout,
@@ -269,7 +278,7 @@ func NewDefaultNetwork(
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
@@ -540,6 +549,13 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	nodeLogDir := ""
+	if ln.rootDir != ln.logRootDir {
+		nodeLogDir, err = setNodeDir(ln.log, ln.logRootDir, nodeConfig.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
 	var configFile map[string]interface{}
@@ -555,7 +571,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, err
 	}
 
-	nodeData, err := ln.buildArgs(nodeSemVer, configFile, nodeDir, &nodeConfig)
+	nodeData, err := ln.buildArgs(nodeSemVer, configFile, nodeDir, nodeLogDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -1025,6 +1041,7 @@ func (ln *localNetwork) buildArgs(
 	nodeSemVer string,
 	configFile map[string]interface{},
 	nodeDir string,
+	nodeLogDir string,
 	nodeConfig *node.Config,
 ) (buildArgsReturn, error) {
 	// httpHost from all configs for node
@@ -1051,8 +1068,11 @@ func (ln *localNetwork) buildArgs(
 		return buildArgsReturn{}, err
 	}
 
+	if nodeLogDir == "" {
+		nodeLogDir = dataDir
+	}
 	// Tell the node to put the log directory in [dataDir/logs] unless given in config file
-	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(dataDir, defaultLogsSubdir))
+	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeLogDir, defaultLogsSubdir))
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
@@ -1192,4 +1212,12 @@ func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) 
 		}
 	}
 	return flags
+}
+
+func (ln *localNetwork) GetRootDir() string {
+	return ln.rootDir
+}
+
+func (ln *localNetwork) GetLogRootDir() string {
+	return ln.logRootDir
 }

@@ -107,9 +107,13 @@ func VMID(vmName string) (ids.ID, error) {
 	return ids.ToID(b)
 }
 
-func MkDirWithTimestamp(dirPrefix string) (string, error) {
+func DirnameWithTimestamp(dirPrefix string) string {
 	currentTime := time.Now().Format(dirTimestampFormat)
-	dirName := dirPrefix + "_" + currentTime
+	return dirPrefix + "_" + currentTime
+}
+
+func MkDirWithTimestamp(dirPrefix string) (string, error) {
+	dirName := DirnameWithTimestamp(dirPrefix)
 	return dirName, os.MkdirAll(dirName, os.ModePerm)
 }
 
