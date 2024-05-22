@@ -18,7 +18,7 @@ import (
 
 const (
 	stakingPath = "staking"
-	configsPath = "staking"
+	configsPath = "configs"
 )
 
 func init() {
