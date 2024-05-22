@@ -2,6 +2,7 @@ package local
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -13,7 +14,11 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
-	"go.uber.org/zap"
+)
+
+const (
+	stakingPath = "staking"
+	configsPath = "configs"
 )
 
 func init() {
@@ -45,43 +50,37 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 	}
 	files := []file{
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingKeyFileName),
-			path:      filepath.Join(nodeRootDir, stakingKeyFileName),
+			flagValue: "",
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingKeyFileName),
 			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingCertFileName),
-			path:      filepath.Join(nodeRootDir, stakingCertFileName),
+			flagValue: "",
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingCertFileName),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
 		},
 		{
-			flagValue: filepath.Join(nodeRootDir, stakingSigningKeyFileName),
-			path:      filepath.Join(nodeRootDir, stakingSigningKeyFileName),
+			flagValue: "",
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingSigningKeyFileName),
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
 	}
 	if networkID != constants.LocalID {
 		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, genesisFileName),
-			path:      filepath.Join(nodeRootDir, genesisFileName),
+			flagValue: filepath.Join(nodeRootDir, configsPath, genesisFileName),
+			path:      filepath.Join(nodeRootDir, configsPath, genesisFileName),
 			pathKey:   config.GenesisFileKey,
 			contents:  genesis,
 		})
 	}
-	if len(nodeConfig.ConfigFile) != 0 {
-		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, configFileName),
-			path:      filepath.Join(nodeRootDir, configFileName),
-			pathKey:   config.ConfigFileKey,
-			contents:  []byte(nodeConfig.ConfigFile),
-		})
-	}
 	flags := map[string]string{}
 	for _, f := range files {
-		flags[f.pathKey] = f.flagValue
+		if f.flagValue != "" {
+			flags[f.pathKey] = f.flagValue
+		}
 		if err := createFileAndWrite(f.path, f.contents); err != nil {
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
 		}
@@ -120,6 +119,31 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 		}
 	}
 	return flags, nil
+}
+
+func writeConfigFile(nodeRootDir string, nodeConfig *node.Config, flags map[string]string) (string, error) {
+	if len(nodeConfig.ConfigFile) != 0 {
+		newFlags := map[string]interface{}{}
+		if err := json.Unmarshal([]byte(nodeConfig.ConfigFile), &newFlags); err != nil {
+			return "", err
+		}
+		for k, vI := range newFlags {
+			v, ok := vI.(string)
+			if !ok {
+				return "", fmt.Errorf("expected string for key %q, found %T", k, vI)
+			}
+			flags[k] = v
+		}
+	}
+	configFileBytes, err := json.MarshalIndent(flags, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	configFilePath := filepath.Join(nodeRootDir, configsPath, configFileName)
+	if err := createFileAndWrite(configFilePath, configFileBytes); err != nil {
+		return "", err
+	}
+	return configFilePath, nil
 }
 
 // getConfigEntry returns an entry in the config file if it is found, otherwise returns the default value
@@ -176,7 +200,7 @@ func getPort(
 	return port, nil
 }
 
-func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
+func setNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	if rootDir == "" {
 		log.Warn("no network root directory defined; will create this node's runtime directory in working directory")
 	}
@@ -184,18 +208,13 @@ func makeNodeDir(log logging.Logger, rootDir, nodeName string) (string, error) {
 	// staking key, staking certificate and genesis file will be written.
 	// (Other file locations are given in the node's config file.)
 	// TODO should we do this for other directories? Profiles?
-	nodeRootDir := getNodeDir(rootDir, nodeName)
+	nodeRootDir := filepath.Join(rootDir, nodeName)
 	if err := os.Mkdir(nodeRootDir, 0o755); err != nil {
 		if !os.IsExist(err) {
-			return "", fmt.Errorf("error creating temp dir %w", err)
+			return "", fmt.Errorf("error creating node %s dir: %w", nodeRootDir, err)
 		}
-		log.Warn("node root directory already exists", zap.String("root-dir", nodeRootDir))
 	}
 	return nodeRootDir, nil
-}
-
-func getNodeDir(rootDir string, nodeName string) string {
-	return filepath.Join(rootDir, nodeName)
 }
 
 // createFileAndWrite creates a file with the given path and

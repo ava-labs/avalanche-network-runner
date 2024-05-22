@@ -52,10 +52,10 @@ type Client interface {
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
-	SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error)
-	LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
+	SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error)
+	LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
 	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
-	GetSnapshotNames(ctx context.Context) ([]string, error)
+	ListSnapshots(ctx context.Context) ([]string, error)
 	ListSubnets(ctx context.Context) ([]string, error)
 	ListBlockchains(ctx context.Context) ([]*rpcpb.CustomChainInfo, error)
 	ListRpcs(ctx context.Context) ([]*rpcpb.BlockchainRpcs, error)
@@ -130,6 +130,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
+	}
+	if ret.logRootDir != "" {
+		req.LogRootDir = &ret.logRootDir
 	}
 	if ret.pluginDir != "" {
 		req.PluginDir = ret.pluginDir
@@ -362,12 +365,12 @@ func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerI
 	})
 }
 
-func (c *client) SaveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.SaveSnapshotResponse, error) {
+func (c *client) SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error) {
 	c.log.Info("save snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName})
+	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName, Force: force})
 }
 
-func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
+func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
 	c.log.Info("load snapshot", zap.String("snapshot-name", snapshotName))
 	ret := &Op{}
 	ret.applyOpts(opts)
@@ -376,6 +379,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 		ChainConfigs:   ret.chainConfigs,
 		UpgradeConfigs: ret.upgradeConfigs,
 		SubnetConfigs:  ret.subnetConfigs,
+		InPlace:        inPlace,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -385,6 +389,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, opts ...
 	}
 	if ret.rootDataDir != "" {
 		req.RootDataDir = &ret.rootDataDir
+	}
+	if ret.logRootDir != "" {
+		req.LogRootDir = &ret.logRootDir
 	}
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
@@ -398,8 +405,8 @@ func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcp
 	return c.controlc.RemoveSnapshot(ctx, &rpcpb.RemoveSnapshotRequest{SnapshotName: snapshotName})
 }
 
-func (c *client) GetSnapshotNames(ctx context.Context) ([]string, error) {
-	c.log.Info("get snapshot names")
+func (c *client) ListSnapshots(ctx context.Context) ([]string, error) {
+	c.log.Info("list snapshots")
 	resp, err := c.controlc.GetSnapshotNames(ctx, &rpcpb.GetSnapshotNamesRequest{})
 	if err != nil {
 		return nil, err
@@ -456,6 +463,7 @@ type Op struct {
 	trackSubnets        string
 	globalNodeConfig    string
 	rootDataDir         string
+	logRootDir          string
 	pluginDir           string
 	blockchainSpecs     []*rpcpb.BlockchainSpec
 	customNodeConfigs   map[string]string
@@ -515,6 +523,12 @@ func WithTrackSubnets(trackSubnets string) OpOption {
 func WithRootDataDir(rootDataDir string) OpOption {
 	return func(op *Op) {
 		op.rootDataDir = rootDataDir
+	}
+}
+
+func WithLogRootDir(logRootDir string) OpOption {
+	return func(op *Op) {
+		op.logRootDir = logRootDir
 	}
 }
 

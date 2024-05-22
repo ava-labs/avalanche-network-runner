@@ -253,6 +253,7 @@ message ClusterInfo {
   map<string, CustomChainInfo> custom_chains = 8;
   map<string, SubnetInfo> subnets          = 9;
   uint32 network_id                         = 10;
+  string log_root_dir             = 11;
 }
 
 message SubnetInfo {
@@ -360,6 +361,9 @@ message StartRequest {
 
   // Network id to assign to the network, instead of default one
   uint32 network_id = 14;
+
+  // Used for log files.
+  optional string log_root_dir = 15;
 }
 
 message RPCVersionRequest {}
@@ -653,6 +657,7 @@ message SendOutboundMessageResponse {
 
 message SaveSnapshotRequest {
   string snapshot_name = 1;
+  bool force = 2;
 }
 
 message SaveSnapshotResponse {
@@ -669,6 +674,8 @@ message LoadSnapshotRequest {
   optional string global_node_config  = 7;
   optional bool reassign_ports_if_used = 8;
   map<string, string> subnet_configs = 9;
+  bool in_place = 10;
+  optional string log_root_dir = 11;
 }
 
 message LoadSnapshotResponse {

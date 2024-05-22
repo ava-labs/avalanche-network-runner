@@ -315,11 +315,11 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		if err != nil {
 			return nil, err
 		}
-	}
-	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
-	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
-	if err != nil {
-		return nil, err
+		rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
+		rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(customNodeConfigs) > 0 {
@@ -336,6 +336,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		networkID:           req.NetworkId,
 		execPath:            execPath,
 		rootDataDir:         rootDataDir,
+		logRootDir:          req.GetLogRootDir(),
 		numNodes:            numNodes,
 		trackSubnets:        trackSubnets,
 		redirectNodesOutput: s.cfg.RedirectNodesOutput,
@@ -402,6 +403,8 @@ func (s *server) updateClusterInfo() {
 		// stop may have been called
 		return
 	}
+	s.clusterInfo.RootDataDir = s.network.nw.GetRootDir()
+	s.clusterInfo.LogRootDir = s.network.nw.GetLogRootDir()
 	s.clusterInfo.NetworkId = s.network.networkID
 	s.clusterInfo.Healthy = true
 	s.clusterInfo.NodeNames = maps.Keys(s.network.nodeInfos)
@@ -1329,26 +1332,27 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 
 	var err error
 	rootDataDir := req.GetRootDataDir()
-	if len(rootDataDir) == 0 {
+	if len(rootDataDir) == 0 && !req.InPlace {
 		rootDataDir = filepath.Join(os.TempDir(), constants.RootDirPrefix)
 		err = os.MkdirAll(rootDataDir, os.ModePerm)
 		if err != nil {
 			return nil, err
 		}
-	}
-	rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
-	rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
-	if err != nil {
-		return nil, err
+		rootDataDir = filepath.Join(rootDataDir, networkRootDirPrefix)
+		rootDataDir, err = utils.MkDirWithTimestamp(rootDataDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pid := int32(os.Getpid())
-	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", rootDataDir))
+	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", req.GetRootDataDir()))
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:            applyDefaultExecPath(req.GetExecPath()),
 		pluginDir:           applyDefaultPluginDir(req.GetPluginDir()),
 		rootDataDir:         rootDataDir,
+		logRootDir:          req.GetLogRootDir(),
 		chainConfigs:        req.ChainConfigs,
 		upgradeConfigs:      req.UpgradeConfigs,
 		subnetConfigs:       req.SubnetConfigs,
@@ -1361,12 +1365,11 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		return nil, err
 	}
 	s.clusterInfo = &rpcpb.ClusterInfo{
-		Pid:         pid,
-		RootDataDir: rootDataDir,
+		Pid: pid,
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.LoadSnapshot(req.SnapshotName); err != nil {
+	if err := s.network.LoadSnapshot(req.SnapshotName, req.InPlace); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
 		return nil, err
@@ -1400,7 +1403,7 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, ErrNotBootstrapped
 	}
 
-	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName)
+	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName, req.Force)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err

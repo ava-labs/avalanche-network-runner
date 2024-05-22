@@ -44,8 +44,8 @@ const (
 	defaultNodeNamePrefix     = "node"
 	configFileName            = "config.json"
 	upgradeConfigFileName     = "upgrade.json"
-	stakingKeyFileName        = "staking.key"
-	stakingCertFileName       = "staking.crt"
+	stakingKeyFileName        = "staker.key"
+	stakingCertFileName       = "staker.crt"
 	stakingSigningKeyFileName = "signer.key"
 	genesisFileName           = "genesis.json"
 	stopTimeout               = 30 * time.Second
@@ -97,8 +97,10 @@ type localNetwork struct {
 	// Set of nodes that new nodes will bootstrap from.
 	bootstraps beacon.Set
 	// rootDir is the root directory under which we write all node
-	// logs, databases, etc.
+	// databases, etc
 	rootDir string
+	// logRootDir is the root directory under which we write all node logs
+	logRootDir string
 	// directory where networks can be persistently saved
 	snapshotsDir string
 	// flags to apply to all nodes per default
@@ -163,6 +165,7 @@ func NewNetwork(
 	log logging.Logger,
 	networkConfig network.Config,
 	rootDir string,
+	logRootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
@@ -178,6 +181,7 @@ func NewNetwork(
 			stderr:      os.Stderr,
 		},
 		rootDir,
+		logRootDir,
 		snapshotsDir,
 		reassignPortsIfUsed,
 		redirectStdout,
@@ -197,6 +201,7 @@ func newNetwork(
 	newAPIClientF api.NewAPIClientF,
 	nodeProcessCreator NodeProcessCreator,
 	rootDir string,
+	logRootDir string,
 	snapshotsDir string,
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
@@ -214,6 +219,9 @@ func newNetwork(
 		if err != nil {
 			return nil, err
 		}
+	}
+	if logRootDir == "" {
+		logRootDir = rootDir
 	}
 	if snapshotsDir == "" {
 		snapshotsDir = DefaultSnapshotsDir
@@ -233,6 +241,7 @@ func newNetwork(
 		newAPIClientF:            newAPIClientF,
 		nodeProcessCreator:       nodeProcessCreator,
 		rootDir:                  rootDir,
+		logRootDir:               logRootDir,
 		snapshotsDir:             snapshotsDir,
 		reassignPortsIfUsed:      reassignPortsIfUsed,
 		redirectStdout:           redirectStdout,
@@ -269,7 +278,7 @@ func NewDefaultNetwork(
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
@@ -294,15 +303,15 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 	nodeKeys := []*utils.NodeKeys{}
 	for i := 0; i < constants.DefaultNumNodes; i++ {
 		nodeDir := fmt.Sprintf("node%d", i+1)
-		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.key"))
+		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "staking.crt"))
+		stakingCert, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingCertFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, "signer.key"))
+		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingSigningKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -464,7 +473,11 @@ func (ln *localNetwork) AddNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, network.ErrStopped
 	}
 
-	return ln.addNode(nodeConfig)
+	node, err := ln.addNode(nodeConfig)
+	if err != nil {
+		return node, err
+	}
+	return node, ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held and [ln.Stop] hasn't been called.
@@ -532,9 +545,16 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	isPausedNode := ln.isPausedNode(&nodeConfig)
 
-	nodeDir, err := makeNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
+	nodeDir, err := setNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
 	if err != nil {
 		return nil, err
+	}
+	nodeLogDir := ""
+	if ln.rootDir != ln.logRootDir {
+		nodeLogDir, err = setNodeDir(ln.log, ln.logRootDir, nodeConfig.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
@@ -551,7 +571,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		return nil, err
 	}
 
-	nodeData, err := ln.buildArgs(nodeSemVer, configFile, nodeDir, &nodeConfig)
+	nodeData, err := ln.buildArgs(nodeSemVer, configFile, nodeDir, nodeLogDir, &nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -560,6 +580,18 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	nodeID, err := utils.ToNodeID([]byte(nodeConfig.StakingKey), []byte(nodeConfig.StakingCert))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get node ID: %w", err)
+	}
+
+	// If this node is a beacon, add its IP/ID to the beacon lists.
+	// Note that we do this *after* we set this node's bootstrap IPs/IDs
+	// so this node won't try to use itself as a beacon.
+	if !isPausedNode && nodeConfig.IsBeacon {
+		if err := ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
+			IP:   net.ParseIP(nodeData.publicIP),
+			Port: nodeData.p2pPort,
+		})); err != nil {
+			return nil, err
+		}
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
@@ -607,16 +639,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		attachedPeers: map[string]peer.Peer{},
 	}
 	ln.nodes[node.name] = node
-	// If this node is a beacon, add its IP/ID to the beacon lists.
-	// Note that we do this *after* we set this node's bootstrap IPs/IDs
-	// so this node won't try to use itself as a beacon.
-	if !isPausedNode && nodeConfig.IsBeacon {
-		err = ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
-			IP:   net.ParseIP(nodeData.publicIP),
-			Port: nodeData.p2pPort,
-		}))
-	}
-	return node, err
+	return node, ln.persistNetwork()
 }
 
 // See network.Network
@@ -765,7 +788,10 @@ func (ln *localNetwork) RemoveNode(ctx context.Context, nodeName string) error {
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
-	return ln.removeNode(ctx, nodeName)
+	if err := ln.removeNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -800,7 +826,10 @@ func (ln *localNetwork) PauseNode(ctx context.Context, nodeName string) error {
 	if ln.stopCalled() {
 		return network.ErrStopped
 	}
-	return ln.pauseNode(ctx, nodeName)
+	if err := ln.pauseNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -831,10 +860,10 @@ func (ln *localNetwork) ResumeNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.resumeNode(
-		ctx,
-		nodeName,
-	)
+	if err := ln.resumeNode(ctx, nodeName); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 // Assumes [ln.lock] is held.
@@ -876,7 +905,7 @@ func (ln *localNetwork) RestartNode(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.restartNode(
+	if err := ln.restartNode(
 		ctx,
 		nodeName,
 		binaryPath,
@@ -885,7 +914,10 @@ func (ln *localNetwork) RestartNode(
 		chainConfigs,
 		upgradeConfigs,
 		subnetConfigs,
-	)
+	); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) restartNode(
@@ -1009,6 +1041,7 @@ func (ln *localNetwork) buildArgs(
 	nodeSemVer string,
 	configFile map[string]interface{},
 	nodeDir string,
+	nodeLogDir string,
 	nodeConfig *node.Config,
 ) (buildArgsReturn, error) {
 	// httpHost from all configs for node
@@ -1035,8 +1068,11 @@ func (ln *localNetwork) buildArgs(
 		return buildArgsReturn{}, err
 	}
 
+	if nodeLogDir == "" {
+		nodeLogDir = dataDir
+	}
 	// Tell the node to put the log directory in [dataDir/logs] unless given in config file
-	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(dataDir, defaultLogsSubdir))
+	logsDir, err := getConfigEntry(nodeConfig.Flags, configFile, config.LogsDirKey, filepath.Join(nodeLogDir, defaultLogsSubdir))
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
@@ -1115,10 +1151,14 @@ func (ln *localNetwork) buildArgs(
 	// old avago versions
 	flagsForAvagoVersion := getFlagsForAvagoVersion(nodeSemVer, flags)
 
+	configFilePath, err := writeConfigFile(dataDir, nodeConfig, flagsForAvagoVersion)
+	if err != nil {
+		return buildArgsReturn{}, err
+	}
+
 	// create args
-	args := []string{}
-	for k, v := range flagsForAvagoVersion {
-		args = append(args, fmt.Sprintf("--%s=%s", k, v))
+	args := []string{
+		fmt.Sprintf("--%s=%s", config.ConfigFileKey, configFilePath),
 	}
 
 	return buildArgsReturn{
@@ -1172,4 +1212,12 @@ func getFlagsForAvagoVersion(avagoVersion string, givenFlags map[string]string) 
 		}
 	}
 	return flags
+}
+
+func (ln *localNetwork) GetRootDir() string {
+	return ln.rootDir
+}
+
+func (ln *localNetwork) GetLogRootDir() string {
+	return ln.logRootDir
 }

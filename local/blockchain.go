@@ -118,7 +118,7 @@ func (ln *localNetwork) CreateBlockchains(
 		return nil, err
 	}
 
-	if err := ln.RegisterBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
+	if err := ln.registerBlockchainAliases(ctx, chainInfos, chainSpecs); err != nil {
 		return nil, err
 	}
 
@@ -127,11 +127,11 @@ func (ln *localNetwork) CreateBlockchains(
 		chainIDs = append(chainIDs, chainInfo.blockchainID)
 	}
 
-	return chainIDs, nil
+	return chainIDs, ln.persistNetwork()
 }
 
 // if alias is defined in blockchain-specs, registers an alias for the previously created blockchain
-func (ln *localNetwork) RegisterBlockchainAliases(
+func (ln *localNetwork) registerBlockchainAliases(
 	ctx context.Context,
 	chainInfos []blockchainInfo,
 	chainSpecs []network.BlockchainSpec,
@@ -179,7 +179,10 @@ func (ln *localNetwork) AddSubnetValidators(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addSubnetValidators(ctx, subnetSpecs)
+	if err := ln.addSubnetValidators(ctx, subnetSpecs); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) RemoveSubnetValidators(
@@ -189,7 +192,10 @@ func (ln *localNetwork) RemoveSubnetValidators(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.removeSubnetValidators(ctx, subnetSpecs)
+	if err := ln.removeSubnetValidators(ctx, subnetSpecs); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) AddPermissionlessValidators(
@@ -199,7 +205,10 @@ func (ln *localNetwork) AddPermissionlessValidators(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addPermissionlessValidators(ctx, validatorSpec)
+	if err := ln.addPermissionlessValidators(ctx, validatorSpec); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) AddPermissionlessDelegators(
@@ -209,7 +218,10 @@ func (ln *localNetwork) AddPermissionlessDelegators(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.addPermissionlessDelegators(ctx, delegatorSpecs)
+	if err := ln.addPermissionlessDelegators(ctx, delegatorSpecs); err != nil {
+		return err
+	}
+	return ln.persistNetwork()
 }
 
 func (ln *localNetwork) TransformSubnet(
@@ -219,7 +231,11 @@ func (ln *localNetwork) TransformSubnet(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.transformToElasticSubnets(ctx, elasticSubnetConfig)
+	elasticSubnetIDs, assetIDs, err := ln.transformToElasticSubnets(ctx, elasticSubnetConfig)
+	if err != nil {
+		return elasticSubnetIDs, assetIDs, err
+	}
+	return elasticSubnetIDs, assetIDs, ln.persistNetwork()
 }
 
 func (ln *localNetwork) CreateSubnets(
@@ -229,7 +245,11 @@ func (ln *localNetwork) CreateSubnets(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	return ln.installSubnets(ctx, subnetSpecs)
+	subnetIDs, err := ln.installSubnets(ctx, subnetSpecs)
+	if err != nil {
+		return subnetIDs, err
+	}
+	return subnetIDs, ln.persistNetwork()
 }
 
 // provisions local cluster and install custom chains if applicable

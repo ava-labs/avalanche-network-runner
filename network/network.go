@@ -100,7 +100,7 @@ type Network interface {
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
 	// Returns the full local path to the snapshot dir
-	SaveSnapshot(context.Context, string) (string, error)
+	SaveSnapshot(context.Context, string, bool) (string, error)
 	// Remove network snapshot
 	RemoveSnapshot(string) error
 	// Get name of available snapshots
@@ -125,4 +125,8 @@ type Network interface {
 	AddSubnetValidators(context.Context, []SubnetValidatorsSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
+	// Get the root dir of the Network
+	GetRootDir() string
+	// Get the root log dir of the Network
+	GetLogRootDir() string
 }
