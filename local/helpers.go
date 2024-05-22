@@ -16,6 +16,11 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
+const (
+	stakingPath = "staking"
+	configsPath = "staking"
+)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -46,27 +51,27 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 	files := []file{
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, "staking", stakingKeyFileName),
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingKeyFileName),
 			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, "staking", stakingCertFileName),
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingCertFileName),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
 		},
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, "staking", stakingSigningKeyFileName),
+			path:      filepath.Join(nodeRootDir, stakingPath, stakingSigningKeyFileName),
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
 	}
 	if networkID != constants.LocalID {
 		files = append(files, file{
-			flagValue: filepath.Join(nodeRootDir, "configs", genesisFileName),
-			path:      filepath.Join(nodeRootDir, "configs", genesisFileName),
+			flagValue: filepath.Join(nodeRootDir, configsPath, genesisFileName),
+			path:      filepath.Join(nodeRootDir, configsPath, genesisFileName),
 			pathKey:   config.GenesisFileKey,
 			contents:  genesis,
 		})
@@ -134,7 +139,7 @@ func writeConfigFile(nodeRootDir string, nodeConfig *node.Config, flags map[stri
 	if err != nil {
 		return "", err
 	}
-	configFilePath := filepath.Join(nodeRootDir, "configs", configFileName)
+	configFilePath := filepath.Join(nodeRootDir, configsPath, configFileName)
 	if err := createFileAndWrite(configFilePath, configFileBytes); err != nil {
 		return "", err
 	}
