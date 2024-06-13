@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -69,13 +70,13 @@ func verifyProtocol(
 	// send the peer our version and peerlist
 
 	// create the version message
-	myIP := ips.IPPort{
-		IP:   net.IPv6zero,
-		Port: 1,
-	}
+	myIP := netip.AddrPortFrom(
+		netip.IPv6Loopback(),
+		1,
+	)
 	now := uint64(time.Now().Unix())
 	unsignedIP := peer.UnsignedIP{
-		IPPort:    myIP,
+		AddrPort:  myIP,
 		Timestamp: now,
 	}
 	signer := myTLSCert.PrivateKey.(crypto.Signer)
@@ -222,7 +223,6 @@ func TestAttachPeer(t *testing.T) {
 	mc, err := message.NewCreator(
 		logging.NoLog{},
 		prometheus.NewRegistry(),
-		"",
 		constants.DefaultNetworkCompressionType,
 		10*time.Second,
 	)

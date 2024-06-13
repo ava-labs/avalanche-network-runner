@@ -624,7 +624,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			mc, err := message.NewCreator(
 				logging.NoLog{},
 				prometheus.NewRegistry(),
-				"",
 				avago_constants.DefaultNetworkCompressionType,
 				10*time.Second,
 			)

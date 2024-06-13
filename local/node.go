@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -20,9 +21,9 @@ import (
 	"github.com/ava-labs/avalanchego/snow/uptime"
 	"github.com/ava-labs/avalanchego/snow/validators"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/math/meter"
 	"github.com/ava-labs/avalanchego/utils/resource"
@@ -109,7 +110,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	mc, err := message.NewCreator(
 		logging.NoLog{},
 		prometheus.NewRegistry(),
-		"",
 		constants.DefaultNetworkCompressionType,
 		10*time.Second,
 	)
@@ -118,8 +118,6 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 
 	metrics, err := peer.NewMetrics(
-		logging.NoLog{},
-		"",
 		prometheus.NewRegistry(),
 	)
 	if err != nil {
@@ -134,7 +132,10 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 1)
+	signerIP := utils.NewAtomic(netip.AddrPortFrom(
+		netip.IPv6Loopback(),
+		1,
+	))
 	tls := tlsCert.PrivateKey.(crypto.Signer)
 	bls0, err := bls.NewSecretKey()
 	if err != nil {
