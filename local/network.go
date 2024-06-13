@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"net"
+	"net/netip"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -30,7 +30,6 @@ import (
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/utils/ips"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
@@ -585,11 +584,15 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// If this node is a beacon, add its IP/ID to the beacon lists.
 	// Note that we do this *after* we set this node's bootstrap IPs/IDs
 	// so this node won't try to use itself as a beacon.
+	ip, err := netip.ParseAddr(nodeData.publicIP)
+	if err != nil {
+		return nil, err
+	}
 	if !isPausedNode && nodeConfig.IsBeacon {
-		if err := ln.bootstraps.Add(beacon.New(nodeID, ips.IPPort{
-			IP:   net.ParseIP(nodeData.publicIP),
-			Port: nodeData.p2pPort,
-		})); err != nil {
+		if err := ln.bootstraps.Add(beacon.New(nodeID, netip.AddrPortFrom(
+			ip,
+			nodeData.p2pPort,
+		))); err != nil {
 			return nil, err
 		}
 	}
