@@ -58,7 +58,9 @@ type Config struct {
 
 // Validate returns an error if this config is invalid
 func (c *Config) Validate() error {
-	if len(c.Genesis) == 0 {
+	isPublic := c.NetworkID == constants.FujiID || c.NetworkID == constants.MainnetID
+	isCustom := !isPublic && c.NetworkID != constants.LocalID
+	if isCustom && len(c.Genesis) == 0 {
 		return errors.New("no genesis given")
 	}
 
@@ -77,7 +79,7 @@ func (c *Config) Validate() error {
 			someNodeIsBeacon = true
 		}
 	}
-	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+	if !isPublic && len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
 		return errors.New("beacon nodes not given")
 	}
 	return nil

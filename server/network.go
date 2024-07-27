@@ -146,7 +146,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // TODO document.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
-	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes, lc.options.networkID)
 	if err != nil {
 		return err
 	}
@@ -167,8 +167,6 @@ func (lc *localNetwork) createConfig() error {
 	if lc.pluginDir != "" {
 		cfg.Flags[config.PluginDirKey] = lc.pluginDir
 	}
-
-	cfg.NetworkID = lc.options.networkID
 
 	for k, v := range lc.options.chainConfigs {
 		ov, ok := cfg.ChainConfigFiles[k]

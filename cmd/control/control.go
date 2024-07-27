@@ -107,6 +107,7 @@ var (
 	networkID           uint32
 	force               bool
 	inPlace             bool
+	fuji                bool
 )
 
 func setLogs() error {
@@ -191,6 +192,12 @@ func newStartCommand() *cobra.Command {
 		constants.DefaultNumNodes,
 		"number of nodes of the network",
 	)
+	cmd.PersistentFlags().Uint32Var(
+		&numNodes,
+		"num-nodes",
+		constants.DefaultNumNodes,
+		"number of nodes of the network",
+	)
 	cmd.PersistentFlags().StringVar(
 		&pluginDir,
 		"plugin-dir",
@@ -257,6 +264,12 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to assign dynamic ports",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&fuji,
+		"fuji",
+		false,
+		"true to set all nodes to join fuji network",
+	)
 	return cmd
 }
 
@@ -267,6 +280,9 @@ func startFunc(*cobra.Command, []string) error {
 	}
 	defer cli.Close()
 
+	if fuji {
+		networkID = 5
+	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
