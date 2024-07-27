@@ -28,7 +28,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
-	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
@@ -325,8 +324,6 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
 func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32) (network.Config, error) {
-	isPublic := networkID == avagoconstants.FujiID || networkID == avagoconstants.MainnetID
-	isCustom := !isPublic && networkID != avagoconstants.LocalID
 	flags, cChainConfig, nodeKeys, err := loadDefaultNetworkFiles()
 	if err != nil {
 		return network.Config{}, err
@@ -355,7 +352,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 				config.StakingPortKey: port + 1,
 			},
 		}
-		if !isPublic {
+		if !utils.IsPublicNetwork(networkID) {
 			nodeConfig.IsBeacon = true
 		} else {
 			nodeConfig.Flags[config.PartialSyncPrimaryNetworkKey] = true
@@ -363,7 +360,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 		port += 2
 	}
-	if int(numNodes) == 1 && !isPublic {
+	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
 	if networkID == 0 {
@@ -378,7 +375,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
 	}
-	if isCustom {
+	if utils.IsCustomNetwork(networkID) {
 		genesis, err := utils.GenerateGenesis(networkID, nodeKeys)
 		if err != nil {
 			return network.Config{}, err
@@ -1120,8 +1117,7 @@ func (ln *localNetwork) buildArgs(
 		config.HTTPPortKey:    fmt.Sprintf("%d", apiPort),
 		config.StakingPortKey: fmt.Sprintf("%d", p2pPort),
 	}
-	isPublic := ln.networkID == avagoconstants.FujiID || ln.networkID == avagoconstants.MainnetID
-	if !isPublic {
+	if !utils.IsPublicNetwork(ln.networkID) {
 		flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
 		flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
 	}
