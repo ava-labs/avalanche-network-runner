@@ -611,72 +611,70 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, blockchain := range blockchains {
-		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
-			continue
-		}
-		lc.customChainIDToInfo[blockchain.ID] = chainInfo{
-			info: &rpcpb.CustomChainInfo{
-				ChainName: blockchain.Name,
-				VmId:      blockchain.VMID.String(),
-				SubnetId:  blockchain.SubnetID.String(),
-				ChainId:   blockchain.ID.String(),
-			},
-			subnetID:     blockchain.SubnetID,
-			blockchainID: blockchain.ID,
-		}
-	}
-
-	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	subnetIDList := []string{}
-	for _, subnet := range subnets {
-		if subnet.ID != avago_constants.PlatformChainID {
-			subnetIDList = append(subnetIDList, subnet.ID.String())
-		}
-	}
-
-	for _, subnetIDStr := range subnetIDList {
-		subnetID, err := ids.FromString(subnetIDStr)
+	if !utils.IsPublicNetwork(lc.options.networkID) {
+		blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 		if err != nil {
 			return err
 		}
-		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
-		if err != nil {
-			return err
-		}
-		var nodeNameList []string
-
-		for _, node := range vdrs {
-			for nodeName, nodeInfo := range lc.nodeInfos {
-				if nodeInfo.Id == node.NodeID.String() {
-					nodeNameList = append(nodeNameList, nodeName)
-				}
+		for _, blockchain := range blockchains {
+			if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+				continue
+			}
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
+				},
+				subnetID:     blockchain.SubnetID,
+				blockchainID: blockchain.ID,
 			}
 		}
-
-		isElastic := false
-		elasticSubnetID := ids.Empty
-		if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
-			isElastic = true
-			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+		subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+		if err != nil {
+			return err
+		}
+		subnetIDList := []string{}
+		for _, subnet := range subnets {
+			if subnet.ID != avago_constants.PlatformChainID {
+				subnetIDList = append(subnetIDList, subnet.ID.String())
+			}
+		}
+		for _, subnetIDStr := range subnetIDList {
+			subnetID, err := ids.FromString(subnetIDStr)
 			if err != nil {
 				return err
 			}
-		}
+			vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
+			if err != nil {
+				return err
+			}
+			var nodeNameList []string
 
-		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
-			IsElastic:          isElastic,
-			ElasticSubnetId:    elasticSubnetID.String(),
-			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+			for _, node := range vdrs {
+				for nodeName, nodeInfo := range lc.nodeInfos {
+					if nodeInfo.Id == node.NodeID.String() {
+						nodeNameList = append(nodeNameList, nodeName)
+					}
+				}
+			}
+
+			isElastic := false
+			elasticSubnetID := ids.Empty
+			if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+				isElastic = true
+				elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+				if err != nil {
+					return err
+				}
+			}
+
+			lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
+				IsElastic:          isElastic,
+				ElasticSubnetId:    elasticSubnetID.String(),
+				SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+			}
 		}
 	}
 
