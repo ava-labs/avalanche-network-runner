@@ -35,6 +35,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/fx"
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
@@ -267,7 +268,7 @@ func (ln *localNetwork) installCustomChains(
 	platformCli := platformvm.NewClient(clientURI)
 
 	// wallet needs txs for all previously created subnets
-	var preloadTXs []ids.ID
+	var alreadyCreatedSubnetIDs []ids.ID
 	for _, chainSpec := range chainSpecs {
 		// if subnet id for the blockchain is specified, we need to add the subnet id
 		// tx info to the wallet so blockchain creation does not fail
@@ -278,11 +279,11 @@ func (ln *localNetwork) installCustomChains(
 			if err != nil {
 				return nil, err
 			}
-			preloadTXs = append(preloadTXs, subnetID)
+			alreadyCreatedSubnetIDs = append(alreadyCreatedSubnetIDs, subnetID)
 		}
 	}
 
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	w, err := newWallet(ctx, clientURI, alreadyCreatedSubnetIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -826,7 +827,7 @@ type wallet struct {
 func newWallet(
 	ctx context.Context,
 	uri string,
-	preloadTXs []ids.ID,
+	subnetIDs []ids.ID,
 ) (*wallet, error) {
 	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
 	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
@@ -835,24 +836,24 @@ func newWallet(
 	}
 	pCTX, xCTX, utxos := primaryAVAXState.PCTX, primaryAVAXState.XCTX, primaryAVAXState.UTXOs
 	pClient := platformvm.NewClient(uri)
-	pTXs := make(map[ids.ID]*txs.Tx)
-	for _, id := range preloadTXs {
-		txBytes, err := pClient.GetTx(ctx, id)
+	subnetOwners := map[ids.ID]fx.Owner{}
+	for _, subnetID := range subnetIDs {
+		subnetInfo, err := pClient.GetSubnet(ctx, subnetID)
 		if err != nil {
 			return nil, err
 		}
-		tx, err := txs.Parse(txs.Codec, txBytes)
-		if err != nil {
-			return nil, err
-		}
-		pTXs[id] = tx
+		owner := secp256k1fx.OutputOwners{}
+		owner.Locktime = subnetInfo.Locktime
+		owner.Threshold = subnetInfo.Threshold
+		owner.Addrs = subnetInfo.ControlKeys
+		subnetOwners[subnetID] = &owner
 	}
 	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
 	xUTXOs := common.NewChainUTXOs(xCTX.BlockchainID, utxos)
 	var w wallet
 	w.addr = genesis.EWOQKey.PublicKey().Address()
 	w.pCTX = pCTX
-	w.pBackend = p.NewBackend(pCTX, pUTXOs, pTXs)
+	w.pBackend = p.NewBackend(pCTX, pUTXOs, subnetOwners)
 	w.pBuilder = pbuilder.New(kc.Addresses(), pCTX, w.pBackend)
 	w.pSigner = psigner.New(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
@@ -1020,15 +1021,15 @@ func (ln *localNetwork) removeSubnetValidators(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 	// wallet needs txs for all previously created subnets
-	preloadTXs := make([]ids.ID, len(removeSubnetSpecs))
+	subnetIDs := make([]ids.ID, len(removeSubnetSpecs))
 	for i, removeSubnetSpec := range removeSubnetSpecs {
 		subnetID, err := ids.FromString(removeSubnetSpec.SubnetID)
 		if err != nil {
 			return err
 		}
-		preloadTXs[i] = subnetID
+		subnetIDs[i] = subnetID
 	}
-	w, err := newWallet(ctx, clientURI, preloadTXs)
+	w, err := newWallet(ctx, clientURI, subnetIDs)
 	if err != nil {
 		return err
 	}
