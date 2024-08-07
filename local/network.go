@@ -324,6 +324,9 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
 func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32) (network.Config, error) {
+	if networkID == 0 {
+		networkID = constants.DefaultNetworkID
+	}
 	flags, cChainConfig, nodeKeys, err := loadDefaultNetworkFiles()
 	if err != nil {
 		return network.Config{}, err
@@ -362,9 +365,6 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 	}
 	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) {
 		flags[config.SybilProtectionEnabledKey] = false
-	}
-	if networkID == 0 {
-		networkID = constants.DefaultNetworkID
 	}
 	cfg := network.Config{
 		NetworkID:          networkID,
@@ -406,14 +406,13 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		if err != nil {
 			return err
 		}
-		if ln.networkID == 0 {
+		switch {
+		case ln.networkID == 0:
 			ln.networkID = genesisNetworkID
-		} else if ln.networkID != genesisNetworkID {
-			genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
-			if err != nil {
+		case ln.networkID != genesisNetworkID:
+			if ln.genesis, err = utils.SetGenesisNetworkID(ln.genesis, ln.networkID); err != nil {
 				return fmt.Errorf("couldn't set network ID to genesis: %w", err)
 			}
-			ln.genesis = genesis
 		}
 	}
 

@@ -534,7 +534,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	binaryPath := "pepito"
-	networkConfig, err := NewDefaultConfig(binaryPath)
+	networkConfig, err := NewDefaultConfig(binaryPath, 0)
 	require.NoError(err)
 	net, err := newNetwork(logging.NoLog{}, newMockAPISuccessful, &localTestSuccessfulNodeProcessCreator{}, "", "", "", false, false, false)
 	require.NoError(err)
@@ -968,7 +968,7 @@ func emptyNetworkConfig() (network.Config, error) {
 // keys and certificates.
 func testNetworkConfig(t *testing.T) network.Config {
 	require := require.New(t)
-	networkConfig, err := NewDefaultConfigNNodes("pepito", 3)
+	networkConfig, err := NewDefaultConfigNNodes("pepito", 3, 0)
 	require.NoError(err)
 	for i := 0; i < 3; i++ {
 		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
@@ -1235,7 +1235,7 @@ func TestWriteFiles(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			flags, err := writeFiles(0, tt.genesis, tmpDir, &tt.nodeConfig)
+			flags, err := writeFiles(tt.genesis, tmpDir, &tt.nodeConfig)
 			if tt.shouldErr {
 				require.Error(err)
 				return

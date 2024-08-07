@@ -78,7 +78,7 @@ func (c *Config) Validate() error {
 			someNodeIsBeacon = true
 		}
 	}
-	if !utils.IsPublicNetwork(c.NetworkID) && len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+	if len(c.NodeConfigs) > 0 && !(utils.IsPublicNetwork(c.NetworkID) || someNodeIsBeacon) {
 		return errors.New("beacon nodes not given")
 	}
 	return nil

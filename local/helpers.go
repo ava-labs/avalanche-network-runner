@@ -79,7 +79,6 @@ func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (ma
 	for _, f := range files {
 		if f.flagValue != "" {
 			flags[f.pathKey] = f.flagValue
-
 		}
 		if err := createFileAndWrite(f.path, f.contents); err != nil {
 			return nil, fmt.Errorf("couldn't write file at %q: %w", f.path, err)
