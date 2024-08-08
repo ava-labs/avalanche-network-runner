@@ -22,6 +22,8 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+
+	avagoConstants "github.com/ava-labs/avalanchego/utils/constants"
 )
 
 func init() {
@@ -108,6 +110,7 @@ var (
 	force               bool
 	inPlace             bool
 	fuji                bool
+	walletPrivateKey    string
 )
 
 func setLogs() error {
@@ -270,6 +273,12 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to set all nodes to join fuji network",
 	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKey,
+		"wallet-private-key",
+		"",
+		"[optional] funding wallet private key",
+	)
 	return cmd
 }
 
@@ -281,7 +290,7 @@ func startFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	if fuji {
-		networkID = 5
+		networkID = avagoConstants.FujiID
 	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
