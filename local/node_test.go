@@ -17,6 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/upgrade"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/ips"
@@ -93,7 +94,7 @@ func verifyProtocol(
 
 	knownPeersFilter, knownPeersSalt := peer.TestNetwork.KnownPeers()
 
-	myVersion := version.GetCompatibility(constants.MainnetID).Version()
+	myVersion := version.GetCompatibility(upgrade.InitiallyActiveTime).Version()
 
 	verMsg, err := mc.Handshake(
 		constants.MainnetID,
