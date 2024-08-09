@@ -474,6 +474,7 @@ type Op struct {
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
 	networkID           uint32
+	walletPrivateKey    string
 }
 
 type OpOption func(*Op)
@@ -588,6 +589,12 @@ func WithReassignPortsIfUsed(reassignPortsIfUsed bool) OpOption {
 func WithDynamicPorts(dynamicPorts bool) OpOption {
 	return func(op *Op) {
 		op.dynamicPorts = dynamicPorts
+	}
+}
+
+func WithWalletPrivateKey(walletPrivateKey string) OpOption {
+	return func(op *Op) {
+		op.walletPrivateKey = walletPrivateKey
 	}
 }
 

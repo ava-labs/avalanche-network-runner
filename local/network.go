@@ -121,6 +121,8 @@ type localNetwork struct {
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 	// map from blockchain id to blockchain aliases
 	blockchainAliases map[string][]string
+	// wallet private key used. IF nil, genesis ewoq key will be used
+	walletPrivateKey string
 }
 
 type deprecatedFlagEsp struct {
@@ -168,6 +170,7 @@ func NewNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
+	walletPrivateKey string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -184,6 +187,7 @@ func NewNetwork(
 		reassignPortsIfUsed,
 		redirectStdout,
 		redirectStderr,
+		walletPrivateKey,
 	)
 	if err != nil {
 		return net, err
@@ -204,6 +208,7 @@ func newNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
+	walletPrivateKey string,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -246,6 +251,7 @@ func newNetwork(
 		redirectStderr:           redirectStderr,
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
+		walletPrivateKey:         walletPrivateKey,
 	}
 	return net, nil
 }
@@ -276,7 +282,7 @@ func NewDefaultNetwork(
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr, "")
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {

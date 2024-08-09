@@ -693,6 +693,8 @@ type StartRequest struct {
 	NetworkId uint32 `protobuf:"varint,14,opt,name=network_id,json=networkId,proto3" json:"network_id,omitempty"`
 	// Used for log files.
 	LogRootDir *string `protobuf:"bytes,15,opt,name=log_root_dir,json=logRootDir,proto3,oneof" json:"log_root_dir,omitempty"`
+	// Funding wallet private key
+	WalletPrivateKey string `protobuf:"bytes,16,opt,name=wallet_private_key,json=walletPrivateKey,proto3,oneof" json:"wallet_private_key,omitempty"`
 }
 
 func (x *StartRequest) Reset() {

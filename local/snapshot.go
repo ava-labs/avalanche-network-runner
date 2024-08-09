@@ -75,6 +75,7 @@ func NewNetworkFromSnapshot(
 	redirectStdout bool,
 	redirectStderr bool,
 	inPlace bool,
+	walletPrivateKey string,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
@@ -97,6 +98,7 @@ func NewNetworkFromSnapshot(
 		reassignPortsIfUsed,
 		redirectStdout,
 		redirectStderr,
+		walletPrivateKey,
 	)
 	if err != nil {
 		return net, err

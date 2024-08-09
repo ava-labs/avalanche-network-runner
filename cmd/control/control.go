@@ -302,6 +302,15 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithNetworkID(networkID),
 	}
 
+	if walletPrivateKey != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
+		// validate if it's a valid private key
+		if _, err := os.Stat(walletPrivateKey); err != nil {
+			return fmt.Errorf("private key doesn't exist: %w", err)
+		}
+		opts = append(opts, client.WithWalletPrivateKey(walletPrivateKey))
+	}
+
 	if globalNodeConfig != "" {
 		ux.Print(log, logging.Yellow.Wrap("global node config provided, will be applied to all nodes: %s"), globalNodeConfig)
 		// validate it's valid JSON
