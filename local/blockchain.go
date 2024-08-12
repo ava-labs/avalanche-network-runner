@@ -830,9 +830,16 @@ func newWallet(
 	preloadTXs []ids.ID,
 	walletPrivateKey string,
 ) (*wallet, error) {
-	var privateKey *secp256k1.PrivateKey
+	var (
+		err        error
+		privateKey *secp256k1.PrivateKey
+	)
 	if walletPrivateKey == "" {
 		privateKey = genesis.EWOQKey
+	} else {
+		if privateKey, err = secp256k1.ToPrivateKey([]byte(walletPrivateKey)); err != nil {
+			return nil, err
+		}
 	}
 	kc := secp256k1fx.NewKeychain(privateKey)
 	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
