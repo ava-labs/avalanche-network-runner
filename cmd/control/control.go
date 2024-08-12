@@ -93,24 +93,24 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath  string
-	numNodes            uint32
-	pluginDir           string
-	globalNodeConfig    string
-	addNodeConfig       string
-	blockchainSpecsStr  string
-	customNodeConfigs   string
-	rootDataDir         string
-	chainConfigs        string
-	upgradeConfigs      string
-	subnetConfigs       string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
-	force               bool
-	inPlace             bool
-	fuji                bool
-	walletPrivateKey    string
+	avalancheGoBinPath   string
+	numNodes             uint32
+	pluginDir            string
+	globalNodeConfig     string
+	addNodeConfig        string
+	blockchainSpecsStr   string
+	customNodeConfigs    string
+	rootDataDir          string
+	chainConfigs         string
+	upgradeConfigs       string
+	subnetConfigs        string
+	reassignPortsIfUsed  bool
+	dynamicPorts         bool
+	networkID            uint32
+	force                bool
+	inPlace              bool
+	fuji                 bool
+	walletPrivateKey     string
 	walletPrivateKeyPath string
 )
 
@@ -309,7 +309,7 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithNetworkID(networkID),
 	}
 
-	if walletPrivateKeyPath != ""  && walletPrivateKey != "" {
+	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
 		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
 	}
 	if walletPrivateKey != "" {
