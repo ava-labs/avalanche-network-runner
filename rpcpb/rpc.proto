@@ -366,7 +366,7 @@ message StartRequest {
   optional string log_root_dir = 15;
 
   // wallet private key
-  optional string wallet_private_key = 16;
+  string wallet_private_key = 16;
 }
 
 message RPCVersionRequest {}

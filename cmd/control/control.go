@@ -313,6 +313,7 @@ func startFunc(*cobra.Command, []string) error {
 		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
 	}
 	if walletPrivateKey != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
 		opts = append(opts, client.WithWalletPrivateKey(walletPrivateKey))
 	}
 	if walletPrivateKeyPath != "" {
