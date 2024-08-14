@@ -5,8 +5,8 @@ go 1.21.12
 toolchain go1.22.3
 
 require (
-	github.com/ava-labs/avalanchego v1.11.11-0.20240809151225-4e5bb870c134
-	github.com/ava-labs/coreth v0.13.8-0.20240802110637-b3e5088d062d
+	github.com/ava-labs/avalanchego v1.11.11-0.20240814014627-2eef64141457
+	github.com/ava-labs/coreth v0.13.8-fixed-genesis-upgrade.0.20240813194342-7635a96aa180
 	github.com/ethereum/go-ethereum v1.13.8
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/onsi/ginkgo/v2 v2.13.1
