@@ -840,7 +840,7 @@ func newWallet(
 		if err != nil {
 			return nil, err
 		}
-		if privateKey, err = secp256k1.ToPrivateKey([]byte(walletPrivateKeyBytes)); err != nil {
+		if privateKey, err = secp256k1.ToPrivateKey(walletPrivateKeyBytes); err != nil {
 			return nil, err
 		}
 	}
