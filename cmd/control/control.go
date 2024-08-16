@@ -289,6 +289,30 @@ func newStartCommand() *cobra.Command {
 	return cmd
 }
 
+func setWalletPrivateKeyOptions(opts *[]client.OpOption) error {
+	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
+		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
+	}
+	if walletPrivateKey != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
+		*opts = append(*opts, client.WithWalletPrivateKey(walletPrivateKey))
+	}
+	if walletPrivateKeyPath != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key path provided: %s"), walletPrivateKeyPath)
+		// validate if it's a valid private key
+		if _, err := os.Stat(walletPrivateKey); err != nil {
+			return fmt.Errorf("wallet private key doesn't exist: %w", err)
+		}
+		// read the private key
+		keyBytes, err := os.ReadFile(walletPrivateKey)
+		if err != nil {
+			return fmt.Errorf("failed to read  wallet private key: %w", err)
+		}
+		*opts = append(*opts, client.WithWalletPrivateKey(string(keyBytes)))
+	}
+	return nil
+}
+
 func startFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
@@ -309,25 +333,8 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithNetworkID(networkID),
 	}
 
-	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
-		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
-	}
-	if walletPrivateKey != "" {
-		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
-		opts = append(opts, client.WithWalletPrivateKey(walletPrivateKey))
-	}
-	if walletPrivateKeyPath != "" {
-		ux.Print(log, logging.Yellow.Wrap("funding wallet private key path provided: %s"), walletPrivateKeyPath)
-		// validate if it's a valid private key
-		if _, err := os.Stat(walletPrivateKey); err != nil {
-			return fmt.Errorf("wallet private key doesn't exist: %w", err)
-		}
-		// read the private key
-		keyBytes, err := os.ReadFile(walletPrivateKey)
-		if err != nil {
-			return fmt.Errorf("failed to read  wallet private key: %w", err)
-		}
-		opts = append(opts, client.WithWalletPrivateKey(string(keyBytes)))
+	if err := setWalletPrivateKeyOptions(&opts); err != nil {
+		return err
 	}
 
 	if globalNodeConfig != "" {
@@ -1341,6 +1348,18 @@ func newLoadSnapshotCommand() *cobra.Command {
 		false,
 		"load snapshot in place, so as it always auto save",
 	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKey,
+		"wallet-private-key",
+		"",
+		"[optional] funding wallet private key. Please consider using `wallet-private-key-path` if security is a concern.",
+	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKeyPath,
+		"wallet-private-key-path",
+		"",
+		"[optional] funding wallet private key path",
+	)
 	return cmd
 }
 
@@ -1356,6 +1375,10 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
+	}
+
+	if err := setWalletPrivateKeyOptions(&opts); err != nil {
+		return err
 	}
 
 	if chainConfigs != "" {
