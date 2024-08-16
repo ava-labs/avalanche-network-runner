@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -283,12 +284,12 @@ func (ln *localNetwork) installCustomChains(
 			preloadTXs = append(preloadTXs, subnetID)
 		}
 	}
-
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create wallet")))
 	w, err := newWallet(ctx, clientURI, preloadTXs, ln.walletPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-
+	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap(" wallet is ready")))
 	// get subnet specs for all new subnets to create
 	// for the list of requested blockchains, we take those that have undefined subnet id
 	// and use the provided subnet spec. if not given, use an empty default subnet spec
@@ -845,12 +846,15 @@ func newWallet(
 		}
 	}
 	kc := secp256k1fx.NewKeychain(privateKey)
+	log.Info("aboout to fetch state", uri, kc.Addresses())
 	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
+	log.Info("primaryAVAXState", primaryAVAXState)
 	pCTX, xCTX, utxos := primaryAVAXState.PCTX, primaryAVAXState.XCTX, primaryAVAXState.UTXOs
 	pClient := platformvm.NewClient(uri)
+	log.Info("pClient using uri", uri)
 	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, id := range preloadTXs {
 		txBytes, err := pClient.GetTx(ctx, id)
@@ -873,6 +877,7 @@ func newWallet(
 	w.pSigner = psigner.New(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
+	log.Info("pWallet", w.pWallet)
 	xBackend := x.NewBackend(xCTX, xUTXOs)
 	xBuilder := xbuilder.New(kc.Addresses(), xCTX, xBackend)
 	xSigner := xsigner.New(kc, xBackend)
