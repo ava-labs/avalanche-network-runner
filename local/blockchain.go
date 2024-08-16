@@ -6,6 +6,7 @@ package local
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -325,7 +326,6 @@ func (ln *localNetwork) installCustomChains(
 			subnetSpecsMap[*chainSpec.SubnetID] = subnetSpec
 		}
 	}
-
 	// if no participants are given for a new subnet, assume all nodes should be participants
 	allNodeNames := maps.Keys(ln.nodes)
 	sort.Strings(allNodeNames)
@@ -354,7 +354,6 @@ func (ln *localNetwork) installCustomChains(
 	if err := ln.healthy(ctx); err != nil {
 		return nil, err
 	}
-
 	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
 		return nil, err
@@ -837,7 +836,11 @@ func newWallet(
 	if walletPrivateKey == "" {
 		privateKey = genesis.EWOQKey
 	} else {
-		if privateKey, err = secp256k1.ToPrivateKey([]byte(walletPrivateKey)); err != nil {
+		walletPrivateKeyBytes, err := hex.DecodeString(walletPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		if privateKey, err = secp256k1.ToPrivateKey([]byte(walletPrivateKeyBytes)); err != nil {
 			return nil, err
 		}
 	}

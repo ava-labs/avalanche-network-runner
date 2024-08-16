@@ -146,6 +146,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.customNodeConfigs != nil {
 		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
+	if ret.walletPrivateKey != "" {
+		req.WalletPrivateKey = ret.walletPrivateKey
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	req.DynamicPorts = &ret.dynamicPorts
 
