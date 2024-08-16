@@ -28,11 +28,11 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
+	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -48,6 +48,8 @@ import (
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+
+	avagoConstants "github.com/ava-labs/avalanchego/utils/constants"
 )
 
 const (
@@ -96,7 +98,25 @@ func (ln *localNetwork) getNode() node.Node {
 }
 
 // get node client URI for an arbitrary node in the network
-func (ln *localNetwork) getClientURI() (string, error) { //nolint
+func (ln *localNetwork) getClientURI() (string, error) {
+	clientURI := ""
+	node := ln.getNode()
+	switch ln.networkID {
+	case avagoConstants.FujiID:
+		clientURI = constants.FujiAPIEndpoint
+	case avagoConstants.MainnetID:
+		return "", fmt.Errorf("not supported")
+	default:
+		clientURI = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
+	}
+	ln.log.Info("getClientURI",
+		zap.String("nodeName", node.GetName()),
+		zap.String("uri", clientURI))
+	return clientURI, nil
+}
+
+/*
+func (ln *localNetwork) getClientURI() (string, error) {
 	node := ln.getNode()
 	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	ln.log.Info("getClientURI",
@@ -104,6 +124,20 @@ func (ln *localNetwork) getClientURI() (string, error) { //nolint
 		zap.String("uri", clientURI))
 	return clientURI, nil
 }
+*/
+/*
+// get network URI for wallet
+func (ln *localNetwork) GetNetworkURI() (string, error) {
+	switch ln.networkID {
+	case avagoConstants.MainnetID:
+		return "", fmt.Errorf("not supported")
+	case avagoConstants.FujiID:
+		return constants.FujiAPIEndpoint, nil
+	default:
+		return ln.getClientURI()
+	}
+}
+*/
 
 func (ln *localNetwork) CreateBlockchains(
 	ctx context.Context,
@@ -867,7 +901,7 @@ func newWallet(
 		}
 		pTXs[id] = tx
 	}
-	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
+	pUTXOs := common.NewChainUTXOs(avagoConstants.PlatformChainID, utxos)
 	xUTXOs := common.NewChainUTXOs(xCTX.BlockchainID, utxos)
 	var w wallet
 	w.addr = privateKey.PublicKey().Address()
@@ -903,7 +937,7 @@ func (ln *localNetwork) addPrimaryValidators(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
-	vdrs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vdrs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -1145,7 +1179,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
-	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -1274,7 +1308,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 	}
 
 	cctx, cancel := createDefaultCtx(ctx)
-	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -1476,7 +1510,7 @@ func (ln *localNetwork) issueSubnetValidatorTxs(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as subnet validators"))
 	for i, subnetID := range subnetIDs {
 		cctx, cancel := createDefaultCtx(ctx)
-		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 		cancel()
 		if err != nil {
 			return err
@@ -1544,7 +1578,7 @@ func (ln *localNetwork) waitPrimaryValidators(
 	for {
 		ready := true
 		cctx, cancel := createDefaultCtx(ctx)
-		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 		cancel()
 		if err != nil {
 			return err

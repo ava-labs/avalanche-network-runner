@@ -13,4 +13,5 @@ const (
 	DefaultNetworkID       = 1337
 	DefaultNumNodes        = 5
 	FirstAPIPort           = 9650
+	FujiAPIEndpoint        = "https://api.avax-test.network"
 )
