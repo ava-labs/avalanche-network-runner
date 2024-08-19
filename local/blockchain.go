@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -97,6 +96,17 @@ func (ln *localNetwork) getNode() node.Node {
 	return node
 }
 
+func (ln *localNetwork) getValidatorWeight() uint64 {
+	switch ln.networkID {
+	case avagoConstants.FujiID:
+		return genesis.FujiParams.MinValidatorStake
+	case avagoConstants.MainnetID:
+		return genesis.MainnetParams.MinValidatorStake
+	default:
+		return genesis.LocalParams.MinValidatorStake
+	}
+}
+
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) {
 	clientURI := ""
@@ -114,30 +124,6 @@ func (ln *localNetwork) getClientURI() (string, error) {
 		zap.String("uri", clientURI))
 	return clientURI, nil
 }
-
-/*
-func (ln *localNetwork) getClientURI() (string, error) {
-	node := ln.getNode()
-	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-	ln.log.Info("getClientURI",
-		zap.String("nodeName", node.GetName()),
-		zap.String("uri", clientURI))
-	return clientURI, nil
-}
-*/
-/*
-// get network URI for wallet
-func (ln *localNetwork) GetNetworkURI() (string, error) {
-	switch ln.networkID {
-	case avagoConstants.MainnetID:
-		return "", fmt.Errorf("not supported")
-	case avagoConstants.FujiID:
-		return constants.FujiAPIEndpoint, nil
-	default:
-		return ln.getClientURI()
-	}
-}
-*/
 
 func (ln *localNetwork) CreateBlockchains(
 	ctx context.Context,
@@ -318,12 +304,10 @@ func (ln *localNetwork) installCustomChains(
 			preloadTXs = append(preloadTXs, subnetID)
 		}
 	}
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap("create wallet")))
 	w, err := newWallet(ctx, clientURI, preloadTXs, ln.walletPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	ln.log.Info(logging.Blue.Wrap(logging.Bold.Wrap(" wallet is ready")))
 	// get subnet specs for all new subnets to create
 	// for the list of requested blockchains, we take those that have undefined subnet id
 	// and use the provided subnet spec. if not given, use an empty default subnet spec
@@ -880,15 +864,12 @@ func newWallet(
 		}
 	}
 	kc := secp256k1fx.NewKeychain(privateKey)
-	log.Info("aboout to fetch state", uri, kc.Addresses())
 	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
 	}
-	log.Info("primaryAVAXState", primaryAVAXState)
 	pCTX, xCTX, utxos := primaryAVAXState.PCTX, primaryAVAXState.XCTX, primaryAVAXState.UTXOs
 	pClient := platformvm.NewClient(uri)
-	log.Info("pClient using uri", uri)
 	pTXs := make(map[ids.ID]*txs.Tx)
 	for _, id := range preloadTXs {
 		txBytes, err := pClient.GetTx(ctx, id)
@@ -911,7 +892,6 @@ func newWallet(
 	w.pSigner = psigner.New(kc, w.pBackend)
 	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
 
-	log.Info("pWallet", w.pWallet)
 	xBackend := x.NewBackend(xCTX, xUTXOs)
 	xBuilder := xbuilder.New(kc.Addresses(), xCTX, xBackend)
 	xSigner := xsigner.New(kc, xBackend)
@@ -972,7 +952,7 @@ func (ln *localNetwork) addPrimaryValidators(
 					NodeID: nodeID,
 					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 					End:    uint64(time.Now().Add(validationDuration).Unix()),
-					Wght:   genesis.LocalParams.MinValidatorStake,
+					Wght:   ln.getValidatorWeight(),
 				},
 				Subnet: ids.Empty,
 			},
