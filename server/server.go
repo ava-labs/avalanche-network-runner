@@ -1351,6 +1351,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		execPath:            applyDefaultExecPath(req.GetExecPath()),
+		walletPrivateKey:    req.WalletPrivateKey,
 		pluginDir:           applyDefaultPluginDir(req.GetPluginDir()),
 		rootDataDir:         rootDataDir,
 		logRootDir:          req.GetLogRootDir(),

@@ -614,7 +614,11 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	if !utils.IsPublicNetwork(lc.options.networkID) {
+	networkID, err := lc.nw.GetNetworkID()
+	if err != nil {
+		return err
+	}
+	if !utils.IsPublicNetwork(networkID) {
 		blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 		if err != nil {
 			return err

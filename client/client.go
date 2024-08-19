@@ -399,6 +399,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
 	}
+	if ret.walletPrivateKey != "" {
+		req.WalletPrivateKey = ret.walletPrivateKey
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
