@@ -49,8 +49,8 @@ const (
 	DefaultNodes uint32 = 5
 
 	stopTimeout           = 30 * time.Second
-	defaultStartTimeout   = 120 * time.Minute
-	waitForHealthyTimeout = 120 * time.Minute
+	defaultStartTimeout   = 300 * time.Minute
+	waitForHealthyTimeout = 300 * time.Minute
 
 	networkRootDirPrefix   = "network"
 	TimeParseLayout        = "2006-01-02 15:04:05"
