@@ -27,7 +27,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/network"
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanche-network-runner/utils"
-	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
@@ -113,7 +112,8 @@ func (ln *localNetwork) getClientURI() (string, error) {
 	node := ln.getNode()
 	switch ln.networkID {
 	case avagoConstants.FujiID:
-		clientURI = constants.FujiAPIEndpoint
+		//clientURI = constants.FujiAPIEndpoint
+		clientURI = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	case avagoConstants.MainnetID:
 		return "", fmt.Errorf("not supported")
 	default:
