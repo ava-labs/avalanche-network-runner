@@ -54,7 +54,7 @@ func NewCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&logDir, "log-dir", "", "log directory")
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "localhost:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 300*time.Minute, "client request timeout")
+	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
 
 	cmd.AddCommand(
 		newRPCVersionCommand(),
@@ -322,6 +322,7 @@ func startFunc(*cobra.Command, []string) error {
 
 	if fuji {
 		networkID = avagoConstants.FujiID
+		requestTimeout = 5 * time.Hour // increase timeout for fuji network
 	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),

@@ -48,9 +48,7 @@ const (
 	MinNodes     uint32 = 1
 	DefaultNodes uint32 = 5
 
-	stopTimeout           = 30 * time.Second
-	defaultStartTimeout   = 300 * time.Minute
-	waitForHealthyTimeout = 300 * time.Minute
+	stopTimeout = 30 * time.Second
 
 	networkRootDirPrefix   = "network"
 	TimeParseLayout        = "2006-01-02 15:04:05"
@@ -367,7 +365,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		zap.String("global-node-config", globalNodeConfig),
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	if err := s.network.Start(ctx); err != nil {
 		s.log.Warn("start failed to complete", zap.Error(err))
@@ -375,7 +373,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		return nil, err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel = context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	chainIDs, err := s.network.CreateChains(ctx, chainSpecs)
 	if err != nil {
@@ -426,7 +424,7 @@ func (s *server) updateClusterInfo() {
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
 	s.log.Debug("WaitForHealthy")
 
-	ctx, cancel := context.WithTimeout(ctx, waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 
 	for {
@@ -570,7 +568,7 @@ func (s *server) AddPermissionlessDelegator(
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	err := s.network.AddPermissionlessDelegators(ctx, delegatorSpecList)
 	if err != nil {
@@ -627,7 +625,7 @@ func (s *server) AddPermissionlessValidator(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	err := s.network.AddPermissionlessValidators(ctx, validatorSpecList)
 
@@ -685,7 +683,7 @@ func (s *server) AddSubnetValidators(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	err := s.network.AddSubnetValidators(ctx, validatorSpecList)
 
@@ -743,7 +741,7 @@ func (s *server) RemoveSubnetValidator(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	err := s.network.RemoveSubnetValidator(ctx, validatorSpecList)
 
@@ -801,7 +799,7 @@ func (s *server) TransformElasticSubnets(
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	txIDs, assetIDs, err := s.network.TransformSubnets(ctx, elasticSubnetSpecList)
 
@@ -852,7 +850,7 @@ func (s *server) CreateSubnets(_ context.Context, req *rpcpb.CreateSubnetsReques
 	s.clusterInfo.Healthy = false
 	s.clusterInfo.CustomChainsHealthy = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	subnetIDs, err := s.network.CreateSubnets(ctx, subnetSpecs)
 	if err != nil {
@@ -1377,7 +1375,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), waitForHealthyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.network.GetWaitForHealthyTimeout())
 	defer cancel()
 	err = s.network.AwaitHealthyAndUpdateNetworkInfo(ctx)
 	if err != nil {

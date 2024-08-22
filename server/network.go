@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -845,4 +846,12 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 			ux.Print(lc.log, logging.Red.Wrap(msg))
 		}
 	})
+}
+
+func (lc *localNetwork) GetWaitForHealthyTimeout() time.Duration {
+	if lc.networkID == avago_constants.FujiID {
+		return 6 * time.Hour
+	} else {
+		return 3 * time.Minute
+	}
 }

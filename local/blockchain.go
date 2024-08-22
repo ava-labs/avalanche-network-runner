@@ -96,7 +96,7 @@ func (ln *localNetwork) getNode() node.Node {
 	return node
 }
 
-func (ln *localNetwork) getValidatorWeight() uint64 {
+func (ln *localNetwork) getMinValidatorWeight() uint64 {
 	switch ln.networkID {
 	case avagoConstants.FujiID:
 		return genesis.FujiParams.MinValidatorStake
@@ -108,18 +108,9 @@ func (ln *localNetwork) getValidatorWeight() uint64 {
 }
 
 // get node client URI for an arbitrary node in the network
-func (ln *localNetwork) getClientURI() (string, error) {
-	clientURI := ""
+func (ln *localNetwork) getClientURI() (string, error) { //nolint
 	node := ln.getNode()
-	switch ln.networkID {
-	case avagoConstants.FujiID:
-		// clientURI = constants.FujiAPIEndpoint
-		clientURI = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-	case avagoConstants.MainnetID:
-		return "", fmt.Errorf("not supported")
-	default:
-		clientURI = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-	}
+	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	ln.log.Info("getClientURI",
 		zap.String("nodeName", node.GetName()),
 		zap.String("uri", clientURI))
@@ -953,7 +944,7 @@ func (ln *localNetwork) addPrimaryValidators(
 					NodeID: nodeID,
 					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 					End:    uint64(time.Now().Add(validationDuration).Unix()),
-					Wght:   ln.getValidatorWeight(),
+					Wght:   ln.getMinValidatorWeight(),
 				},
 				Subnet: ids.Empty,
 			},

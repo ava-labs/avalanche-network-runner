@@ -364,11 +364,6 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		if !utils.IsPublicNetwork(networkID) {
 			nodeConfig.IsBeacon = true
 		}
-		/* disable partial sync for now
-		else {
-			nodeConfig.Flags[config.PartialSyncPrimaryNetworkKey] = true
-		}
-		*/
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 		port += 2
 	}
