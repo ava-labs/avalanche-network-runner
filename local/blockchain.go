@@ -112,7 +112,7 @@ func (ln *localNetwork) getClientURI() (string, error) {
 	node := ln.getNode()
 	switch ln.networkID {
 	case avagoConstants.FujiID:
-		//clientURI = constants.FujiAPIEndpoint
+		// clientURI = constants.FujiAPIEndpoint
 		clientURI = fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
 	case avagoConstants.MainnetID:
 		return "", fmt.Errorf("not supported")
