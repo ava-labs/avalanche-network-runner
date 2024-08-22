@@ -849,7 +849,7 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 }
 
 func (lc *localNetwork) GetWaitForHealthyTimeout() time.Duration {
-	if lc.networkID == avago_constants.FujiID {
+	if lc.networkID == avago_constants.FujiID || lc.networkID == 0 {
 		return 6 * time.Hour
 	} else {
 		return 3 * time.Minute

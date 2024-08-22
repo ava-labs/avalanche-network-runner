@@ -323,6 +323,7 @@ func startFunc(*cobra.Command, []string) error {
 	if fuji {
 		networkID = avagoConstants.FujiID
 		requestTimeout = 5 * time.Hour // increase timeout for fuji network
+		ux.Print(log, logging.Yellow.Wrap("setting request timeout to "+requestTimeout.String()))
 	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
