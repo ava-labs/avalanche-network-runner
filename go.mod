@@ -1,12 +1,12 @@
 module github.com/ava-labs/avalanche-network-runner
 
-go 1.21.11
+go 1.21.12
 
 toolchain go1.22.3
 
 require (
-	github.com/ava-labs/avalanchego v1.11.8
-	github.com/ava-labs/coreth v0.13.5-rc.0
+	github.com/ava-labs/avalanchego v1.11.11-0.20240814014627-2eef64141457
+	github.com/ava-labs/coreth v0.13.8-fixed-genesis-upgrade.0.20240813194342-7635a96aa180
 	github.com/ethereum/go-ethereum v1.13.8
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/onsi/ginkgo/v2 v2.13.1
@@ -23,7 +23,7 @@ require (
 	golang.org/x/sync v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237
 	google.golang.org/grpc v1.64.0
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.34.2
 )
 
 require (
