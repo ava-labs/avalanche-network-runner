@@ -12,7 +12,6 @@ import (
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
 	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -37,7 +36,7 @@ func getFreePort() (uint16, error) {
 
 // writeFiles writes the files a node needs on startup.
 // It returns flags used to point to those files.
-func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig *node.Config) (map[string]string, error) {
+func writeFiles(genesis []byte, nodeRootDir string, nodeConfig *node.Config) (map[string]string, error) {
 	type file struct {
 		pathKey   string
 		flagValue string
@@ -68,7 +67,7 @@ func writeFiles(networkID uint32, genesis []byte, nodeRootDir string, nodeConfig
 			contents:  decodedStakingSigningKey,
 		},
 	}
-	if networkID != constants.LocalID {
+	if len(genesis) > 0 {
 		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, configsPath, genesisFileName),
 			path:      filepath.Join(nodeRootDir, configsPath, genesisFileName),

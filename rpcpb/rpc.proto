@@ -364,6 +364,9 @@ message StartRequest {
 
   // Used for log files.
   optional string log_root_dir = 15;
+
+  // wallet private key
+  string wallet_private_key = 16;
 }
 
 message RPCVersionRequest {}
@@ -676,6 +679,8 @@ message LoadSnapshotRequest {
   map<string, string> subnet_configs = 9;
   bool in_place = 10;
   optional string log_root_dir = 11;
+  // wallet private key
+  string wallet_private_key = 12;
 }
 
 message LoadSnapshotResponse {

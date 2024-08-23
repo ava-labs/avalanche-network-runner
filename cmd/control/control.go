@@ -22,6 +22,8 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+
+	avagoConstants "github.com/ava-labs/avalanchego/utils/constants"
 )
 
 func init() {
@@ -91,22 +93,25 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath  string
-	numNodes            uint32
-	pluginDir           string
-	globalNodeConfig    string
-	addNodeConfig       string
-	blockchainSpecsStr  string
-	customNodeConfigs   string
-	rootDataDir         string
-	chainConfigs        string
-	upgradeConfigs      string
-	subnetConfigs       string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
-	force               bool
-	inPlace             bool
+	avalancheGoBinPath   string
+	numNodes             uint32
+	pluginDir            string
+	globalNodeConfig     string
+	addNodeConfig        string
+	blockchainSpecsStr   string
+	customNodeConfigs    string
+	rootDataDir          string
+	chainConfigs         string
+	upgradeConfigs       string
+	subnetConfigs        string
+	reassignPortsIfUsed  bool
+	dynamicPorts         bool
+	networkID            uint32
+	force                bool
+	inPlace              bool
+	fuji                 bool
+	walletPrivateKey     string
+	walletPrivateKeyPath string
 )
 
 func setLogs() error {
@@ -191,6 +196,12 @@ func newStartCommand() *cobra.Command {
 		constants.DefaultNumNodes,
 		"number of nodes of the network",
 	)
+	cmd.PersistentFlags().Uint32Var(
+		&numNodes,
+		"num-nodes",
+		constants.DefaultNumNodes,
+		"number of nodes of the network",
+	)
 	cmd.PersistentFlags().StringVar(
 		&pluginDir,
 		"plugin-dir",
@@ -257,7 +268,49 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to assign dynamic ports",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&fuji,
+		"fuji",
+		false,
+		"true to set all nodes to join fuji network",
+	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKey,
+		"wallet-private-key",
+		"",
+		"[optional] funding wallet private key. Please consider using `wallet-private-key-path` if security is a concern.",
+	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKeyPath,
+		"wallet-private-key-path",
+		"",
+		"[optional] funding wallet private key path",
+	)
 	return cmd
+}
+
+func setWalletPrivateKeyOptions(opts *[]client.OpOption) error {
+	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
+		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
+	}
+	if walletPrivateKey != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
+		*opts = append(*opts, client.WithWalletPrivateKey(walletPrivateKey))
+	}
+	if walletPrivateKeyPath != "" {
+		ux.Print(log, logging.Yellow.Wrap("funding wallet private key path provided: %s"), walletPrivateKeyPath)
+		// validate if it's a valid private key
+		if _, err := os.Stat(walletPrivateKey); err != nil {
+			return fmt.Errorf("wallet private key doesn't exist: %w", err)
+		}
+		// read the private key
+		keyBytes, err := os.ReadFile(walletPrivateKey)
+		if err != nil {
+			return fmt.Errorf("failed to read  wallet private key: %w", err)
+		}
+		*opts = append(*opts, client.WithWalletPrivateKey(string(keyBytes)))
+	}
+	return nil
 }
 
 func startFunc(*cobra.Command, []string) error {
@@ -267,6 +320,11 @@ func startFunc(*cobra.Command, []string) error {
 	}
 	defer cli.Close()
 
+	if fuji {
+		networkID = avagoConstants.FujiID
+		requestTimeout = 5 * time.Hour // increase timeout for fuji network
+		ux.Print(log, logging.Yellow.Wrap("setting request timeout to "+requestTimeout.String()))
+	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
@@ -275,6 +333,10 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
 		client.WithNetworkID(networkID),
+	}
+
+	if err := setWalletPrivateKeyOptions(&opts); err != nil {
+		return err
 	}
 
 	if globalNodeConfig != "" {
@@ -1288,6 +1350,18 @@ func newLoadSnapshotCommand() *cobra.Command {
 		false,
 		"load snapshot in place, so as it always auto save",
 	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKey,
+		"wallet-private-key",
+		"",
+		"[optional] funding wallet private key. Please consider using `wallet-private-key-path` if security is a concern.",
+	)
+	cmd.PersistentFlags().StringVar(
+		&walletPrivateKeyPath,
+		"wallet-private-key-path",
+		"",
+		"[optional] funding wallet private key path",
+	)
 	return cmd
 }
 
@@ -1303,6 +1377,10 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
+	}
+
+	if err := setWalletPrivateKeyOptions(&opts); err != nil {
+		return err
 	}
 
 	if chainConfigs != "" {

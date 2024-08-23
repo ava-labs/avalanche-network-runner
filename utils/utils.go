@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
 
@@ -162,4 +163,12 @@ func PathExists(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func IsPublicNetwork(networkID uint32) bool {
+	return networkID == constants.FujiID || networkID == constants.MainnetID
+}
+
+func IsCustomNetwork(networkID uint32) bool {
+	return !IsPublicNetwork(networkID) && networkID != constants.LocalID
 }

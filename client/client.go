@@ -146,6 +146,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.customNodeConfigs != nil {
 		req.CustomNodeConfigs = ret.customNodeConfigs
 	}
+	if ret.walletPrivateKey != "" {
+		req.WalletPrivateKey = ret.walletPrivateKey
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	req.DynamicPorts = &ret.dynamicPorts
 
@@ -396,6 +399,9 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	if ret.globalNodeConfig != "" {
 		req.GlobalNodeConfig = &ret.globalNodeConfig
 	}
+	if ret.walletPrivateKey != "" {
+		req.WalletPrivateKey = ret.walletPrivateKey
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
@@ -474,6 +480,7 @@ type Op struct {
 	reassignPortsIfUsed bool
 	dynamicPorts        bool
 	networkID           uint32
+	walletPrivateKey    string
 }
 
 type OpOption func(*Op)
@@ -588,6 +595,12 @@ func WithReassignPortsIfUsed(reassignPortsIfUsed bool) OpOption {
 func WithDynamicPorts(dynamicPorts bool) OpOption {
 	return func(op *Op) {
 		op.dynamicPorts = dynamicPorts
+	}
+}
+
+func WithWalletPrivateKey(walletPrivateKey string) OpOption {
+	return func(op *Op) {
+		op.walletPrivateKey = walletPrivateKey
 	}
 }
 

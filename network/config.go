@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/network/node"
+	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -58,7 +59,7 @@ type Config struct {
 
 // Validate returns an error if this config is invalid
 func (c *Config) Validate() error {
-	if len(c.Genesis) == 0 {
+	if utils.IsCustomNetwork(c.NetworkID) && len(c.Genesis) == 0 {
 		return errors.New("no genesis given")
 	}
 
@@ -77,7 +78,7 @@ func (c *Config) Validate() error {
 			someNodeIsBeacon = true
 		}
 	}
-	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
+	if len(c.NodeConfigs) > 0 && !(utils.IsPublicNetwork(c.NetworkID) || someNodeIsBeacon) {
 		return errors.New("beacon nodes not given")
 	}
 	return nil

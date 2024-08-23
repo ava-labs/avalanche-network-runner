@@ -75,6 +75,7 @@ func NewNetworkFromSnapshot(
 	redirectStdout bool,
 	redirectStderr bool,
 	inPlace bool,
+	walletPrivateKey string,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
@@ -97,6 +98,7 @@ func NewNetworkFromSnapshot(
 		reassignPortsIfUsed,
 		redirectStdout,
 		redirectStderr,
+		walletPrivateKey,
 	)
 	if err != nil {
 		return net, err
@@ -150,6 +152,7 @@ func (ln *localNetwork) persistNetwork() error {
 	}
 	// save network conf
 	networkConfig := network.Config{
+		NetworkID:          ln.networkID,
 		Genesis:            string(ln.genesis),
 		Flags:              networkConfigFlags,
 		NodeConfigs:        nodeConfigs,
@@ -386,18 +389,20 @@ func (ln *localNetwork) loadSnapshot(
 		}
 	}
 	// add aliases for blockchain names
-	node := ln.getNode()
-	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
-	if err != nil {
-		return err
-	}
-	for _, blockchain := range blockchains {
-		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
-			continue
+	if !utils.IsPublicNetwork(ln.networkID) {
+		node := ln.getNode()
+		blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+		if err != nil {
+			return err
 		}
-		if err := ln.setBlockchainAlias(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
-			// non fatal error: not required by user
-			ln.log.Warn(err.Error())
+		for _, blockchain := range blockchains {
+			if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+				continue
+			}
+			if err := ln.setBlockchainAlias(ctx, blockchain.ID.String(), blockchain.Name); err != nil {
+				// non fatal error: not required by user
+				ln.log.Warn(err.Error())
+			}
 		}
 	}
 	return ln.persistNetwork()

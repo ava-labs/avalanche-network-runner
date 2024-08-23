@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ava-labs/avalanche-network-runner/local"
 	"github.com/ava-labs/avalanche-network-runner/network"
@@ -113,6 +114,8 @@ type localNetworkOptions struct {
 	dynamicPorts bool
 
 	networkID uint32
+	// wallet private key used. IF nil, genesis ewoq key will be used
+	walletPrivateKey string
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -146,7 +149,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // TODO document.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
-	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes, lc.options.networkID)
 	if err != nil {
 		return err
 	}
@@ -167,8 +170,6 @@ func (lc *localNetwork) createConfig() error {
 	if lc.pluginDir != "" {
 		cfg.Flags[config.PluginDirKey] = lc.pluginDir
 	}
-
-	cfg.NetworkID = lc.options.networkID
 
 	for k, v := range lc.options.chainConfigs {
 		ov, ok := cfg.ChainConfigFiles[k]
@@ -251,7 +252,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.logRootDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput)
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.logRootDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput, lc.options.walletPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -578,6 +579,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
 		inPlace,
+		lc.options.walletPrivateKey,
 	)
 	if err != nil {
 		return err
@@ -613,72 +615,74 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 		}
 	}
 
-	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+	networkID, err := lc.nw.GetNetworkID()
 	if err != nil {
 		return err
 	}
-
-	for _, blockchain := range blockchains {
-		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
-			continue
-		}
-		lc.customChainIDToInfo[blockchain.ID] = chainInfo{
-			info: &rpcpb.CustomChainInfo{
-				ChainName: blockchain.Name,
-				VmId:      blockchain.VMID.String(),
-				SubnetId:  blockchain.SubnetID.String(),
-				ChainId:   blockchain.ID.String(),
-			},
-			subnetID:     blockchain.SubnetID,
-			blockchainID: blockchain.ID,
-		}
-	}
-
-	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	subnetIDList := []string{}
-	for _, subnet := range subnets {
-		if subnet.ID != avago_constants.PlatformChainID {
-			subnetIDList = append(subnetIDList, subnet.ID.String())
-		}
-	}
-
-	for _, subnetIDStr := range subnetIDList {
-		subnetID, err := ids.FromString(subnetIDStr)
+	if !utils.IsPublicNetwork(networkID) {
+		blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 		if err != nil {
 			return err
 		}
-		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
-		if err != nil {
-			return err
-		}
-		var nodeNameList []string
-
-		for _, node := range vdrs {
-			for nodeName, nodeInfo := range lc.nodeInfos {
-				if nodeInfo.Id == node.NodeID.String() {
-					nodeNameList = append(nodeNameList, nodeName)
-				}
+		for _, blockchain := range blockchains {
+			if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+				continue
+			}
+			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+				info: &rpcpb.CustomChainInfo{
+					ChainName: blockchain.Name,
+					VmId:      blockchain.VMID.String(),
+					SubnetId:  blockchain.SubnetID.String(),
+					ChainId:   blockchain.ID.String(),
+				},
+				subnetID:     blockchain.SubnetID,
+				blockchainID: blockchain.ID,
 			}
 		}
-
-		isElastic := false
-		elasticSubnetID := ids.Empty
-		if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
-			isElastic = true
-			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+		subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+		if err != nil {
+			return err
+		}
+		subnetIDList := []string{}
+		for _, subnet := range subnets {
+			if subnet.ID != avago_constants.PlatformChainID {
+				subnetIDList = append(subnetIDList, subnet.ID.String())
+			}
+		}
+		for _, subnetIDStr := range subnetIDList {
+			subnetID, err := ids.FromString(subnetIDStr)
 			if err != nil {
 				return err
 			}
-		}
+			vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
+			if err != nil {
+				return err
+			}
+			var nodeNameList []string
 
-		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
-			IsElastic:          isElastic,
-			ElasticSubnetId:    elasticSubnetID.String(),
-			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+			for _, node := range vdrs {
+				for nodeName, nodeInfo := range lc.nodeInfos {
+					if nodeInfo.Id == node.NodeID.String() {
+						nodeNameList = append(nodeNameList, nodeName)
+					}
+				}
+			}
+
+			isElastic := false
+			elasticSubnetID := ids.Empty
+			if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+				isElastic = true
+				elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
+				if err != nil {
+					return err
+				}
+			}
+
+			lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
+				IsElastic:          isElastic,
+				ElasticSubnetId:    elasticSubnetID.String(),
+				SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
+			}
 		}
 	}
 
@@ -842,4 +846,12 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 			ux.Print(lc.log, logging.Red.Wrap(msg))
 		}
 	})
+}
+
+func (lc *localNetwork) GetWaitForHealthyTimeout() time.Duration {
+	if lc.networkID == avago_constants.FujiID || lc.networkID == 0 {
+		return 6 * time.Hour
+	} else {
+		return 3 * time.Minute
+	}
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/ava-labs/avalanchego/network/peer"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
-	avagoconstants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
@@ -122,6 +121,8 @@ type localNetwork struct {
 	subnetID2ElasticSubnetID map[ids.ID]ids.ID
 	// map from blockchain id to blockchain aliases
 	blockchainAliases map[string][]string
+	// wallet private key used. IF nil, genesis ewoq key will be used
+	walletPrivateKey string
 }
 
 type deprecatedFlagEsp struct {
@@ -169,6 +170,7 @@ func NewNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
+	walletPrivateKey string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -185,6 +187,7 @@ func NewNetwork(
 		reassignPortsIfUsed,
 		redirectStdout,
 		redirectStderr,
+		walletPrivateKey,
 	)
 	if err != nil {
 		return net, err
@@ -205,6 +208,7 @@ func newNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
+	walletPrivateKey string,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -247,6 +251,7 @@ func newNetwork(
 		redirectStderr:           redirectStderr,
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
+		walletPrivateKey:         walletPrivateKey,
 	}
 	return net, nil
 }
@@ -273,11 +278,11 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config, err := NewDefaultConfig(binaryPath)
+	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID)
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr)
+	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr, "")
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
@@ -324,7 +329,10 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config, error) {
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32) (network.Config, error) {
+	if networkID == 0 {
+		networkID = constants.DefaultNetworkID
+	}
 	flags, cChainConfig, nodeKeys, err := loadDefaultNetworkFiles()
 	if err != nil {
 		return network.Config{}, err
@@ -344,7 +352,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 	port := constants.FirstAPIPort
 	for _, keys := range nodeKeys {
 		encodedKeys := utils.EncodeNodeKeys(keys)
-		nodeConfigs = append(nodeConfigs, node.Config{
+		nodeConfig := node.Config{
 			StakingKey:        encodedKeys.StakingKey,
 			StakingCert:       encodedKeys.StakingCert,
 			StakingSigningKey: encodedKeys.BlsKey,
@@ -352,34 +360,41 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32) (network.Config,
 				config.HTTPPortKey:    port,
 				config.StakingPortKey: port + 1,
 			},
-			IsBeacon: true,
-		})
+		}
+		if !utils.IsPublicNetwork(networkID) {
+			nodeConfig.IsBeacon = true
+		}
+		nodeConfigs = append(nodeConfigs, nodeConfig)
 		port += 2
 	}
-	if int(numNodes) == 1 {
+	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
-	genesis, err := utils.GenerateGenesis(constants.DefaultNetworkID, nodeKeys)
-	if err != nil {
-		return network.Config{}, err
-	}
-	return network.Config{
-		NetworkID:   constants.DefaultNetworkID,
-		Flags:       flags,
-		Genesis:     string(genesis),
-		NodeConfigs: nodeConfigs,
-		BinaryPath:  binaryPath,
-		ChainConfigFiles: map[string]string{
-			"C": string(cChainConfig),
-		},
+	cfg := network.Config{
+		NetworkID:          networkID,
+		Flags:              flags,
+		NodeConfigs:        nodeConfigs,
+		BinaryPath:         binaryPath,
+		ChainConfigFiles:   map[string]string{},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
-	}, nil
+	}
+	if utils.IsCustomNetwork(networkID) {
+		genesis, err := utils.GenerateGenesis(networkID, nodeKeys)
+		if err != nil {
+			return network.Config{}, err
+		}
+		cfg.Genesis = string(genesis)
+		cfg.ChainConfigFiles = map[string]string{
+			"C": string(cChainConfig),
+		}
+	}
+	return cfg, nil
 }
 
 // NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string) (network.Config, error) {
-	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes)
+func NewDefaultConfig(binaryPath string, networkID uint32) (network.Config, error) {
+	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes, networkID)
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
@@ -388,25 +403,21 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	}
 	ln.log.Info("creating network", zap.Int("node-num", len(networkConfig.NodeConfigs)))
 
-	ln.genesis = []byte(networkConfig.Genesis)
-
-	// Set network ID
-	var err error
-	ln.networkID, err = utils.NetworkIDFromGenesis(ln.genesis)
-	if err != nil {
-		return err
-	}
-	if networkConfig.NetworkID != 0 && networkConfig.NetworkID != ln.networkID {
-		ln.networkID = networkConfig.NetworkID
-		genesis, err := utils.SetGenesisNetworkID(ln.genesis, ln.networkID)
+	ln.networkID = networkConfig.NetworkID
+	if len(networkConfig.Genesis) != 0 {
+		ln.genesis = []byte(networkConfig.Genesis)
+		genesisNetworkID, err := utils.NetworkIDFromGenesis(ln.genesis)
 		if err != nil {
-			return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+			return err
 		}
-		ln.genesis = genesis
-	}
-	switch ln.networkID {
-	case avagoconstants.TestnetID, avagoconstants.MainnetID:
-		return errors.New("network ID can't be mainnet or testnet")
+		switch {
+		case ln.networkID == 0:
+			ln.networkID = genesisNetworkID
+		case ln.networkID != genesisNetworkID:
+			if ln.genesis, err = utils.SetGenesisNetworkID(ln.genesis, ln.networkID); err != nil {
+				return fmt.Errorf("couldn't set network ID to genesis: %w", err)
+			}
+		}
 	}
 
 	// save node defaults
@@ -1101,15 +1112,17 @@ func (ln *localNetwork) buildArgs(
 
 	// Flags for AvalancheGo
 	flags := map[string]string{
-		config.NetworkNameKey:  fmt.Sprintf("%d", ln.networkID),
-		config.DataDirKey:      dataDir,
-		config.DBPathKey:       dbDir,
-		config.LogsDirKey:      logsDir,
-		config.PublicIPKey:     publicIP,
-		config.HTTPPortKey:     fmt.Sprintf("%d", apiPort),
-		config.StakingPortKey:  fmt.Sprintf("%d", p2pPort),
-		config.BootstrapIPsKey: ln.bootstraps.IPsArg(),
-		config.BootstrapIDsKey: ln.bootstraps.IDsArg(),
+		config.NetworkNameKey: fmt.Sprintf("%d", ln.networkID),
+		config.DataDirKey:     dataDir,
+		config.DBPathKey:      dbDir,
+		config.LogsDirKey:     logsDir,
+		config.PublicIPKey:    publicIP,
+		config.HTTPPortKey:    fmt.Sprintf("%d", apiPort),
+		config.StakingPortKey: fmt.Sprintf("%d", p2pPort),
+	}
+	if !utils.IsPublicNetwork(ln.networkID) {
+		flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
+		flags[config.BootstrapIDsKey] = ln.bootstraps.IDsArg()
 	}
 
 	insideContainer, err := utils.IsInsideDockerContainer()
@@ -1124,7 +1137,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.networkID, ln.genesis, dataDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.genesis, dataDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}

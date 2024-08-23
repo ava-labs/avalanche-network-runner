@@ -6,6 +6,7 @@ package local
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -30,8 +31,8 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
@@ -46,6 +47,8 @@ import (
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+
+	avagoConstants "github.com/ava-labs/avalanchego/utils/constants"
 )
 
 const (
@@ -91,6 +94,17 @@ func (ln *localNetwork) getNode() node.Node {
 		}
 	}
 	return node
+}
+
+func (ln *localNetwork) getMinValidatorWeight() uint64 {
+	switch ln.networkID {
+	case avagoConstants.FujiID:
+		return genesis.FujiParams.MinValidatorStake
+	case avagoConstants.MainnetID:
+		return genesis.MainnetParams.MinValidatorStake
+	default:
+		return genesis.LocalParams.MinValidatorStake
+	}
 }
 
 // get node client URI for an arbitrary node in the network
@@ -282,12 +296,10 @@ func (ln *localNetwork) installCustomChains(
 			alreadyCreatedSubnetIDs = append(alreadyCreatedSubnetIDs, subnetID)
 		}
 	}
-
-	w, err := newWallet(ctx, clientURI, alreadyCreatedSubnetIDs)
+	w, err := newWallet(ctx, clientURI, alreadyCreatedSubnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-
 	// get subnet specs for all new subnets to create
 	// for the list of requested blockchains, we take those that have undefined subnet id
 	// and use the provided subnet spec. if not given, use an empty default subnet spec
@@ -325,7 +337,6 @@ func (ln *localNetwork) installCustomChains(
 			subnetSpecsMap[*chainSpec.SubnetID] = subnetSpec
 		}
 	}
-
 	// if no participants are given for a new subnet, assume all nodes should be participants
 	allNodeNames := maps.Keys(ln.nodes)
 	sort.Strings(allNodeNames)
@@ -354,7 +365,6 @@ func (ln *localNetwork) installCustomChains(
 	if err := ln.healthy(ctx); err != nil {
 		return nil, err
 	}
-
 	// just ensure all nodes are primary validators (so can be subnet validators)
 	if err := ln.addPrimaryValidators(ctx, platformCli, w); err != nil {
 		return nil, err
@@ -479,7 +489,7 @@ func (ln *localNetwork) addSubnetValidators(
 		}
 		subnetIDs[i] = subnetID
 	}
-	w, err := newWallet(ctx, clientURI, subnetIDs)
+	w, err := newWallet(ctx, clientURI, subnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -552,7 +562,7 @@ func (ln *localNetwork) installSubnets(
 	}
 	platformCli := platformvm.NewClient(clientURI)
 
-	w, err := newWallet(ctx, clientURI, []ids.ID{})
+	w, err := newWallet(ctx, clientURI, []ids.ID{}, ln.walletPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -828,8 +838,24 @@ func newWallet(
 	ctx context.Context,
 	uri string,
 	subnetIDs []ids.ID,
+	walletPrivateKey string,
 ) (*wallet, error) {
-	kc := secp256k1fx.NewKeychain(genesis.EWOQKey)
+	var (
+		err        error
+		privateKey *secp256k1.PrivateKey
+	)
+	if walletPrivateKey == "" {
+		privateKey = genesis.EWOQKey
+	} else {
+		walletPrivateKeyBytes, err := hex.DecodeString(walletPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		if privateKey, err = secp256k1.ToPrivateKey(walletPrivateKeyBytes); err != nil {
+			return nil, err
+		}
+	}
+	kc := secp256k1fx.NewKeychain(privateKey)
 	primaryAVAXState, err := primary.FetchState(ctx, uri, kc.Addresses())
 	if err != nil {
 		return nil, err
@@ -848,10 +874,10 @@ func newWallet(
 		owner.Addrs = subnetInfo.ControlKeys
 		subnetOwners[subnetID] = &owner
 	}
-	pUTXOs := common.NewChainUTXOs(constants.PlatformChainID, utxos)
+	pUTXOs := common.NewChainUTXOs(avagoConstants.PlatformChainID, utxos)
 	xUTXOs := common.NewChainUTXOs(xCTX.BlockchainID, utxos)
 	var w wallet
-	w.addr = genesis.EWOQKey.PublicKey().Address()
+	w.addr = privateKey.PublicKey().Address()
 	w.pCTX = pCTX
 	w.pBackend = p.NewBackend(pCTX, pUTXOs, subnetOwners)
 	w.pBuilder = pbuilder.New(kc.Addresses(), pCTX, w.pBackend)
@@ -883,7 +909,7 @@ func (ln *localNetwork) addPrimaryValidators(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as primary network validators"))
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain/#platformgetcurrentvalidators
 	cctx, cancel := createDefaultCtx(ctx)
-	vdrs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vdrs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -918,7 +944,7 @@ func (ln *localNetwork) addPrimaryValidators(
 					NodeID: nodeID,
 					Start:  uint64(time.Now().Add(validationStartOffset).Unix()),
 					End:    uint64(time.Now().Add(validationDuration).Unix()),
-					Wght:   genesis.LocalParams.MinValidatorStake,
+					Wght:   ln.getMinValidatorWeight(),
 				},
 				Subnet: ids.Empty,
 			},
@@ -1029,7 +1055,7 @@ func (ln *localNetwork) removeSubnetValidators(
 		}
 		subnetIDs[i] = subnetID
 	}
-	w, err := newWallet(ctx, clientURI, subnetIDs)
+	w, err := newWallet(ctx, clientURI, subnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -1114,7 +1140,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		}
 	}
 	// wallet needs txs for all existent subnets
-	w, err := newWallet(ctx, clientURI, subnetIDs)
+	w, err := newWallet(ctx, clientURI, subnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -1125,7 +1151,7 @@ func (ln *localNetwork) addPermissionlessDelegators(
 		},
 	}
 	cctx, cancel := createDefaultCtx(ctx)
-	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -1215,7 +1241,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 		}
 	}
 	// wallet needs txs for all existent subnets
-	w, err := newWallet(ctx, clientURI, subnetIDs)
+	w, err := newWallet(ctx, clientURI, subnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -1254,7 +1280,7 @@ func (ln *localNetwork) addPermissionlessValidators(
 	}
 
 	cctx, cancel := createDefaultCtx(ctx)
-	vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+	vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 	cancel()
 	if err != nil {
 		return err
@@ -1352,7 +1378,7 @@ func (ln *localNetwork) transformToElasticSubnets(
 		}
 	}
 	// wallet needs txs for all existent subnets
-	w, err := newWallet(ctx, clientURI, subnetIDs)
+	w, err := newWallet(ctx, clientURI, subnetIDs, ln.walletPrivateKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1456,7 +1482,7 @@ func (ln *localNetwork) issueSubnetValidatorTxs(
 	ln.log.Info(logging.Green.Wrap("adding the nodes as subnet validators"))
 	for i, subnetID := range subnetIDs {
 		cctx, cancel := createDefaultCtx(ctx)
-		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 		cancel()
 		if err != nil {
 			return err
@@ -1524,7 +1550,7 @@ func (ln *localNetwork) waitPrimaryValidators(
 	for {
 		ready := true
 		cctx, cancel := createDefaultCtx(ctx)
-		vs, err := platformCli.GetCurrentValidators(cctx, constants.PrimaryNetworkID, nil)
+		vs, err := platformCli.GetCurrentValidators(cctx, avagoConstants.PrimaryNetworkID, nil)
 		cancel()
 		if err != nil {
 			return err
