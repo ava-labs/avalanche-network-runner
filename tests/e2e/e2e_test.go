@@ -58,8 +58,6 @@ var (
 	newNode2NodeID    = ""
 	pausedNodeURI     = ""
 	pausedNodeName    = "node1"
-	createdSubnetID   = ""
-	elasticAssetID    = ""
 	newSubnetID       = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
@@ -73,35 +71,11 @@ var (
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
 	newParticipantNode            = "new_participant_node"
-	delegateeNode                 = "permissionlessNode"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
 		{"n0", "n1", "n2", "n3", "n4"},
 		{"n5", "n6", "n7", "n8", "n9"},
-	}
-	testElasticSubnetConfig = rpcpb.ElasticSubnetSpec{
-		SubnetId:                 "",
-		AssetName:                "BLIZZARD",
-		AssetSymbol:              "BRRR",
-		InitialSupply:            240000000,
-		MaxSupply:                720000000,
-		MinConsumptionRate:       100000,
-		MaxConsumptionRate:       120000,
-		MinValidatorStake:        2000,
-		MaxValidatorStake:        3000000,
-		MinStakeDuration:         14 * 24,
-		MaxStakeDuration:         365 * 24,
-		MinDelegationFee:         20000,
-		MinDelegatorStake:        25,
-		MaxValidatorWeightFactor: 5,
-		UptimeRequirement:        0.8 * 1_000_000,
-	}
-
-	testValidatorConfig = rpcpb.PermissionlessStakerSpec{
-		StakedTokenAmount: 2000,
-		StartTime:         time.Now().Add(1 * time.Hour).UTC().Format(server.TimeParseLayout),
-		StakeDuration:     336,
 	}
 )
 
