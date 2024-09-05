@@ -27,7 +27,7 @@ const (
 
 func generateCchainGenesis() ([]byte, error) {
 	cChainGenesisMap := map[string]interface{}{}
-	chainConfig := coreth_params.TestChainConfig
+	chainConfig := *coreth_params.TestChainConfig
 	chainConfig.ChainID = coreth_params.AvalancheLocalChainID
 	cChainGenesisMap["config"] = chainConfig
 	cChainGenesisMap["timestamp"] = upgrade.InitiallyActiveTime.Unix()
