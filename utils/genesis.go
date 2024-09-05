@@ -26,7 +26,7 @@ const (
 
 func generateCchainGenesis() ([]byte, error) {
 	cChainGenesisMap := map[string]interface{}{}
-	cChainGenesisMap["config"] = coreth_params.AvalancheLocalChainConfig
+	cChainGenesisMap["config"] = coreth_params.TestChainConfig
 	cChainGenesisMap["nonce"] = hexa0Str
 	cChainGenesisMap["timestamp"] = hexa0Str
 	cChainGenesisMap["extraData"] = "0x00"
