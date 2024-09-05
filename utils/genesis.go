@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ava-labs/avalanchego/upgrade"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
@@ -26,9 +27,11 @@ const (
 
 func generateCchainGenesis() ([]byte, error) {
 	cChainGenesisMap := map[string]interface{}{}
-	cChainGenesisMap["config"] = coreth_params.TestChainConfig
+	chainConfig := coreth_params.TestChainConfig
+	chainConfig.ChainID = coreth_params.AvalancheLocalChainID
+	cChainGenesisMap["config"] = chainConfig
+	cChainGenesisMap["timestamp"] = upgrade.InitiallyActiveTime.Unix()
 	cChainGenesisMap["nonce"] = hexa0Str
-	cChainGenesisMap["timestamp"] = hexa0Str
 	cChainGenesisMap["extraData"] = "0x00"
 	cChainGenesisMap["gasLimit"] = "0x5f5e100"
 	cChainGenesisMap["difficulty"] = hexa0Str
