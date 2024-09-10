@@ -58,8 +58,6 @@ var (
 	newNode2NodeID    = ""
 	pausedNodeURI     = ""
 	pausedNodeName    = "node1"
-	createdSubnetID   = ""
-	elasticAssetID    = ""
 	newSubnetID       = ""
 	customNodeConfigs = map[string]string{
 		"node1": `{"api-admin-enabled":true}`,
@@ -73,35 +71,11 @@ var (
 	numNodes                      = uint32(5)
 	subnetParticipants            = []string{"node1", "node2", "node3"}
 	newParticipantNode            = "new_participant_node"
-	delegateeNode                 = "permissionlessNode"
 	subnetParticipants2           = []string{"node1", "node2", newParticipantNode}
 	existingNodes                 = []string{"node1", "node2", "node3", "node4", "node5"}
 	disjointNewSubnetParticipants = [][]string{
 		{"n0", "n1", "n2", "n3", "n4"},
 		{"n5", "n6", "n7", "n8", "n9"},
-	}
-	testElasticSubnetConfig = rpcpb.ElasticSubnetSpec{
-		SubnetId:                 "",
-		AssetName:                "BLIZZARD",
-		AssetSymbol:              "BRRR",
-		InitialSupply:            240000000,
-		MaxSupply:                720000000,
-		MinConsumptionRate:       100000,
-		MaxConsumptionRate:       120000,
-		MinValidatorStake:        2000,
-		MaxValidatorStake:        3000000,
-		MinStakeDuration:         14 * 24,
-		MaxStakeDuration:         365 * 24,
-		MinDelegationFee:         20000,
-		MinDelegatorStake:        25,
-		MaxValidatorWeightFactor: 5,
-		UptimeRequirement:        0.8 * 1_000_000,
-	}
-
-	testValidatorConfig = rpcpb.PermissionlessStakerSpec{
-		StakedTokenAmount: 2000,
-		StartTime:         time.Now().Add(1 * time.Hour).UTC().Format(server.TimeParseLayout),
-		StakeDuration:     336,
 	}
 )
 
@@ -927,107 +901,6 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 		})
 	})
 
-	ginkgo.It("transform subnet to elastic subnets", func() {
-		var elasticSubnetID string
-		ginkgo.By("add 1 subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			resp, err := cli.CreateSubnets(ctx, []*rpcpb.SubnetSpec{{}})
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(resp.SubnetIds)).Should(gomega.Equal(1))
-			gomega.Ω(len(resp.ClusterInfo.Subnets)).Should(gomega.Equal(5))
-			createdSubnetID = resp.SubnetIds[0]
-		})
-		ginkgo.By("check expected non elastic status", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
-			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(false))
-			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(ids.Empty.String()))
-		})
-		ginkgo.By("transform 1 subnet to elastic subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			testElasticSubnetConfig.SubnetId = createdSubnetID
-			response, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
-			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(response.TxIds)).Should(gomega.Equal(1))
-			gomega.Ω(len(response.AssetIds)).Should(gomega.Equal(1))
-			elasticAssetID = response.AssetIds[0]
-		})
-		ginkgo.By("check expected elastic status", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
-			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
-			gomega.Ω(subnetInfo.ElasticSubnetId).ShouldNot(gomega.Equal(ids.Empty.String()))
-			elasticSubnetID = subnetInfo.ElasticSubnetId
-		})
-		ginkgo.By("transforming a subnet with same subnetID to elastic subnet will fail", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			testElasticSubnetConfig.SubnetId = createdSubnetID
-			_, err := cli.TransformElasticSubnets(ctx, []*rpcpb.ElasticSubnetSpec{&testElasticSubnetConfig})
-			gomega.Ω(err).Should(gomega.HaveOccurred())
-		})
-		ginkgo.By("save snapshot with elastic info", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.SaveSnapshot(ctx, "elastic_snapshot", false)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("load snapshot with elastic info", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			_, err := cli.LoadSnapshot(ctx, "elastic_snapshot", false)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-		ginkgo.By("check expected elastic status", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			status, err := cli.Status(ctx)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-			subnetInfo := status.ClusterInfo.Subnets[createdSubnetID]
-			gomega.Ω(subnetInfo.IsElastic).Should(gomega.Equal(true))
-			gomega.Ω(subnetInfo.ElasticSubnetId).Should(gomega.Equal(elasticSubnetID))
-		})
-		ginkgo.By("remove snapshot with elastic info", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_, err := cli.RemoveSnapshot(ctx, "elastic_snapshot")
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-	})
-
-	ginkgo.It("add permissionless validator to elastic subnets", func() {
-		ginkgo.By("adding a permissionless validator to elastic subnet", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			testValidatorConfig.SubnetId = createdSubnetID
-			testValidatorConfig.AssetId = elasticAssetID
-			testValidatorConfig.NodeName = delegateeNode
-			_, err := cli.AddPermissionlessValidator(ctx, []*rpcpb.PermissionlessStakerSpec{&testValidatorConfig})
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-	})
-
-	ginkgo.It("add permissionless delegator to elastic subnets", func() {
-		ginkgo.By("adding a permissionless delegator to permissionless validator", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			testValidatorConfig.SubnetId = createdSubnetID
-			testValidatorConfig.AssetId = elasticAssetID
-			testValidatorConfig.NodeName = delegateeNode
-			testValidatorConfig.StakedTokenAmount = 35
-			_, err := cli.AddPermissionlessDelegator(ctx, []*rpcpb.PermissionlessStakerSpec{&testValidatorConfig})
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-	})
-
 	ginkgo.It("snapshots + blockchain creation", func() {
 		var originalUris []string
 		var originalSubnets []string
@@ -1037,7 +910,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			originalUris, err = cli.URIs(ctx)
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(len(originalUris)).Should(gomega.Equal(8))
+			gomega.Ω(len(originalUris)).Should(gomega.Equal(7))
 		})
 		ginkgo.By("get original subnets", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -1045,7 +918,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 			numSubnets := len(status.ClusterInfo.Subnets)
-			gomega.Ω(numSubnets).Should(gomega.Equal(5))
+			gomega.Ω(numSubnets).Should(gomega.Equal(4))
 			originalSubnets = maps.Keys(status.ClusterInfo.Subnets)
 		})
 		ginkgo.By("check there are no snapshots", func() {
