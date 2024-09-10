@@ -4,6 +4,6 @@
   "health-check-frequency":"2s",
   "api-admin-enabled":true,
   "index-enabled":true,
-  "log-display-level":"ERROR",
-  "log-level": "ERROR"
+  "log-display-level":"INFO",
+  "log-level": "INFO"
 }

@@ -112,6 +112,7 @@ func verifyProtocol(
 		[]uint32{},
 		knownPeersFilter,
 		knownPeersSalt,
+		false,
 	)
 	if err != nil {
 		errCh <- err

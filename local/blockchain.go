@@ -43,6 +43,7 @@ import (
 	"github.com/ava-labs/avalanchego/wallet/chain/p"
 	pbuilder "github.com/ava-labs/avalanchego/wallet/chain/p/builder"
 	psigner "github.com/ava-labs/avalanchego/wallet/chain/p/signer"
+	pwallet "github.com/ava-labs/avalanchego/wallet/chain/p/wallet"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"go.uber.org/zap"
@@ -826,8 +827,8 @@ func (ln *localNetwork) restartNodes(
 type wallet struct {
 	addr     ids.ShortID
 	pCTX     *pbuilder.Context
-	pWallet  p.Wallet
-	pBackend p.Backend
+	pWallet  pwallet.Wallet
+	pBackend pwallet.Backend
 	pBuilder pbuilder.Builder
 	pSigner  psigner.Signer
 	xCTX     *xbuilder.Context
@@ -879,10 +880,10 @@ func newWallet(
 	var w wallet
 	w.addr = privateKey.PublicKey().Address()
 	w.pCTX = pCTX
-	w.pBackend = p.NewBackend(pCTX, pUTXOs, subnetOwners)
+	w.pBackend = pwallet.NewBackend(pCTX, pUTXOs, subnetOwners)
 	w.pBuilder = pbuilder.New(kc.Addresses(), pCTX, w.pBackend)
 	w.pSigner = psigner.New(kc, w.pBackend)
-	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+	w.pWallet = pwallet.New(p.NewClient(pClient, w.pBackend), w.pBuilder, w.pSigner)
 
 	xBackend := x.NewBackend(xCTX, xUTXOs)
 	xBuilder := xbuilder.New(kc.Addresses(), xCTX, xBackend)
@@ -895,7 +896,7 @@ func newWallet(
 
 func (w *wallet) reload(uri string) {
 	pClient := platformvm.NewClient(uri)
-	w.pWallet = p.NewWallet(w.pBuilder, w.pSigner, pClient, w.pBackend)
+	w.pWallet = pwallet.New(p.NewClient(pClient, w.pBackend), w.pBuilder, w.pSigner)
 }
 
 // add all nodes as validators of the primary network, in case they are not
