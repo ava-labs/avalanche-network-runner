@@ -93,25 +93,27 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath   string
-	numNodes             uint32
-	pluginDir            string
-	globalNodeConfig     string
-	addNodeConfig        string
-	blockchainSpecsStr   string
-	customNodeConfigs    string
-	rootDataDir          string
-	chainConfigs         string
-	upgradeConfigs       string
-	subnetConfigs        string
-	reassignPortsIfUsed  bool
-	dynamicPorts         bool
-	networkID            uint32
-	force                bool
-	inPlace              bool
-	fuji                 bool
-	walletPrivateKey     string
-	walletPrivateKeyPath string
+	avalancheGoBinPath       string
+	numNodes                 uint32
+	pluginDir                string
+	globalNodeConfig         string
+	addNodeConfig            string
+	blockchainSpecsStr       string
+	customNodeConfigs        string
+	rootDataDir              string
+	chainConfigs             string
+	upgradeConfigs           string
+	subnetConfigs            string
+	reassignPortsIfUsed      bool
+	dynamicPorts             bool
+	networkID                uint32
+	force                    bool
+	inPlace                  bool
+	fuji                     bool
+	customNetworkEndpoint    string
+	customNetworkGenesisPath string
+	walletPrivateKey         string
+	walletPrivateKeyPath     string
 )
 
 func setLogs() error {
@@ -275,6 +277,18 @@ func newStartCommand() *cobra.Command {
 		"true to set all nodes to join fuji network",
 	)
 	cmd.PersistentFlags().StringVar(
+		&customNetworkEndpoint,
+		"custom-network-endpoint",
+		"",
+		"[optional] custom network endpoint",
+	)
+	cmd.PersistentFlags().StringVar(
+		&customNetworkGenesisPath,
+		"custom-network-genesis-path",
+		"",
+		"[optional] custom network genesis path",
+	)
+	cmd.PersistentFlags().StringVar(
 		&walletPrivateKey,
 		"wallet-private-key",
 		"",
@@ -332,8 +346,22 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
-		client.WithNetworkID(networkID),
 	}
+
+	if customNetworkEndpoint != "" {
+		networkID, err = utils.GetNetworkIDFromEndpoint(customNetworkEndpoint)
+		if err != nil {
+			return fmt.Errorf("failed to get network ID from custom networkendpoint: %w", err)
+		}
+		ux.Print(log, logging.Green.Wrap("custom network endpoint provided: %s"), customNetworkEndpoint)
+		opts = append(opts, client.WithCustomNetworkEndpoint(customNetworkEndpoint))
+	}
+	if customNetworkGenesisPath != "" {
+		ux.Print(log, logging.Green.Wrap("custom network genesis path provided: %s"), customNetworkGenesisPath)
+		opts = append(opts, client.WithCustomNetworkGenesisPath(customNetworkGenesisPath))
+	}
+
+	opts = append(opts, client.WithNetworkID(networkID))
 
 	if err := setWalletPrivateKeyOptions(&opts); err != nil {
 		return err

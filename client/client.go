@@ -464,23 +464,25 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes            uint32
-	execPath            string
-	trackSubnets        string
-	globalNodeConfig    string
-	rootDataDir         string
-	logRootDir          string
-	pluginDir           string
-	blockchainSpecs     []*rpcpb.BlockchainSpec
-	customNodeConfigs   map[string]string
-	numSubnets          uint32
-	chainConfigs        map[string]string
-	upgradeConfigs      map[string]string
-	subnetConfigs       map[string]string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
-	walletPrivateKey    string
+	numNodes                 uint32
+	execPath                 string
+	trackSubnets             string
+	globalNodeConfig         string
+	rootDataDir              string
+	logRootDir               string
+	pluginDir                string
+	blockchainSpecs          []*rpcpb.BlockchainSpec
+	customNodeConfigs        map[string]string
+	numSubnets               uint32
+	chainConfigs             map[string]string
+	upgradeConfigs           map[string]string
+	subnetConfigs            map[string]string
+	reassignPortsIfUsed      bool
+	dynamicPorts             bool
+	networkID                uint32
+	walletPrivateKey         string
+	customNetworkEndpoint    string
+	customNetworkGenesisPath string
 }
 
 type OpOption func(*Op)
@@ -604,6 +606,17 @@ func WithWalletPrivateKey(walletPrivateKey string) OpOption {
 	}
 }
 
+func WithCustomNetworkEndpoint(customNetworkEndpoint string) OpOption {
+	return func(op *Op) {
+		op.customNetworkEndpoint = customNetworkEndpoint
+	}
+}
+
+func WithCustomNetworkGenesisPath(customNetworkGenesisPath string) OpOption {
+	return func(op *Op) {
+		op.customNetworkGenesisPath = customNetworkGenesisPath
+	}
+}
 func isClientCanceled(ctxErr error, err error) bool {
 	if ctxErr != nil {
 		return true
