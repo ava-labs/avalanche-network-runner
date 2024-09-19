@@ -349,6 +349,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		dynamicPorts:        req.GetDynamicPorts(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
+		genesisPath:         req.CustomNetworkGenesisPath,
 	})
 	if err != nil {
 		return nil, err
@@ -1360,6 +1361,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
+		genesisPath:         req.CustomNetworkGenesisPath,
 	})
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,6 +77,8 @@ func NewNetworkFromSnapshot(
 	redirectStderr bool,
 	inPlace bool,
 	walletPrivateKey string,
+	genesisPath string,
+	beaconConfig map[ids.ID]netip.AddrPort,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
@@ -99,6 +102,8 @@ func NewNetworkFromSnapshot(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
+		genesisPath,
+		beaconConfig,
 	)
 	if err != nil {
 		return net, err

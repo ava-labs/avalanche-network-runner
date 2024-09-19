@@ -105,6 +105,10 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// binary path to use per default
 	binaryPath string
+	// custom network endpoint if defined
+	endpoint string
+	// custom genesis path if defined
+	genesisPath string
 	// chain config files to use per default
 	chainConfigFiles map[string]string
 	// upgrade config files to use per default
@@ -171,6 +175,7 @@ func NewNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
+	genesisPath string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -188,6 +193,7 @@ func NewNetwork(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
+		genesisPath,
 	)
 	if err != nil {
 		return net, err
@@ -209,6 +215,8 @@ func newNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
+	genesisPath string,
+	beaconSet beacon.Set,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -240,7 +248,7 @@ func newNetwork(
 		nodes:                    map[string]*localNode{},
 		onStopCh:                 make(chan struct{}),
 		log:                      log,
-		bootstraps:               beacon.NewSet(),
+		bootstraps:               beaconSet,
 		newAPIClientF:            newAPIClientF,
 		nodeProcessCreator:       nodeProcessCreator,
 		rootDir:                  rootDir,
@@ -252,6 +260,7 @@ func newNetwork(
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
 		walletPrivateKey:         walletPrivateKey,
+		genesisPath:              genesisPath,
 	}
 	return net, nil
 }
@@ -278,11 +287,22 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID)
+	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "")
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr, "")
+	return NewNetwork(
+		log,
+		config,
+		"",
+		"",
+		"",
+		reassignPortsIfUsed,
+		redirectStdout,
+		redirectStderr,
+		"",
+		"",
+	)
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
@@ -329,7 +349,7 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32) (network.Config, error) {
+func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32, genesisPath string) (network.Config, error) {
 	if networkID == 0 {
 		networkID = constants.DefaultNetworkID
 	}
@@ -380,9 +400,20 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		SubnetConfigFiles:  map[string]string{},
 	}
 	if utils.IsCustomNetwork(networkID) {
-		genesis, err := utils.GenerateGenesis(networkID, nodeKeys)
-		if err != nil {
-			return network.Config{}, err
+		genesis := []byte{}
+		if len(genesisPath) != 0 {
+			if _, err := os.Stat(genesisPath); err != nil {
+				return network.Config{}, fmt.Errorf("could not find genesis file: %w", err)
+			}
+			genesis, err = os.ReadFile(genesisPath)
+			if err != nil {
+				return network.Config{}, fmt.Errorf("could not read genesis file: %w", err)
+			}
+		} else {
+			genesis, err = utils.GenerateGenesis(networkID, nodeKeys)
+			if err != nil {
+				return network.Config{}, err
+			}
 		}
 		cfg.Genesis = string(genesis)
 		cfg.ChainConfigFiles = map[string]string{
@@ -393,8 +424,8 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 }
 
 // NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string, networkID uint32) (network.Config, error) {
-	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes, networkID)
+func NewDefaultConfig(binaryPath string, networkID uint32, genesisPath string) (network.Config, error) {
+	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes, networkID, genesisPath)
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {

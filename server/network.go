@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -104,6 +105,8 @@ type localNetworkOptions struct {
 	upgradeConfigs map[string]string
 	// subnet configs to be added to the network, besides the ones in default config, or saved snapshot
 	subnetConfigs map[string]string
+	// bootstrap config for custom networks
+	beaconConfig map[ids.ID]netip.AddrPort
 
 	snapshotsDir string
 
@@ -116,6 +119,8 @@ type localNetworkOptions struct {
 	networkID uint32
 	// wallet private key used. IF nil, genesis ewoq key will be used
 	walletPrivateKey string
+	// custom network
+	genesisPath string
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -149,7 +154,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // TODO document.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
-	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes, lc.options.networkID)
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes, lc.options.networkID, lc.options.genesisPath)
 	if err != nil {
 		return err
 	}
@@ -252,7 +257,18 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.logRootDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed, lc.options.redirectNodesOutput, lc.options.redirectNodesOutput, lc.options.walletPrivateKey)
+	nw, err := local.NewNetwork(
+		lc.log,
+		lc.cfg,
+		lc.options.rootDataDir,
+		lc.options.logRootDir,
+		lc.options.snapshotsDir,
+		lc.options.reassignPortsIfUsed,
+		lc.options.redirectNodesOutput,
+		lc.options.redirectNodesOutput,
+		lc.options.walletPrivateKey,
+		lc.options.genesisPath,
+	)
 	if err != nil {
 		return err
 	}
@@ -580,6 +596,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		lc.options.redirectNodesOutput,
 		inPlace,
 		lc.options.walletPrivateKey,
+		lc.options.genesisPath,
 	)
 	if err != nil {
 		return err
