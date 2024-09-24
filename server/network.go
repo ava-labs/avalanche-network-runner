@@ -138,7 +138,6 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &localNetwork{
 		log:                 logger,
 		execPath:            opts.execPath,
@@ -227,6 +226,8 @@ func (lc *localNetwork) createConfig() error {
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
 		}
+
+		cfg.BeaconConfig = lc.options.beaconConfig
 	}
 
 	lc.cfg = cfg

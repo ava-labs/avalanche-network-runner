@@ -284,13 +284,13 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] custom network genesis path",
 	)
-	cmd.PersistentFlags().StringArrayVar(
+	cmd.PersistentFlags().StringSliceVar(
 		&customNetworkBootstrapNodeIDs,
 		"custom-network-bootstrap-node-ids",
 		[]string{},
 		"[optional] custom network bootstrap node ids (comma-separated)",
 	)
-	cmd.PersistentFlags().StringArrayVar(
+	cmd.PersistentFlags().StringSliceVar(
 		&customNetworkBootstrapNodeIPPortPairs,
 		"custom-network-bootstrap-node-ip-ports",
 		[]string{},
