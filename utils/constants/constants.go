@@ -2,8 +2,6 @@
 // See the file LICENSE for licensing terms.
 package constants
 
-import "time"
-
 const (
 	LogNameMain            = "main"
 	LogNameControl         = "control"
@@ -15,5 +13,4 @@ const (
 	DefaultNetworkID       = 1337
 	DefaultNumNodes        = 5
 	FirstAPIPort           = 9650
-	HttpRequestTimeout     = 30 * time.Second
 )

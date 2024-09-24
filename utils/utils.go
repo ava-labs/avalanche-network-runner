@@ -178,7 +178,9 @@ func IsCustomNetwork(networkID uint32) bool {
 func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) beacon.Set {
 	set := beacon.NewSet()
 	for id, addr := range beaconMap {
-		set.Add(beacon.New(id, addr))
+		if err := set.Add(beacon.New(id, addr)); err != nil {
+			continue
+		}
 	}
 	return set
 }

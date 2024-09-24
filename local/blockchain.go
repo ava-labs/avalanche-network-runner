@@ -98,8 +98,8 @@ func (ln *localNetwork) getNode() node.Node {
 }
 
 func (ln *localNetwork) getMinValidatorWeight() uint64 {
-	// special case for custom network with networkID not in the list
-	if ln.endpoint != "" {
+	// special case for custom networks with networkID not in the list with passed genesis filepath
+	if ln.genesisPath != "" {
 		return genesis.FujiParams.MinValidatorStake // we treat custom network as fuji for now
 	}
 	switch ln.networkID {

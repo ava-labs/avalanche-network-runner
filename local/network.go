@@ -105,8 +105,6 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// binary path to use per default
 	binaryPath string
-	// custom network endpoint if defined
-	endpoint string
 	// custom genesis path if defined
 	genesisPath string
 	// chain config files to use per default
@@ -401,7 +399,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		SubnetConfigFiles:  map[string]string{},
 	}
 	if utils.IsCustomNetwork(networkID) {
-		genesis := []byte{}
+		var genesis []byte
 		if len(genesisPath) != 0 {
 			if _, err := os.Stat(genesisPath); err != nil {
 				return network.Config{}, fmt.Errorf("could not find genesis file: %w", err)
