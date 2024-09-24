@@ -338,6 +338,7 @@ func setCustomNetworkOptions(opts *[]client.OpOption) error {
 
 	return nil
 }
+
 func setWalletPrivateKeyOptions(opts *[]client.OpOption) error {
 	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
 		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")

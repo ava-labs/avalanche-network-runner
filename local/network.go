@@ -194,6 +194,7 @@ func NewNetwork(
 		redirectStderr,
 		walletPrivateKey,
 		genesisPath,
+		utils.BeaconMapToSet(networkConfig.BeaconConfig),
 	)
 	if err != nil {
 		return net, err

@@ -106,7 +106,7 @@ type localNetworkOptions struct {
 	// subnet configs to be added to the network, besides the ones in default config, or saved snapshot
 	subnetConfigs map[string]string
 	// bootstrap config for custom networks
-	beaconConfig map[ids.ID]netip.AddrPort
+	beaconConfig map[ids.NodeID]netip.AddrPort
 
 	snapshotsDir string
 
@@ -597,6 +597,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		inPlace,
 		lc.options.walletPrivateKey,
 		lc.options.genesisPath,
+		lc.options.beaconConfig,
 	)
 	if err != nil {
 		return err

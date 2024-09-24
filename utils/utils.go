@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/netip"
 	"os"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -171,4 +173,12 @@ func IsPublicNetwork(networkID uint32) bool {
 
 func IsCustomNetwork(networkID uint32) bool {
 	return !IsPublicNetwork(networkID) && networkID != constants.LocalID
+}
+
+func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) beacon.Set {
+	set := beacon.NewSet()
+	for id, addr := range beaconMap {
+		set.Add(beacon.New(id, addr))
+	}
+	return set
 }
