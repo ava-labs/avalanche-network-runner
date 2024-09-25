@@ -158,6 +158,9 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if len(ret.customNetworkBootstrapNodeIDs) > 0 {
 		req.CustomNetworkBootstrapNodeIds = ret.customNetworkBootstrapNodeIDs
 	}
+	if ret.upgradePath != "" {
+		req.UpgradePath = ret.upgradePath
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	req.DynamicPorts = &ret.dynamicPorts
 
@@ -503,6 +506,7 @@ type Op struct {
 	customNetworkGenesisPath              string
 	customNetworkBootstrapNodeIDs         []string
 	customNetworkBootstrapNodeIPPortPairs []string
+	upgradePath                           string
 }
 
 type OpOption func(*Op)
@@ -641,6 +645,12 @@ func WithCustomNetworkBootstrapNodeIDs(customNetworkBootstrapNodeIDs []string) O
 func WithCustomNetworkBootstrapNodeIPPortPairs(customNetworkBootstrapNodeIPPortPairs []string) OpOption {
 	return func(op *Op) {
 		op.customNetworkBootstrapNodeIPPortPairs = customNetworkBootstrapNodeIPPortPairs
+	}
+}
+
+func WithUpgradePath(upgradePath string) OpOption {
+	return func(op *Op) {
+		op.upgradePath = upgradePath
 	}
 }
 

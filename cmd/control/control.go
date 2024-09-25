@@ -116,6 +116,7 @@ var (
 	customNetworkBootstrapNodeIPPortPairs []string
 	walletPrivateKey                      string
 	walletPrivateKeyPath                  string
+	upgradePath                           string
 )
 
 func setLogs() error {
@@ -308,6 +309,12 @@ func newStartCommand() *cobra.Command {
 		"",
 		"[optional] funding wallet private key path",
 	)
+	cmd.PersistentFlags().StringVar(
+		&upgradePath,
+		"upgrade-path",
+		"",
+		"[optional] avalanchego upgrade path",
+	)
 	return cmd
 }
 
@@ -382,6 +389,10 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
+	}
+
+	if upgradePath != "" {
+		opts = append(opts, client.WithUpgradePath(upgradePath))
 	}
 
 	if customNetworkGenesisPath != "" {

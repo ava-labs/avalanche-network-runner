@@ -46,6 +46,7 @@ const (
 	stakingCertFileName       = "staker.crt"
 	stakingSigningKeyFileName = "signer.key"
 	genesisFileName           = "genesis.json"
+	upgradeFileName           = "upgrade.json"
 	stopTimeout               = 30 * time.Second
 	healthCheckFreq           = 3 * time.Second
 	snapshotPrefix            = "anr-snapshot-"
@@ -81,6 +82,9 @@ type localNetwork struct {
 	// This network's genesis file.
 	// Must not be nil.
 	genesis []byte
+	// This network's upgrade file.
+	// May be nil
+	upgrade []byte
 	// Used to create a new API client
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
@@ -286,7 +290,7 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "")
+	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +352,13 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32, genesisPath string) (network.Config, error) {
+func NewDefaultConfigNNodes(
+	binaryPath string,
+	numNodes uint32,
+	networkID uint32,
+	genesisPath string,
+	upgradePath string,
+) (network.Config, error) {
 	if networkID == 0 {
 		networkID = constants.DefaultNetworkID
 	}
@@ -398,6 +408,13 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
 	}
+	if len(upgradePath) != 0 {
+		upgrade, err := os.ReadFile(upgradePath)
+		if err != nil {
+			return network.Config{}, fmt.Errorf("could not read upgrade file: %w", err)
+		}
+		cfg.Upgrade = string(upgrade)
+	}
 	if utils.IsCustomNetwork(networkID) {
 		var genesis []byte
 		if len(genesisPath) != 0 {
@@ -423,8 +440,19 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 }
 
 // NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string, networkID uint32, genesisPath string) (network.Config, error) {
-	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes, networkID, genesisPath)
+func NewDefaultConfig(
+	binaryPath string,
+	networkID uint32,
+	genesisPath string,
+	upgradePath string,
+) (network.Config, error) {
+	return NewDefaultConfigNNodes(
+		binaryPath,
+		constants.DefaultNumNodes,
+		networkID,
+		genesisPath,
+		upgradePath,
+	)
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
@@ -488,6 +516,8 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 			return fmt.Errorf("error adding node %s: %w", nodeConfig.Name, err)
 		}
 	}
+
+	ln.upgrade = []byte(networkConfig.Upgrade)
 
 	return nil
 }
@@ -1167,7 +1197,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.genesis, dataDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.genesis, ln.upgrade, dataDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}
