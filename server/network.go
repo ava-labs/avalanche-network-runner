@@ -160,6 +160,7 @@ func (lc *localNetwork) createConfig() error {
 		lc.options.networkID,
 		lc.options.genesisPath,
 		lc.options.upgradePath,
+		lc.options.beaconConfig,
 	)
 	if err != nil {
 		return err
@@ -233,8 +234,6 @@ func (lc *localNetwork) createConfig() error {
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
 		}
-
-		cfg.BeaconConfig = lc.options.beaconConfig
 	}
 
 	lc.cfg = cfg

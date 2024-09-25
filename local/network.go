@@ -290,7 +290,7 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "")
+	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +358,7 @@ func NewDefaultConfigNNodes(
 	networkID uint32,
 	genesisPath string,
 	upgradePath string,
+	beaconConfig map[ids.NodeID]netip.AddrPort,
 ) (network.Config, error) {
 	if networkID == 0 {
 		networkID = constants.DefaultNetworkID
@@ -396,7 +397,7 @@ func NewDefaultConfigNNodes(
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 		port += 2
 	}
-	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) {
+	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) && len(beaconConfig) == 0 {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
 	cfg := network.Config{
@@ -407,6 +408,7 @@ func NewDefaultConfigNNodes(
 		ChainConfigFiles:   map[string]string{},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
+		BeaconConfig:       beaconConfig,
 	}
 	if len(upgradePath) != 0 {
 		upgrade, err := os.ReadFile(upgradePath)
@@ -445,6 +447,7 @@ func NewDefaultConfig(
 	networkID uint32,
 	genesisPath string,
 	upgradePath string,
+	beaconConfig map[ids.NodeID]netip.AddrPort,
 ) (network.Config, error) {
 	return NewDefaultConfigNNodes(
 		binaryPath,
@@ -452,6 +455,7 @@ func NewDefaultConfig(
 		networkID,
 		genesisPath,
 		upgradePath,
+		beaconConfig,
 	)
 }
 
@@ -477,6 +481,8 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 			}
 		}
 	}
+
+	ln.upgrade = []byte(networkConfig.Upgrade)
 
 	// save node defaults
 	ln.flags = networkConfig.Flags
@@ -516,8 +522,6 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 			return fmt.Errorf("error adding node %s: %w", nodeConfig.Name, err)
 		}
 	}
-
-	ln.upgrade = []byte(networkConfig.Upgrade)
 
 	return nil
 }
