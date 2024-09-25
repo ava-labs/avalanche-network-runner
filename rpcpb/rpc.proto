@@ -374,6 +374,9 @@ message StartRequest {
   // custom network bootstrap data
   repeated string custom_network_bootstrap_node_ids = 18;
   repeated string custom_network_bootstrap_ip_port_pairs = 19;
+
+  // upgrade path
+  string upgrade_path = 20;
   
 }
 

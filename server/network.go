@@ -121,6 +121,7 @@ type localNetworkOptions struct {
 	walletPrivateKey string
 	// custom network
 	genesisPath string
+	upgradePath string
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -153,7 +154,14 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // TODO document.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
-	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes, lc.options.networkID, lc.options.genesisPath)
+	cfg, err := local.NewDefaultConfigNNodes(
+		lc.options.execPath,
+		lc.options.numNodes,
+		lc.options.networkID,
+		lc.options.genesisPath,
+		lc.options.upgradePath,
+		lc.options.beaconConfig,
+	)
 	if err != nil {
 		return err
 	}
@@ -226,8 +234,6 @@ func (lc *localNetwork) createConfig() error {
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
 		}
-
-		cfg.BeaconConfig = lc.options.beaconConfig
 	}
 
 	lc.cfg = cfg

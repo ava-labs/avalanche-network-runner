@@ -158,7 +158,7 @@ func (ln *localNetwork) persistNetwork() error {
 	// save network conf
 	networkConfig := network.Config{
 		NetworkID:          ln.networkID,
-		Genesis:            string(ln.genesis),
+		Genesis:            string(ln.genesisData),
 		Flags:              networkConfigFlags,
 		NodeConfigs:        nodeConfigs,
 		BinaryPath:         ln.binaryPath,

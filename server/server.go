@@ -364,6 +364,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		snapshotsDir:        s.cfg.SnapshotsDir,
 		genesisPath:         req.CustomNetworkGenesisPath,
 		beaconConfig:        beaconConfig,
+		upgradePath:         req.UpgradePath,
 	})
 	if err != nil {
 		return nil, err

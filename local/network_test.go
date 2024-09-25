@@ -238,7 +238,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 	require.Len(names, 1)
 
 	// Assert that the network's genesis was set
-	require.EqualValues(networkConfig.Genesis, string(net.genesis))
+	require.EqualValues(networkConfig.Genesis, string(net.genesisData))
 }
 
 // Test that NewNetwork returns an error when
@@ -583,7 +583,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	binaryPath := "pepito"
-	networkConfig, err := NewDefaultConfig(binaryPath, 0, "")
+	networkConfig, err := NewDefaultConfig(binaryPath, 0, "", "", nil)
 	require.NoError(err)
 	net, err := newNetwork(
 		logging.NoLog{},
@@ -1104,7 +1104,7 @@ func emptyNetworkConfig() (network.Config, error) {
 // keys and certificates.
 func testNetworkConfig(t *testing.T) network.Config {
 	require := require.New(t)
-	networkConfig, err := NewDefaultConfigNNodes("pepito", 3, 0, "")
+	networkConfig, err := NewDefaultConfigNNodes("pepito", 3, 0, "", "", nil)
 	require.NoError(err)
 	for i := 0; i < 3; i++ {
 		networkConfig.NodeConfigs[i].Name = fmt.Sprintf("node%d", i)
@@ -1371,7 +1371,7 @@ func TestWriteFiles(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			flags, err := writeFiles(tt.genesis, tmpDir, &tt.nodeConfig)
+			flags, err := writeFiles(tt.genesis, nil, tmpDir, &tt.nodeConfig)
 			if tt.shouldErr {
 				require.Error(err)
 				return

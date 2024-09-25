@@ -58,6 +58,8 @@ type Config struct {
 	SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
 	// Beacon config used for all nodes, can be empty
 	BeaconConfig map[ids.NodeID]netip.AddrPort `json:"beaconConfig"`
+	// Upgrade file used for all nodes, can be empty
+	Upgrade string `json:"upgrade"`
 }
 
 // Validate returns an error if this config is invalid
