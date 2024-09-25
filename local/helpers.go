@@ -87,8 +87,6 @@ func writeFiles(
 			pathKey:   config.UpgradeFileKey,
 			contents:  upgrade,
 		})
-	} else {
-		return nil, fmt.Errorf("DEMONIOS")
 	}
 	flags := map[string]string{}
 	for _, f := range files {
