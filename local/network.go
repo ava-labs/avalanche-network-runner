@@ -81,10 +81,10 @@ type localNetwork struct {
 	networkID uint32
 	// This network's genesis file.
 	// Must not be nil.
-	genesis []byte
+	genesisData []byte
 	// This network's upgrade file.
 	// May be nil
-	upgrade []byte
+	upgradeData []byte
 	// Used to create a new API client
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
@@ -467,8 +467,8 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	ln.networkID = networkConfig.NetworkID
 	if len(networkConfig.Genesis) != 0 {
-		ln.genesis = []byte(networkConfig.Genesis)
-		genesisNetworkID, err := utils.NetworkIDFromGenesis(ln.genesis)
+		ln.genesisData = []byte(networkConfig.Genesis)
+		genesisNetworkID, err := utils.NetworkIDFromGenesis(ln.genesisData)
 		if err != nil {
 			return err
 		}
@@ -476,13 +476,13 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		case ln.networkID == 0:
 			ln.networkID = genesisNetworkID
 		case ln.networkID != genesisNetworkID:
-			if ln.genesis, err = utils.SetGenesisNetworkID(ln.genesis, ln.networkID); err != nil {
+			if ln.genesisData, err = utils.SetGenesisNetworkID(ln.genesisData, ln.networkID); err != nil {
 				return fmt.Errorf("couldn't set network ID to genesis: %w", err)
 			}
 		}
 	}
 
-	ln.upgrade = []byte(networkConfig.Upgrade)
+	ln.upgradeData = []byte(networkConfig.Upgrade)
 
 	// save node defaults
 	ln.flags = networkConfig.Flags
@@ -1201,7 +1201,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.genesis, ln.upgrade, dataDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.genesisData, ln.upgradeData, dataDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}

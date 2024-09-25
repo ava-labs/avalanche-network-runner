@@ -37,8 +37,8 @@ func getFreePort() (uint16, error) {
 // writeFiles writes the files a node needs on startup.
 // It returns flags used to point to those files.
 func writeFiles(
-	genesis []byte,
-	upgrade []byte,
+	genesisData []byte,
+	upgradeData []byte,
 	nodeRootDir string,
 	nodeConfig *node.Config,
 ) (map[string]string, error) {
@@ -72,20 +72,20 @@ func writeFiles(
 			contents:  decodedStakingSigningKey,
 		},
 	}
-	if len(genesis) > 0 {
+	if len(genesisData) > 0 {
 		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, configsPath, genesisFileName),
 			path:      filepath.Join(nodeRootDir, configsPath, genesisFileName),
 			pathKey:   config.GenesisFileKey,
-			contents:  genesis,
+			contents:  genesisData,
 		})
 	}
-	if len(upgrade) > 0 {
+	if len(upgradeData) > 0 {
 		files = append(files, file{
 			flagValue: filepath.Join(nodeRootDir, configsPath, upgradeFileName),
 			path:      filepath.Join(nodeRootDir, configsPath, upgradeFileName),
 			pathKey:   config.UpgradeFileKey,
-			contents:  upgrade,
+			contents:  upgradeData,
 		})
 	}
 	flags := map[string]string{}
