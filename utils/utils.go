@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/netip"
 	"os"
+	"strings"
 	"time"
 
 	rpcb "github.com/ava-labs/avalanche-network-runner/rpcpb"
@@ -183,4 +184,27 @@ func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) (beacon.Set, error)
 		}
 	}
 	return set, nil
+}
+
+func BeaconMapFromSet(beaconSet beacon.Set) (map[ids.NodeID]netip.AddrPort, error) {
+	beaconMap := make(map[ids.NodeID]netip.AddrPort)
+	beaconIDs := strings.Split(beaconSet.IDsArg(), ",")
+	beaconIPs := strings.Split(beaconSet.IPsArg(), ",")
+
+	if len(beaconIDs) != len(beaconIPs) {
+		return nil, fmt.Errorf("beacon IDs and IPs do not match")
+	}
+
+	for i := 0; i < len(beaconIDs); i++ {
+		beaconID, err := ids.NodeIDFromString(beaconIDs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse beacon ID: %w", err)
+		}
+		beaconIP, err := netip.ParseAddrPort(beaconIPs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse beacon IP: %w", err)
+		}
+		beaconMap[beaconID] = beaconIP
+	}
+	return beaconMap, nil
 }

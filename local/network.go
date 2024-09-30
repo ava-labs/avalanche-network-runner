@@ -176,6 +176,10 @@ func NewNetwork(
 	redirectStderr bool,
 	walletPrivateKey string,
 ) (network.Network, error) {
+	beaconSet, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
+	if err != nil {
+		return nil, err
+	}
 	net, err := newNetwork(
 		log,
 		api.NewAPIClient,
@@ -192,7 +196,7 @@ func NewNetwork(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
-		networkConfig.BeaconConfig,
+		beaconSet,
 	)
 	if err != nil {
 		return net, err
@@ -393,10 +397,6 @@ func NewDefaultConfigNNodes(
 	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) && len(beaconConfig) == 0 {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
-	beaconSet, err := utils.BeaconMapToSet(beaconConfig)
-	if err != nil {
-		return network.Config{}, err
-	}
 	cfg := network.Config{
 		NetworkID:          networkID,
 		Flags:              flags,
@@ -405,7 +405,7 @@ func NewDefaultConfigNNodes(
 		ChainConfigFiles:   map[string]string{},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
-		BeaconConfig:       beaconSet,
+		BeaconConfig:       beaconConfig,
 	}
 	if len(upgradePath) != 0 {
 		upgrade, err := os.ReadFile(upgradePath)
@@ -485,6 +485,12 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
+
+	beaconConf, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
+	if err != nil {
+		return err
+	}
+	ln.bootstraps = beaconConf
 	if ln.chainConfigFiles == nil {
 		ln.chainConfigFiles = map[string]string{}
 	}
@@ -660,7 +666,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !isPausedNode && nodeConfig.IsBeacon {
+	if nodeConfig.IsBeacon && ln.bootstraps.Len() == 0 && !isPausedNode {
 		if err := ln.bootstraps.Add(beacon.New(nodeID, netip.AddrPortFrom(
 			ip,
 			nodeData.p2pPort,

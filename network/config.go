@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanchego/genesis"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
@@ -57,7 +57,7 @@ type Config struct {
 	// Subnet config files to use per default, if not specified in node config
 	SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
 	// Beacon config used for all nodes, can be empty
-	BeaconConfig beacon.Set `json:"beaconConfig"`
+	BeaconConfig map[ids.NodeID]netip.AddrPort `json:"beaconConfig"`
 	// Upgrade file used for all nodes, can be empty
 	Upgrade string `json:"upgrade"`
 }

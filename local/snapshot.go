@@ -158,6 +158,10 @@ func (ln *localNetwork) persistNetwork() error {
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 	}
 	// save network conf
+	beaconConf, err := utils.BeaconMapFromSet(ln.bootstraps)
+	if err != nil {
+		return err
+	}
 	networkConfig := network.Config{
 		NetworkID:          ln.networkID,
 		Genesis:            string(ln.genesisData),
@@ -168,7 +172,7 @@ func (ln *localNetwork) persistNetwork() error {
 		ChainConfigFiles:   ln.chainConfigFiles,
 		UpgradeConfigFiles: ln.upgradeConfigFiles,
 		SubnetConfigFiles:  ln.subnetConfigFiles,
-		BeaconConfig:       ln.bootstraps,
+		BeaconConfig:       beaconConf,
 	}
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {
