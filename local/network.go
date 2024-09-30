@@ -192,7 +192,7 @@ func NewNetwork(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
-		utils.BeaconMapToSet(networkConfig.BeaconConfig),
+		networkConfig.BeaconConfig,
 	)
 	if err != nil {
 		return net, err
@@ -258,7 +258,6 @@ func newNetwork(
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
 		walletPrivateKey:         walletPrivateKey,
-		genesisPath:              genesisPath,
 	}
 	return net, nil
 }
@@ -298,7 +297,6 @@ func NewDefaultNetwork(
 		reassignPortsIfUsed,
 		redirectStdout,
 		redirectStderr,
-		"",
 		"",
 	)
 }
@@ -395,6 +393,10 @@ func NewDefaultConfigNNodes(
 	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) && len(beaconConfig) == 0 {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
+	beaconSet, err := utils.BeaconMapToSet(beaconConfig)
+	if err != nil {
+		return network.Config{}, err
+	}
 	cfg := network.Config{
 		NetworkID:          networkID,
 		Flags:              flags,
@@ -403,7 +405,7 @@ func NewDefaultConfigNNodes(
 		ChainConfigFiles:   map[string]string{},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
-		BeaconConfig:       beaconConfig,
+		BeaconConfig:       beaconSet,
 	}
 	if len(upgradePath) != 0 {
 		upgrade, err := os.ReadFile(upgradePath)

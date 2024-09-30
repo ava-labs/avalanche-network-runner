@@ -332,10 +332,10 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		RootDataDir: rootDataDir,
 	}
 	beaconConfig := map[ids.NodeID]netip.AddrPort{}
-	for index, id := range req.CustomNetworkBootstrapNodeIds {
-		addrPort, err := netip.ParseAddrPort(req.CustomNetworkBootstrapIpPortPairs[index])
+	for index, id := range req.BootstrapNodeIds {
+		addrPort, err := netip.ParseAddrPort(req.BootstrapIpPortPairs[index])
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse IP:port pair %s: %w", req.CustomNetworkBootstrapIpPortPairs[index], err)
+			return nil, fmt.Errorf("failed to parse IP:port pair %s: %w", req.BootstrapIpPortPairs[index], err)
 		}
 		nodeID, err := ids.NodeIDFromString(id)
 		if err != nil {
@@ -362,7 +362,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		dynamicPorts:        req.GetDynamicPorts(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
-		genesisPath:         req.CustomNetworkGenesisPath,
+		genesisPath:         req.GenesisPath,
 		beaconConfig:        beaconConfig,
 		upgradePath:         req.UpgradePath,
 	})

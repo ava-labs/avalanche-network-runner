@@ -368,10 +368,10 @@ message StartRequest {
   // wallet private key
   string wallet_private_key = 16;
 
-  // custom network genesis path
+  // genesis path
   string genesis_path = 17;
 
-  // custom network bootstrap data
+  // bootstrap data
   repeated string bootstrap_node_ids = 18;
   repeated string bootstrap_ip_port_pairs = 19;
 
@@ -692,7 +692,7 @@ message LoadSnapshotRequest {
   optional string log_root_dir = 11;
   // wallet private key
   string wallet_private_key = 12;
-  // custom network bootstrap data
+  // bootstrap data
   repeated string bootstrap_node_ids = 13;
   repeated string bootstrap_ip_port_pairs = 14;
   

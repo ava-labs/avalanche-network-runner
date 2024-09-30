@@ -155,7 +155,6 @@ func TestNewNetworkEmpty(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -224,7 +223,6 @@ func TestNewNetworkOneNode(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -257,7 +255,6 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -507,7 +504,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				false,
 				false,
 				"",
-				"",
 				beacon.NewSet(),
 			)
 			require.NoError(err)
@@ -533,7 +529,6 @@ func TestUnhealthyNetwork(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -561,7 +556,6 @@ func TestGeneratedNodesNames(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -595,7 +589,6 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -659,7 +652,6 @@ func TestNetworkFromConfig(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -695,7 +687,6 @@ func TestNetworkNodeOps(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -747,7 +738,6 @@ func TestNodeNotFound(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -793,7 +783,6 @@ func TestStoppedNetwork(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -838,7 +827,6 @@ func TestGetAllNodes(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -897,7 +885,6 @@ func TestFlags(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -932,7 +919,6 @@ func TestFlags(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -965,7 +951,6 @@ func TestFlags(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)
@@ -1419,7 +1404,6 @@ func TestRemoveBeacon(t *testing.T) {
 		false,
 		false,
 		"",
-		"",
 		beacon.NewSet(),
 	)
 	require.NoError(err)
@@ -1482,7 +1466,6 @@ func TestHealthyDuringNetworkStop(t *testing.T) {
 		false,
 		false,
 		false,
-		"",
 		"",
 		beacon.NewSet(),
 	)

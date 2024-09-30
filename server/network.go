@@ -602,6 +602,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		lc.options.redirectNodesOutput,
 		inPlace,
 		lc.options.walletPrivateKey,
+		lc.options.beaconConfig,
 	)
 	if err != nil {
 		return err

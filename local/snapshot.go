@@ -85,6 +85,10 @@ func NewNetworkFromSnapshot(
 		}
 		rootDir = getSnapshotDir(snapshotsDir, snapshotName)
 	}
+	beaconSet, err := utils.BeaconMapToSet(beaconConfig)
+	if err != nil {
+		return nil, err
+	}
 	net, err := newNetwork(
 		log,
 		api.NewAPIClient,
@@ -101,8 +105,7 @@ func NewNetworkFromSnapshot(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
-		genesisPath,
-		utils.BeaconMapToSet(beaconConfig),
+		beaconSet,
 	)
 	if err != nil {
 		return net, err

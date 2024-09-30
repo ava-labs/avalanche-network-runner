@@ -283,19 +283,19 @@ func newStartCommand() *cobra.Command {
 		&genesisPath,
 		"genesis-path",
 		"",
-		"[optional] custom network genesis path",
+		"[optional] genesis path",
 	)
 	cmd.PersistentFlags().StringSliceVar(
 		&bootstrapNodeIDs,
 		"bootstrap-node-ids",
 		[]string{},
-		"[optional] custom network bootstrap node ids (comma-separated)",
+		"[optional] bootstrap node ids (comma-separated)",
 	)
 	cmd.PersistentFlags().StringSliceVar(
 		&bootstrapNodeIPPortPairs,
 		"bootstrap-node-ip-ports",
 		[]string{},
-		"[optional] custom network bootstrap node ip:ports (comma-separated)",
+		"[optional] bootstrap node ip:ports (comma-separated)",
 	)
 	cmd.PersistentFlags().StringVar(
 		&walletPrivateKey,
@@ -326,14 +326,14 @@ func setNetworkOptions(opts *[]client.OpOption) error {
 	if genesisPath != "" {
 		// make sure provided genesis path exists
 		if _, err := os.Stat(genesisPath); err != nil {
-			return fmt.Errorf("custom network genesis path doesn't exist: %w", err)
+			return fmt.Errorf("genesis path doesn't exist: %w", err)
 		}
-		ux.Print(log, logging.Yellow.Wrap("custom network genesis path provided: %s"), genesisPath)
+		ux.Print(log, logging.Yellow.Wrap("genesis path provided: %s"), genesisPath)
 		*opts = append(*opts, client.WithGenesisPath(genesisPath))
 
 		genesisBytes, err := os.ReadFile(genesisPath)
 		if err != nil {
-			return fmt.Errorf("failed to read custom network genesis: %w", err)
+			return fmt.Errorf("failed to read genesis: %w", err)
 		}
 		networkID, err = utils.NetworkIDFromGenesis(genesisBytes)
 		if err != nil {

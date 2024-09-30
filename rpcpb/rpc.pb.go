@@ -695,9 +695,9 @@ type StartRequest struct {
 	LogRootDir *string `protobuf:"bytes,15,opt,name=log_root_dir,json=logRootDir,proto3,oneof" json:"log_root_dir,omitempty"`
 	// wallet private key
 	WalletPrivateKey string `protobuf:"bytes,16,opt,name=wallet_private_key,json=walletPrivateKey,proto3" json:"wallet_private_key,omitempty"`
-	// custom network genesis path
+	// genesis path
 	GenesisPath string `protobuf:"bytes,17,opt,name=genesis_path,json=genesisPath,proto3" json:"genesis_path,omitempty"`
-	// custom network bootstrap data
+	// bootstrap data
 	BootstrapNodeIds     []string `protobuf:"bytes,18,rep,name=bootstrap_node_ids,json=bootstrapNodeIds,proto3" json:"bootstrap_node_ids,omitempty"`
 	BootstrapIpPortPairs []string `protobuf:"bytes,19,rep,name=bootstrap_ip_port_pairs,json=bootstrapIpPortPairs,proto3" json:"bootstrap_ip_port_pairs,omitempty"`
 	// upgrade path
@@ -3690,7 +3690,7 @@ type LoadSnapshotRequest struct {
 	LogRootDir          *string           `protobuf:"bytes,11,opt,name=log_root_dir,json=logRootDir,proto3,oneof" json:"log_root_dir,omitempty"`
 	// wallet private key
 	WalletPrivateKey string `protobuf:"bytes,12,opt,name=wallet_private_key,json=walletPrivateKey,proto3" json:"wallet_private_key,omitempty"`
-	// custom network bootstrap data
+	// bootstrap data
 	BootstrapNodeIds     []string `protobuf:"bytes,13,rep,name=bootstrap_node_ids,json=bootstrapNodeIds,proto3" json:"bootstrap_node_ids,omitempty"`
 	BootstrapIpPortPairs []string `protobuf:"bytes,14,rep,name=bootstrap_ip_port_pairs,json=bootstrapIpPortPairs,proto3" json:"bootstrap_ip_port_pairs,omitempty"`
 }
