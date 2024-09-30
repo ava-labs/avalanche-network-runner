@@ -94,29 +94,29 @@ func NewCommand() *cobra.Command {
 }
 
 var (
-	avalancheGoBinPath                    string
-	numNodes                              uint32
-	pluginDir                             string
-	globalNodeConfig                      string
-	addNodeConfig                         string
-	blockchainSpecsStr                    string
-	customNodeConfigs                     string
-	rootDataDir                           string
-	chainConfigs                          string
-	upgradeConfigs                        string
-	subnetConfigs                         string
-	reassignPortsIfUsed                   bool
-	dynamicPorts                          bool
-	networkID                             uint32
-	force                                 bool
-	inPlace                               bool
-	fuji                                  bool
-	customNetworkGenesisPath              string
-	customNetworkBootstrapNodeIDs         []string
-	customNetworkBootstrapNodeIPPortPairs []string
-	walletPrivateKey                      string
-	walletPrivateKeyPath                  string
-	upgradePath                           string
+	avalancheGoBinPath       string
+	numNodes                 uint32
+	pluginDir                string
+	globalNodeConfig         string
+	addNodeConfig            string
+	blockchainSpecsStr       string
+	customNodeConfigs        string
+	rootDataDir              string
+	chainConfigs             string
+	upgradeConfigs           string
+	subnetConfigs            string
+	reassignPortsIfUsed      bool
+	dynamicPorts             bool
+	networkID                uint32
+	force                    bool
+	inPlace                  bool
+	fuji                     bool
+	genesisPath              string
+	bootstrapNodeIDs         []string
+	bootstrapNodeIPPortPairs []string
+	walletPrivateKey         string
+	walletPrivateKeyPath     string
+	upgradePath              string
 )
 
 func setLogs() error {
@@ -280,19 +280,19 @@ func newStartCommand() *cobra.Command {
 		"true to set all nodes to join fuji network",
 	)
 	cmd.PersistentFlags().StringVar(
-		&customNetworkGenesisPath,
+		&genesisPath,
 		"genesis-path",
 		"",
 		"[optional] custom network genesis path",
 	)
 	cmd.PersistentFlags().StringSliceVar(
-		&customNetworkBootstrapNodeIDs,
+		&bootstrapNodeIDs,
 		"bootstrap-node-ids",
 		[]string{},
 		"[optional] custom network bootstrap node ids (comma-separated)",
 	)
 	cmd.PersistentFlags().StringSliceVar(
-		&customNetworkBootstrapNodeIPPortPairs,
+		&bootstrapNodeIPPortPairs,
 		"bootstrap-node-ip-ports",
 		[]string{},
 		"[optional] custom network bootstrap node ip:ports (comma-separated)",
@@ -318,29 +318,45 @@ func newStartCommand() *cobra.Command {
 	return cmd
 }
 
-func setCustomNetworkOptions(opts *[]client.OpOption) error {
-	if customNetworkGenesisPath != "" {
+func setNetworkOptions(opts *[]client.OpOption) error {
+	if upgradePath != "" {
+		*opts = append(*opts, client.WithUpgradePath(upgradePath))
+	}
+
+	if genesisPath != "" {
 		// make sure provided genesis path exists
-		if _, err := os.Stat(customNetworkGenesisPath); err != nil {
+		if _, err := os.Stat(genesisPath); err != nil {
 			return fmt.Errorf("custom network genesis path doesn't exist: %w", err)
 		}
-		ux.Print(log, logging.Yellow.Wrap("custom network genesis path provided: %s"), customNetworkGenesisPath)
-		*opts = append(*opts, client.WithCustomNetworkGenesisPath(customNetworkGenesisPath))
+		ux.Print(log, logging.Yellow.Wrap("custom network genesis path provided: %s"), genesisPath)
+		*opts = append(*opts, client.WithGenesisPath(genesisPath))
+
+		genesisBytes, err := os.ReadFile(genesisPath)
+		if err != nil {
+			return fmt.Errorf("failed to read custom network genesis: %w", err)
+		}
+		networkID, err = utils.NetworkIDFromGenesis(genesisBytes)
+		if err != nil {
+			return fmt.Errorf("failed to get network ID from custom networkendpoint: %w", err)
+		}
 	}
-	if len(customNetworkBootstrapNodeIDs) != len(customNetworkBootstrapNodeIPPortPairs) {
+
+	*opts = append(*opts, client.WithNetworkID(networkID))
+
+	if len(bootstrapNodeIDs) != len(bootstrapNodeIPPortPairs) {
 		return fmt.Errorf("invalid number of bootstrap node IDs and IP:port pairs provided")
 	}
-	if len(customNetworkBootstrapNodeIDs) > 0 {
+	if len(bootstrapNodeIDs) > 0 {
 		// verify ip:port pairs
-		for _, ipPortPair := range customNetworkBootstrapNodeIPPortPairs {
+		for _, ipPortPair := range bootstrapNodeIPPortPairs {
 			if _, err := netip.ParseAddrPort(ipPortPair); err != nil {
 				return fmt.Errorf("invalid IP:port pair provided: %w", err)
 			}
 		}
-		ux.Print(log, logging.Yellow.Wrap("custom network bootstrap node IDs provided: %s"), customNetworkBootstrapNodeIDs)
-		*opts = append(*opts, client.WithCustomNetworkBootstrapNodeIDs(customNetworkBootstrapNodeIDs))
-		ux.Print(log, logging.Yellow.Wrap("custom network bootstrap node IP:port pairs provided: %s"), customNetworkBootstrapNodeIPPortPairs)
-		*opts = append(*opts, client.WithCustomNetworkBootstrapNodeIPPortPairs(customNetworkBootstrapNodeIPPortPairs))
+		ux.Print(log, logging.Yellow.Wrap("network bootstrap node IDs provided: %s"), bootstrapNodeIDs)
+		*opts = append(*opts, client.WithBootstrapNodeIDs(bootstrapNodeIDs))
+		ux.Print(log, logging.Yellow.Wrap("network bootstrap node IP:port pairs provided: %s"), bootstrapNodeIPPortPairs)
+		*opts = append(*opts, client.WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs))
 	}
 
 	return nil
@@ -391,28 +407,11 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithDynamicPorts(dynamicPorts),
 	}
 
-	if upgradePath != "" {
-		opts = append(opts, client.WithUpgradePath(upgradePath))
-	}
-
-	if customNetworkGenesisPath != "" {
-		genesisBytes, err := os.ReadFile(customNetworkGenesisPath)
-		if err != nil {
-			return fmt.Errorf("failed to read custom network genesis: %w", err)
-		}
-		networkID, err = utils.NetworkIDFromGenesis(genesisBytes)
-		if err != nil {
-			return fmt.Errorf("failed to get network ID from custom networkendpoint: %w", err)
-		}
-	}
-
-	opts = append(opts, client.WithNetworkID(networkID))
-
 	if err := setWalletPrivateKeyOptions(&opts); err != nil {
 		return err
 	}
 
-	if err := setCustomNetworkOptions(&opts); err != nil {
+	if err := setNetworkOptions(&opts); err != nil {
 		return err
 	}
 
@@ -1457,9 +1456,6 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 	}
 
 	if err := setWalletPrivateKeyOptions(&opts); err != nil {
-		return err
-	}
-	if err := setCustomNetworkOptions(&opts); err != nil {
 		return err
 	}
 

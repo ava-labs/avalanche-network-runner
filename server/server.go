@@ -1376,7 +1376,6 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
-		genesisPath:         req.CustomNetworkGenesisPath,
 	})
 	if err != nil {
 		return nil, err

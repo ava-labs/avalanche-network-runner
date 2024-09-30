@@ -175,12 +175,12 @@ func IsCustomNetwork(networkID uint32) bool {
 	return !IsPublicNetwork(networkID) && networkID != constants.LocalID
 }
 
-func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) beacon.Set {
+func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) (beacon.Set, error) {
 	set := beacon.NewSet()
 	for id, addr := range beaconMap {
 		if err := set.Add(beacon.New(id, addr)); err != nil {
-			continue
+			return nil, fmt.Errorf("failed to add beacon to set: %w", err)
 		}
 	}
-	return set
+	return set, nil
 }

@@ -274,7 +274,6 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
 		lc.options.walletPrivateKey,
-		lc.options.genesisPath,
 	)
 	if err != nil {
 		return err
@@ -603,8 +602,6 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		lc.options.redirectNodesOutput,
 		inPlace,
 		lc.options.walletPrivateKey,
-		lc.options.genesisPath,
-		lc.options.beaconConfig,
 	)
 	if err != nil {
 		return err

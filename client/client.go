@@ -149,14 +149,14 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.walletPrivateKey != "" {
 		req.WalletPrivateKey = ret.walletPrivateKey
 	}
-	if ret.customNetworkGenesisPath != "" {
-		req.CustomNetworkGenesisPath = ret.customNetworkGenesisPath
+	if ret.genesisPath != "" {
+		req.GenesisPath = ret.genesisPath
 	}
-	if len(ret.customNetworkBootstrapNodeIPPortPairs) > 0 {
-		req.CustomNetworkBootstrapIpPortPairs = ret.customNetworkBootstrapNodeIPPortPairs
+	if len(ret.bootstrapNodeIPPortPairs) > 0 {
+		req.BootstrapIpPortPairs = ret.bootstrapNodeIPPortPairs
 	}
-	if len(ret.customNetworkBootstrapNodeIDs) > 0 {
-		req.CustomNetworkBootstrapNodeIds = ret.customNetworkBootstrapNodeIDs
+	if len(ret.bootstrapNodeIDs) > 0 {
+		req.BootstrapNodeIds = ret.bootstrapNodeIDs
 	}
 	if ret.upgradePath != "" {
 		req.UpgradePath = ret.upgradePath
@@ -414,15 +414,6 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	if ret.walletPrivateKey != "" {
 		req.WalletPrivateKey = ret.walletPrivateKey
 	}
-	if ret.customNetworkGenesisPath != "" {
-		req.CustomNetworkGenesisPath = ret.customNetworkGenesisPath
-	}
-	if len(ret.customNetworkBootstrapNodeIPPortPairs) > 0 {
-		req.CustomNetworkBootstrapIpPortPairs = ret.customNetworkBootstrapNodeIPPortPairs
-	}
-	if len(ret.customNetworkBootstrapNodeIDs) > 0 {
-		req.CustomNetworkBootstrapNodeIds = ret.customNetworkBootstrapNodeIDs
-	}
 
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	return c.controlc.LoadSnapshot(ctx, &req)
@@ -486,27 +477,27 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes                              uint32
-	execPath                              string
-	trackSubnets                          string
-	globalNodeConfig                      string
-	rootDataDir                           string
-	logRootDir                            string
-	pluginDir                             string
-	blockchainSpecs                       []*rpcpb.BlockchainSpec
-	customNodeConfigs                     map[string]string
-	numSubnets                            uint32
-	chainConfigs                          map[string]string
-	upgradeConfigs                        map[string]string
-	subnetConfigs                         map[string]string
-	reassignPortsIfUsed                   bool
-	dynamicPorts                          bool
-	networkID                             uint32
-	walletPrivateKey                      string
-	customNetworkGenesisPath              string
-	customNetworkBootstrapNodeIDs         []string
-	customNetworkBootstrapNodeIPPortPairs []string
-	upgradePath                           string
+	numNodes                 uint32
+	execPath                 string
+	trackSubnets             string
+	globalNodeConfig         string
+	rootDataDir              string
+	logRootDir               string
+	pluginDir                string
+	blockchainSpecs          []*rpcpb.BlockchainSpec
+	customNodeConfigs        map[string]string
+	numSubnets               uint32
+	chainConfigs             map[string]string
+	upgradeConfigs           map[string]string
+	subnetConfigs            map[string]string
+	reassignPortsIfUsed      bool
+	dynamicPorts             bool
+	networkID                uint32
+	walletPrivateKey         string
+	genesisPath              string
+	bootstrapNodeIDs         []string
+	bootstrapNodeIPPortPairs []string
+	upgradePath              string
 }
 
 type OpOption func(*Op)
@@ -630,21 +621,21 @@ func WithWalletPrivateKey(walletPrivateKey string) OpOption {
 	}
 }
 
-func WithCustomNetworkGenesisPath(customNetworkGenesisPath string) OpOption {
+func WithGenesisPath(genesisPath string) OpOption {
 	return func(op *Op) {
-		op.customNetworkGenesisPath = customNetworkGenesisPath
+		op.genesisPath = genesisPath
 	}
 }
 
-func WithCustomNetworkBootstrapNodeIDs(customNetworkBootstrapNodeIDs []string) OpOption {
+func WithBootstrapNodeIDs(bootstrapNodeIDs []string) OpOption {
 	return func(op *Op) {
-		op.customNetworkBootstrapNodeIDs = customNetworkBootstrapNodeIDs
+		op.bootstrapNodeIDs = bootstrapNodeIDs
 	}
 }
 
-func WithCustomNetworkBootstrapNodeIPPortPairs(customNetworkBootstrapNodeIPPortPairs []string) OpOption {
+func WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs []string) OpOption {
 	return func(op *Op) {
-		op.customNetworkBootstrapNodeIPPortPairs = customNetworkBootstrapNodeIPPortPairs
+		op.bootstrapNodeIPPortPairs = bootstrapNodeIPPortPairs
 	}
 }
 

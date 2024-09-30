@@ -109,8 +109,6 @@ type localNetwork struct {
 	flags map[string]interface{}
 	// binary path to use per default
 	binaryPath string
-	// custom genesis path if defined
-	genesisPath string
 	// chain config files to use per default
 	chainConfigFiles map[string]string
 	// upgrade config files to use per default
@@ -177,7 +175,6 @@ func NewNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
-	genesisPath string,
 ) (network.Network, error) {
 	net, err := newNetwork(
 		log,
@@ -195,7 +192,6 @@ func NewNetwork(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
-		genesisPath,
 		utils.BeaconMapToSet(networkConfig.BeaconConfig),
 	)
 	if err != nil {
@@ -218,7 +214,6 @@ func newNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
-	genesisPath string,
 	beaconSet beacon.Set,
 ) (*localNetwork, error) {
 	var err error

@@ -77,7 +77,6 @@ func NewNetworkFromSnapshot(
 	redirectStderr bool,
 	inPlace bool,
 	walletPrivateKey string,
-	genesisPath string,
 	beaconConfig map[ids.NodeID]netip.AddrPort,
 ) (network.Network, error) {
 	if inPlace {
@@ -159,12 +158,14 @@ func (ln *localNetwork) persistNetwork() error {
 	networkConfig := network.Config{
 		NetworkID:          ln.networkID,
 		Genesis:            string(ln.genesisData),
+		Upgrade:            string(ln.upgradeData),
 		Flags:              networkConfigFlags,
 		NodeConfigs:        nodeConfigs,
 		BinaryPath:         ln.binaryPath,
 		ChainConfigFiles:   ln.chainConfigFiles,
 		UpgradeConfigFiles: ln.upgradeConfigFiles,
 		SubnetConfigFiles:  ln.subnetConfigFiles,
+		BeaconConfig:       ln.bootstraps,
 	}
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {
