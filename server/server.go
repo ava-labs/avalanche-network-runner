@@ -440,8 +440,14 @@ func (s *server) updateClusterInfo() {
 func (s *server) WaitForHealthy(ctx context.Context, _ *rpcpb.WaitForHealthyRequest) (*rpcpb.WaitForHealthyResponse, error) {
 	s.log.Debug("WaitForHealthy")
 
+	s.mu.RLock()
+	if s.network == nil {
+		s.mu.RUnlock()
+		return nil, ErrNotBootstrapped
+	}
 	ctx, cancel := context.WithTimeout(ctx, s.network.GetWaitForHealthyTimeout())
 	defer cancel()
+	s.mu.RUnlock()
 
 	for {
 		s.mu.RLock()
