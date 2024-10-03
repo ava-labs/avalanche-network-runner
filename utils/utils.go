@@ -188,6 +188,9 @@ func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) (beacon.Set, error)
 
 func BeaconMapFromSet(beaconSet beacon.Set) (map[ids.NodeID]netip.AddrPort, error) {
 	beaconMap := make(map[ids.NodeID]netip.AddrPort)
+	if beaconSet.Len() == 0 {
+		return beaconMap, nil
+	}
 	beaconIDs := strings.Split(beaconSet.IDsArg(), ",")
 	beaconIPs := strings.Split(beaconSet.IPsArg(), ",")
 
