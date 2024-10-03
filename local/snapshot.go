@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,12 +77,17 @@ func NewNetworkFromSnapshot(
 	redirectStderr bool,
 	inPlace bool,
 	walletPrivateKey string,
+	beaconConfig map[ids.NodeID]netip.AddrPort,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
 			return nil, fmt.Errorf("root dir must be empty when using in place snapshot load")
 		}
 		rootDir = getSnapshotDir(snapshotsDir, snapshotName)
+	}
+	beaconSet, err := utils.BeaconMapToSet(beaconConfig)
+	if err != nil {
+		return nil, err
 	}
 	net, err := newNetwork(
 		log,
@@ -99,6 +105,7 @@ func NewNetworkFromSnapshot(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
+		beaconSet,
 	)
 	if err != nil {
 		return net, err
@@ -151,15 +158,21 @@ func (ln *localNetwork) persistNetwork() error {
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 	}
 	// save network conf
+	beaconConf, err := utils.BeaconMapFromSet(ln.bootstraps)
+	if err != nil {
+		return err
+	}
 	networkConfig := network.Config{
 		NetworkID:          ln.networkID,
-		Genesis:            string(ln.genesis),
+		Genesis:            string(ln.genesisData),
+		Upgrade:            string(ln.upgradeData),
 		Flags:              networkConfigFlags,
 		NodeConfigs:        nodeConfigs,
 		BinaryPath:         ln.binaryPath,
 		ChainConfigFiles:   ln.chainConfigFiles,
 		UpgradeConfigFiles: ln.upgradeConfigFiles,
 		SubnetConfigFiles:  ln.subnetConfigFiles,
+		BeaconConfig:       beaconConf,
 	}
 	networkConfigJSON, err := json.MarshalIndent(networkConfig, "", "    ")
 	if err != nil {

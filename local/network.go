@@ -46,6 +46,7 @@ const (
 	stakingCertFileName       = "staker.crt"
 	stakingSigningKeyFileName = "signer.key"
 	genesisFileName           = "genesis.json"
+	upgradeFileName           = "upgrade.json"
 	stopTimeout               = 30 * time.Second
 	healthCheckFreq           = 3 * time.Second
 	snapshotPrefix            = "anr-snapshot-"
@@ -80,7 +81,10 @@ type localNetwork struct {
 	networkID uint32
 	// This network's genesis file.
 	// Must not be nil.
-	genesis []byte
+	genesisData []byte
+	// This network's upgrade file.
+	// May be nil
+	upgradeData []byte
 	// Used to create a new API client
 	newAPIClientF api.NewAPIClientF
 	// Used to create new node processes
@@ -172,6 +176,10 @@ func NewNetwork(
 	redirectStderr bool,
 	walletPrivateKey string,
 ) (network.Network, error) {
+	beaconSet, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
+	if err != nil {
+		return nil, err
+	}
 	net, err := newNetwork(
 		log,
 		api.NewAPIClient,
@@ -188,6 +196,7 @@ func NewNetwork(
 		redirectStdout,
 		redirectStderr,
 		walletPrivateKey,
+		beaconSet,
 	)
 	if err != nil {
 		return net, err
@@ -209,6 +218,7 @@ func newNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
+	beaconSet beacon.Set,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -240,7 +250,7 @@ func newNetwork(
 		nodes:                    map[string]*localNode{},
 		onStopCh:                 make(chan struct{}),
 		log:                      log,
-		bootstraps:               beacon.NewSet(),
+		bootstraps:               beaconSet,
 		newAPIClientF:            newAPIClientF,
 		nodeProcessCreator:       nodeProcessCreator,
 		rootDir:                  rootDir,
@@ -278,11 +288,21 @@ func NewDefaultNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 ) (network.Network, error) {
-	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID)
+	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "", nil)
 	if err != nil {
 		return nil, err
 	}
-	return NewNetwork(log, config, "", "", "", reassignPortsIfUsed, redirectStdout, redirectStderr, "")
+	return NewNetwork(
+		log,
+		config,
+		"",
+		"",
+		"",
+		reassignPortsIfUsed,
+		redirectStdout,
+		redirectStderr,
+		"",
+	)
 }
 
 func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKeys, error) {
@@ -329,7 +349,14 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 }
 
 // NewDefaultConfigNNodes creates a new default network config, with an arbitrary number of nodes
-func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32) (network.Config, error) {
+func NewDefaultConfigNNodes(
+	binaryPath string,
+	numNodes uint32,
+	networkID uint32,
+	genesisPath string,
+	upgradePath string,
+	beaconConfig map[ids.NodeID]netip.AddrPort,
+) (network.Config, error) {
 	if networkID == 0 {
 		networkID = constants.DefaultNetworkID
 	}
@@ -367,7 +394,7 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		nodeConfigs = append(nodeConfigs, nodeConfig)
 		port += 2
 	}
-	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) {
+	if int(numNodes) == 1 && !utils.IsPublicNetwork(networkID) && len(beaconConfig) == 0 {
 		flags[config.SybilProtectionEnabledKey] = false
 	}
 	cfg := network.Config{
@@ -378,11 +405,30 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 		ChainConfigFiles:   map[string]string{},
 		UpgradeConfigFiles: map[string]string{},
 		SubnetConfigFiles:  map[string]string{},
+		BeaconConfig:       beaconConfig,
+	}
+	if len(upgradePath) != 0 {
+		upgrade, err := os.ReadFile(upgradePath)
+		if err != nil {
+			return network.Config{}, fmt.Errorf("could not read upgrade file: %w", err)
+		}
+		cfg.Upgrade = string(upgrade)
 	}
 	if utils.IsCustomNetwork(networkID) {
-		genesis, err := utils.GenerateGenesis(networkID, nodeKeys)
-		if err != nil {
-			return network.Config{}, err
+		var genesis []byte
+		if len(genesisPath) != 0 {
+			if _, err := os.Stat(genesisPath); err != nil {
+				return network.Config{}, fmt.Errorf("could not find genesis file: %w", err)
+			}
+			genesis, err = os.ReadFile(genesisPath)
+			if err != nil {
+				return network.Config{}, fmt.Errorf("could not read genesis file: %w", err)
+			}
+		} else {
+			genesis, err = utils.GenerateGenesis(networkID, nodeKeys)
+			if err != nil {
+				return network.Config{}, err
+			}
 		}
 		cfg.Genesis = string(genesis)
 		cfg.ChainConfigFiles = map[string]string{
@@ -393,8 +439,21 @@ func NewDefaultConfigNNodes(binaryPath string, numNodes uint32, networkID uint32
 }
 
 // NewDefaultConfig creates a new default network config
-func NewDefaultConfig(binaryPath string, networkID uint32) (network.Config, error) {
-	return NewDefaultConfigNNodes(binaryPath, constants.DefaultNumNodes, networkID)
+func NewDefaultConfig(
+	binaryPath string,
+	networkID uint32,
+	genesisPath string,
+	upgradePath string,
+	beaconConfig map[ids.NodeID]netip.AddrPort,
+) (network.Config, error) {
+	return NewDefaultConfigNNodes(
+		binaryPath,
+		constants.DefaultNumNodes,
+		networkID,
+		genesisPath,
+		upgradePath,
+		beaconConfig,
+	)
 }
 
 func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Config) error {
@@ -405,8 +464,8 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	ln.networkID = networkConfig.NetworkID
 	if len(networkConfig.Genesis) != 0 {
-		ln.genesis = []byte(networkConfig.Genesis)
-		genesisNetworkID, err := utils.NetworkIDFromGenesis(ln.genesis)
+		ln.genesisData = []byte(networkConfig.Genesis)
+		genesisNetworkID, err := utils.NetworkIDFromGenesis(ln.genesisData)
 		if err != nil {
 			return err
 		}
@@ -414,16 +473,24 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 		case ln.networkID == 0:
 			ln.networkID = genesisNetworkID
 		case ln.networkID != genesisNetworkID:
-			if ln.genesis, err = utils.SetGenesisNetworkID(ln.genesis, ln.networkID); err != nil {
+			if ln.genesisData, err = utils.SetGenesisNetworkID(ln.genesisData, ln.networkID); err != nil {
 				return fmt.Errorf("couldn't set network ID to genesis: %w", err)
 			}
 		}
 	}
 
+	ln.upgradeData = []byte(networkConfig.Upgrade)
+
 	// save node defaults
 	ln.flags = networkConfig.Flags
 	ln.binaryPath = networkConfig.BinaryPath
 	ln.chainConfigFiles = networkConfig.ChainConfigFiles
+
+	beaconConf, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
+	if err != nil {
+		return err
+	}
+	ln.bootstraps = beaconConf
 	if ln.chainConfigFiles == nil {
 		ln.chainConfigFiles = map[string]string{}
 	}
@@ -599,7 +666,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !isPausedNode && nodeConfig.IsBeacon {
+	if nodeConfig.IsBeacon && ln.bootstraps.Len() == 0 && !isPausedNode {
 		if err := ln.bootstraps.Add(beacon.New(nodeID, netip.AddrPortFrom(
 			ip,
 			nodeData.p2pPort,
@@ -1137,7 +1204,7 @@ func (ln *localNetwork) buildArgs(
 
 	// Write staking key/cert etc. to disk so the new node can use them,
 	// and get flag that point the node to those files
-	fileFlags, err := writeFiles(ln.genesis, dataDir, nodeConfig)
+	fileFlags, err := writeFiles(ln.genesisData, ln.upgradeData, dataDir, nodeConfig)
 	if err != nil {
 		return buildArgsReturn{}, err
 	}

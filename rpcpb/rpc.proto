@@ -367,6 +367,17 @@ message StartRequest {
 
   // wallet private key
   string wallet_private_key = 16;
+
+  // genesis path
+  string genesis_path = 17;
+
+  // bootstrap data
+  repeated string bootstrap_node_ids = 18;
+  repeated string bootstrap_ip_port_pairs = 19;
+
+  // upgrade path
+  string upgrade_path = 20;
+  
 }
 
 message RPCVersionRequest {}
@@ -681,6 +692,10 @@ message LoadSnapshotRequest {
   optional string log_root_dir = 11;
   // wallet private key
   string wallet_private_key = 12;
+  // bootstrap data
+  repeated string bootstrap_node_ids = 13;
+  repeated string bootstrap_ip_port_pairs = 14;
+  
 }
 
 message LoadSnapshotResponse {

@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -28,6 +29,7 @@ import (
 	"github.com/ava-labs/avalanche-network-runner/utils"
 	"github.com/ava-labs/avalanche-network-runner/utils/constants"
 	"github.com/ava-labs/avalanchego/config"
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -329,7 +331,18 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		Pid:         pid,
 		RootDataDir: rootDataDir,
 	}
-
+	beaconConfig := map[ids.NodeID]netip.AddrPort{}
+	for index, id := range req.BootstrapNodeIds {
+		addrPort, err := netip.ParseAddrPort(req.BootstrapIpPortPairs[index])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse IP:port pair %s: %w", req.BootstrapIpPortPairs[index], err)
+		}
+		nodeID, err := ids.NodeIDFromString(id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse node ID %s: %w", id, err)
+		}
+		beaconConfig[nodeID] = addrPort
+	}
 	s.network, err = newLocalNetwork(localNetworkOptions{
 		networkID:           req.NetworkId,
 		walletPrivateKey:    req.WalletPrivateKey,
@@ -349,6 +362,9 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		dynamicPorts:        req.GetDynamicPorts(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
+		genesisPath:         req.GenesisPath,
+		beaconConfig:        beaconConfig,
+		upgradePath:         req.UpgradePath,
 	})
 	if err != nil {
 		return nil, err

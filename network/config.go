@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -55,6 +56,10 @@ type Config struct {
 	UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
 	// Subnet config files to use per default, if not specified in node config
 	SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
+	// Beacon config used for all nodes, can be empty
+	BeaconConfig map[ids.NodeID]netip.AddrPort `json:"beaconConfig"`
+	// Upgrade file used for all nodes, can be empty
+	Upgrade string `json:"upgrade"`
 }
 
 // Validate returns an error if this config is invalid

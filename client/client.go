@@ -149,6 +149,18 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	if ret.walletPrivateKey != "" {
 		req.WalletPrivateKey = ret.walletPrivateKey
 	}
+	if ret.genesisPath != "" {
+		req.GenesisPath = ret.genesisPath
+	}
+	if len(ret.bootstrapNodeIPPortPairs) > 0 {
+		req.BootstrapIpPortPairs = ret.bootstrapNodeIPPortPairs
+	}
+	if len(ret.bootstrapNodeIDs) > 0 {
+		req.BootstrapNodeIds = ret.bootstrapNodeIDs
+	}
+	if ret.upgradePath != "" {
+		req.UpgradePath = ret.upgradePath
+	}
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	req.DynamicPorts = &ret.dynamicPorts
 
@@ -402,6 +414,7 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	if ret.walletPrivateKey != "" {
 		req.WalletPrivateKey = ret.walletPrivateKey
 	}
+
 	req.ReassignPortsIfUsed = &ret.reassignPortsIfUsed
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
@@ -464,23 +477,27 @@ func (c *client) Close() error {
 }
 
 type Op struct {
-	numNodes            uint32
-	execPath            string
-	trackSubnets        string
-	globalNodeConfig    string
-	rootDataDir         string
-	logRootDir          string
-	pluginDir           string
-	blockchainSpecs     []*rpcpb.BlockchainSpec
-	customNodeConfigs   map[string]string
-	numSubnets          uint32
-	chainConfigs        map[string]string
-	upgradeConfigs      map[string]string
-	subnetConfigs       map[string]string
-	reassignPortsIfUsed bool
-	dynamicPorts        bool
-	networkID           uint32
-	walletPrivateKey    string
+	numNodes                 uint32
+	execPath                 string
+	trackSubnets             string
+	globalNodeConfig         string
+	rootDataDir              string
+	logRootDir               string
+	pluginDir                string
+	blockchainSpecs          []*rpcpb.BlockchainSpec
+	customNodeConfigs        map[string]string
+	numSubnets               uint32
+	chainConfigs             map[string]string
+	upgradeConfigs           map[string]string
+	subnetConfigs            map[string]string
+	reassignPortsIfUsed      bool
+	dynamicPorts             bool
+	networkID                uint32
+	walletPrivateKey         string
+	genesisPath              string
+	bootstrapNodeIDs         []string
+	bootstrapNodeIPPortPairs []string
+	upgradePath              string
 }
 
 type OpOption func(*Op)
@@ -601,6 +618,30 @@ func WithDynamicPorts(dynamicPorts bool) OpOption {
 func WithWalletPrivateKey(walletPrivateKey string) OpOption {
 	return func(op *Op) {
 		op.walletPrivateKey = walletPrivateKey
+	}
+}
+
+func WithGenesisPath(genesisPath string) OpOption {
+	return func(op *Op) {
+		op.genesisPath = genesisPath
+	}
+}
+
+func WithBootstrapNodeIDs(bootstrapNodeIDs []string) OpOption {
+	return func(op *Op) {
+		op.bootstrapNodeIDs = bootstrapNodeIDs
+	}
+}
+
+func WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs []string) OpOption {
+	return func(op *Op) {
+		op.bootstrapNodeIPPortPairs = bootstrapNodeIPPortPairs
+	}
+}
+
+func WithUpgradePath(upgradePath string) OpOption {
+	return func(op *Op) {
+		op.upgradePath = upgradePath
 	}
 }
 

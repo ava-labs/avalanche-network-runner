@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/netip"
 	"os"
+	"strings"
 	"time"
 
 	rpcb "github.com/ava-labs/avalanche-network-runner/rpcpb"
 	"github.com/ava-labs/avalanche-network-runner/ux"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 )
@@ -171,4 +174,40 @@ func IsPublicNetwork(networkID uint32) bool {
 
 func IsCustomNetwork(networkID uint32) bool {
 	return !IsPublicNetwork(networkID) && networkID != constants.LocalID
+}
+
+func BeaconMapToSet(beaconMap map[ids.NodeID]netip.AddrPort) (beacon.Set, error) {
+	set := beacon.NewSet()
+	for id, addr := range beaconMap {
+		if err := set.Add(beacon.New(id, addr)); err != nil {
+			return nil, fmt.Errorf("failed to add beacon to set: %w", err)
+		}
+	}
+	return set, nil
+}
+
+func BeaconMapFromSet(beaconSet beacon.Set) (map[ids.NodeID]netip.AddrPort, error) {
+	beaconMap := make(map[ids.NodeID]netip.AddrPort)
+	if beaconSet.Len() == 0 {
+		return beaconMap, nil
+	}
+	beaconIDs := strings.Split(beaconSet.IDsArg(), ",")
+	beaconIPs := strings.Split(beaconSet.IPsArg(), ",")
+
+	if len(beaconIDs) != len(beaconIPs) {
+		return nil, fmt.Errorf("beacon IDs and IPs do not match")
+	}
+
+	for i := 0; i < len(beaconIDs); i++ {
+		beaconID, err := ids.NodeIDFromString(beaconIDs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse beacon ID: %w", err)
+		}
+		beaconIP, err := netip.ParseAddrPort(beaconIPs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse beacon IP: %w", err)
+		}
+		beaconMap[beaconID] = beaconIP
+	}
+	return beaconMap, nil
 }
