@@ -55,7 +55,7 @@ const (
 	networkRootDirPrefix     = "network"
 	defaultDBSubdir          = "db"
 	defaultLogsSubdir        = "logs"
-	nodeStartupTime          = 1 * time.Second
+	nodeStartupTime          = 2 * time.Second
 )
 
 // interface compliance
@@ -644,19 +644,39 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
 	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
-		stakingCert, stakingKey, err := staking.NewCertAndKeyBytes()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+		var stakingKey, stakingCert []byte
+		if utils.FileExists(getStakingTLSKeyPath(nodeDir)) && utils.FileExists(getStakingCertPath(nodeDir)) {
+			stakingKey, err = os.ReadFile(getStakingTLSKeyPath(nodeDir))
+			if err != nil {
+				return nil, err
+			}
+			stakingCert, err = os.ReadFile(getStakingCertPath(nodeDir))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			stakingCert, stakingKey, err = staking.NewCertAndKeyBytes()
+			if err != nil {
+				return nil, fmt.Errorf("couldn't generate staking Cert/Key: %w", err)
+			}
 		}
 		nodeConfig.StakingCert = string(stakingCert)
 		nodeConfig.StakingKey = string(stakingKey)
 	}
 	if nodeConfig.StakingSigningKey == "" {
-		key, err := bls.NewSecretKey()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
+		var keyBytes []byte
+		if utils.FileExists(getStakingSignerKeyPath(nodeDir)) {
+			keyBytes, err = os.ReadFile(getStakingSignerKeyPath(nodeDir))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			key, err := bls.NewSecretKey()
+			if err != nil {
+				return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
+			}
+			keyBytes = bls.SecretKeyToBytes(key)
 		}
-		keyBytes := bls.SecretKeyToBytes(key)
 		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
 		nodeConfig.StakingSigningKey = encodedKey
 	}
