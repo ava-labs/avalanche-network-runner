@@ -380,6 +380,9 @@ message StartRequest {
   
   // 0.0.0.0 if public HTTPHost
   bool zero_ip_if_public_http_host = 21;
+
+  // always create new staking data
+  bool fresh_staking_ids = 22;
 }
 
 message RPCVersionRequest {}

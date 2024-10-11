@@ -125,6 +125,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		UpgradeConfigs:         ret.upgradeConfigs,
 		SubnetConfigs:          ret.subnetConfigs,
 		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHttpHost,
+		FreshStakingIds:        ret.freshStakingIds,
 	}
 	if ret.trackSubnets != "" {
 		req.WhitelistedSubnets = &ret.trackSubnets
@@ -530,6 +531,7 @@ type Op struct {
 	upgradePath              string
 	snapshotPath             string
 	zeroIPIfPublicHttpHost   bool
+	freshStakingIds          bool
 }
 
 type OpOption func(*Op)
@@ -686,6 +688,12 @@ func WithSnapshotPath(snapshotPath string) OpOption {
 func WithZeroIPIfPublicHTTPHost(zeroIPIfPublicHttpHost bool) OpOption {
 	return func(op *Op) {
 		op.zeroIPIfPublicHttpHost = zeroIPIfPublicHttpHost
+	}
+}
+
+func WithFreshStakingIds(freshStakingIds bool) OpOption {
+	return func(op *Op) {
+		op.freshStakingIds = freshStakingIds
 	}
 }
 

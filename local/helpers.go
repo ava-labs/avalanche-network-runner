@@ -46,6 +46,14 @@ func getStakingSignerKeyPath(nodeRootDir string) string {
 	return filepath.Join(nodeRootDir, stakingPath, stakingSignerKeyFileName)
 }
 
+func getChainConfigDir(rootDir string) string {
+	return filepath.Join(rootDir, "configs", "chains")
+}
+
+func getSubnetConfigDir(rootDir string) string {
+	return filepath.Join(rootDir, "configs", "subnets")
+}
+
 // writeFiles writes the files a node needs on startup.
 // It returns flags used to point to those files.
 func writeFiles(
@@ -110,17 +118,15 @@ func writeFiles(
 		}
 	}
 	// chain configs dir
-	chainConfigDir := filepath.Join(nodeRootDir, chainConfigSubDir)
+	chainConfigDir := getChainConfigDir(nodeRootDir)
 	if err := os.MkdirAll(chainConfigDir, 0o750); err != nil {
 		return nil, err
 	}
-	flags[config.ChainConfigDirKey] = chainConfigDir
 	// subnet configs dir
-	subnetConfigDir := filepath.Join(nodeRootDir, subnetConfigSubDir)
+	subnetConfigDir := getSubnetConfigDir(nodeRootDir)
 	if err := os.MkdirAll(subnetConfigDir, 0o750); err != nil {
 		return nil, err
 	}
-	flags[config.SubnetConfigDirKey] = subnetConfigDir
 	// chain configs
 	for chainAlias, chainConfigFile := range nodeConfig.ChainConfigFiles {
 		chainConfigPath := filepath.Join(chainConfigDir, chainAlias, configFileName)

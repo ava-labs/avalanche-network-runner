@@ -125,6 +125,9 @@ type localNetworkOptions struct {
 
 	// if set, returns 0.0.0.0 if httpHost setting is public
 	zeroIPIfPublicHttpHost bool
+
+	// do not repeate past node IDs
+	freshStakingIds bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -236,6 +239,11 @@ func (lc *localNetwork) createConfig() error {
 		}
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
+		}
+		if lc.options.freshStakingIds {
+			cfg.NodeConfigs[i].StakingKey = ""
+			cfg.NodeConfigs[i].StakingCert = ""
+			cfg.NodeConfigs[i].StakingSigningKey = ""
 		}
 	}
 
