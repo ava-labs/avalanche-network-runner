@@ -419,30 +419,6 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				},
 			},
 		},
-		"StakingKey but no StakingCert": {
-			config: network.Config{
-				Genesis: "{\"networkID\": 0}",
-				NodeConfigs: []node.Config{
-					{
-						BinaryPath: "pepe",
-						IsBeacon:   true,
-						StakingKey: refNetworkConfig.NodeConfigs[0].StakingKey,
-					},
-				},
-			},
-		},
-		"StakingCert but no StakingKey": {
-			config: network.Config{
-				Genesis: "{\"networkID\": 0}",
-				NodeConfigs: []node.Config{
-					{
-						BinaryPath:  "pepe",
-						IsBeacon:    true,
-						StakingCert: refNetworkConfig.NodeConfigs[0].StakingCert,
-					},
-				},
-			},
-		},
 		"invalid staking cert/key": {
 			config: network.Config{
 				Genesis: "{\"networkID\": 0}",
@@ -1292,9 +1268,7 @@ func TestWriteFiles(t *testing.T) {
 	stakingKeyPath := filepath.Join(tmpDir, "staking", stakingKeyFileName)
 	stakingCertPath := filepath.Join(tmpDir, "staking", stakingCertFileName)
 	genesisPath := filepath.Join(tmpDir, "configs", genesisFileName)
-	chainConfigDir := filepath.Join(tmpDir, chainConfigSubDir)
-	subnetConfigDir := filepath.Join(tmpDir, subnetConfigSubDir)
-	cChainConfigPath := filepath.Join(tmpDir, chainConfigSubDir, "C", configFileName)
+	cChainConfigPath := filepath.Join(tmpDir, "configs", "chains", "C", configFileName)
 
 	type test struct {
 		name          string
@@ -1314,9 +1288,7 @@ func TestWriteFiles(t *testing.T) {
 				StakingCert: stakingCert,
 			},
 			expectedFlags: map[string]string{
-				config.GenesisFileKey:     genesisPath,
-				config.ChainConfigDirKey:  chainConfigDir,
-				config.SubnetConfigDirKey: subnetConfigDir,
+				config.GenesisFileKey: genesisPath,
 			},
 		},
 		{
@@ -1329,9 +1301,7 @@ func TestWriteFiles(t *testing.T) {
 				ConfigFile:  configFile,
 			},
 			expectedFlags: map[string]string{
-				config.GenesisFileKey:     genesisPath,
-				config.ChainConfigDirKey:  chainConfigDir,
-				config.SubnetConfigDirKey: subnetConfigDir,
+				config.GenesisFileKey: genesisPath,
 			},
 		},
 		{
@@ -1345,9 +1315,7 @@ func TestWriteFiles(t *testing.T) {
 				ChainConfigFiles: chainConfigFiles,
 			},
 			expectedFlags: map[string]string{
-				config.GenesisFileKey:     genesisPath,
-				config.ChainConfigDirKey:  chainConfigDir,
-				config.SubnetConfigDirKey: subnetConfigDir,
+				config.GenesisFileKey: genesisPath,
 			},
 		},
 	}
