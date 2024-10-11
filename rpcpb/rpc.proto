@@ -378,6 +378,8 @@ message StartRequest {
   // upgrade path
   string upgrade_path = 20;
   
+  // 0.0.0.0 if public HTTPHost
+  bool zero_ip_if_public_http_host = 21;
 }
 
 message RPCVersionRequest {}
@@ -672,6 +674,7 @@ message SendOutboundMessageResponse {
 message SaveSnapshotRequest {
   string snapshot_name = 1;
   bool force = 2;
+  string snapshot_path = 3;
 }
 
 message SaveSnapshotResponse {
@@ -695,7 +698,10 @@ message LoadSnapshotRequest {
   // bootstrap data
   repeated string bootstrap_node_ids = 13;
   repeated string bootstrap_ip_port_pairs = 14;
-  
+  // to force an arbitrary path
+  string snapshot_path = 15;
+  // 0.0.0.0 if public HTTPHost
+  bool zero_ip_if_public_http_host = 16;
 }
 
 message LoadSnapshotResponse {
@@ -704,6 +710,7 @@ message LoadSnapshotResponse {
 
 message RemoveSnapshotRequest {
   string snapshot_name = 1;
+  string snapshot_path = 2;
 }
 
 message RemoveSnapshotResponse {

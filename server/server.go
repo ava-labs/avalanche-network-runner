@@ -344,27 +344,28 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		beaconConfig[nodeID] = addrPort
 	}
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		networkID:           req.NetworkId,
-		walletPrivateKey:    req.WalletPrivateKey,
-		execPath:            execPath,
-		rootDataDir:         rootDataDir,
-		logRootDir:          req.GetLogRootDir(),
-		numNodes:            numNodes,
-		trackSubnets:        trackSubnets,
-		redirectNodesOutput: s.cfg.RedirectNodesOutput,
-		pluginDir:           pluginDir,
-		globalNodeConfig:    globalNodeConfig,
-		customNodeConfigs:   customNodeConfigs,
-		chainConfigs:        req.ChainConfigs,
-		upgradeConfigs:      req.UpgradeConfigs,
-		subnetConfigs:       req.SubnetConfigs,
-		logLevel:            s.cfg.LogLevel,
-		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
-		dynamicPorts:        req.GetDynamicPorts(),
-		snapshotsDir:        s.cfg.SnapshotsDir,
-		genesisPath:         req.GenesisPath,
-		beaconConfig:        beaconConfig,
-		upgradePath:         req.UpgradePath,
+		networkID:              req.NetworkId,
+		walletPrivateKey:       req.WalletPrivateKey,
+		execPath:               execPath,
+		rootDataDir:            rootDataDir,
+		logRootDir:             req.GetLogRootDir(),
+		numNodes:               numNodes,
+		trackSubnets:           trackSubnets,
+		redirectNodesOutput:    s.cfg.RedirectNodesOutput,
+		pluginDir:              pluginDir,
+		globalNodeConfig:       globalNodeConfig,
+		customNodeConfigs:      customNodeConfigs,
+		chainConfigs:           req.ChainConfigs,
+		upgradeConfigs:         req.UpgradeConfigs,
+		subnetConfigs:          req.SubnetConfigs,
+		logLevel:               s.cfg.LogLevel,
+		reassignPortsIfUsed:    req.GetReassignPortsIfUsed(),
+		dynamicPorts:           req.GetDynamicPorts(),
+		snapshotsDir:           s.cfg.SnapshotsDir,
+		genesisPath:            req.GenesisPath,
+		beaconConfig:           beaconConfig,
+		upgradePath:            req.UpgradePath,
+		zeroIPIfPublicHttpHost: req.ZeroIpIfPublicHttpHost,
 	})
 	if err != nil {
 		return nil, err
@@ -1370,18 +1371,19 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	s.log.Info("starting", zap.Int32("pid", pid), zap.String("root-data-dir", req.GetRootDataDir()))
 
 	s.network, err = newLocalNetwork(localNetworkOptions{
-		execPath:            applyDefaultExecPath(req.GetExecPath()),
-		walletPrivateKey:    req.WalletPrivateKey,
-		pluginDir:           applyDefaultPluginDir(req.GetPluginDir()),
-		rootDataDir:         rootDataDir,
-		logRootDir:          req.GetLogRootDir(),
-		chainConfigs:        req.ChainConfigs,
-		upgradeConfigs:      req.UpgradeConfigs,
-		subnetConfigs:       req.SubnetConfigs,
-		globalNodeConfig:    req.GetGlobalNodeConfig(),
-		logLevel:            s.cfg.LogLevel,
-		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
-		snapshotsDir:        s.cfg.SnapshotsDir,
+		execPath:               applyDefaultExecPath(req.GetExecPath()),
+		walletPrivateKey:       req.WalletPrivateKey,
+		pluginDir:              applyDefaultPluginDir(req.GetPluginDir()),
+		rootDataDir:            rootDataDir,
+		logRootDir:             req.GetLogRootDir(),
+		chainConfigs:           req.ChainConfigs,
+		upgradeConfigs:         req.UpgradeConfigs,
+		subnetConfigs:          req.SubnetConfigs,
+		globalNodeConfig:       req.GetGlobalNodeConfig(),
+		logLevel:               s.cfg.LogLevel,
+		reassignPortsIfUsed:    req.GetReassignPortsIfUsed(),
+		snapshotsDir:           s.cfg.SnapshotsDir,
+		zeroIPIfPublicHttpHost: req.ZeroIpIfPublicHttpHost,
 	})
 	if err != nil {
 		return nil, err
@@ -1391,7 +1393,11 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.LoadSnapshot(req.SnapshotName, req.InPlace); err != nil {
+	if err := s.network.LoadSnapshot(
+		req.SnapshotName,
+		req.SnapshotPath,
+		req.InPlace,
+	); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
 		return nil, err
@@ -1425,7 +1431,12 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, ErrNotBootstrapped
 	}
 
-	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName, req.Force)
+	snapshotPath, err := s.network.nw.SaveSnapshot(
+		ctx,
+		req.SnapshotName,
+		req.SnapshotPath,
+		req.Force,
+	)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
@@ -1442,7 +1453,11 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
-	if err := local.RemoveSnapshot(s.cfg.SnapshotsDir, req.SnapshotName); err != nil {
+	if err := local.RemoveSnapshot(
+		s.cfg.SnapshotsDir,
+		req.SnapshotName,
+		req.SnapshotPath,
+	); err != nil {
 		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}
