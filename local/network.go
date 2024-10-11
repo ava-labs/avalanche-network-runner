@@ -65,8 +65,6 @@ var (
 		config.BootstrapIPsKey: {},
 		config.BootstrapIDsKey: {},
 	}
-	chainConfigSubDir  = "chainConfigs"
-	subnetConfigSubDir = "subnetConfigs"
 
 	snapshotsRelPath = filepath.Join(".avalanche-network-runner", "snapshots")
 
@@ -1181,11 +1179,17 @@ func (ln *localNetwork) buildArgs(
 	flags := map[string]string{
 		config.NetworkNameKey: fmt.Sprintf("%d", ln.networkID),
 		config.DataDirKey:     dataDir,
-		config.DBPathKey:      dbDir,
-		config.LogsDirKey:     logsDir,
 		config.PublicIPKey:    publicIP,
 		config.HTTPPortKey:    fmt.Sprintf("%d", apiPort),
 		config.StakingPortKey: fmt.Sprintf("%d", p2pPort),
+	}
+	// avoid setting db dir flag if the value is the default avalanchego value
+	if dbDir != filepath.Join(dataDir, defaultDBSubdir) {
+		flags[config.DBPathKey] = dbDir
+	}
+	// avoid setting log dir flag if the value is the default avalanchego value
+	if logsDir != filepath.Join(dataDir, defaultLogsSubdir) {
+		flags[config.LogsDirKey] = logsDir
 	}
 	if !utils.IsPublicNetwork(ln.networkID) {
 		flags[config.BootstrapIPsKey] = ln.bootstraps.IPsArg()
