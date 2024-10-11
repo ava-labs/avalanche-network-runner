@@ -168,6 +168,15 @@ func PathExists(path string) (bool, error) {
 	return true, nil
 }
 
+// FileExists checks if a file exists.
+func FileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
 func IsPublicNetwork(networkID uint32) bool {
 	return networkID == constants.FujiID || networkID == constants.MainnetID
 }

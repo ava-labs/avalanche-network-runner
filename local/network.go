@@ -41,21 +41,21 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix     = "node"
-	configFileName            = "config.json"
-	upgradeConfigFileName     = "upgrade.json"
-	stakingKeyFileName        = "staker.key"
-	stakingCertFileName       = "staker.crt"
-	stakingSigningKeyFileName = "signer.key"
-	genesisFileName           = "genesis.json"
-	upgradeFileName           = "upgrade.json"
-	stopTimeout               = 30 * time.Second
-	healthCheckFreq           = 3 * time.Second
-	snapshotPrefix            = "anr-snapshot-"
-	networkRootDirPrefix      = "network"
-	defaultDBSubdir           = "db"
-	defaultLogsSubdir         = "logs"
-	nodeStartupTime           = 1 * time.Second
+	defaultNodeNamePrefix    = "node"
+	configFileName           = "config.json"
+	upgradeConfigFileName    = "upgrade.json"
+	stakingTLSKeyFileName    = "staker.key"
+	stakingCertFileName      = "staker.crt"
+	stakingSignerKeyFileName = "signer.key"
+	genesisFileName          = "genesis.json"
+	upgradeFileName          = "upgrade.json"
+	stopTimeout              = 30 * time.Second
+	healthCheckFreq          = 3 * time.Second
+	snapshotPrefix           = "anr-snapshot-"
+	networkRootDirPrefix     = "network"
+	defaultDBSubdir          = "db"
+	defaultLogsSubdir        = "logs"
+	nodeStartupTime          = 1 * time.Second
 )
 
 // interface compliance
@@ -339,7 +339,7 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 	nodeKeys := []*utils.NodeKeys{}
 	for i := 0; i < constants.DefaultNumNodes; i++ {
 		nodeDir := fmt.Sprintf("node%d", i+1)
-		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingKeyFileName))
+		stakingKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingTLSKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -347,7 +347,7 @@ func loadDefaultNetworkFiles() (map[string]interface{}, []byte, []*utils.NodeKey
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingSigningKeyFileName))
+		blsKey, err := fs.ReadFile(configsDir, filepath.Join(nodeDir, stakingSignerKeyFileName))
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -624,6 +624,25 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	addNetworkFlags(ln.flags, nodeConfig.Flags)
 
+	if err := ln.setNodeName(&nodeConfig); err != nil {
+		return nil, err
+	}
+
+	isPausedNode := ln.isPausedNode(&nodeConfig)
+
+	nodeDir, err := setNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeLogDir := ""
+	if ln.rootDir != ln.logRootDir {
+		nodeLogDir, err = setNodeDir(ln.log, ln.logRootDir, nodeConfig.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// it shouldn't happen that just one is empty, most probably both,
 	// but in any case if just one is empty it's unusable so we just assign a new one.
 	if nodeConfig.StakingCert == "" || nodeConfig.StakingKey == "" {
@@ -642,24 +661,6 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		keyBytes := bls.SecretKeyToBytes(key)
 		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
 		nodeConfig.StakingSigningKey = encodedKey
-	}
-
-	if err := ln.setNodeName(&nodeConfig); err != nil {
-		return nil, err
-	}
-
-	isPausedNode := ln.isPausedNode(&nodeConfig)
-
-	nodeDir, err := setNodeDir(ln.log, ln.rootDir, nodeConfig.Name)
-	if err != nil {
-		return nil, err
-	}
-	nodeLogDir := ""
-	if ln.rootDir != ln.logRootDir {
-		nodeLogDir, err = setNodeDir(ln.log, ln.logRootDir, nodeConfig.Name)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// If config file is given, don't overwrite API port, P2P port, DB path, logs path
