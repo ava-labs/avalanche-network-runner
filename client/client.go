@@ -118,12 +118,13 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
-		NetworkId:      ret.networkID,
-		ExecPath:       execPath,
-		NumNodes:       &ret.numNodes,
-		ChainConfigs:   ret.chainConfigs,
-		UpgradeConfigs: ret.upgradeConfigs,
-		SubnetConfigs:  ret.subnetConfigs,
+		NetworkId:       ret.networkID,
+		ExecPath:        execPath,
+		NumNodes:        &ret.numNodes,
+		ChainConfigs:    ret.chainConfigs,
+		UpgradeConfigs:  ret.upgradeConfigs,
+		SubnetConfigs:   ret.subnetConfigs,
+		FreshStakingIds: ret.freshStakingIds,
 	}
 	if ret.trackSubnets != "" {
 		req.WhitelistedSubnets = &ret.trackSubnets
@@ -498,6 +499,7 @@ type Op struct {
 	bootstrapNodeIDs         []string
 	bootstrapNodeIPPortPairs []string
 	upgradePath              string
+	freshStakingIds          bool
 }
 
 type OpOption func(*Op)
@@ -642,6 +644,12 @@ func WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs []string) OpOption {
 func WithUpgradePath(upgradePath string) OpOption {
 	return func(op *Op) {
 		op.upgradePath = upgradePath
+	}
+}
+
+func WithFreshStakingIds(freshStakingIds bool) OpOption {
+	return func(op *Op) {
+		op.freshStakingIds = freshStakingIds
 	}
 }
 

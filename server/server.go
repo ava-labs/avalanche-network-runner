@@ -365,6 +365,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		genesisPath:         req.GenesisPath,
 		beaconConfig:        beaconConfig,
 		upgradePath:         req.UpgradePath,
+		freshStakingIds:     req.FreshStakingIds,
 	})
 	if err != nil {
 		return nil, err

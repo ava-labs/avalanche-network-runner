@@ -378,6 +378,8 @@ message StartRequest {
   // upgrade path
   string upgrade_path = 20;
   
+  // always create new staking data
+  bool fresh_staking_ids = 21;
 }
 
 message RPCVersionRequest {}

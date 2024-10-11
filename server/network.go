@@ -122,6 +122,8 @@ type localNetworkOptions struct {
 	// custom network
 	genesisPath string
 	upgradePath string
+	// do not repeate past node IDs
+	freshStakingIds bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
@@ -233,6 +235,11 @@ func (lc *localNetwork) createConfig() error {
 		}
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
+		}
+		if lc.options.freshStakingIds {
+			cfg.NodeConfigs[i].StakingKey = ""
+			cfg.NodeConfigs[i].StakingCert = ""
+			cfg.NodeConfigs[i].StakingSigningKey = ""
 		}
 	}
 

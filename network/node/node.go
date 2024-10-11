@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/ava-labs/avalanche-network-runner/api"
@@ -99,14 +98,7 @@ type Config struct {
 
 // Validate returns an error if this config is invalid
 func (c *Config) Validate(expectedNetworkID uint32) error {
-	switch {
-	case c.StakingKey == "":
-		return errors.New("staking key not given")
-	case c.StakingCert == "":
-		return errors.New("staking cert not given")
-	default:
-		return validateConfigFile([]byte(c.ConfigFile), expectedNetworkID)
-	}
+	return validateConfigFile([]byte(c.ConfigFile), expectedNetworkID)
 }
 
 // Returns an error if config file [configFile] is invalid.
