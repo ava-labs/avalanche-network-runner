@@ -50,7 +50,7 @@ var (
 
 type localTestSuccessfulNodeProcessCreator struct{}
 
-func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (*localTestSuccessfulNodeProcessCreator) NewNodeProcess(config node.Config, _ time.Duration, flags ...string) (NodeProcess, error) {
 	return newMockProcessSuccessful(config, flags...)
 }
 
@@ -60,7 +60,7 @@ func (*localTestSuccessfulNodeProcessCreator) GetNodeVersion(_ node.Config) (str
 
 type localTestFailedStartProcessCreator struct{}
 
-func (*localTestFailedStartProcessCreator) NewNodeProcess(node.Config, ...string) (NodeProcess, error) {
+func (*localTestFailedStartProcessCreator) NewNodeProcess(node.Config, time.Duration, ...string) (NodeProcess, error) {
 	return nil, errors.New("error on purpose for test")
 }
 
@@ -70,7 +70,7 @@ func (*localTestFailedStartProcessCreator) GetNodeVersion(_ node.Config) (string
 
 type localTestProcessUndefNodeProcessCreator struct{}
 
-func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (*localTestProcessUndefNodeProcessCreator) NewNodeProcess(config node.Config, _ time.Duration, flags ...string) (NodeProcess, error) {
 	return newMockProcessUndef(config, flags...)
 }
 
@@ -83,7 +83,7 @@ type localTestFlagCheckProcessCreator struct {
 	require       *require.Assertions
 }
 
-func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (lt *localTestFlagCheckProcessCreator) NewNodeProcess(config node.Config, _ time.Duration, flags ...string) (NodeProcess, error) {
 	lt.require.EqualValues(lt.expectedFlags, config.Flags)
 	return newMockProcessSuccessful(config, flags...)
 }
@@ -156,6 +156,7 @@ func TestNewNetworkEmpty(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -182,7 +183,7 @@ func newLocalTestOneNodeCreator(require *require.Assertions, networkConfig netwo
 
 // Assert that the node's config is being passed correctly
 // to the function that starts the node process.
-func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...string) (NodeProcess, error) {
+func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, _ time.Duration, flags ...string) (NodeProcess, error) {
 	lt.require.True(config.IsBeacon)
 	expectedConfig := lt.networkConfig.NodeConfigs[0]
 	lt.require.EqualValues(lt.networkConfig.ChainConfigFiles, config.ChainConfigFiles)
@@ -198,7 +199,7 @@ func (lt *localTestOneNodeCreator) NewNodeProcess(config node.Config, flags ...s
 		lt.require.True(ok)
 		lt.require.EqualValues(v, gotV)
 	}
-	return lt.successCreator.NewNodeProcess(config, flags...)
+	return lt.successCreator.NewNodeProcess(config, 0, flags...)
 }
 
 func (*localTestOneNodeCreator) GetNodeVersion(_ node.Config) (string, error) {
@@ -224,6 +225,7 @@ func TestNewNetworkOneNode(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -257,6 +259,7 @@ func TestNewNetworkFailToStartNode(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -481,6 +484,7 @@ func TestWrongNetworkConfigs(t *testing.T) {
 				false,
 				"",
 				beacon.NewSet(),
+				false,
 			)
 			require.NoError(err)
 			err = net.loadConfig(context.Background(), tt.config)
@@ -507,6 +511,7 @@ func TestUnhealthyNetwork(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -534,6 +539,7 @@ func TestGeneratedNodesNames(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -567,6 +573,7 @@ func TestGenerateDefaultNetwork(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -629,6 +636,7 @@ func TestNetworkFromConfig(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -665,6 +673,7 @@ func TestNetworkNodeOps(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), emptyNetworkConfig)
@@ -715,6 +724,7 @@ func TestNodeNotFound(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), emptyNetworkConfig)
@@ -760,6 +770,7 @@ func TestStoppedNetwork(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), emptyNetworkConfig)
@@ -805,6 +816,7 @@ func TestGetAllNodes(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)
@@ -862,6 +874,7 @@ func TestFlags(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = nw.loadConfig(context.Background(), networkConfig)
@@ -896,6 +909,7 @@ func TestFlags(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = nw.loadConfig(context.Background(), networkConfig)
@@ -929,6 +943,7 @@ func TestFlags(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = nw.loadConfig(context.Background(), networkConfig)
@@ -991,7 +1006,7 @@ func TestChildCmdRedirection(t *testing.T) {
 	// Sleep for a second after echoing so that we have a chance to read from the stdout pipe
 	// before it closes when the process exits and Wait() returns.
 	// See https://pkg.go.dev/os/exec#Cmd.StdoutPipe
-	proc, err := npc.NewNodeProcess(testConfig, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
+	proc, err := npc.NewNodeProcess(testConfig, 0, "-c", fmt.Sprintf("echo %s && sleep 1", testOutput))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1265,7 +1280,7 @@ func TestWriteFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stakingKeyPath := filepath.Join(tmpDir, "staking", stakingKeyFileName)
+	stakingKeyPath := filepath.Join(tmpDir, "staking", stakingTLSKeyFileName)
 	stakingCertPath := filepath.Join(tmpDir, "staking", stakingCertFileName)
 	genesisPath := filepath.Join(tmpDir, "configs", genesisFileName)
 	cChainConfigPath := filepath.Join(tmpDir, "configs", "chains", "C", configFileName)
@@ -1373,6 +1388,7 @@ func TestRemoveBeacon(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), emptyNetworkConfig)
@@ -1436,6 +1452,7 @@ func TestHealthyDuringNetworkStop(t *testing.T) {
 		false,
 		"",
 		beacon.NewSet(),
+		false,
 	)
 	require.NoError(err)
 	err = net.loadConfig(context.Background(), networkConfig)

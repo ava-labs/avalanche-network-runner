@@ -130,7 +130,7 @@ type localNetwork struct {
 	walletPrivateKey string
 	// nodes always returns 127.0.0.1 as IP
 	// if not set, may return 0.0.0.0 depending on httpHost settings
-	zeroIPIfPublicHttpHost bool
+	zeroIPIfPublicHTTPHost bool
 }
 
 type deprecatedFlagEsp struct {
@@ -179,7 +179,7 @@ func NewNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
-	zeroIPIfPublicHttpHost bool,
+	zeroIPIfPublicHTTPHost bool,
 ) (network.Network, error) {
 	beaconSet, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
 	if err != nil {
@@ -202,7 +202,7 @@ func NewNetwork(
 		redirectStderr,
 		walletPrivateKey,
 		beaconSet,
-		zeroIPIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost,
 	)
 	if err != nil {
 		return net, err
@@ -225,7 +225,7 @@ func newNetwork(
 	redirectStderr bool,
 	walletPrivateKey string,
 	beaconSet beacon.Set,
-	zeroIPIfPublicHttpHost bool,
+	zeroIPIfPublicHTTPHost bool,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -269,7 +269,7 @@ func newNetwork(
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
 		walletPrivateKey:         walletPrivateKey,
-		zeroIPIfPublicHttpHost:   zeroIPIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost:   zeroIPIfPublicHTTPHost,
 	}
 	return net, nil
 }
@@ -295,7 +295,7 @@ func NewDefaultNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
-	zeroIPIfPublicHttpHost bool,
+	zeroIPIfPublicHTTPHost bool,
 ) (network.Network, error) {
 	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "", nil)
 	if err != nil {
@@ -311,7 +311,7 @@ func NewDefaultNetwork(
 		redirectStdout,
 		redirectStderr,
 		"",
-		zeroIPIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost,
 	)
 }
 
@@ -538,7 +538,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 						// execute again asking avago to set ports by itself
 						nodeConfigs[i].Flags[config.HTTPPortKey] = 0
 						nodeConfigs[i].Flags[config.StakingPortKey] = 0
-						node, nodeErr = ln.addNode(nodeConfigs[i])
+						_, nodeErr = ln.addNode(nodeConfigs[i])
 						if nodeErr == nil {
 							continue
 						}
@@ -711,6 +711,9 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		name:                   nodeConfig.Name,
 		nodeID:                 nodeID,
 		networkID:              ln.networkID,
+		apiPort:                nodeData.apiPort,
+		p2pPort:                nodeData.p2pPort,
+		publicIP:               nodeData.publicIP,
 		getConnFunc:            defaultGetConnFunc,
 		dataDir:                nodeData.dataDir,
 		dbDir:                  nodeData.dbDir,
@@ -718,7 +721,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		config:                 nodeConfig,
 		pluginDir:              nodeData.pluginDir,
 		httpHost:               nodeData.httpHost,
-		zeroIPIfPublicHttpHost: ln.zeroIPIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost: ln.zeroIPIfPublicHTTPHost,
 		attachedPeers:          map[string]peer.Peer{},
 	}
 
@@ -732,35 +735,36 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 	}
 	node.process = nodeProcess
 
-	processFilePath := filepath.Join(nodeData.dataDir, config.DefaultProcessContextFilename)
-	processFileBytes, err := os.ReadFile(processFilePath)
-	if err != nil {
-		return node, fmt.Errorf("could not read node process info file %s", processFilePath)
-	}
-	processContext := avagonode.NodeProcessContext{}
-	if err := json.Unmarshal(processFileBytes, &processContext); err != nil {
-		return node, fmt.Errorf("failed to unmarshal node process context at %s: %w", processFilePath, err)
-	}
-	stakingAddressWords := strings.Split(processContext.StakingAddress, ":")
-	if len(stakingAddressWords) == 0 {
-		return node, fmt.Errorf("unexpected format on staking address %s", processContext.StakingAddress)
-	}
-	p2pPort, err := strconv.ParseUint(stakingAddressWords[len(stakingAddressWords)-1], 10, 16)
-	if err != nil {
-		return node, fmt.Errorf("unexpected format on staking address %s: %w", processContext.StakingAddress, err)
-	}
-	uriWords := strings.Split(processContext.URI, ":")
-	if len(uriWords) == 0 {
-		return node, fmt.Errorf("unexpected format on uri %s", processContext.URI)
-	}
-	apiPort, err := strconv.ParseUint(uriWords[len(uriWords)-1], 10, 16)
-	if err != nil {
-		return node, fmt.Errorf("unexpected format on uri %s: %w", processContext.URI, err)
+	if node.apiPort == 0 {
+		processFilePath := filepath.Join(nodeData.dataDir, config.DefaultProcessContextFilename)
+		processFileBytes, err := os.ReadFile(processFilePath)
+		if err != nil {
+			return node, fmt.Errorf("could not read node process info file %s", processFilePath)
+		}
+		processContext := avagonode.NodeProcessContext{}
+		if err := json.Unmarshal(processFileBytes, &processContext); err != nil {
+			return node, fmt.Errorf("failed to unmarshal node process context at %s: %w", processFilePath, err)
+		}
+		stakingAddressWords := strings.Split(processContext.StakingAddress, ":")
+		if len(stakingAddressWords) == 0 {
+			return node, fmt.Errorf("unexpected format on staking address %s", processContext.StakingAddress)
+		}
+		p2pPort, err := strconv.ParseUint(stakingAddressWords[len(stakingAddressWords)-1], 10, 16)
+		if err != nil {
+			return node, fmt.Errorf("unexpected format on staking address %s: %w", processContext.StakingAddress, err)
+		}
+		uriWords := strings.Split(processContext.URI, ":")
+		if len(uriWords) == 0 {
+			return node, fmt.Errorf("unexpected format on uri %s", processContext.URI)
+		}
+		apiPort, err := strconv.ParseUint(uriWords[len(uriWords)-1], 10, 16)
+		if err != nil {
+			return node, fmt.Errorf("unexpected format on uri %s: %w", processContext.URI, err)
+		}
+		node.apiPort = uint16(apiPort)
+		node.p2pPort = uint16(p2pPort)
 	}
 
-	node.publicIP = nodeData.publicIP
-	node.apiPort = uint16(apiPort)
-	node.p2pPort = uint16(p2pPort)
 	node.client = ln.newAPIClientF(node.publicIP, node.apiPort)
 
 	// If this node is a beacon, add its IP/ID to the beacon lists.

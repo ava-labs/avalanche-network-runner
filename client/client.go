@@ -124,7 +124,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		ChainConfigs:           ret.chainConfigs,
 		UpgradeConfigs:         ret.upgradeConfigs,
 		SubnetConfigs:          ret.subnetConfigs,
-		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHttpHost,
+		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHTTPHost,
 		FreshStakingIds:        ret.freshStakingIds,
 	}
 	if ret.trackSubnets != "" {
@@ -415,7 +415,7 @@ func (c *client) LoadSnapshot(
 		UpgradeConfigs:         ret.upgradeConfigs,
 		SubnetConfigs:          ret.subnetConfigs,
 		InPlace:                inPlace,
-		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHttpHost,
+		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHTTPHost,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -530,7 +530,7 @@ type Op struct {
 	bootstrapNodeIPPortPairs []string
 	upgradePath              string
 	snapshotPath             string
-	zeroIPIfPublicHttpHost   bool
+	zeroIPIfPublicHTTPHost   bool
 	freshStakingIds          bool
 }
 
@@ -685,9 +685,9 @@ func WithSnapshotPath(snapshotPath string) OpOption {
 	}
 }
 
-func WithZeroIPIfPublicHTTPHost(zeroIPIfPublicHttpHost bool) OpOption {
+func WithZeroIPIfPublicHTTPHost(zeroIPIfPublicHTTPHost bool) OpOption {
 	return func(op *Op) {
-		op.zeroIPIfPublicHttpHost = zeroIPIfPublicHttpHost
+		op.zeroIPIfPublicHTTPHost = zeroIPIfPublicHTTPHost
 	}
 }
 

@@ -85,7 +85,7 @@ type localNode struct {
 	// and can be resumed
 	paused bool
 	// if set, returns 0.0.0.0 if httpHost setting is public
-	zeroIPIfPublicHttpHost bool
+	zeroIPIfPublicHTTPHost bool
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
@@ -215,7 +215,7 @@ func (node *localNode) GetAPIClient() api.Client {
 
 // See node.Node
 func (node *localNode) GetIP() string {
-	if node.zeroIPIfPublicHttpHost && (node.httpHost == "0.0.0.0" || node.httpHost == ".") {
+	if node.zeroIPIfPublicHTTPHost && (node.httpHost == "0.0.0.0" || node.httpHost == ".") {
 		return "0.0.0.0"
 	}
 	return node.publicIP

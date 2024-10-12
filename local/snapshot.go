@@ -79,7 +79,7 @@ func NewNetworkFromSnapshot(
 	inPlace bool,
 	walletPrivateKey string,
 	beaconConfig map[ids.NodeID]netip.AddrPort,
-	zeroIPIsPublicHttpHost bool,
+	zeroIPIfPublicHTTPHost bool,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
@@ -108,7 +108,7 @@ func NewNetworkFromSnapshot(
 		redirectStderr,
 		walletPrivateKey,
 		beaconSet,
-		zeroIPIsPublicHttpHost,
+		zeroIPIfPublicHTTPHost,
 	)
 	if err != nil {
 		return net, err

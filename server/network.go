@@ -124,7 +124,7 @@ type localNetworkOptions struct {
 	upgradePath string
 
 	// if set, returns 0.0.0.0 if httpHost setting is public
-	zeroIPIfPublicHttpHost bool
+	zeroIPIfPublicHTTPHost bool
 
 	// do not repeate past node IDs
 	freshStakingIds bool
@@ -285,7 +285,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
 		lc.options.walletPrivateKey,
-		lc.options.zeroIPIfPublicHttpHost,
+		lc.options.zeroIPIfPublicHTTPHost,
 	)
 	if err != nil {
 		return err
@@ -620,7 +620,7 @@ func (lc *localNetwork) LoadSnapshot(
 		inPlace,
 		lc.options.walletPrivateKey,
 		lc.options.beaconConfig,
-		lc.options.zeroIPIfPublicHttpHost,
+		lc.options.zeroIPIfPublicHTTPHost,
 	)
 	if err != nil {
 		return err

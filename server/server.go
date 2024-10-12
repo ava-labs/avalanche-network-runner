@@ -365,7 +365,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		genesisPath:            req.GenesisPath,
 		beaconConfig:           beaconConfig,
 		upgradePath:            req.UpgradePath,
-		zeroIPIfPublicHttpHost: req.ZeroIpIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost: req.ZeroIpIfPublicHttpHost,
 		freshStakingIds:        req.FreshStakingIds,
 	})
 	if err != nil {
@@ -1384,7 +1384,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		logLevel:               s.cfg.LogLevel,
 		reassignPortsIfUsed:    req.GetReassignPortsIfUsed(),
 		snapshotsDir:           s.cfg.SnapshotsDir,
-		zeroIPIfPublicHttpHost: req.ZeroIpIfPublicHttpHost,
+		zeroIPIfPublicHTTPHost: req.ZeroIpIfPublicHttpHost,
 	})
 	if err != nil {
 		return nil, err
