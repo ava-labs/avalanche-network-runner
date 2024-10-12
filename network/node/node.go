@@ -28,6 +28,8 @@ type Node interface {
 	GetP2PPort() uint16
 	// Return this node's HTTP API port.
 	GetAPIPort() uint16
+	// Return this node's URI (e.g. http://127.0.0.1:9650).
+	GetURI() string
 	// Starts a new test peer, connects it to the given node, and returns the peer.
 	// [handler] defines how the test peer handles messages it receives.
 	// The test peer can be used to send messages to the node it's attached to.

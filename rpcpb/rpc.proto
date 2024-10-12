@@ -378,8 +378,9 @@ message StartRequest {
   // upgrade path
   string upgrade_path = 20;
   
-  // 0.0.0.0 if public HTTPHost
-  bool zero_ip_if_public_http_host = 21;
+  // return 0.0.0.0 as node IP if node has
+  // public HTTPHost settings
+  bool zero_ip = 21;
 
   // always create new staking data
   bool fresh_staking_ids = 22;
@@ -703,8 +704,9 @@ message LoadSnapshotRequest {
   repeated string bootstrap_ip_port_pairs = 14;
   // to force an arbitrary path
   string snapshot_path = 15;
-  // 0.0.0.0 if public HTTPHost
-  bool zero_ip_if_public_http_host = 16;
+  // return 0.0.0.0 as node IP if node has
+  // public HTTPHost settings
+  bool zero_ip = 16;
 }
 
 message LoadSnapshotResponse {

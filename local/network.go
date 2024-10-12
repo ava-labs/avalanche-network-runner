@@ -41,21 +41,23 @@ import (
 )
 
 const (
-	defaultNodeNamePrefix    = "node"
-	configFileName           = "config.json"
-	upgradeConfigFileName    = "upgrade.json"
-	stakingTLSKeyFileName    = "staker.key"
-	stakingCertFileName      = "staker.crt"
-	stakingSignerKeyFileName = "signer.key"
-	genesisFileName          = "genesis.json"
-	upgradeFileName          = "upgrade.json"
-	stopTimeout              = 30 * time.Second
-	healthCheckFreq          = 3 * time.Second
-	snapshotPrefix           = "anr-snapshot-"
-	networkRootDirPrefix     = "network"
-	defaultDBSubdir          = "db"
-	defaultLogsSubdir        = "logs"
-	nodeStartupTime          = 2 * time.Second
+	defaultNodeNamePrefix       = "node"
+	configFileName              = "config.json"
+	upgradeConfigFileName       = "upgrade.json"
+	stakingTLSKeyFileName       = "staker.key"
+	stakingCertFileName         = "staker.crt"
+	stakingSignerKeyFileName    = "signer.key"
+	genesisFileName             = "genesis.json"
+	upgradeFileName             = "upgrade.json"
+	stopTimeout                 = 30 * time.Second
+	healthCheckFreq             = 3 * time.Second
+	snapshotPrefix              = "anr-snapshot-"
+	networkRootDirPrefix        = "network"
+	defaultDBSubdir             = "db"
+	defaultLogsSubdir           = "logs"
+	nodeStartupTime             = 1 * time.Second
+	processContextWaitTimeout   = 3 * time.Second
+	processContextCheckInterval = 100 * time.Millisecond
 )
 
 // interface compliance
@@ -130,7 +132,7 @@ type localNetwork struct {
 	walletPrivateKey string
 	// nodes always returns 127.0.0.1 as IP
 	// if not set, may return 0.0.0.0 depending on httpHost settings
-	zeroIPIfPublicHTTPHost bool
+	zeroIP bool
 }
 
 type deprecatedFlagEsp struct {
@@ -179,7 +181,7 @@ func NewNetwork(
 	redirectStdout bool,
 	redirectStderr bool,
 	walletPrivateKey string,
-	zeroIPIfPublicHTTPHost bool,
+	zeroIP bool,
 ) (network.Network, error) {
 	beaconSet, err := utils.BeaconMapToSet(networkConfig.BeaconConfig)
 	if err != nil {
@@ -202,7 +204,7 @@ func NewNetwork(
 		redirectStderr,
 		walletPrivateKey,
 		beaconSet,
-		zeroIPIfPublicHTTPHost,
+		zeroIP,
 	)
 	if err != nil {
 		return net, err
@@ -225,7 +227,7 @@ func newNetwork(
 	redirectStderr bool,
 	walletPrivateKey string,
 	beaconSet beacon.Set,
-	zeroIPIfPublicHTTPHost bool,
+	zeroIP bool,
 ) (*localNetwork, error) {
 	var err error
 	if rootDir == "" {
@@ -269,7 +271,7 @@ func newNetwork(
 		subnetID2ElasticSubnetID: map[ids.ID]ids.ID{},
 		blockchainAliases:        map[string][]string{},
 		walletPrivateKey:         walletPrivateKey,
-		zeroIPIfPublicHTTPHost:   zeroIPIfPublicHTTPHost,
+		zeroIP:                   zeroIP,
 	}
 	return net, nil
 }
@@ -295,7 +297,7 @@ func NewDefaultNetwork(
 	reassignPortsIfUsed bool,
 	redirectStdout bool,
 	redirectStderr bool,
-	zeroIPIfPublicHTTPHost bool,
+	zeroIP bool,
 ) (network.Network, error) {
 	config, err := NewDefaultConfig(binaryPath, constants.DefaultNetworkID, "", "", nil)
 	if err != nil {
@@ -311,7 +313,7 @@ func NewDefaultNetwork(
 		redirectStdout,
 		redirectStderr,
 		"",
-		zeroIPIfPublicHTTPHost,
+		zeroIP,
 	)
 }
 
@@ -708,21 +710,21 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	// Create a wrapper for this node so we can reference it later
 	node := &localNode{
-		name:                   nodeConfig.Name,
-		nodeID:                 nodeID,
-		networkID:              ln.networkID,
-		apiPort:                nodeData.apiPort,
-		p2pPort:                nodeData.p2pPort,
-		publicIP:               nodeData.publicIP,
-		getConnFunc:            defaultGetConnFunc,
-		dataDir:                nodeData.dataDir,
-		dbDir:                  nodeData.dbDir,
-		logsDir:                nodeData.logsDir,
-		config:                 nodeConfig,
-		pluginDir:              nodeData.pluginDir,
-		httpHost:               nodeData.httpHost,
-		zeroIPIfPublicHTTPHost: ln.zeroIPIfPublicHTTPHost,
-		attachedPeers:          map[string]peer.Peer{},
+		name:          nodeConfig.Name,
+		nodeID:        nodeID,
+		networkID:     ln.networkID,
+		apiPort:       nodeData.apiPort,
+		p2pPort:       nodeData.p2pPort,
+		publicIP:      nodeData.publicIP,
+		getConnFunc:   defaultGetConnFunc,
+		dataDir:       nodeData.dataDir,
+		dbDir:         nodeData.dbDir,
+		logsDir:       nodeData.logsDir,
+		config:        nodeConfig,
+		pluginDir:     nodeData.pluginDir,
+		httpHost:      nodeData.httpHost,
+		zeroIP:        ln.zeroIP,
+		attachedPeers: map[string]peer.Peer{},
 	}
 
 	// Start the AvalancheGo node and pass it the flags defined above
@@ -737,6 +739,14 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 
 	if node.apiPort == 0 {
 		processFilePath := filepath.Join(nodeData.dataDir, config.DefaultProcessContextFilename)
+		if err := utils.WaitForFile(
+			processFilePath,
+			processContextWaitTimeout,
+			processContextCheckInterval,
+			"node process info file was not generated",
+		); err != nil {
+			return node, err
+		}
 		processFileBytes, err := os.ReadFile(processFilePath)
 		if err != nil {
 			return node, fmt.Errorf("could not read node process info file %s", processFilePath)
@@ -751,7 +761,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		}
 		p2pPort, err := strconv.ParseUint(stakingAddressWords[len(stakingAddressWords)-1], 10, 16)
 		if err != nil {
-			return node, fmt.Errorf("unexpected format on staking address %s: %w", processContext.StakingAddress, err)
+			return node, fmt.Errorf("unexpected format on P2P port %s: %w", processContext.StakingAddress, err)
 		}
 		uriWords := strings.Split(processContext.URI, ":")
 		if len(uriWords) == 0 {

@@ -123,8 +123,8 @@ type localNetworkOptions struct {
 	genesisPath string
 	upgradePath string
 
-	// if set, returns 0.0.0.0 if httpHost setting is public
-	zeroIPIfPublicHTTPHost bool
+	// if set, returns 0.0.0.0 IP if httpHost setting is public
+	zeroIP bool
 
 	// do not repeate past node IDs
 	freshStakingIds bool
@@ -285,7 +285,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
 		lc.options.walletPrivateKey,
-		lc.options.zeroIPIfPublicHTTPHost,
+		lc.options.zeroIP,
 	)
 	if err != nil {
 		return err
@@ -620,7 +620,7 @@ func (lc *localNetwork) LoadSnapshot(
 		inPlace,
 		lc.options.walletPrivateKey,
 		lc.options.beaconConfig,
-		lc.options.zeroIPIfPublicHTTPHost,
+		lc.options.zeroIP,
 	)
 	if err != nil {
 		return err
@@ -828,7 +828,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
-			Uri:                fmt.Sprintf("http://%s:%d", node.GetIP(), node.GetAPIPort()),
+			Uri:                node.GetURI(),
 			Id:                 node.GetNodeID().String(),
 			ExecPath:           node.GetBinaryPath(),
 			LogDir:             node.GetLogsDir(),

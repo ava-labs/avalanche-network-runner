@@ -118,14 +118,14 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 	ret.applyOpts(opts)
 
 	req := &rpcpb.StartRequest{
-		NetworkId:              ret.networkID,
-		ExecPath:               execPath,
-		NumNodes:               &ret.numNodes,
-		ChainConfigs:           ret.chainConfigs,
-		UpgradeConfigs:         ret.upgradeConfigs,
-		SubnetConfigs:          ret.subnetConfigs,
-		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHTTPHost,
-		FreshStakingIds:        ret.freshStakingIds,
+		NetworkId:       ret.networkID,
+		ExecPath:        execPath,
+		NumNodes:        &ret.numNodes,
+		ChainConfigs:    ret.chainConfigs,
+		UpgradeConfigs:  ret.upgradeConfigs,
+		SubnetConfigs:   ret.subnetConfigs,
+		ZeroIp:          ret.zeroIP,
+		FreshStakingIds: ret.freshStakingIds,
 	}
 	if ret.trackSubnets != "" {
 		req.WhitelistedSubnets = &ret.trackSubnets
@@ -409,13 +409,13 @@ func (c *client) LoadSnapshot(
 	ret := &Op{}
 	ret.applyOpts(opts)
 	req := rpcpb.LoadSnapshotRequest{
-		SnapshotName:           snapshotName,
-		SnapshotPath:           ret.snapshotPath,
-		ChainConfigs:           ret.chainConfigs,
-		UpgradeConfigs:         ret.upgradeConfigs,
-		SubnetConfigs:          ret.subnetConfigs,
-		InPlace:                inPlace,
-		ZeroIpIfPublicHttpHost: ret.zeroIPIfPublicHTTPHost,
+		SnapshotName:   snapshotName,
+		SnapshotPath:   ret.snapshotPath,
+		ChainConfigs:   ret.chainConfigs,
+		UpgradeConfigs: ret.upgradeConfigs,
+		SubnetConfigs:  ret.subnetConfigs,
+		InPlace:        inPlace,
+		ZeroIp:         ret.zeroIP,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -530,7 +530,7 @@ type Op struct {
 	bootstrapNodeIPPortPairs []string
 	upgradePath              string
 	snapshotPath             string
-	zeroIPIfPublicHTTPHost   bool
+	zeroIP                   bool
 	freshStakingIds          bool
 }
 
@@ -685,9 +685,9 @@ func WithSnapshotPath(snapshotPath string) OpOption {
 	}
 }
 
-func WithZeroIPIfPublicHTTPHost(zeroIPIfPublicHTTPHost bool) OpOption {
+func WithZeroIP(zeroIP bool) OpOption {
 	return func(op *Op) {
-		op.zeroIPIfPublicHTTPHost = zeroIPIfPublicHTTPHost
+		op.zeroIP = zeroIP
 	}
 }
 

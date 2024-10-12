@@ -79,7 +79,7 @@ func NewNetworkFromSnapshot(
 	inPlace bool,
 	walletPrivateKey string,
 	beaconConfig map[ids.NodeID]netip.AddrPort,
-	zeroIPIfPublicHTTPHost bool,
+	zeroIP bool,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
@@ -108,7 +108,7 @@ func NewNetworkFromSnapshot(
 		redirectStderr,
 		walletPrivateKey,
 		beaconSet,
-		zeroIPIfPublicHTTPHost,
+		zeroIP,
 	)
 	if err != nil {
 		return net, err
@@ -449,14 +449,13 @@ func getSnapshotDir(
 	snapshotName string,
 	snapshotPath string,
 ) string {
+	if snapshotPath != "" {
+		return snapshotPath
+	}
 	if snapshotsDir == "" {
 		snapshotsDir = DefaultSnapshotsDir
 	}
-	snapshotDir := filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
-	if snapshotPath != "" {
-		snapshotDir = snapshotPath
-	}
-	return snapshotDir
+	return filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
 }
 
 func RemoveSnapshot(

@@ -177,6 +177,30 @@ func FileExists(filename string) bool {
 	return !info.IsDir()
 }
 
+func WaitForFile(
+	filename string,
+	timeout time.Duration,
+	checkInterval time.Duration,
+	description string,
+) error {
+	t0 := time.Now()
+	for {
+		if FileExists(filename) {
+			break
+		}
+		elapsed := time.Since(t0)
+		if elapsed > timeout {
+			return fmt.Errorf(
+				"%s within %.0f seconds",
+				description,
+				timeout.Seconds(),
+			)
+		}
+		time.Sleep(checkInterval)
+	}
+	return nil
+}
+
 func IsPublicNetwork(networkID uint32) bool {
 	return networkID == constants.FujiID || networkID == constants.MainnetID
 }
