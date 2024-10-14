@@ -59,6 +59,8 @@ type localNode struct {
 	client api.Client
 	// The process running this node.
 	process NodeProcess
+	// The Public IP
+	publicIP string
 	// The API port
 	apiPort uint16
 	// The P2P (staking) port
@@ -82,11 +84,13 @@ type localNode struct {
 	// signals that the process is stopped but the information is valid
 	// and can be resumed
 	paused bool
+	// if set, returns 0.0.0.0 if httpHost setting is public
+	zeroIP bool
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
 	dialer := net.Dialer{}
-	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
+	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetIP(), fmt.Sprintf("%d", node.GetP2PPort())))
 }
 
 // AttachPeer: see Network
@@ -210,11 +214,16 @@ func (node *localNode) GetAPIClient() api.Client {
 }
 
 // See node.Node
-func (node *localNode) GetURL() string {
-	if node.httpHost == "0.0.0.0" || node.httpHost == "." {
+func (node *localNode) GetIP() string {
+	if node.zeroIP && (node.httpHost == "0.0.0.0" || node.httpHost == ".") {
 		return "0.0.0.0"
 	}
-	return "127.0.0.1"
+	return node.publicIP
+}
+
+// See node.Node
+func (node *localNode) GetURI() string {
+	return fmt.Sprintf("http://%s:%d", node.GetIP(), node.GetAPIPort())
 }
 
 // See node.Node

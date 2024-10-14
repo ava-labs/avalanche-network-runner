@@ -168,6 +168,39 @@ func PathExists(path string) (bool, error) {
 	return true, nil
 }
 
+// FileExists checks if a file exists.
+func FileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func WaitForFile(
+	filename string,
+	timeout time.Duration,
+	checkInterval time.Duration,
+	description string,
+) error {
+	t0 := time.Now()
+	for {
+		if FileExists(filename) {
+			break
+		}
+		elapsed := time.Since(t0)
+		if elapsed > timeout {
+			return fmt.Errorf(
+				"%s within %.0f seconds",
+				description,
+				timeout.Seconds(),
+			)
+		}
+		time.Sleep(checkInterval)
+	}
+	return nil
+}
+
 func IsPublicNetwork(networkID uint32) bool {
 	return networkID == constants.FujiID || networkID == constants.MainnetID
 }

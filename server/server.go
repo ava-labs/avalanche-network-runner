@@ -365,6 +365,7 @@ func (s *server) Start(_ context.Context, req *rpcpb.StartRequest) (*rpcpb.Start
 		genesisPath:         req.GenesisPath,
 		beaconConfig:        beaconConfig,
 		upgradePath:         req.UpgradePath,
+		zeroIP:              req.ZeroIp,
 		freshStakingIds:     req.FreshStakingIds,
 	})
 	if err != nil {
@@ -1383,6 +1384,7 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 		logLevel:            s.cfg.LogLevel,
 		reassignPortsIfUsed: req.GetReassignPortsIfUsed(),
 		snapshotsDir:        s.cfg.SnapshotsDir,
+		zeroIP:              req.ZeroIp,
 	})
 	if err != nil {
 		return nil, err
@@ -1392,7 +1394,11 @@ func (s *server) LoadSnapshot(_ context.Context, req *rpcpb.LoadSnapshotRequest)
 	}
 
 	// blocking load snapshot to soon get not found snapshot errors
-	if err := s.network.LoadSnapshot(req.SnapshotName, req.InPlace); err != nil {
+	if err := s.network.LoadSnapshot(
+		req.SnapshotName,
+		req.SnapshotPath,
+		req.InPlace,
+	); err != nil {
 		s.log.Warn("snapshot load failed to complete", zap.Error(err))
 		s.stopAndRemoveNetwork(nil)
 		return nil, err
@@ -1426,7 +1432,12 @@ func (s *server) SaveSnapshot(ctx context.Context, req *rpcpb.SaveSnapshotReques
 		return nil, ErrNotBootstrapped
 	}
 
-	snapshotPath, err := s.network.nw.SaveSnapshot(ctx, req.SnapshotName, req.Force)
+	snapshotPath, err := s.network.nw.SaveSnapshot(
+		ctx,
+		req.SnapshotName,
+		req.SnapshotPath,
+		req.Force,
+	)
 	if err != nil {
 		s.log.Warn("snapshot save failed to complete", zap.Error(err))
 		return nil, err
@@ -1443,7 +1454,11 @@ func (s *server) RemoveSnapshot(_ context.Context, req *rpcpb.RemoveSnapshotRequ
 
 	s.log.Info("RemoveSnapshot", zap.String("snapshot-name", req.SnapshotName))
 
-	if err := local.RemoveSnapshot(s.cfg.SnapshotsDir, req.SnapshotName); err != nil {
+	if err := local.RemoveSnapshot(
+		s.cfg.SnapshotsDir,
+		req.SnapshotName,
+		req.SnapshotPath,
+	); err != nil {
 		s.log.Warn("snapshot remove failed to complete", zap.Error(err))
 		return nil, err
 	}

@@ -111,10 +111,12 @@ func (ln *localNetwork) getMinValidatorWeight() uint64 {
 // get node client URI for an arbitrary node in the network
 func (ln *localNetwork) getClientURI() (string, error) { //nolint
 	node := ln.getNode()
-	clientURI := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-	ln.log.Info("getClientURI",
+	clientURI := node.GetURI()
+	ln.log.Info(
+		"getClientURI",
 		zap.String("nodeName", node.GetName()),
-		zap.String("uri", clientURI))
+		zap.String("uri", clientURI),
+	)
 	return clientURI, nil
 }
 
@@ -1635,8 +1637,7 @@ func (ln *localNetwork) reloadVMPlugins(ctx context.Context) error {
 		if node.paused {
 			continue
 		}
-		uri := fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort())
-		adminCli := admin.NewClient(uri)
+		adminCli := admin.NewClient(node.GetURI())
 		cctx, cancel := createDefaultCtx(ctx)
 		_, failedVMs, err := adminCli.LoadVMs(cctx)
 		cancel()

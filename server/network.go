@@ -122,6 +122,10 @@ type localNetworkOptions struct {
 	// custom network
 	genesisPath string
 	upgradePath string
+
+	// if set, returns 0.0.0.0 IP if httpHost setting is public
+	zeroIP bool
+
 	// do not repeate past node IDs
 	freshStakingIds bool
 }
@@ -281,6 +285,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 		lc.options.redirectNodesOutput,
 		lc.options.redirectNodesOutput,
 		lc.options.walletPrivateKey,
+		lc.options.zeroIP,
 	)
 	if err != nil {
 		return err
@@ -579,7 +584,11 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
+func (lc *localNetwork) LoadSnapshot(
+	snapshotName string,
+	snapshotPath string,
+	inPlace bool,
+) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -594,10 +603,11 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 
 	nw, err := local.NewNetworkFromSnapshot(
 		lc.log,
+		lc.options.snapshotsDir,
 		snapshotName,
+		snapshotPath,
 		lc.options.rootDataDir,
 		lc.options.logRootDir,
-		lc.options.snapshotsDir,
 		lc.execPath,
 		lc.pluginDir,
 		lc.options.chainConfigs,
@@ -610,6 +620,7 @@ func (lc *localNetwork) LoadSnapshot(snapshotName string, inPlace bool) error {
 		inPlace,
 		lc.options.walletPrivateKey,
 		lc.options.beaconConfig,
+		lc.options.zeroIP,
 	)
 	if err != nil {
 		return err
@@ -817,7 +828,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
-			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
+			Uri:                node.GetURI(),
 			Id:                 node.GetNodeID().String(),
 			ExecPath:           node.GetBinaryPath(),
 			LogDir:             node.GetLogsDir(),

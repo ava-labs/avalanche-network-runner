@@ -100,9 +100,9 @@ type Network interface {
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
 	// Returns the full local path to the snapshot dir
-	SaveSnapshot(context.Context, string, bool) (string, error)
+	SaveSnapshot(context.Context, string, string, bool) (string, error)
 	// Remove network snapshot
-	RemoveSnapshot(string) error
+	RemoveSnapshot(string, string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
 	// Restart a given node using the same config, optionally changing binary path, plugin dir,

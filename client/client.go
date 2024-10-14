@@ -52,9 +52,9 @@ type Client interface {
 	AttachPeer(ctx context.Context, nodeName string) (*rpcpb.AttachPeerResponse, error)
 	SendOutboundMessage(ctx context.Context, nodeName string, peerID string, op uint32, msgBody []byte) (*rpcpb.SendOutboundMessageResponse, error)
 	Close() error
-	SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error)
+	SaveSnapshot(ctx context.Context, snapshotName string, force bool, opts ...OpOption) (*rpcpb.SaveSnapshotResponse, error)
 	LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error)
-	RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error)
+	RemoveSnapshot(ctx context.Context, snapshotName string, opts ...OpOption) (*rpcpb.RemoveSnapshotResponse, error)
 	ListSnapshots(ctx context.Context) ([]string, error)
 	ListSubnets(ctx context.Context) ([]string, error)
 	ListBlockchains(ctx context.Context) ([]*rpcpb.CustomChainInfo, error)
@@ -124,6 +124,7 @@ func (c *client) Start(ctx context.Context, execPath string, opts ...OpOption) (
 		ChainConfigs:    ret.chainConfigs,
 		UpgradeConfigs:  ret.upgradeConfigs,
 		SubnetConfigs:   ret.subnetConfigs,
+		ZeroIp:          ret.zeroIP,
 		FreshStakingIds: ret.freshStakingIds,
 	}
 	if ret.trackSubnets != "" {
@@ -381,21 +382,40 @@ func (c *client) SendOutboundMessage(ctx context.Context, nodeName string, peerI
 	})
 }
 
-func (c *client) SaveSnapshot(ctx context.Context, snapshotName string, force bool) (*rpcpb.SaveSnapshotResponse, error) {
+func (c *client) SaveSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	force bool,
+	opts ...OpOption,
+) (*rpcpb.SaveSnapshotResponse, error) {
 	c.log.Info("save snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.SaveSnapshot(ctx, &rpcpb.SaveSnapshotRequest{SnapshotName: snapshotName, Force: force})
+	ret := &Op{}
+	ret.applyOpts(opts)
+	req := rpcpb.SaveSnapshotRequest{
+		SnapshotName: snapshotName,
+		SnapshotPath: ret.snapshotPath,
+		Force:        force,
+	}
+	return c.controlc.SaveSnapshot(ctx, &req)
 }
 
-func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace bool, opts ...OpOption) (*rpcpb.LoadSnapshotResponse, error) {
+func (c *client) LoadSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	inPlace bool,
+	opts ...OpOption,
+) (*rpcpb.LoadSnapshotResponse, error) {
 	c.log.Info("load snapshot", zap.String("snapshot-name", snapshotName))
 	ret := &Op{}
 	ret.applyOpts(opts)
 	req := rpcpb.LoadSnapshotRequest{
 		SnapshotName:   snapshotName,
+		SnapshotPath:   ret.snapshotPath,
 		ChainConfigs:   ret.chainConfigs,
 		UpgradeConfigs: ret.upgradeConfigs,
 		SubnetConfigs:  ret.subnetConfigs,
 		InPlace:        inPlace,
+		ZeroIp:         ret.zeroIP,
 	}
 	if ret.execPath != "" {
 		req.ExecPath = &ret.execPath
@@ -420,9 +440,19 @@ func (c *client) LoadSnapshot(ctx context.Context, snapshotName string, inPlace 
 	return c.controlc.LoadSnapshot(ctx, &req)
 }
 
-func (c *client) RemoveSnapshot(ctx context.Context, snapshotName string) (*rpcpb.RemoveSnapshotResponse, error) {
+func (c *client) RemoveSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	opts ...OpOption,
+) (*rpcpb.RemoveSnapshotResponse, error) {
 	c.log.Info("remove snapshot", zap.String("snapshot-name", snapshotName))
-	return c.controlc.RemoveSnapshot(ctx, &rpcpb.RemoveSnapshotRequest{SnapshotName: snapshotName})
+	ret := &Op{}
+	ret.applyOpts(opts)
+	req := rpcpb.RemoveSnapshotRequest{
+		SnapshotName: snapshotName,
+		SnapshotPath: ret.snapshotPath,
+	}
+	return c.controlc.RemoveSnapshot(ctx, &req)
 }
 
 func (c *client) ListSnapshots(ctx context.Context) ([]string, error) {
@@ -499,6 +529,8 @@ type Op struct {
 	bootstrapNodeIDs         []string
 	bootstrapNodeIPPortPairs []string
 	upgradePath              string
+	snapshotPath             string
+	zeroIP                   bool
 	freshStakingIds          bool
 }
 
@@ -644,6 +676,18 @@ func WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs []string) OpOption {
 func WithUpgradePath(upgradePath string) OpOption {
 	return func(op *Op) {
 		op.upgradePath = upgradePath
+	}
+}
+
+func WithSnapshotPath(snapshotPath string) OpOption {
+	return func(op *Op) {
+		op.snapshotPath = snapshotPath
+	}
+}
+
+func WithZeroIP(zeroIP bool) OpOption {
+	return func(op *Op) {
+		op.zeroIP = zeroIP
 	}
 }
 

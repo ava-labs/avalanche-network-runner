@@ -62,10 +62,11 @@ func fixDeprecatedAvagoFlags(flags map[string]interface{}) error {
 // NewNetwork returns a new network from the given snapshot
 func NewNetworkFromSnapshot(
 	log logging.Logger,
+	snapshotsDir string,
 	snapshotName string,
+	snapshotPath string,
 	rootDir string,
 	logRootDir string,
-	snapshotsDir string,
 	binaryPath string,
 	pluginDir string,
 	chainConfigs map[string]string,
@@ -78,12 +79,13 @@ func NewNetworkFromSnapshot(
 	inPlace bool,
 	walletPrivateKey string,
 	beaconConfig map[ids.NodeID]netip.AddrPort,
+	zeroIP bool,
 ) (network.Network, error) {
 	if inPlace {
 		if rootDir != "" {
 			return nil, fmt.Errorf("root dir must be empty when using in place snapshot load")
 		}
-		rootDir = getSnapshotDir(snapshotsDir, snapshotName)
+		rootDir = getSnapshotDir(snapshotsDir, snapshotName, snapshotPath)
 	}
 	beaconSet, err := utils.BeaconMapToSet(beaconConfig)
 	if err != nil {
@@ -106,6 +108,7 @@ func NewNetworkFromSnapshot(
 		redirectStderr,
 		walletPrivateKey,
 		beaconSet,
+		zeroIP,
 	)
 	if err != nil {
 		return net, err
@@ -113,6 +116,7 @@ func NewNetworkFromSnapshot(
 	err = net.loadSnapshot(
 		context.Background(),
 		snapshotName,
+		snapshotPath,
 		binaryPath,
 		pluginDir,
 		chainConfigs,
@@ -199,7 +203,12 @@ func (ln *localNetwork) persistNetwork() error {
 
 // Save network snapshot
 // Network is stopped in order to do a safe preservation
-func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, force bool) (string, error) {
+func (ln *localNetwork) SaveSnapshot(
+	ctx context.Context,
+	snapshotName string,
+	snapshotPath string,
+	force bool,
+) (string, error) {
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
@@ -210,7 +219,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 		return "", fmt.Errorf("invalid snapshotName %q", snapshotName)
 	}
 	// check if snapshot already exists
-	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName)
+	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName, snapshotPath)
 	exists := false
 	if _, err := os.Stat(snapshotDir); err == nil {
 		exists = true
@@ -231,7 +240,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 	}
 	// remove if force save
 	if force && exists {
-		if err := ln.RemoveSnapshot(snapshotName); err != nil {
+		if err := ln.RemoveSnapshot(snapshotName, snapshotPath); err != nil {
 			return "", err
 		}
 	}
@@ -246,6 +255,7 @@ func (ln *localNetwork) SaveSnapshot(ctx context.Context, snapshotName string, f
 func (ln *localNetwork) loadSnapshot(
 	ctx context.Context,
 	snapshotName string,
+	snapshotPath string,
 	binaryPath string,
 	pluginDir string,
 	chainConfigs map[string]string,
@@ -257,7 +267,7 @@ func (ln *localNetwork) loadSnapshot(
 	ln.lock.Lock()
 	defer ln.lock.Unlock()
 
-	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName)
+	snapshotDir := getSnapshotDir(ln.snapshotsDir, snapshotName, snapshotPath)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -422,8 +432,11 @@ func (ln *localNetwork) loadSnapshot(
 }
 
 // Remove network snapshot
-func (ln *localNetwork) RemoveSnapshot(snapshotName string) error {
-	return RemoveSnapshot(ln.snapshotsDir, snapshotName)
+func (ln *localNetwork) RemoveSnapshot(
+	snapshotName string,
+	snapshotPath string,
+) error {
+	return RemoveSnapshot(ln.snapshotsDir, snapshotName, snapshotPath)
 }
 
 // Get network snapshots
@@ -431,15 +444,26 @@ func (ln *localNetwork) GetSnapshotNames() ([]string, error) {
 	return GetSnapshotNames(ln.snapshotsDir)
 }
 
-func getSnapshotDir(snapshotsDir string, snapshotName string) string {
+func getSnapshotDir(
+	snapshotsDir string,
+	snapshotName string,
+	snapshotPath string,
+) string {
+	if snapshotPath != "" {
+		return snapshotPath
+	}
 	if snapshotsDir == "" {
 		snapshotsDir = DefaultSnapshotsDir
 	}
 	return filepath.Join(snapshotsDir, snapshotPrefix+snapshotName)
 }
 
-func RemoveSnapshot(snapshotsDir string, snapshotName string) error {
-	snapshotDir := getSnapshotDir(snapshotsDir, snapshotName)
+func RemoveSnapshot(
+	snapshotsDir string,
+	snapshotName string,
+	snapshotPath string,
+) error {
+	snapshotDir := getSnapshotDir(snapshotsDir, snapshotName, snapshotPath)
 	_, err := os.Stat(snapshotDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

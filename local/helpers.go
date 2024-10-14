@@ -34,6 +34,18 @@ func getFreePort() (uint16, error) {
 	return port, nil
 }
 
+func getStakingTLSKeyPath(nodeRootDir string) string {
+	return filepath.Join(nodeRootDir, stakingPath, stakingTLSKeyFileName)
+}
+
+func getStakingCertPath(nodeRootDir string) string {
+	return filepath.Join(nodeRootDir, stakingPath, stakingCertFileName)
+}
+
+func getStakingSignerKeyPath(nodeRootDir string) string {
+	return filepath.Join(nodeRootDir, stakingPath, stakingSignerKeyFileName)
+}
+
 func getChainConfigDir(rootDir string) string {
 	return filepath.Join(rootDir, "configs", "chains")
 }
@@ -63,19 +75,19 @@ func writeFiles(
 	files := []file{
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, stakingPath, stakingKeyFileName),
+			path:      getStakingTLSKeyPath(nodeRootDir),
 			pathKey:   config.StakingTLSKeyPathKey,
 			contents:  []byte(nodeConfig.StakingKey),
 		},
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, stakingPath, stakingCertFileName),
+			path:      getStakingCertPath(nodeRootDir),
 			pathKey:   config.StakingCertPathKey,
 			contents:  []byte(nodeConfig.StakingCert),
 		},
 		{
 			flagValue: "",
-			path:      filepath.Join(nodeRootDir, stakingPath, stakingSigningKeyFileName),
+			path:      getStakingSignerKeyPath(nodeRootDir),
 			pathKey:   config.StakingSignerKeyPathKey,
 			contents:  decodedStakingSigningKey,
 		},
