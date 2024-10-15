@@ -751,18 +751,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 		if err != nil {
 			return node, fmt.Errorf("could not read node process info file %s", processFilePath)
 		}
-		processContext := avagonode.NodeProcessContext{}
+		processContext := avagonode.ProcessContext{}
 		if err := json.Unmarshal(processFileBytes, &processContext); err != nil {
 			return node, fmt.Errorf("failed to unmarshal node process context at %s: %w", processFilePath, err)
 		}
-		stakingAddressWords := strings.Split(processContext.StakingAddress, ":")
-		if len(stakingAddressWords) == 0 {
-			return node, fmt.Errorf("unexpected format on staking address %s", processContext.StakingAddress)
-		}
-		p2pPort, err := strconv.ParseUint(stakingAddressWords[len(stakingAddressWords)-1], 10, 16)
-		if err != nil {
-			return node, fmt.Errorf("unexpected format on P2P port %s: %w", processContext.StakingAddress, err)
-		}
+		p2pPort := processContext.StakingAddress.Port()
 		uriWords := strings.Split(processContext.URI, ":")
 		if len(uriWords) == 0 {
 			return node, fmt.Errorf("unexpected format on uri %s", processContext.URI)
@@ -772,7 +765,7 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 			return node, fmt.Errorf("unexpected format on uri %s: %w", processContext.URI, err)
 		}
 		node.apiPort = uint16(apiPort)
-		node.p2pPort = uint16(p2pPort)
+		node.p2pPort = p2pPort
 	}
 
 	node.client = ln.newAPIClientF(node.publicIP, node.apiPort)

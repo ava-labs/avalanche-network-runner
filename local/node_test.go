@@ -255,7 +255,7 @@ func TestAttachPeer(t *testing.T) {
 	requestID := uint32(42)
 	chainID := constants.PlatformChainID
 	// create the Chits message
-	msg, err := mc.Chits(chainID, requestID, preferredID, preferredIDAtHeight, acceptedID)
+	msg, err := mc.Chits(chainID, requestID, preferredID, preferredIDAtHeight, acceptedID, 0)
 	require.NoError(err)
 	// send chits to [node]
 	ok := p.Send(context.Background(), msg)

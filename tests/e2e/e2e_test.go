@@ -608,7 +608,7 @@ var _ = ginkgo.Describe("[Start/Remove/Restart/Add/Stop]", func() {
 			acceptedID := ids.GenerateTestID()
 			requestID := uint32(42)
 			chainID := avago_constants.PlatformChainID
-			msg, err := mc.Chits(chainID, requestID, preferredID, preferredIDAtHeight, acceptedID)
+			msg, err := mc.Chits(chainID, requestID, preferredID, preferredIDAtHeight, acceptedID, 0)
 			gomega.Ω(err).Should(gomega.BeNil())
 
 			ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
