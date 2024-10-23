@@ -530,7 +530,7 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	for i := range nodeConfigs {
 		if node, nodeErr := ln.addNode(nodeConfigs[i]); nodeErr != nil {
-			if ln.reassignPortsIfUsed {
+			if ln.reassignPortsIfUsed && node != nil {
 				if mainLog, err := os.ReadFile(filepath.Join(node.GetLogsDir(), "main.log")); err == nil {
 					if strings.Contains(string(mainLog), "bind: address already in use") {
 						ln.log.Info(fmt.Sprintf(
