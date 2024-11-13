@@ -62,6 +62,8 @@ const (
 	subnetValidatorsWeight = 1000
 	// check period for blockchain logs while waiting for custom chains to be ready
 	blockchainLogPullFrequency = time.Second
+	// check period for blockchain bootstrap status while waiting for custom chains to be ready
+	blockchainBootstrapCheckFrequency = time.Second
 	// check period while waiting for all validators to be ready
 	waitForValidatorsPullFrequency = time.Second
 	defaultTimeout                 = time.Minute
@@ -684,6 +686,7 @@ func (ln *localNetwork) waitForCustomChainsReady(
 			return err
 		}
 
+		// wait for blockchain to produce logs
 		for _, nodeName := range nodeNames {
 			node := ln.nodes[nodeName]
 			if node.paused {
@@ -713,6 +716,36 @@ func (ln *localNetwork) waitForCustomChainsReady(
 				case <-ctx.Done():
 					return ctx.Err()
 				case <-time.After(blockchainLogPullFrequency):
+				}
+			}
+		}
+
+		// wait for info.isBootstrapped
+		// we need this check to be sure all APIs recognize the blockchain ID
+		for _, nodeName := range nodeNames {
+			node := ln.nodes[nodeName]
+			if node.paused {
+				continue
+			}
+			for {
+				boostrapped, err := node.client.InfoAPI().IsBootstrapped(ctx, chainInfo.blockchainID.String())
+				if err != nil && !strings.Contains(err.Error(), "there is no chain with alias/ID") {
+					return err
+				}
+				if boostrapped {
+					break
+				}
+				ln.log.Info("not boostrapped, retrying...",
+					zap.String("subnet-ID", chainInfo.subnetID.String()),
+					zap.String("blockchain-ID", chainInfo.blockchainID.String()),
+					zap.String("node", node.name),
+				)
+				select {
+				case <-ln.onStopCh:
+					return errAborted
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(blockchainBootstrapCheckFrequency):
 				}
 			}
 		}
