@@ -39,6 +39,7 @@ type Client interface {
 	RemoveSubnetValidator(ctx context.Context, validatorSpec []*rpcpb.RemoveSubnetValidatorSpec) (*rpcpb.RemoveSubnetValidatorResponse, error)
 	AddSubnetValidators(ctx context.Context, validatorSpec []*rpcpb.SubnetValidatorsSpec) (*rpcpb.AddSubnetValidatorsResponse, error)
 	Health(ctx context.Context) (*rpcpb.HealthResponse, error)
+	UpdateStatus(ctx context.Context) (*rpcpb.UpdateStatusResponse, error)
 	WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error)
 	URIs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context) (*rpcpb.StatusResponse, error)
@@ -236,6 +237,10 @@ func (c *client) AddSubnetValidators(ctx context.Context, validatorSpec []*rpcpb
 func (c *client) Health(ctx context.Context) (*rpcpb.HealthResponse, error) {
 	c.log.Info("health")
 	return c.controlc.Health(ctx, &rpcpb.HealthRequest{})
+}
+
+func (c *client) UpdateStatus(ctx context.Context) (*rpcpb.UpdateStatusResponse, error) {
+	return c.controlc.UpdateStatus(ctx, &rpcpb.UpdateStatusRequest{})
 }
 
 func (c *client) WaitForHealthy(ctx context.Context) (*rpcpb.WaitForHealthyResponse, error) {
