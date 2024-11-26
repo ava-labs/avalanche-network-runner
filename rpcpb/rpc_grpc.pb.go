@@ -131,6 +131,7 @@ const (
 	ControlService_RemoveSubnetValidator_FullMethodName      = "/rpcpb.ControlService/RemoveSubnetValidator"
 	ControlService_CreateSubnets_FullMethodName              = "/rpcpb.ControlService/CreateSubnets"
 	ControlService_Health_FullMethodName                     = "/rpcpb.ControlService/Health"
+	ControlService_UpdateStatus_FullMethodName               = "/rpcpb.ControlService/UpdateStatus"
 	ControlService_URIs_FullMethodName                       = "/rpcpb.ControlService/URIs"
 	ControlService_WaitForHealthy_FullMethodName             = "/rpcpb.ControlService/WaitForHealthy"
 	ControlService_Status_FullMethodName                     = "/rpcpb.ControlService/Status"
@@ -167,6 +168,7 @@ type ControlServiceClient interface {
 	RemoveSubnetValidator(ctx context.Context, in *RemoveSubnetValidatorRequest, opts ...grpc.CallOption) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(ctx context.Context, in *CreateSubnetsRequest, opts ...grpc.CallOption) (*CreateSubnetsResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	UpdateStatus(ctx context.Context, in *UpdateStatusRequest, opts ...grpc.CallOption) (*UpdateStatusResponse, error)
 	URIs(ctx context.Context, in *URIsRequest, opts ...grpc.CallOption) (*URIsResponse, error)
 	WaitForHealthy(ctx context.Context, in *WaitForHealthyRequest, opts ...grpc.CallOption) (*WaitForHealthyResponse, error)
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
@@ -291,6 +293,16 @@ func (c *controlServiceClient) Health(ctx context.Context, in *HealthRequest, op
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
 	err := c.cc.Invoke(ctx, ControlService_Health_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlServiceClient) UpdateStatus(ctx context.Context, in *UpdateStatusRequest, opts ...grpc.CallOption) (*UpdateStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateStatusResponse)
+	err := c.cc.Invoke(ctx, ControlService_UpdateStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -520,6 +532,7 @@ type ControlServiceServer interface {
 	RemoveSubnetValidator(context.Context, *RemoveSubnetValidatorRequest) (*RemoveSubnetValidatorResponse, error)
 	CreateSubnets(context.Context, *CreateSubnetsRequest) (*CreateSubnetsResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
+	UpdateStatus(context.Context, *UpdateStatusRequest) (*UpdateStatusResponse, error)
 	URIs(context.Context, *URIsRequest) (*URIsResponse, error)
 	WaitForHealthy(context.Context, *WaitForHealthyRequest) (*WaitForHealthyResponse, error)
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
@@ -579,6 +592,9 @@ func (UnimplementedControlServiceServer) CreateSubnets(context.Context, *CreateS
 }
 func (UnimplementedControlServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
+}
+func (UnimplementedControlServiceServer) UpdateStatus(context.Context, *UpdateStatusRequest) (*UpdateStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateStatus not implemented")
 }
 func (UnimplementedControlServiceServer) URIs(context.Context, *URIsRequest) (*URIsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method URIs not implemented")
@@ -837,6 +853,24 @@ func _ControlService_Health_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServiceServer).Health(ctx, req.(*HealthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlService_UpdateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServiceServer).UpdateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_UpdateStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).UpdateStatus(ctx, req.(*UpdateStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1240,6 +1274,10 @@ var ControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _ControlService_Health_Handler,
+		},
+		{
+			MethodName: "UpdateStatus",
+			Handler:    _ControlService_UpdateStatus_Handler,
 		},
 		{
 			MethodName: "URIs",

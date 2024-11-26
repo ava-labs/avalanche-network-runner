@@ -92,6 +92,13 @@ service ControlService {
     };
   }
 
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse) {
+    option (google.api.http) = {
+      post: "/v1/control/updatestatus"
+      body: "*"
+    };
+  }
+
   rpc URIs(URIsRequest) returns (URIsResponse) {
     option (google.api.http) = {
       post: "/v1/control/uris"
@@ -537,6 +544,12 @@ message CreateSubnetsResponse {
 message HealthRequest {}
 
 message HealthResponse {
+  ClusterInfo cluster_info = 1;
+}
+
+message UpdateStatusRequest {}
+
+message UpdateStatusResponse {
   ClusterInfo cluster_info = 1;
 }
 

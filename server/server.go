@@ -927,6 +927,27 @@ func (s *server) Health(ctx context.Context, _ *rpcpb.HealthRequest) (*rpcpb.Hea
 	return &rpcpb.HealthResponse{ClusterInfo: clusterInfo}, nil
 }
 
+func (s *server) UpdateStatus(ctx context.Context, _ *rpcpb.UpdateStatusRequest) (*rpcpb.UpdateStatusResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.network == nil {
+		return nil, ErrNotBootstrapped
+	}
+
+	if err := s.network.AwaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
+		return nil, err
+	}
+
+	s.updateClusterInfo()
+
+	clusterInfo, err := deepCopy(s.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcpb.UpdateStatusResponse{ClusterInfo: clusterInfo}, nil
+}
+
 func (s *server) URIs(context.Context, *rpcpb.URIsRequest) (*rpcpb.URIsResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
