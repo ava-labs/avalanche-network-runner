@@ -530,19 +530,26 @@ func (ln *localNetwork) loadConfig(ctx context.Context, networkConfig network.Co
 
 	for i := range nodeConfigs {
 		if node, nodeErr := ln.addNode(nodeConfigs[i]); nodeErr != nil {
-			if ln.reassignPortsIfUsed && node != nil {
+			if node != nil {
 				if mainLog, err := os.ReadFile(filepath.Join(node.GetLogsDir(), "main.log")); err == nil {
 					if strings.Contains(string(mainLog), "bind: address already in use") {
-						ln.log.Info(fmt.Sprintf(
-							"failed to start node %s with given ports. executing again with dynamic ones.",
-							nodeConfigs[i].Name,
-						))
-						// execute again asking avago to set ports by itself
-						nodeConfigs[i].Flags[config.HTTPPortKey] = 0
-						nodeConfigs[i].Flags[config.StakingPortKey] = 0
-						_, nodeErr = ln.addNode(nodeConfigs[i])
-						if nodeErr == nil {
-							continue
+						if ln.reassignPortsIfUsed {
+							ln.log.Info(fmt.Sprintf(
+								"failed to start node %s with given ports. executing again with dynamic ones.",
+								nodeConfigs[i].Name,
+							))
+							// execute again asking avago to set ports by itself
+							nodeConfigs[i].Flags[config.HTTPPortKey] = 0
+							nodeConfigs[i].Flags[config.StakingPortKey] = 0
+							_, nodeErr = ln.addNode(nodeConfigs[i])
+							if nodeErr == nil {
+								continue
+							}
+						} else {
+							nodeErr = fmt.Errorf(
+								"failed to start node %s with given ports. probably another avalanchego process is running",
+								nodeConfigs[i].Name,
+							)
 						}
 					}
 				}
