@@ -8,7 +8,7 @@ import (
 
 	avm "github.com/ava-labs/avalanchego/vms/avm"
 
-	evm "github.com/ava-labs/coreth/plugin/evm"
+	evm "github.com/ava-labs/coreth/plugin/evm/client"
 
 	health "github.com/ava-labs/avalanchego/api/health"
 

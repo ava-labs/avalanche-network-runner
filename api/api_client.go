@@ -10,7 +10,7 @@ import (
 	"github.com/ava-labs/avalanchego/indexer"
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/ava-labs/coreth/plugin/evm"
+	evm "github.com/ava-labs/coreth/plugin/evm/client"
 )
 
 // interface compliance
