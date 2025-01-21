@@ -8,15 +8,13 @@ import (
 
 	avm "github.com/ava-labs/avalanchego/vms/avm"
 
-	evm "github.com/ava-labs/coreth/plugin/evm"
+	evm "github.com/ava-labs/coreth/plugin/evm/client"
 
 	health "github.com/ava-labs/avalanchego/api/health"
 
 	indexer "github.com/ava-labs/avalanchego/indexer"
 
 	info "github.com/ava-labs/avalanchego/api/info"
-
-	keystore "github.com/ava-labs/avalanchego/api/keystore"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -118,22 +116,6 @@ func (_m *Client) InfoAPI() info.Client {
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(info.Client)
-		}
-	}
-
-	return r0
-}
-
-// KeystoreAPI provides a mock function with given fields:
-func (_m *Client) KeystoreAPI() keystore.Client {
-	ret := _m.Called()
-
-	var r0 keystore.Client
-	if rf, ok := ret.Get(0).(func() keystore.Client); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(keystore.Client)
 		}
 	}
 

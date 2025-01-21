@@ -35,14 +35,14 @@ func generateNodeKeys() (*NodeKeys, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate staking cert/key: %w", err)
 	}
-	key, err := bls.NewSecretKey()
+	key, err := bls.NewSigner()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
 	}
 	return &NodeKeys{
 		StakingKey:  stakingKey,
 		StakingCert: stakingCert,
-		BlsKey:      bls.SecretKeyToBytes(key),
+		BlsKey:      key.ToBytes(),
 	}, nil
 }
 

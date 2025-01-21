@@ -6,11 +6,10 @@ import (
 	"github.com/ava-labs/avalanchego/api/admin"
 	"github.com/ava-labs/avalanchego/api/health"
 	"github.com/ava-labs/avalanchego/api/info"
-	"github.com/ava-labs/avalanchego/api/keystore"
 	"github.com/ava-labs/avalanchego/indexer"
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/ava-labs/coreth/plugin/evm"
+	evm "github.com/ava-labs/coreth/plugin/evm/client"
 )
 
 // interface compliance
@@ -28,7 +27,6 @@ type APIClient struct {
 	cChainEth    EthClient
 	info         info.Client
 	health       health.Client
-	keystore     keystore.Client
 	admin        admin.Client
 	pindex       indexer.Client
 	cindex       indexer.Client
@@ -48,7 +46,6 @@ func NewAPIClient(ipAddr string, port uint16) Client {
 		cChainEth:    NewEthClient(ipAddr, uint(port)), // wrapper over ethclient.Client
 		info:         info.NewClient(uri),
 		health:       health.NewClient(uri),
-		keystore:     keystore.NewClient(uri),
 		admin:        admin.NewClient(uri),
 		pindex:       indexer.NewClient(uri + "/ext/index/P/block"),
 		cindex:       indexer.NewClient(uri + "/ext/index/C/block"),
@@ -81,10 +78,6 @@ func (c APIClient) InfoAPI() info.Client {
 
 func (c APIClient) HealthAPI() health.Client {
 	return c.health
-}
-
-func (c APIClient) KeystoreAPI() keystore.Client {
-	return c.keystore
 }
 
 func (c APIClient) AdminAPI() admin.Client {

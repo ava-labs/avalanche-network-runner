@@ -142,7 +142,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		1,
 	))
 	tls := tlsCert.PrivateKey.(crypto.Signer)
-	bls0, err := bls.NewSecretKey()
+	bls0, err := bls.NewSigner()
 	if err != nil {
 		return nil, err
 	}

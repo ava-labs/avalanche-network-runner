@@ -81,7 +81,7 @@ func verifyProtocol(
 		Timestamp: now,
 	}
 	signer := myTLSCert.PrivateKey.(crypto.Signer)
-	bls0, err := bls.NewSecretKey()
+	bls0, err := bls.NewSigner()
 	if err != nil {
 		errCh <- err
 		return
