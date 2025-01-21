@@ -7,12 +7,12 @@ require (
 	github.com/ava-labs/coreth v0.14.1-rc.0
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
-	github.com/onsi/ginkgo/v2 v2.22.1
+	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/otiai10/copy v1.14.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.26.0
@@ -21,7 +21,7 @@ require (
 	golang.org/x/sync v0.10.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241219192143-6b3ec007d9bb
 	google.golang.org/grpc v1.69.2
-	google.golang.org/protobuf v1.36.1
+	google.golang.org/protobuf v1.36.3
 )
 
 require (
@@ -42,6 +42,11 @@ require (
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
+<<<<<<< HEAD
+=======
+	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20231025140028-3c0104f4b233 // indirect
+>>>>>>> main
 	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
