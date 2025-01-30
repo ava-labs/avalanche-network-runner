@@ -740,10 +740,6 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 				}
 			}
 		}
-		if len(nodeNames) != len(vs) {
-			return fmt.Errorf("not all subnet validators are in network for subnet %s", chainInfo.subnetID.String())
-		}
-
 		sort.Strings(nodeNames)
 		for _, nodeName := range nodeNames {
 			nodeInfo := lc.nodeInfos[nodeName]
