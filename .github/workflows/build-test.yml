@@ -59,7 +59,7 @@ jobs:
         run: echo "ANR_TMPDIR=$TMPDIR" >> $GITHUB_ENV
       - name: "Upload Artifact"
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: anr-logs-${{ matrix.os }}
           path: |
