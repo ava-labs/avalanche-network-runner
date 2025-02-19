@@ -3,8 +3,8 @@ module github.com/ava-labs/avalanche-network-runner
 go 1.22.8
 
 require (
-	github.com/ava-labs/avalanchego v1.11.13
-	github.com/ava-labs/coreth v0.13.9-rc.1
+	github.com/ava-labs/avalanchego v1.12.2
+	github.com/ava-labs/coreth v0.14.1-rc.1
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
 	github.com/onsi/ginkgo/v2 v2.22.2
@@ -132,7 +132,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.31.0 // indirect
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
-	go.uber.org/mock v0.4.0 // indirect
+	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
