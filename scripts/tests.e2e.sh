@@ -13,11 +13,11 @@ fi
 ANR_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 # this avago and subnet-evm versions must have compatibility at rpc protocol level
-DEFAULT_VERSION_1=v1.11.11
-DEFAULT_SUBNET_EVM_VERSION=v0.6.9
+DEFAULT_VERSION_1=v1.12.2
+DEFAULT_SUBNET_EVM_VERSION=v0.7.1
 
 # used standalone, without interaction with subnet-evm, no compatibility needed
-DEFAULT_VERSION_2=v1.11.11
+DEFAULT_VERSION_2=v1.12.2
 
 if [ $# == 0 ]; then
     VERSION_1=$DEFAULT_VERSION_1
