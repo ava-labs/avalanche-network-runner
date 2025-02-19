@@ -27,7 +27,7 @@ import (
 	"github.com/ava-labs/avalanchego/config"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/network/peer"
-	avagonode "github.com/ava-labs/avalanchego/node"
+	avagonode "github.com/ava-labs/avalanchego/config/node"
 	"github.com/ava-labs/avalanchego/staking"
 	"github.com/ava-labs/avalanchego/utils/beacon"
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
@@ -680,11 +680,11 @@ func (ln *localNetwork) addNode(nodeConfig node.Config) (node.Node, error) {
 				return nil, err
 			}
 		} else {
-			key, err := bls.NewSecretKey()
+			key, err := bls.NewSigner()
 			if err != nil {
 				return nil, fmt.Errorf("couldn't generate new signing key: %w", err)
 			}
-			keyBytes = bls.SecretKeyToBytes(key)
+			keyBytes = key.ToBytes()
 		}
 		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
 		nodeConfig.StakingSigningKey = encodedKey
