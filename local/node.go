@@ -178,7 +178,7 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 			logging.NoLog{},
 			peerMsgQueueBufferSize,
 		),
-		false,
+		true,
 	)
 	cctx, cancel := context.WithTimeout(ctx, peerStartWaitTimeout)
 	err = p.AwaitReady(cctx)
