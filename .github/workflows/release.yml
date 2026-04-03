@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Git checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           path: avalanche-network-runner
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'go.mod'
       - name: Set up arm64 cross compiler
@@ -26,7 +26,7 @@ jobs:
           sudo apt-get -y update
           sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Checkout osxcross
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         with:
           repository: tpoechtrager/osxcross
           path: osxcross
@@ -42,7 +42,7 @@ jobs:
           MACOS_SDK_FNAME: MacOSX12.3.sdk.tar.xz
           MACOS_SDK_CHECKSUM: 3abd261ceb483c44295a6623fdffe5d44fc4ac2c872526576ec5ab5ad0f6e26c
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # v2
         with:
           distribution: goreleaser
           version: latest
