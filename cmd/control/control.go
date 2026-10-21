@@ -1700,7 +1700,7 @@ func newClient() (client.Client, error) {
 }
 
 func getAsyncContext() context.Context {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout) //nolint:gosec // the context outlives this call and expires after requestTimeout
 	// don't call since function using it is async
 	// and the top-level context here "ctx" is passed
 	// to all underlying function calls

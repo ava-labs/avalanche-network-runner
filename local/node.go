@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"time"
@@ -194,6 +195,9 @@ func (node *localNode) SendOutboundMessage(ctx context.Context, peerID string, c
 	attachedPeer, ok := node.attachedPeers[peerID]
 	if !ok {
 		return false, fmt.Errorf("peer with ID %s is not attached here", peerID)
+	}
+	if op > math.MaxUint8 {
+		return false, fmt.Errorf("op %d does not fit in a message.Op", op)
 	}
 	msg := NewTestMsg(message.Op(op), content, false)
 	return attachedPeer.Send(ctx, msg), nil
