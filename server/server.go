@@ -1666,6 +1666,12 @@ func getNetworkElasticSubnetSpec(
 		return time.Duration(safeDuration) * time.Hour
 	}()
 
+	// Clamp to the byte range, like the stake durations above.
+	maxValidatorWeightFactor := byte(math.MaxUint8)
+	if spec.MaxValidatorWeightFactor <= math.MaxUint8 {
+		maxValidatorWeightFactor = byte(spec.MaxValidatorWeightFactor)
+	}
+
 	elasticSubnetSpec := network.ElasticSubnetSpec{
 		SubnetID:                 &spec.SubnetId,
 		AssetName:                spec.AssetName,
@@ -1680,7 +1686,7 @@ func getNetworkElasticSubnetSpec(
 		MaxStakeDuration:         maxStakeDuration,
 		MinDelegationFee:         spec.MinDelegationFee,
 		MinDelegatorStake:        spec.MinDelegatorStake,
-		MaxValidatorWeightFactor: byte(spec.MaxValidatorWeightFactor),
+		MaxValidatorWeightFactor: maxValidatorWeightFactor,
 		UptimeRequirement:        spec.UptimeRequirement,
 	}
 	return elasticSubnetSpec

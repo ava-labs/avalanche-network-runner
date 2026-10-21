@@ -2,7 +2,7 @@ module github.com/ava-labs/avalanche-network-runner
 
 go 1.24.8
 
-toolchain go1.24.9
+toolchain go1.26.10
 
 require (
 	github.com/ava-labs/avalanchego v1.13.6-rc.1
