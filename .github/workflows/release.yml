@@ -5,11 +5,12 @@ on:
     tags:
       - "*"
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   release:
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - name: Git checkout
@@ -17,6 +18,7 @@ jobs:
         with:
           fetch-depth: 0
           path: avalanche-network-runner
+          persist-credentials: false
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -30,6 +32,7 @@ jobs:
         with:
           repository: tpoechtrager/osxcross
           path: osxcross
+          persist-credentials: false
       - name: Build osxcross
         run: |
           sudo apt-get -y install clang llvm-dev libxml2-dev uuid-dev libssl-dev bash patch make tar xz-utils bzip2 gzip sed cpio libbz2-dev
